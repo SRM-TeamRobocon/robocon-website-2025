@@ -12,7 +12,7 @@ export interface MemberCardPropsType {
   Facebook?: string;
   Linkedin?: string;
   Instagram?: string;
-  ImageURL?:string;
+  ImageUrl?:string;
 }
 
 export default function MemberCard({
@@ -21,7 +21,7 @@ export default function MemberCard({
   Facebook,
   Linkedin,
   Instagram,
-  ImageURL
+  ImageUrl
 }: MemberCardPropsType) {
   useEffect(() => {
     AOS.init({
@@ -36,7 +36,7 @@ export default function MemberCard({
         <div className="relative h-full w-full shadow-xl transition-all duration-500 [transform-style:preserve-3d] group-focus:[transform:rotateY(180deg)] group-hover:[transform:rotateY(180deg)]">
           <div className="absolute inset-0 bg-slate-100 flex">
             <Image
-              src={`${ImageURL}`}
+              src={`${ImageUrl}`}
               alt="Project data image"
               width={500}
               height={500}

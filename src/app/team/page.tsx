@@ -146,7 +146,7 @@ export default function Team() {
                       Linkedin={obj["Linkedin"]}
                       Instagram={obj["Instagram"]}
                       // ImageURL={imageMap[obj["Image"]] || "https://static.vecteezy.com/system/resources/previews/036/280/650/large_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg"}
-                      ImageURL={obj["Image"] || "https://static.vecteezy.com/system/resources/previews/036/280/650/large_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg"}
+                      ImageUrl={(obj as any)["Image"] || "https://static.vecteezy.com/system/resources/previews/036/280/650/large_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg"}
                     />
                   ))}
                 </div>
