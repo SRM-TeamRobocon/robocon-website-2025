@@ -140,9 +140,9 @@ export default function Home() {
       </section> */}
       
       {/*Recruitment section*/}
-      <section className="relative max-md:mt-20">
+      {/* <section className="relative max-md:mt-20">
         <RecruitmentSection />
-      </section>
+      </section>/ */}
 
       {/* Third section */}
       <section className="w-full h-full">
