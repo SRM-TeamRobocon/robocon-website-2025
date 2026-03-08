@@ -356,7 +356,7 @@ export default function App() {
                     text-xs font-semibold 
                     rounded-full 
                     shadow-md">
-                      Women's Day Offer
+                      Women&apos;s Day Offer
                     </span>
                     <span className="px-3 py-1 
                     bg-gradient-to-r from-pink-500 to-rose-500 
