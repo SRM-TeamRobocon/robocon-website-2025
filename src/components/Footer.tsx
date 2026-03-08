@@ -20,8 +20,7 @@ export default function Footer(){
               ></Image>
             </div>
             <div className="md:m-10 w-64 md:w-[400px]">
-              BEL 604, 5th Floor, Basic Engineering Lab,SRMIST, Kattankulathur,
-              Chennai (603203)
+              SRM Team ROBOCON Lab, Aarush Building, Main Campus, SRMIST, Kattankulathur, Chennai 603203
             </div>
           </div>
           <div className="mt-10">

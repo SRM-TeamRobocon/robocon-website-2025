@@ -18,11 +18,11 @@ type PaymentState =
 const faqs = [
   {
     q: "What will I learn in these workshops?",
-    a: "In the Solidworks workshop (Hi-Tech 513), you'll learn to design CAD models and simulate them. In the Altium workshop, you'll learn PCB designing and simulations. Both feature hands-on approaches with industry certified mentors.",
+    a: "In the Solidworks workshop (Hi-Tech 513), you'll learn to design CAD models and simulate them. In the Altium workshop (Automobile Seminar Hall), you'll learn PCB designing and simulations. Both feature hands-on approaches with industry certified mentors.",
   },
   {
     q: "When and where are the workshops?",
-    a: "We are holding our flagship SolidWorks and Altium workshops on 11th, 12th and 13th of March, from 9 a.m. to 3 p.m. each day. The Solidworks workshop is happening at Hi-Tech 513 & Altium workshop Automobile seminar hall. Both workshops run simultaneously, so you can choose to attend either one based on your interest.",
+    a: "We are holding our flagship SolidWorks and Altium workshops on 11th, 12th and 13th of March, from 9 a.m. to 3 p.m. each day. The Solidworks workshop is happening at Hi-Tech 513 & Altium workshop Automobile Seminar Hall. Both workshops run simultaneously, so you can choose to attend either one based on your interest.",
   },
   {
     q: "What should I bring?",
@@ -685,6 +685,9 @@ export default function App() {
                     <option value="Solidworks">Solidworks</option>
                     {/* <option value="Altium">Altium</option> */}
                   </select>
+                  <p className="text-rose-400 text-xs mt-2 font-medium">
+                    * Altium Workshop registrations are now closed.
+                  </p>
                 </div>
 
                 {/* Transaction ID */}
