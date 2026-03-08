@@ -376,7 +376,7 @@ export default function App() {
                     text-xs font-semibold 
                     rounded-full 
                     shadow-md">
-                      BOTH WORKSHOPS AT JUST ₹499!
+                      SOLIDWORKS WORKSHOP AT JUST ₹499!
                     </span>
 
                   </div>
