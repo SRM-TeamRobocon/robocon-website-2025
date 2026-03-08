@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import "./styles.css";
 import { useRouter } from "next/navigation";
 
-const WORKSHOP_AMOUNT = 599; // ₹599
+const WORKSHOP_AMOUNT = 499; // ₹599
 
 type PaymentState =
   | "idle"
@@ -315,7 +315,7 @@ export default function App() {
                         Workshop Fee
                       </p>
                       <p className="text-white font-bold text-3xl mt-0.5">
-                        ₹599
+                        <s>₹599</s>
                       </p>
                     </div>
                     <div className="text-right">
@@ -327,10 +327,10 @@ export default function App() {
                 </div>
 
                 <div className="bg-gradient-to-r from-fuchsia-500/25 via-pink-500/25 to-rose-500/20 border border-pink-400/40 rounded-xl p-4 mb-5 shadow-lg shadow-pink-500/10">
-                  <div className="flex justify-between items-center">                    
+                  <div className="flex justify-between items-center">
                     <div>
                       <p className="text-pink-200 text-xs uppercase tracking-wider">
-                        ONLY FOR SOLIDWORKS
+                        WORKSHOP FEE
                       </p>
                       <p className="text-white font-bold text-3xl mt-1">
                         ₹499
@@ -343,13 +343,13 @@ export default function App() {
                       text-pink-300 
                       text-xs font-semibold 
                       rounded-full">
-                        One-Time
+                        One-Day
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 pt-3 text-center">
-    
+
                     <span className="px-3 py-1 
                     bg-gradient-to-r from-pink-500 to-rose-500 
                     text-white 
@@ -369,14 +369,14 @@ export default function App() {
 
                   </div>
                   <div className="flex items-center gap-2 pt-3 text-center">
-    
+
                     <span className="px-3 py-1 
                     bg-gradient-to-r from-pink-500 to-rose-500 
                     text-white 
                     text-xs font-semibold 
                     rounded-full 
                     shadow-md">
-                      SOLIDWORKS WORKSHOP AT JUST ₹499!
+                      BOTH WORKSHOPS AT JUST ₹499!
                     </span>
 
                   </div>
