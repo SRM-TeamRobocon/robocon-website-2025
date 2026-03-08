@@ -22,7 +22,7 @@ const faqs = [
   },
   {
     q: "When and where are the workshops?",
-    a: "We are holding our flagship SolidWorks and Altium workshops on 11th, 12th and 13th of March, from 9 a.m. to 3 p.m. each day. The Solidworks workshop is happening at Hi-Tech 513.",
+    a: "We are holding our flagship SolidWorks and Altium workshops on 11th, 12th and 13th of March, from 9 a.m. to 3 p.m. each day. The Solidworks workshop is happening at Hi-Tech 513 & Altium workshop Automobile seminar hall. Both workshops run simultaneously, so you can choose to attend either one based on your interest.",
   },
   {
     q: "What should I bring?",
@@ -324,6 +324,63 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-fuchsia-500/25 via-pink-500/25 to-rose-500/20 border border-pink-400/40 rounded-xl p-4 mb-5 shadow-lg shadow-pink-500/10">
+                  <div className="flex justify-between items-center">                    
+                    <div>
+                      <p className="text-pink-200 text-xs uppercase tracking-wider">
+                        ONLY FOR SOLIDWORKS
+                      </p>
+                      <p className="text-white font-bold text-3xl mt-1">
+                        ₹499
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-block px-3 py-1 
+                      bg-pink-500/20 
+                      border border-pink-400/40 
+                      text-pink-300 
+                      text-xs font-semibold 
+                      rounded-full">
+                        One-Time
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-3 text-center">
+    
+                    <span className="px-3 py-1 
+                    bg-gradient-to-r from-pink-500 to-rose-500 
+                    text-white 
+                    text-xs font-semibold 
+                    rounded-full 
+                    shadow-md">
+                      Women's Day Offer
+                    </span>
+                    <span className="px-3 py-1 
+                    bg-gradient-to-r from-pink-500 to-rose-500 
+                    text-white 
+                    text-xs font-semibold 
+                    rounded-full 
+                    shadow-md">
+                      Only On 8th March
+                    </span>
+
+                  </div>
+                  <div className="flex items-center gap-2 pt-3 text-center">
+    
+                    <span className="px-3 py-1 
+                    bg-gradient-to-r from-pink-500 to-rose-500 
+                    text-white 
+                    text-xs font-semibold 
+                    rounded-full 
+                    shadow-md">
+                      SOLIDWORKS WORKSHOP AT JUST ₹499!
+                    </span>
+
+                  </div>
+
                 </div>
 
                 {/* QR Code */}
@@ -696,7 +753,7 @@ export default function App() {
                             d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                           />
                         </svg>
-                        Pay ₹599 & Register
+                        Pay & Register
                       </span>
                     )}
                   </button>
