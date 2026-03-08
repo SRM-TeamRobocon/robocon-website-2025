@@ -9,12 +9,16 @@ const workshops = [
         tag: "CAD Modelling",
         date: "Mar 11–13",
         image: "/events/solidworks2026.png",
+        link: "/workshopReg2",
+        isClosed: false,
     },
     {
         title: "Altium Workshop",
         tag: "PCB Design",
         date: "Mar 11–13",
         image: "/events/altium2026.png",
+        link: "/workshopReg2",
+        isClosed: true,
     },
 ];
 
@@ -75,26 +79,35 @@ const WorkshopSection = () => {
                                     <h3 className="text-xl font-bold text-white mb-3">
                                         {workshop.title}
                                     </h3>
-                                    <Link
-                                        href="/workshopReg2"
-                                        className="flex items-center justify-center gap-2 w-full bg-white/[0.09] hover:bg-red border border-white/10 hover:border-red text-white font-semibold py-2.5 rounded-lg text-sm transition-all duration-300"
-                                    >
-                                        Register Now
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="w-4 h-4"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            strokeWidth={2.5}
+                                    {workshop.isClosed ? (
+                                        <button
+                                            disabled
+                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.05] border border-white/10 text-white/50 font-semibold py-2.5 rounded-lg text-sm cursor-not-allowed"
                                         >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                            />
-                                        </svg>
-                                    </Link>
+                                            Registrations Closed
+                                        </button>
+                                    ) : (
+                                        <Link
+                                            href={workshop.link || "/workshopReg2"}
+                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.09] hover:bg-red border border-white/10 hover:border-red text-white font-semibold py-2.5 rounded-lg text-sm transition-all duration-300"
+                                        >
+                                            Register Now
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2.5}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                                />
+                                            </svg>
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
                         </div>

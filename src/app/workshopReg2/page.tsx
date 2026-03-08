@@ -683,7 +683,7 @@ export default function App() {
                       Select one
                     </option>
                     <option value="Solidworks">Solidworks</option>
-                    <option value="Altium">Altium</option>
+                    {/* <option value="Altium">Altium</option> */}
                   </select>
                 </div>
 
