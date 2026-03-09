@@ -315,7 +315,7 @@ export default function App() {
                         Workshop Fee
                       </p>
                       <p className="text-white font-bold text-3xl mt-0.5">
-                        <s>₹599</s>
+                        ₹599
                       </p>
                     </div>
                     <div className="text-right">
@@ -326,62 +326,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-fuchsia-500/25 via-pink-500/25 to-rose-500/20 border border-pink-400/40 rounded-xl p-4 mb-5 shadow-lg shadow-pink-500/10">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-pink-200 text-xs uppercase tracking-wider">
-                        WORKSHOP FEE
-                      </p>
-                      <p className="text-white font-bold text-3xl mt-1">
-                        ₹499
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="inline-block px-3 py-1 
-                      bg-pink-500/20 
-                      border border-pink-400/40 
-                      text-pink-300 
-                      text-xs font-semibold 
-                      rounded-full">
-                        One-Day
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-3 text-center">
-
-                    <span className="px-3 py-1 
-                    bg-gradient-to-r from-pink-500 to-rose-500 
-                    text-white 
-                    text-xs font-semibold 
-                    rounded-full 
-                    shadow-md">
-                      Women&apos;s Day Offer
-                    </span>
-                    <span className="px-3 py-1 
-                    bg-gradient-to-r from-pink-500 to-rose-500 
-                    text-white 
-                    text-xs font-semibold 
-                    rounded-full 
-                    shadow-md">
-                      Only On 8th March
-                    </span>
-
-                  </div>
-                  <div className="flex items-center gap-2 pt-3 text-center">
-
-                    <span className="px-3 py-1 
-                    bg-gradient-to-r from-pink-500 to-rose-500 
-                    text-white 
-                    text-xs font-semibold 
-                    rounded-full 
-                    shadow-md">
-                      SOLIDWORKS WORKSHOP AT JUST ₹499!
-                    </span>
-
-                  </div>
-
-                </div>
+              
 
                 {/* QR Code */}
                 <div className="w-full aspect-square bg-white rounded-xl mb-5 flex items-center justify-center p-2 shadow-inner overflow-hidden">
