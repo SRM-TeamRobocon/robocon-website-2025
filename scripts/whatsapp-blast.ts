@@ -97,9 +97,11 @@ client.on('ready', async () => {
         let verifiedRegistrants = registrations.filter(r => r.paymentStatus === "VERIFIED" && r.ticketId && r.whatsapp);
 
         if (runMode === "TEST") {
-            verifiedRegistrants = verifiedRegistrants.filter(r => r.name.toLowerCase() === "test");
+            const allowedNames = ["test", "sai kowshik dharmendran"];
+            verifiedRegistrants = verifiedRegistrants.filter(r => 
+                allowedNames.includes(r.name.trim().toLowerCase())
+            );
         }
-
         console.log(`Found ${verifiedRegistrants.length} registrants to message.`);
 
         if (verifiedRegistrants.length === 0) {

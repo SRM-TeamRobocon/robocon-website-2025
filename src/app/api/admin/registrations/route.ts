@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getRegistrations } from "@/utils/googleSheets";
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
