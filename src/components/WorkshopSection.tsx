@@ -18,7 +18,7 @@ const workshops = [
         date: "Mar 11–13",
         image: "/events/altium2026.png",
         link: "/workshopReg2",
-        isClosed: true,
+        isClosed: false,
     },
 ];
 

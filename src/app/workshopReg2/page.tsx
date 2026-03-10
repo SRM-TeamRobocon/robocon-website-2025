@@ -627,11 +627,11 @@ export default function App() {
                     <option disabled value="default">
                       Select one
                     </option>
-                    <option value="Solidworks">Solidworks</option>
+                    {/* <option value="Solidworks">Solidworks</option> */}
                     {/* <option value="Altium">Altium</option> */}
                   </select>
                   <p className="text-rose-400 text-xs mt-2 font-medium">
-                    * Altium Workshop registrations are now closed.
+                    * Solidworks & Altium Workshop registrations are now closed as seats are full.
                   </p>
                 </div>
 
