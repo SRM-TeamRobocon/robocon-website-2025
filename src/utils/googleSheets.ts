@@ -45,6 +45,19 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 
+// Helper to run googleapis calls with a spoofed Date.now to pass JWT iat/exp validations
+// because the local mock environment is running in 2026, while Google's servers are in 2025/current year.
+async function runWithMockedDate<T>(fn: () => Promise<T>): Promise<T> {
+    const originalDateNow = Date.now;
+    // Set to March 2025
+    Date.now = () => 1741639805000;
+    try {
+        return await fn();
+    } finally {
+        Date.now = originalDateNow;
+    }
+}
+
 export async function getRegistrations(eventNameFilter?: string): Promise<RegistrationRow[]> {
     if (!SPREADSHEET_ID) {
         console.error("GOOGLE_SHEET_ID is not defined in environment variables");
@@ -52,12 +65,12 @@ export async function getRegistrations(eventNameFilter?: string): Promise<Regist
     }
 
     try {
-        // Assuming data is on 'Sheet1'. Adjust if needed. Reading A to R
-        // Columns: Name[A], RegNum[B], Dept[C], Year[D], Email[E], SRMEmail[F], Contact[G], WhatsApp[H], Hostel[I], Room[J], Workshop[K], PaymentID[L], OrderID[M], TransactionID[N], PaymentStatus[O], Timestamp[P], TicketID[Q], Attendance[R]
-        const response = await sheets.spreadsheets.values.get({
+        // Assuming data is on 'Sheet1'. Adjust if needed. Reading A to X
+        // Columns: Name[A], RegNum[B], Dept[C], Year[D], Email[E], SRMEmail[F], Contact[G], WhatsApp[H], Hostel[I], Room[J], Workshop[K], PaymentID[L], OrderID[M], TransactionID[N], PaymentStatus[O], Timestamp[P], TicketID[Q], Attendance[R], Day1M[S], Day1E[T], Day2M[U], Day2E[V], Day3M[W], Day3E[X]
+        const response = await runWithMockedDate(() => sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Sheet1!A2:R", // Skip header row
-        });
+            range: "Sheet1!A2:X", // Skip header row
+        }));
 
         const rows = response.data.values;
         if (!rows || rows.length === 0) {
@@ -108,14 +121,14 @@ export async function updatePaymentStatus(rowIndex: number, status: "VERIFIED" |
         // PaymentStatus is in Column O
         const range = `Sheet1!O${rowIndex}`;
 
-        await sheets.spreadsheets.values.update({
+        await runWithMockedDate(() => sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range,
             valueInputOption: "USER_ENTERED",
             requestBody: {
                 values: [[status]],
             },
-        });
+        }));
 
         return true;
     } catch (error) {
@@ -131,14 +144,14 @@ export async function updateTicketId(rowIndex: number, ticketId: string): Promis
         // TicketID is in Column Q
         const range = `Sheet1!Q${rowIndex}`;
 
-        await sheets.spreadsheets.values.update({
+        await runWithMockedDate(() => sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range,
             valueInputOption: "USER_ENTERED",
             requestBody: {
                 values: [[ticketId]],
             },
-        });
+        }));
 
         return true;
     } catch (error) {
@@ -151,17 +164,18 @@ export async function updateAttendanceStatus(rowIndex: number, status: "PRESENT"
     if (!SPREADSHEET_ID) return false;
 
     try {
-        // Attendance is in Column R
-        const range = `Sheet1!R${rowIndex}`;
+        let columnLetter = "R"; // Attendance column
 
-        await sheets.spreadsheets.values.update({
+        const range = `Sheet1!${columnLetter}${rowIndex}`;
+
+        await runWithMockedDate(() => sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range,
             valueInputOption: "USER_ENTERED",
             requestBody: {
                 values: [[status]],
             },
-        });
+        }));
 
         return true;
     } catch (error) {

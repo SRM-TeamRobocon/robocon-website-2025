@@ -10,7 +10,7 @@ const workshops = [
         date: "Mar 11–13",
         image: "/events/solidworks2026.png",
         link: "/workshopReg2",
-        isClosed: false,
+        isClosed: true,
     },
     {
         title: "Altium Workshop",

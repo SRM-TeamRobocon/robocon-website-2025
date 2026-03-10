@@ -26,7 +26,9 @@ function ScannerComponent() {
             const json = await res.json();
             if (json.success && json.data) {
                 const verified = json.data.filter((r: any) => r.paymentStatus === "VERIFIED" && r.workshop.trim().toLowerCase() === event.trim().toLowerCase());
+
                 const scanned = verified.filter((r: any) => r.attendance === "PRESENT").length;
+
                 setAnalytics({ total: verified.length, scanned: scanned, remaining: verified.length - scanned });
             }
         } catch (error) {
@@ -37,7 +39,7 @@ function ScannerComponent() {
     useEffect(() => {
         eventNameRef.current = eventName;
         fetchAnalytics(eventName);
-    }, [eventName]);
+    }, [eventName, fetchAnalytics]);
 
     const handleScan = React.useCallback(async (decodedText: string) => {
         const cleanText = decodedText.trim();
@@ -138,7 +140,7 @@ function ScannerComponent() {
             <div className="text-center mb-8">
                 <h1 className="text-3xl md:text-4xl font-black text-white mb-6 drop-shadow-md tracking-tight">Registration Scanner</h1>
 
-                <div className="inline-flex bg-gray-900/40 p-1.5 rounded-2xl border border-gray-700 backdrop-blur-md">
+                <div className="inline-flex bg-gray-900/40 p-1.5 rounded-2xl border border-gray-700 backdrop-blur-md mb-6">
                     <button
                         onClick={() => setEventName("Solidworks")}
                         className={`px-8 py-3 rounded-xl text-sm font-black tracking-wide transition-all duration-300 ${eventName === "Solidworks"

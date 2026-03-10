@@ -26,7 +26,7 @@ export default function AdminLayout({
                     else if (data.user === "siesed") setUsername("SIESED");
                     else if (data.user === "mcsocd") setUsername("MCSOCD");
                     else if (data.user === "sambed") setUsername("SAMBED");
-                    else if(data.user === "spaced") setUsername("SPACED");
+                    else if (data.user === "spaced") setUsername("SPACED");
                     else setUsername("MEMBER");
                 }
             } catch (e) {

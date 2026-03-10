@@ -12,7 +12,7 @@ export interface MemberCardPropsType {
   Facebook?: string;
   Linkedin?: string;
   Instagram?: string;
-  ImageUrl?:string;
+  ImageUrl?: string;
 }
 
 export default function MemberCard({
@@ -59,18 +59,18 @@ export default function MemberCard({
               ) : null}
               {Linkedin ? (
                 <Link href={Linkedin}>
-                <LinkedinBoxFillIcon
-                  size={50}
-                  className="hover:fill-white hover:scale-105 hover:cursor-pointer"
-                />
+                  <LinkedinBoxFillIcon
+                    size={50}
+                    className="hover:fill-white hover:scale-105 hover:cursor-pointer"
+                  />
                 </Link>
               ) : null}
               {Instagram ? (
                 <Link href={Instagram}>
-                <InstagramFillIcon
-                  size={50}
-                  className="hover:fill-white hover:scale-105 hover:cursor-pointer"
-                />
+                  <InstagramFillIcon
+                    size={50}
+                    className="hover:fill-white hover:scale-105 hover:cursor-pointer"
+                  />
                 </Link>
               ) : null}
             </div>

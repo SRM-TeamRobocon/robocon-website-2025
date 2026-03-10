@@ -114,41 +114,8 @@ export default function App() {
 
   async function handlePayment(e: React.FormEvent) {
     e.preventDefault();
-    const formData = getFormData();
-    if (!formData) return;
-    const validationError = validateForm(formData);
-    if (validationError) {
-      setMessage(validationError);
-      return;
-    }
-
-    setMessage("");
-    setError(false);
-    setPaymentError("");
-    setPaymentState("submitting");
-    setLoading(true);
-
-    try {
-      await submitRegistration(
-        formData,
-        formData.TransactionID.trim()
-      );
-      setPaymentState("success");
-      setTimeout(() => {
-        router.push(
-          `/workshopReg2/success?transactionId=${formData.TransactionID.trim()}`
-        );
-      }, 1500);
-    } catch (err: any) {
-      console.error("Submission error:", err);
-      setPaymentState("failed");
-      const reason = err.message || "Something went wrong. Please try again.";
-      setPaymentError(reason);
-      setLoading(false);
-      setTimeout(() => {
-        router.push(`/workshopReg2/failed?reason=${encodeURIComponent(reason)}`);
-      }, 3000);
-    }
+    setMessage("Sorry, but all registrations are now closed.");
+    return;
   }
 
   function resetPayment() {
@@ -257,8 +224,8 @@ export default function App() {
 
         <div className="relative z-10 text-center pt-8 md:pt-10 pb-4 px-5 md:px-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium mb-4 md:mb-5 tracking-wide">
-            <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-pulse" />
-            REGISTRATIONS OPEN
+            <span className="w-1.5 h-1.5 bg-rose-400 rounded-full" />
+            REGISTRATIONS FULL
           </div>
           <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 md:mb-3">
             SolidWorks & Altium{" "}
@@ -326,7 +293,7 @@ export default function App() {
                   </div>
                 </div>
 
-              
+
 
                 {/* QR Code */}
                 <div className="w-full aspect-square bg-white rounded-xl mb-5 flex items-center justify-center p-2 shadow-inner overflow-hidden">
@@ -627,11 +594,9 @@ export default function App() {
                     <option disabled value="default">
                       Select one
                     </option>
-                    <option value="Solidworks">Solidworks</option>
-                    {/* <option value="Altium">Altium</option> */}
                   </select>
                   <p className="text-rose-400 text-xs mt-2 font-medium">
-                    * Altium Workshop registrations are now closed.
+                    * All Workshop registrations are now closed.
                   </p>
                 </div>
 
@@ -657,53 +622,10 @@ export default function App() {
                 <div className="pt-2 space-y-3">
                   <button
                     type="submit"
-                    disabled={loading}
-                    className={`w-full py-3.5 rounded-xl font-semibold text-white text-base transition-all duration-300 ${loading
-                      ? "bg-gray-800 cursor-not-allowed text-gray-500"
-                      : "bg-gradient-to-r from-rose-600 via-rose-500 to-red-500 hover:from-rose-500 hover:via-rose-400 hover:to-red-400 shadow-lg shadow-rose-500/20 hover:shadow-rose-500/40 hover:scale-[1.01] active:scale-[0.99]"
-                      }`}
+                    disabled={true}
+                    className={`w-full py-3.5 rounded-xl font-semibold text-white text-base transition-all duration-300 bg-gray-800 cursor-not-allowed text-gray-500`}
                   >
-                    {loading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg
-                          className="w-5 h-5 animate-spin"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
-                        </svg>
-                        Processing...
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                          />
-                        </svg>
-                        Pay & Register
-                      </span>
-                    )}
+                    Registrations Closed
                   </button>
 
 

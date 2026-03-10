@@ -125,8 +125,8 @@ export default function AdminLogin() {
                                 type="submit"
                                 disabled={loading}
                                 className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-all ${loading
-                                        ? "bg-blue-600/50 cursor-not-allowed"
-                                        : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25"
+                                    ? "bg-blue-600/50 cursor-not-allowed"
+                                    : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25"
                                     }`}
                             >
                                 {loading ? (

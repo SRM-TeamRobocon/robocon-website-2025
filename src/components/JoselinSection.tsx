@@ -48,7 +48,7 @@ const JoselinSection = () => {
                             </p>
                         </div>
 
-                        
+
 
                         {/* LinkedIn Link */}
                         {/* <div className="flex items-center gap-4">

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: "Ticket has already been used!" }, { status: 200 });
         }
 
-        // Update Attendance
+        // Update Attendance (Column R)
         const updated = await updateAttendanceStatus(match.rowIndex, "PRESENT");
 
         if (updated) {
