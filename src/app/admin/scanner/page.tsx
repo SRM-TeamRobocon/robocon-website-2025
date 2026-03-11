@@ -5,11 +5,23 @@ import { useSearchParams } from "next/navigation";
 import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
 import toast from "react-hot-toast";
 
+const SESSIONS = [
+    { key: "day1Morning", label: "Day 1 — Morning" },
+    { key: "day1Evening", label: "Day 1 — Evening" },
+    { key: "day2Morning", label: "Day 2 — Morning" },
+    { key: "day2Evening", label: "Day 2 — Evening" },
+    { key: "day3Morning", label: "Day 3 — Morning" },
+    { key: "day3Evening", label: "Day 3 — Evening" },
+] as const;
+
+type SessionKey = typeof SESSIONS[number]["key"];
+
 function ScannerComponent() {
     const searchParams = useSearchParams();
     const initialEvent = searchParams.get("event") || "Solidworks";
 
     const [eventName, setEventName] = useState(initialEvent);
+    const [session, setSession] = useState<SessionKey>("day1Morning");
     const [scanResult, setScanResult] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
@@ -17,17 +29,22 @@ function ScannerComponent() {
 
     // Use refs to avoid stale closures in html5-qrcode callbacks
     const eventNameRef = useRef(eventName);
+    const sessionRef = useRef(session);
     const loadingRef = useRef(false);
     const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-    const fetchAnalytics = React.useCallback(async (event: string) => {
+    const fetchAnalytics = React.useCallback(async (event: string, sess: SessionKey) => {
         try {
             const res = await fetch(`/api/admin/registrations?event=${event}`);
             const json = await res.json();
             if (json.success && json.data) {
-                const verified = json.data.filter((r: any) => r.paymentStatus === "VERIFIED" && r.workshop.trim().toLowerCase() === event.trim().toLowerCase());
-                const scanned = verified.filter((r: any) => r.attendance === "PRESENT").length;
-                setAnalytics({ total: verified.length, scanned: scanned, remaining: verified.length - scanned });
+                const verified = json.data.filter(
+                    (r: any) =>
+                        r.paymentStatus === "VERIFIED" &&
+                        r.workshop.trim().toLowerCase() === event.trim().toLowerCase()
+                );
+                const scanned = verified.filter((r: any) => r[sess] === "PRESENT").length;
+                setAnalytics({ total: verified.length, scanned, remaining: verified.length - scanned });
             }
         } catch (error) {
             console.error("Failed to fetch analytics", error);
@@ -36,12 +53,12 @@ function ScannerComponent() {
 
     useEffect(() => {
         eventNameRef.current = eventName;
-        fetchAnalytics(eventName);
-    }, [eventName]);
+        sessionRef.current = session;
+        fetchAnalytics(eventName, session);
+    }, [eventName, session, fetchAnalytics]);
 
     const handleScan = React.useCallback(async (decodedText: string) => {
         const cleanText = decodedText.trim();
-        // Prevent rapid re-scans immediately
         if (loadingRef.current) return;
 
         loadingRef.current = true;
@@ -49,7 +66,7 @@ function ScannerComponent() {
         setScanResult(cleanText);
         setMessage({ text: `Verifying ${cleanText}...`, type: "info" });
 
-        // Play a beep sound locally if possible
+        // Beep on scan
         try {
             const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
             if (AudioContext) {
@@ -63,13 +80,16 @@ function ScannerComponent() {
         } catch (e) { }
 
         try {
-            // Toast id allows updating the loading toast instantly
             const toastId = toast.loading(`Verifying ${decodedText}...`);
 
             const res = await fetch("/api/admin/scan", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ticketId: cleanText, eventName: eventNameRef.current }),
+                body: JSON.stringify({
+                    ticketId: cleanText,
+                    eventName: eventNameRef.current,
+                    session: sessionRef.current,
+                }),
             });
 
             const json = await res.json();
@@ -77,8 +97,7 @@ function ScannerComponent() {
             if (json.success) {
                 setMessage({ text: json.message || "Successfully Checked In!", type: "success" });
                 toast.success(json.message || "Successfully Checked In!", { id: toastId, duration: 4000 });
-                // Re-fetch analytics immediately to update UI counters live
-                fetchAnalytics(eventNameRef.current);
+                fetchAnalytics(eventNameRef.current, sessionRef.current);
             } else {
                 setMessage({ text: json.error || "Failed to check in", type: "error" });
                 toast.error(json.error || "Failed to check in", { id: toastId, duration: 5000 });
@@ -88,7 +107,6 @@ function ScannerComponent() {
             setMessage({ text: "Network error while verifying ticket.", type: "error" });
             toast.error("Network error while verifying ticket.");
         } finally {
-            // Keep scanner "loading" state active for 3 seconds to prevent double scanning
             setTimeout(() => {
                 loadingRef.current = false;
                 setLoading(false);
@@ -99,7 +117,6 @@ function ScannerComponent() {
     }, [fetchAnalytics]);
 
     useEffect(() => {
-        // Initialize scanner
         if (!scannerRef.current) {
             scannerRef.current = new Html5QrcodeScanner(
                 "qr-reader",
@@ -108,23 +125,19 @@ function ScannerComponent() {
                     qrbox: { width: 250, height: 250 },
                     supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
                 },
-                false // verbose
+                false
             );
 
             scannerRef.current.render(
                 (decodedText) => {
-                    // Callback on successful scan
-                    if (!loadingRef.current) { // Prevent multiple rapid scans via ref
+                    if (!loadingRef.current) {
                         handleScan(decodedText);
                     }
                 },
-                (errorMessage) => {
-                    // Ignore general scan errors (happens constantly when waiting)
-                }
+                () => { }
             );
         }
 
-        // Cleanup scanner on unmount
         return () => {
             if (scannerRef.current) {
                 scannerRef.current.clear().catch(e => console.error("Failed to clear scanner", e));
@@ -133,12 +146,15 @@ function ScannerComponent() {
         };
     }, [handleScan]);
 
+    const currentSessionLabel = SESSIONS.find(s => s.key === session)?.label ?? session;
+
     return (
         <div className="max-w-3xl mx-auto space-y-8 pt-4 md:pt-8 px-4">
             <div className="text-center mb-8">
                 <h1 className="text-3xl md:text-4xl font-black text-white mb-6 drop-shadow-md tracking-tight">Registration Scanner</h1>
 
-                <div className="inline-flex bg-gray-900/40 p-1.5 rounded-2xl border border-gray-700 backdrop-blur-md">
+                {/* Workshop toggle */}
+                <div className="inline-flex bg-gray-900/40 p-1.5 rounded-2xl border border-gray-700 backdrop-blur-md mb-4">
                     <button
                         onClick={() => setEventName("Solidworks")}
                         className={`px-8 py-3 rounded-xl text-sm font-black tracking-wide transition-all duration-300 ${eventName === "Solidworks"
@@ -158,6 +174,35 @@ function ScannerComponent() {
                         Altium
                     </button>
                 </div>
+
+                {/* Session dropdown */}
+                <div className="flex flex-col items-center gap-2">
+                    <p className="text-xs uppercase tracking-widest font-bold text-gray-500">Select Session</p>
+                    <div className="relative">
+                        <select
+                            value={session}
+                            onChange={(e) => setSession(e.target.value as SessionKey)}
+                            className="appearance-none bg-gray-900/70 border border-gray-600 text-white text-sm font-semibold rounded-xl pl-4 pr-10 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer shadow-inner backdrop-blur-md transition-colors hover:border-gray-500 min-w-[220px]"
+                        >
+                            {SESSIONS.map((s) => (
+                                <option key={s.key} value={s.key} className="bg-gray-900">
+                                    {s.label}
+                                </option>
+                            ))}
+                        </select>
+                        {/* Chevron icon */}
+                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+                    {/* Active session pill */}
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                        Active: {currentSessionLabel}
+                    </div>
+                </div>
             </div>
 
             <div className={`bg-gray-900/60 border ${loading ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.2)]' : 'border-gray-700/50 hover:border-gray-600'} p-4 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden backdrop-blur-xl transition-all duration-300`}>
@@ -166,7 +211,6 @@ function ScannerComponent() {
                 {message && (
                     <div className="absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md animate-in fade-in zoom-in duration-300" style={{ backgroundColor: 'rgba(3, 7, 18, 0.95)' }}>
                         <div className="text-center max-w-sm w-full bg-gray-900 rounded-3xl p-8 border shadow-2xl relative overflow-hidden" style={{ borderColor: message.type === 'success' ? '#10b981' : message.type === 'error' ? '#ef4444' : '#3b82f6' }}>
-                            {/* Decorative Background Glows */}
                             {message.type === 'success' && (
                                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 blur-3xl pointer-events-none" style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)' }} />
                             )}
@@ -196,6 +240,8 @@ function ScannerComponent() {
                                     {message.type === 'success' ? 'Ticket Valid!' : message.type === 'error' ? 'Invalid Ticket' : 'Verifying...'}
                                 </h2>
                                 <p className="text-white text-lg font-medium leading-relaxed">{message.text}</p>
+                                {/* Show which session was scanned */}
+                                <p className="text-xs text-gray-500 mt-2 uppercase tracking-widest">{currentSessionLabel}</p>
                                 {scanResult && message.type !== 'info' && (
                                     <div className="mt-6 pt-6 border-t border-gray-800">
                                         <p className="text-xs uppercase tracking-widest font-bold mb-2" style={{ color: '#9ca3af' }}>Scanned ID</p>
@@ -214,11 +260,11 @@ function ScannerComponent() {
                         background: transparent !important;
                     }
                     #qr-reader * {
-                        color: #e5e7eb !important; /* text-gray-200 */
+                        color: #e5e7eb !important;
                         font-family: inherit !important;
                     }
                     #qr-reader button {
-                        background: #3b82f6 !important; /* blue-500 */
+                        background: #3b82f6 !important;
                         color: white !important;
                         padding: 10px 20px !important;
                         border-radius: 12px !important;
@@ -230,7 +276,7 @@ function ScannerComponent() {
                         transition: all 0.2s !important;
                     }
                     #qr-reader button:hover {
-                        background: #2563eb !important; /* blue-600 */
+                        background: #2563eb !important;
                     }
                     #qr-reader select {
                         background: #1f2937 !important;
@@ -253,7 +299,7 @@ function ScannerComponent() {
                 {/* Scanner Element */}
                 <div id="qr-reader" className="w-full bg-black/50 rounded-2xl overflow-hidden [&_video]:w-full [&_video]:object-cover border border-gray-800/50 shadow-inner min-h-[300px]" />
 
-                {/* Manual Fallback for Local Network / Camera Issues */}
+                {/* Manual Fallback */}
                 <div className="mt-8 border-t border-gray-800/80 pt-8">
                     <p className="text-sm font-medium text-gray-400 mb-4 text-center">Camera disabled or restricted? Use manual entry fallback:</p>
                     <form
@@ -296,9 +342,10 @@ function ScannerComponent() {
                 <div className="text-gray-300">
                     <p className="font-bold text-white text-base mb-2">Scanner Instructions</p>
                     <ul className="space-y-1.5 list-disc list-inside marker:text-blue-500">
+                        <li>Select the correct <span className="text-white font-semibold">workshop</span> and <span className="text-white font-semibold">session</span> before scanning.</li>
                         <li>Grant camera permissions if your browser prompts you.</li>
                         <li>Center the attendee&apos;s QR code in the frame with adequate lighting.</li>
-                        <li>The system will automatically scan and check them into the Google Sheet.</li>
+                        <li>The system will check them into the selected session column in Google Sheets.</li>
                     </ul>
                 </div>
             </div>
@@ -313,11 +360,13 @@ function ScannerComponent() {
                     <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-500/20 rounded-full blur-xl"></div>
                     <p className="text-xs md:text-sm font-bold text-emerald-500 uppercase tracking-widest mb-1 relative z-10">Checked In</p>
                     <p className="text-2xl md:text-4xl font-black text-emerald-400 relative z-10">{analytics.scanned}</p>
+                    <p className="text-[10px] text-emerald-600 font-semibold mt-1 relative z-10 truncate">{currentSessionLabel}</p>
                 </div>
                 <div className="bg-amber-500/10 border border-amber-500/30 p-4 md:p-6 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.1)] backdrop-blur-md relative overflow-hidden">
                     <div className="absolute -right-4 -top-4 w-16 h-16 bg-amber-500/20 rounded-full blur-xl"></div>
                     <p className="text-xs md:text-sm font-bold text-amber-500 uppercase tracking-widest mb-1 relative z-10">Remaining</p>
                     <p className="text-2xl md:text-4xl font-black text-amber-400 relative z-10">{analytics.remaining}</p>
+                    <p className="text-[10px] text-amber-600 font-semibold mt-1 relative z-10 truncate">{currentSessionLabel}</p>
                 </div>
             </div>
         </div>

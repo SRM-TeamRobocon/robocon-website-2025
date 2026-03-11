@@ -4,6 +4,17 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
 
+const SESSION_LABELS: Record<string, string> = {
+    day1Morning: "D1 AM",
+    day1Evening: "D1 PM",
+    day2Morning: "D2 AM",
+    day2Evening: "D2 PM",
+    day3Morning: "D3 AM",
+    day3Evening: "D3 PM",
+};
+
+const SESSION_KEYS = Object.keys(SESSION_LABELS);
+
 // Define the type locally to match the backend
 interface RegistrationRow {
     rowIndex: number;
@@ -24,6 +35,12 @@ interface RegistrationRow {
     paymentStatus: string;
     timestamp: string;
     attendance: string;
+    day1Morning: string;
+    day1Evening: string;
+    day2Morning: string;
+    day2Evening: string;
+    day3Morning: string;
+    day3Evening: string;
 }
 
 export default function EventDashboard() {
@@ -43,7 +60,6 @@ export default function EventDashboard() {
     const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            // Fetch User Role
             const meRes = await fetch("/api/admin/me");
             const meJson = await meRes.json();
             if (meJson.success) {
@@ -53,7 +69,6 @@ export default function EventDashboard() {
             const res = await fetch(`/api/admin/registrations?event=${eventName}`);
             const json = await res.json();
             if (json.success) {
-                // Reverse array to show newest first!
                 setData(json.data.reverse());
             } else {
                 setError("Failed to fetch data.");
@@ -87,7 +102,6 @@ export default function EventDashboard() {
 
             if (json.success) {
                 toast.success("Verified & Ticket Sent!");
-                // Refresh data
                 fetchData();
             } else {
                 toast.error(json.error || "Unknown error occurred");
@@ -101,10 +115,8 @@ export default function EventDashboard() {
 
     const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-    // Computed data
     const filteredData = data.filter((row) => {
         if (filter !== "ALL" && row.paymentStatus !== filter) return false;
-
         if (searchTerm) {
             const search = searchTerm.toLowerCase();
             return (
@@ -196,13 +208,14 @@ export default function EventDashboard() {
                                 <th scope="col" className="px-6 py-4">Participant Details</th>
                                 <th scope="col" className="px-6 py-4">Payment Info</th>
                                 <th scope="col" className="px-6 py-4 text-center">Status</th>
+                                <th scope="col" className="px-6 py-4 text-center">Attendance</th>
                                 <th scope="col" className="px-6 py-4 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                         <div className="flex justify-center flex-col items-center">
                                             <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
                                             Fetching latest rows from Google Sheets...
@@ -211,11 +224,11 @@ export default function EventDashboard() {
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-red-400 bg-red-500/5">{error}</td>
+                                    <td colSpan={6} className="px-6 py-8 text-center text-red-400 bg-red-500/5">{error}</td>
                                 </tr>
                             ) : filteredData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 italic">No registrations found matching the criteria.</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No registrations found matching the criteria.</td>
                                 </tr>
                             ) : (
                                 filteredData.map((row) => (
@@ -260,12 +273,26 @@ export default function EventDashboard() {
                                                     PENDING
                                                 </div>
                                             )}
+                                        </td>
 
-                                            {row.attendance === 'PRESENT' && (
-                                                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold w-max">
-                                                    CHECKED IN
-                                                </div>
-                                            )}
+                                        {/* Per-session attendance badges */}
+                                        <td className="px-6 py-4 align-middle">
+                                            <div className="flex flex-wrap gap-1 justify-center">
+                                                {SESSION_KEYS.map((sess) => {
+                                                    const isPresent = row[sess as keyof RegistrationRow] === "PRESENT";
+                                                    return (
+                                                        <span
+                                                            key={sess}
+                                                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${isPresent
+                                                                ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
+                                                                : "bg-gray-800/60 border-gray-700/40 text-gray-600"
+                                                                }`}
+                                                        >
+                                                            {SESSION_LABELS[sess]}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
                                         </td>
 
                                         <td className="px-6 py-4 align-middle text-right">

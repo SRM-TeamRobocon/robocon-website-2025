@@ -657,8 +657,8 @@ export default function App() {
                 <div className="pt-2 space-y-3">
                   <button
                     type="submit"
-                    disabled={loading}
-                    className={`w-full py-3.5 rounded-xl font-semibold text-white text-base transition-all duration-300 ${loading
+                    disabled={true}
+                    className={`w-full py-3.5 rounded-xl font-semibold text-white text-base transition-all duration-300 ${true
                       ? "bg-gray-800 cursor-not-allowed text-gray-500"
                       : "bg-gradient-to-r from-rose-600 via-rose-500 to-red-500 hover:from-rose-500 hover:via-rose-400 hover:to-red-400 shadow-lg shadow-rose-500/20 hover:shadow-rose-500/40 hover:scale-[1.01] active:scale-[0.99]"
                       }`}
@@ -701,7 +701,7 @@ export default function App() {
                             d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                           />
                         </svg>
-                        Pay & Register
+                        Registrations Closed
                       </span>
                     )}
                   </button>
