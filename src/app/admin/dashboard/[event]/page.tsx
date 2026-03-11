@@ -5,6 +5,15 @@ import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
 
 const SESSION_LABELS: Record<string, string> = {
+    day1Morning: "Day 1 — Morning",
+    day1Evening: "Day 1 — Evening",
+    day2Morning: "Day 2 — Morning",
+    day2Evening: "Day 2 — Evening",
+    day3Morning: "Day 3 — Morning",
+    day3Evening: "Day 3 — Evening",
+};
+
+const SESSION_LABELS_SHORT: Record<string, string> = {
     day1Morning: "D1 AM",
     day1Evening: "D1 PM",
     day2Morning: "D2 AM",
@@ -50,12 +59,17 @@ export default function EventDashboard() {
     const [data, setData] = useState<RegistrationRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    
+    // Filters
     const [filter, setFilter] = useState("ALL"); // ALL, PENDING, VERIFIED
+    const [sessionFilter, setSessionFilter] = useState("ALL"); // ALL or specific session key
     const [searchTerm, setSearchTerm] = useState("");
+    
     const [role, setRole] = useState<string | null>(null);
 
     // Action states
     const [verifyingRow, setVerifyingRow] = useState<number | null>(null);
+    const [updatingAttendance, setUpdatingAttendance] = useState<number | null>(null);
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
@@ -113,6 +127,40 @@ export default function EventDashboard() {
         }
     };
 
+    const handleToggleAttendance = async (row: RegistrationRow, session: string) => {
+        setUpdatingAttendance(row.rowIndex);
+        
+        // Determine the inverse of the current status
+        const currentStatus = row[session as keyof RegistrationRow] as string;
+        const newStatus = currentStatus === "PRESENT" ? "ABSENT" : "PRESENT";
+
+        try {
+            const res = await fetch("/api/admin/update-attendance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    rowIndex: row.rowIndex,
+                    session: session,
+                    status: newStatus
+                }),
+            });
+            
+            const json = await res.json();
+
+            if (json.success) {
+                toast.success(`Marked ${newStatus} for ${row.name}`);
+                fetchData(); // Refresh UI
+            } else {
+                toast.error(json.error || "Failed to update attendance");
+            }
+        } catch (err) {
+            toast.error("Network error updating attendance");
+        } finally {
+            setUpdatingAttendance(null);
+        }
+    };
+
+
     const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
     const filteredData = data.filter((row) => {
@@ -131,17 +179,23 @@ export default function EventDashboard() {
 
     const verifiedCount = data.filter(r => r.paymentStatus === "VERIFIED").length;
     const pendingCount = data.filter(r => r.paymentStatus === "PENDING").length;
+    
+    // Calculate session-specific attendance stats if a session is selected
+    const checkedInCount = sessionFilter !== "ALL" 
+        ? verifiedCount > 0 ? filteredData.filter(r => r[sessionFilter as keyof RegistrationRow] === "PRESENT").length : 0 
+        : 0;
+
     const title = eventName ? `${capitalize(eventName)} Workshop` : "Workshop";
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">{title} <span className="text-gray-500 font-normal">| Participants</span></h1>
                     <p className="text-gray-400">Total: {data.length} registrants</p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3 items-end">
                     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-2 flex items-center gap-3 shadow-inner">
                         <span className="text-emerald-500/80">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -161,12 +215,39 @@ export default function EventDashboard() {
                             <p className="text-lg text-white font-bold">{pendingCount}</p>
                         </div>
                     </div>
+
+                    {sessionFilter !== "ALL" && (
+                        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-4 py-2 flex items-center gap-3 shadow-inner">
+                            <span className="text-indigo-500/80">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            </span>
+                            <div>
+                                <p className="text-xs text-indigo-400/80 uppercase font-bold tracking-wider">Present</p>
+                                <p className="text-lg text-white font-bold">{checkedInCount}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* Attendance Manager Warning Bar */}
+            {sessionFilter !== "ALL" && (
+                <div className="mb-4 bg-indigo-500/10 border border-indigo-500/30 p-3 rounded-xl flex items-center gap-3 backdrop-blur-md">
+                    <div className="p-2 bg-indigo-500/20 rounded-lg">
+                        <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div>
+                        <p className="text-sm text-indigo-200 font-medium">
+                            <strong className="text-indigo-300">Attendance Manager Mode:</strong> You are viewing <span className="font-bold underline">{SESSION_LABELS[sessionFilter]}</span>. You can now manually check people in and out below.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
+                
                 {/* Controls Bar */}
-                <div className="p-4 border-b border-gray-800 flex flex-col md:flex-row gap-4 justify-between bg-gray-900/80">
+                <div className="p-4 border-b border-gray-800 flex flex-col xl:flex-row gap-4 justify-between bg-gray-900/80">
                     <div className="relative max-w-md w-full">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -180,22 +261,44 @@ export default function EventDashboard() {
                         />
                     </div>
 
-                    <div className="flex gap-2">
-                        {["ALL", "PENDING", "VERIFIED"].map((f) => (
-                            <button
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filter === f
-                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                                    : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
-                                    }`}
+                    <div className="flex flex-wrap gap-4 items-center justify-end">
+                        
+                        {/* Attendance Session Filter Dropdown */}
+                        <div className="flex items-center gap-2 bg-gray-800/40 p-1.5 rounded-xl border border-gray-700/50">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2">View:</span>
+                            <select
+                                value={sessionFilter}
+                                onChange={(e) => setSessionFilter(e.target.value)}
+                                className="appearance-none bg-gray-800/80 border border-gray-600 text-white text-xs font-semibold rounded-lg pl-3 pr-8 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer transition-colors"
                             >
-                                {f}
+                                <option value="ALL">All Sessions Overview</option>
+                                <optgroup label="Manage Attendance">
+                                    {SESSION_KEYS.map(key => (
+                                        <option key={key} value={key}>{SESSION_LABELS[key]}</option>
+                                    ))}
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        {/* Payment Filter Buttons */}
+                        <div className="flex gap-2">
+                            {["ALL", "PENDING", "VERIFIED"].map((f) => (
+                                <button
+                                    key={f}
+                                    onClick={() => setFilter(f)}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filter === f
+                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
+                                        }`}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                            <button onClick={fetchData} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors border border-gray-700 group" title="Refresh Data">
+                                <svg className="w-4 h-4 text-gray-300 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             </button>
-                        ))}
-                        <button onClick={fetchData} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors border border-gray-700 group" title="Refresh Data">
-                            <svg className="w-4 h-4 text-gray-300 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        </button>
+                        </div>
+
                     </div>
                 </div>
 
@@ -208,7 +311,9 @@ export default function EventDashboard() {
                                 <th scope="col" className="px-6 py-4">Participant Details</th>
                                 <th scope="col" className="px-6 py-4">Payment Info</th>
                                 <th scope="col" className="px-6 py-4 text-center">Status</th>
-                                <th scope="col" className="px-6 py-4 text-center">Attendance</th>
+                                <th scope="col" className="px-6 py-4 text-center">
+                                    {sessionFilter === "ALL" ? "All Attendance" : `Attendance: ${SESSION_LABELS_SHORT[sessionFilter]}`}
+                                </th>
                                 <th scope="col" className="px-6 py-4 text-right">Action</th>
                             </tr>
                         </thead>
@@ -232,7 +337,11 @@ export default function EventDashboard() {
                                 </tr>
                             ) : (
                                 filteredData.map((row) => (
-                                    <tr key={row.rowIndex} className="border-b border-gray-800/80 hover:bg-gray-800/30 transition-colors">
+                                    <tr key={row.rowIndex} className={`border-b border-gray-800/80 transition-colors ${
+                                        sessionFilter !== "ALL" && row[sessionFilter as keyof RegistrationRow] === "PRESENT" 
+                                            ? "bg-indigo-900/10 hover:bg-indigo-900/20" 
+                                            : "hover:bg-gray-800/30"
+                                    }`}>
                                         <td className="px-6 py-4 align-top whitespace-nowrap">
                                             <div className="text-white font-medium">{new Date(row.timestamp).toLocaleDateString()}</div>
                                             <div className="text-xs text-gray-500">{new Date(row.timestamp).toLocaleTimeString()}</div>
@@ -275,33 +384,47 @@ export default function EventDashboard() {
                                             )}
                                         </td>
 
-                                        {/* Per-session attendance badges */}
+                                        {/* Attendance Column */}
                                         <td className="px-6 py-4 align-middle">
-                                            <div className="flex flex-wrap gap-1 justify-center">
-                                                {SESSION_KEYS.map((sess) => {
-                                                    const isPresent = row[sess as keyof RegistrationRow] === "PRESENT";
-                                                    return (
-                                                        <span
-                                                            key={sess}
-                                                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${isPresent
-                                                                ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
-                                                                : "bg-gray-800/60 border-gray-700/40 text-gray-600"
-                                                                }`}
-                                                        >
-                                                            {SESSION_LABELS[sess]}
-                                                        </span>
-                                                    );
-                                                })}
-                                            </div>
+                                            {sessionFilter === "ALL" ? (
+                                                <div className="flex flex-wrap gap-1 justify-center w-max max-w-[120px] mx-auto">
+                                                    {SESSION_KEYS.map((sess) => {
+                                                        const isPresent = row[sess as keyof RegistrationRow] === "PRESENT";
+                                                        return (
+                                                            <span
+                                                                key={sess}
+                                                                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${isPresent
+                                                                    ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
+                                                                    : "bg-gray-800/60 border-gray-700/40 text-gray-600"
+                                                                    }`}
+                                                            >
+                                                                {SESSION_LABELS_SHORT[sess]}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="flex justify-center">
+                                                    {row[sessionFilter as keyof RegistrationRow] === "PRESENT" ? (
+                                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                            CHECKED IN
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-600 text-[10px] uppercase font-bold italic py-1">Missing</span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </td>
 
                                         <td className="px-6 py-4 align-middle text-right">
+                                            {/* Action when Payment is PENDING */}
                                             {row.paymentStatus === 'PENDING' && (
                                                 role === 'lead' ? (
                                                     <button
                                                         onClick={() => handleVerify(row)}
                                                         disabled={verifyingRow === row.rowIndex}
-                                                        className={`inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-md active:scale-95 ${verifyingRow === row.rowIndex
+                                                        className={`inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-md active:scale-95 whitespace-nowrap ${verifyingRow === row.rowIndex
                                                             ? "bg-gray-700 text-gray-400 cursor-not-allowed"
                                                             : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20"
                                                             }`}
@@ -309,7 +432,7 @@ export default function EventDashboard() {
                                                         {verifyingRow === row.rowIndex ? (
                                                             <>
                                                                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                                Verifying...
+                                                                Verifying
                                                             </>
                                                         ) : (
                                                             'Verify & Send Ticket'
@@ -318,6 +441,36 @@ export default function EventDashboard() {
                                                 ) : (
                                                     <span className="text-gray-600 text-[10px] uppercase font-bold italic">Lead Access Required</span>
                                                 )
+                                            )}
+
+                                            {/* Action when Payment is VERIFIED AND Session Mode is ON */}
+                                            {row.paymentStatus === 'VERIFIED' && sessionFilter !== 'ALL' && (
+                                                role === 'lead' ? (
+                                                    <button
+                                                        onClick={() => handleToggleAttendance(row, sessionFilter)}
+                                                        disabled={updatingAttendance === row.rowIndex}
+                                                        className={`inline-flex items-center justify-center px-4 py-1.5 text-xs font-bold rounded-lg transition-all shadow-md active:scale-95 whitespace-nowrap min-w-[140px] ${updatingAttendance === row.rowIndex
+                                                            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                                                            : row[sessionFilter as keyof RegistrationRow] === "PRESENT"
+                                                                ? "bg-gray-800 hover:bg-red-500/20 border border-gray-700 hover:border-red-500/50 text-gray-400 hover:text-red-400" 
+                                                                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20"
+                                                            }`}
+                                                    >
+                                                        {updatingAttendance === row.rowIndex ? (
+                                                             "Updating..."
+                                                        ) : row[sessionFilter as keyof RegistrationRow] === "PRESENT" ? (
+                                                            "UNDO / Mark Absent"
+                                                        ) : (
+                                                            "Mark Present"
+                                                        )}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-gray-600 text-[10px] uppercase font-bold italic">Lead Access Required</span>
+                                                )
+                                            )}
+                                            
+                                            {row.paymentStatus === 'VERIFIED' && sessionFilter === 'ALL' && (
+                                                <span className="text-gray-600 text-[10px] uppercase font-bold italic px-2">Manage in specific view</span>
                                             )}
                                         </td>
                                     </tr>
