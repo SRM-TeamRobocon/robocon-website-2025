@@ -1,5 +1,17 @@
 import { google } from "googleapis";
 
+// Session keys mapped to Google Sheet column letters (S–X)
+export const SESSION_COLUMN_MAP: Record<string, string> = {
+    day1Morning: "S",
+    day1Evening: "T",
+    day2Morning: "U",
+    day2Evening: "V",
+    day3Morning: "W",
+    day3Evening: "X",
+};
+
+export type AttendanceSession = keyof typeof SESSION_COLUMN_MAP;
+
 // Define the type for our registration rows based on the columns
 export interface RegistrationRow {
     rowIndex: number; // To know exactly which row to update for check-ins
@@ -20,7 +32,15 @@ export interface RegistrationRow {
     paymentStatus: string;
     timestamp: string;
     ticketId: string;
+    // Legacy single-column attendance (col R) — kept for backward compat
     attendance: string;
+    // Per-session attendance (cols S–X)
+    day1Morning: string;
+    day1Evening: string;
+    day2Morning: string;
+    day2Evening: string;
+    day3Morning: string;
+    day3Evening: string;
 }
 
 // Ensure the private key is properly formatted
@@ -52,11 +72,15 @@ export async function getRegistrations(eventNameFilter?: string): Promise<Regist
     }
 
     try {
-        // Assuming data is on 'Sheet1'. Adjust if needed. Reading A to R
-        // Columns: Name[A], RegNum[B], Dept[C], Year[D], Email[E], SRMEmail[F], Contact[G], WhatsApp[H], Hostel[I], Room[J], Workshop[K], PaymentID[L], OrderID[M], TransactionID[N], PaymentStatus[O], Timestamp[P], TicketID[Q], Attendance[R]
+        // Columns A–X:
+        // A=Name, B=RegNum, C=Dept, D=Year, E=Email, F=SRMEmail, G=Contact, H=WhatsApp,
+        // I=Hostel, J=Room, K=Workshop, L=PaymentID, M=OrderID, N=TransactionID,
+        // O=PaymentStatus, P=Timestamp, Q=TicketID, R=Attendance(legacy),
+        // S=Day1-Morning, T=Day1-Evening, U=Day2-Morning, V=Day2-Evening,
+        // W=Day3-Morning, X=Day3-Evening
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Sheet1!A2:R", // Skip header row
+            range: "Sheet1!A2:X", // Extended to column X
         });
 
         const rows = response.data.values;
@@ -84,7 +108,13 @@ export async function getRegistrations(eventNameFilter?: string): Promise<Regist
             paymentStatus: row[14] || "PENDING",
             timestamp: row[15] || "",
             ticketId: row[16] || "",
-            attendance: row[17] || "ABSENT",
+            attendance: row[17] || "ABSENT",    // col R (legacy)
+            day1Morning: row[18] || "ABSENT",   // col S
+            day1Evening: row[19] || "ABSENT",   // col T
+            day2Morning: row[20] || "ABSENT",   // col U
+            day2Evening: row[21] || "ABSENT",   // col V
+            day3Morning: row[22] || "ABSENT",   // col W
+            day3Evening: row[23] || "ABSENT",   // col X
         }));
 
         // Filter by event if provided (case insensitive)
@@ -147,11 +177,11 @@ export async function updateTicketId(rowIndex: number, ticketId: string): Promis
     }
 }
 
+/** Legacy — writes to column R. Kept for backward compatibility. */
 export async function updateAttendanceStatus(rowIndex: number, status: "PRESENT" | "ABSENT"): Promise<boolean> {
     if (!SPREADSHEET_ID) return false;
 
     try {
-        // Attendance is in Column R
         const range = `Sheet1!R${rowIndex}`;
 
         await sheets.spreadsheets.values.update({
@@ -166,6 +196,44 @@ export async function updateAttendanceStatus(rowIndex: number, status: "PRESENT"
         return true;
     } catch (error) {
         console.error(`Error updating attendance status for row ${rowIndex}:`, error);
+        return false;
+    }
+}
+
+/**
+ * Write attendance for a specific session into the corresponding column (S–X).
+ * @param rowIndex  1-based sheet row number
+ * @param session   One of the SESSION_COLUMN_MAP keys
+ * @param status    "PRESENT" | "ABSENT"
+ */
+export async function updateSessionAttendance(
+    rowIndex: number,
+    session: AttendanceSession,
+    status: "PRESENT" | "ABSENT"
+): Promise<boolean> {
+    if (!SPREADSHEET_ID) return false;
+
+    const col = SESSION_COLUMN_MAP[session];
+    if (!col) {
+        console.error(`Unknown session key: ${session}`);
+        return false;
+    }
+
+    try {
+        const range = `Sheet1!${col}${rowIndex}`;
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range,
+            valueInputOption: "USER_ENTERED",
+            requestBody: {
+                values: [[status]],
+            },
+        });
+
+        return true;
+    } catch (error) {
+        console.error(`Error updating session attendance (${session}) for row ${rowIndex}:`, error);
         return false;
     }
 }

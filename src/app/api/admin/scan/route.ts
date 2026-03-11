@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { updateAttendanceStatus, getRegistrations } from "@/utils/googleSheets";
+import { updateSessionAttendance, getRegistrations, SESSION_COLUMN_MAP, AttendanceSession } from "@/utils/googleSheets";
+
+const VALID_SESSIONS = Object.keys(SESSION_COLUMN_MAP) as AttendanceSession[];
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { ticketId, eventName } = body;
+        const { ticketId, eventName, session } = body;
 
         if (!ticketId) {
             return NextResponse.json(
@@ -13,7 +15,14 @@ export async function POST(request: Request) {
             );
         }
 
-        // Let's fetch all registrations WITHOUT filtering by event first
+        if (!session || !VALID_SESSIONS.includes(session)) {
+            return NextResponse.json(
+                { success: false, error: `Missing or invalid session. Must be one of: ${VALID_SESSIONS.join(", ")}` },
+                { status: 400 }
+            );
+        }
+
+        // Fetch all registrations (unfiltered)
         const allRegistrations = await getRegistrations();
 
         const ticketRecord = allRegistrations.find(r => r.ticketId === ticketId);
@@ -34,19 +43,22 @@ export async function POST(request: Request) {
             }, { status: 400 });
         }
 
-        const match = ticketRecord;
-
-        if (match.attendance === "PRESENT") {
-            return NextResponse.json({ success: false, error: "Ticket has already been used!" }, { status: 200 });
+        // Check if already checked in for THIS specific session
+        const sessionValue = ticketRecord[session as keyof typeof ticketRecord] as string;
+        if (sessionValue === "PRESENT") {
+            return NextResponse.json({
+                success: false,
+                error: `${ticketRecord.name} is already checked in for this session!`
+            }, { status: 200 });
         }
 
-        // Update Attendance
-        const updated = await updateAttendanceStatus(match.rowIndex, "PRESENT");
+        // Update session attendance
+        const updated = await updateSessionAttendance(ticketRecord.rowIndex, session, "PRESENT");
 
         if (updated) {
             return NextResponse.json({
                 success: true,
-                message: `Successfully checked in ${match.name}!`
+                message: `Successfully checked in ${ticketRecord.name}!`
             }, { status: 200 });
         } else {
             return NextResponse.json({ success: false, error: "Failed to write to Google Sheets" }, { status: 500 });
