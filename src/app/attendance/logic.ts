@@ -1,4 +1,4 @@
-import { ATTENDANCE_CONFIG } from "./attendance.config";
+import { ATTENDANCE_CONFIG, ATTENDANCE_MEMBERS, ATTENDANCE_UID_ALIASES, AttendanceMember } from "./attendance.config";
 
 export interface TapLog {
   Name: string;
@@ -7,11 +7,13 @@ export interface TapLog {
   Time: string;
   timestamp: number;
   action?: "IN" | "OUT";
+  domain?: string;
 }
 
 export interface UserStats {
   UID: string;
   Name: string;
+  Domain: string;
   status: "IN" | "OUT";
   totalTimeMs: number;
   overallTotalTimeMs: number;
@@ -21,6 +23,11 @@ export interface UserStats {
 
 const MAX_SESSION_MS = ATTENDANCE_CONFIG.MAX_SESSION_HOURS * 60 * 60 * 1000;
 const CAPPED_SESSION_MS = ATTENDANCE_CONFIG.CAPPED_SESSION_HOURS * 60 * 60 * 1000;
+const DUPLICATE_IN_SESSION_MS = ATTENDANCE_CONFIG.DUPLICATE_IN_HOURS * 60 * 60 * 1000;
+
+const MEMBER_BY_UID = new Map<string, AttendanceMember>(
+  ATTENDANCE_MEMBERS.map((m) => [normalizeUid(m.uid), m])
+);
 
 export function parseCSV(csvString: string): TapLog[] {
   const lines = csvString.trim().split('\n');
@@ -32,14 +39,20 @@ export function parseCSV(csvString: string): TapLog[] {
     if (values.length >= 4) {
       const actionRaw = values[4] ? values[4].trim().toUpperCase() : "";
       const action = (actionRaw === "IN" || actionRaw === "OUT") ? actionRaw as "IN" | "OUT" : undefined;
+      const normalizedUid = normalizeUid(values[1]);
+      const member = getMemberFromUid(normalizedUid);
+      const fallbackName = buildFallbackName(normalizedUid);
+      const rawName = values[0] ? values[0].trim() : "";
+      const rawDomain = values[5] ? values[5].trim().toUpperCase() : "";
       
       const log: TapLog = {
-        Name: values[0],
-        UID: values[1],
+        Name: rawName || member?.name || fallbackName,
+        UID: normalizedUid,
         Date: values[2],
         Time: values[3],
         timestamp: parseDateTime(values[2], values[3]),
-        action
+        action,
+        domain: rawDomain || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN
       };
       if (!isNaN(log.timestamp)) results.push(log);
     }
@@ -74,14 +87,20 @@ export function parseData(data: any): TapLog[] {
       if (row.length >= 4) {
         const actionRaw = row[4] ? String(row[4]).trim().toUpperCase() : "";
         const action = (actionRaw === "IN" || actionRaw === "OUT") ? actionRaw as "IN" | "OUT" : undefined;
+        const domainRaw = row[5] ? String(row[5]).trim().toUpperCase() : "";
+        const normalizedUid = normalizeUid(String(row[1]));
+        const member = getMemberFromUid(normalizedUid);
+        const fallbackName = buildFallbackName(normalizedUid);
+        const rawName = String(row[0] || "").trim();
         
         const log: TapLog = {
-          Name: String(row[0]),
-          UID: String(row[1]),
+          Name: rawName || member?.name || fallbackName,
+          UID: normalizedUid,
           Date: String(row[2]),
           Time: String(row[3]),
           timestamp: parseDateTime(String(row[2]), String(row[3])),
-          action
+          action,
+          domain: domainRaw || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN
         };
         if (!isNaN(log.timestamp)) results.push(log);
       }
@@ -146,12 +165,14 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
   for (const log of sortedLogs) {
     if (!userMap.has(log.UID)) {
       userMap.set(log.UID, {
-        UID: log.UID, Name: log.Name, status: "OUT",
+        UID: log.UID, Name: log.Name, Domain: log.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN, status: "OUT",
         totalTimeMs: 0, overallTotalTimeMs: 0, lastTapMs: 0, currentStreak: 0,
         datesVisited: new Set()
       });
     }
     const user = userMap.get(log.UID)!;
+    if (log.domain) user.Domain = log.domain;
+    if (log.Name) user.Name = log.Name;
     user.datesVisited.add(log.Date);
 
     // Determine intent explicitly from sheet, or fallback to simple toggle
@@ -163,6 +184,11 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
     if (action === "IN") {
       if (user.status === "OUT") {
         user.status = "IN";
+        user.lastTapMs = log.timestamp;
+      } else {
+        // Duplicate IN means missing OUT; close previous session with fixed 6h.
+        user.overallTotalTimeMs += DUPLICATE_IN_SESSION_MS;
+        user.totalTimeMs += DUPLICATE_IN_SESSION_MS;
         user.lastTapMs = log.timestamp;
       }
     } else if (action === "OUT") {
@@ -277,6 +303,18 @@ export function generateSessionCSV(logs: TapLog[]): string {
       if (user.status === "OUT") {
         user.status = "IN";
         user.lastInLog = log;
+      } else if (user.lastInLog) {
+        // Duplicate IN -> auto-close previous session at fixed 6h.
+        const autoOutTs = user.lastInLog.timestamp + DUPLICATE_IN_SESSION_MS;
+        sessions.push({
+          name: user.lastInLog.Name,
+          date: user.lastInLog.Date,
+          inTime: user.lastInLog.Time,
+          outTime: formatTimeFromTimestamp(autoOutTs),
+          workHours: formatDuration(DUPLICATE_IN_SESSION_MS)
+        });
+        user.status = "IN";
+        user.lastInLog = log;
       }
     } else if (action === "OUT") {
       if (user.status === "IN" && user.lastInLog) {
@@ -310,4 +348,26 @@ export function generateSessionCSV(logs: TapLog[]): string {
   ].join(","));
   
   return [headers.join(","), ...rows].join("\n");
+}
+
+function formatTimeFromTimestamp(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
+function normalizeUid(uid: string): string {
+  const cleaned = String(uid || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!cleaned) return "";
+  return ATTENDANCE_UID_ALIASES[cleaned] || cleaned;
+}
+
+function getMemberFromUid(uid: string): AttendanceMember | undefined {
+  if (!uid) return undefined;
+  return MEMBER_BY_UID.get(uid);
+}
+
+function buildFallbackName(uid: string): string {
+  if (!uid) return `${ATTENDANCE_CONFIG.DEFAULT_NAME_PREFIX} 0000`;
+  const last4 = uid.slice(-4).padStart(4, "0");
+  return `${ATTENDANCE_CONFIG.DEFAULT_NAME_PREFIX} ${last4}`;
 }
