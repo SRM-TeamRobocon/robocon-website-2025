@@ -25,6 +25,12 @@ export default function AttendanceDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalUser, setModalUser] = useState<{ uid: string; name: string } | null>(null);
 
+  // Domain filter
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+
+  // Live Modal State
+  const [liveModalOpen, setLiveModalOpen] = useState(false);
+
   // Live Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const prevActiveRef = useRef<Set<string>>(new Set());
@@ -116,6 +122,7 @@ export default function AttendanceDashboard() {
   const active = users.filter(u => u.status === "IN");
   const totalMs = users.reduce((s, u) => s + u.overallTotalTimeMs, 0);
   const availableMonths = getAvailableMonths(allLogs);
+  const availableDomains = Array.from(new Set(users.map(u => u.Domain).filter(Boolean))).sort();
 
   return (
     <div className="min-h-screen flex flex-col relative z-10 overflow-x-hidden">
@@ -124,13 +131,13 @@ export default function AttendanceDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-              <Image src="/LOGO.png" alt="Logo" width={44} height={44} unoptimized className="w-9 h-9 sm:w-11 sm:h-11" />
-              <div>
+              <Image src="/textLogo.svg" alt="Logo" height={80} width={80} unoptimized className="sw-15 h-15" />
+              {/* <div>
                 <h1 className="text-white font-bold text-sm sm:text-lg leading-tight">
                   SRM <span className="text-red">TEAM</span>
                 </h1>
                 <h1 className="text-white font-bold text-sm sm:text-lg leading-tight -mt-0.5">ROBOCON</h1>
-              </div>
+              </div> */}
             </div>
 
             <div className="hidden sm:flex items-center gap-6 lg:gap-8">
@@ -143,6 +150,15 @@ export default function AttendanceDashboard() {
               <span className="text-[9px] text-neutral-600 hidden md:block">
                 {lastRefresh.toLocaleTimeString()}
               </span>
+              
+              {/* Mobile Live Button */}
+              <button
+                onClick={() => setLiveModalOpen(true)}
+                className="lg:hidden h-9 px-3 bg-red/10 border border-red/30 text-red text-[10px] sm:text-xs font-bold tracking-wider hover:bg-red/20 transition-all"
+              >
+                LIVE ({active.length})
+              </button>
+              
               <button
                 onClick={fetchData}
                 disabled={loading}
@@ -228,8 +244,36 @@ export default function AttendanceDashboard() {
 
             <section>
               <SectionHeader>All Members</SectionHeader>
+              
+              {/* Domain Tabs */}
+              <div className="mb-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedDomain(null)}
+                  className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+                    selectedDomain === null
+                      ? "bg-red text-white border-red"
+                      : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                  }`}
+                >
+                  ALL DOMAINS
+                </button>
+                {availableDomains.map(domain => (
+                  <button
+                    key={domain}
+                    onClick={() => setSelectedDomain(domain)}
+                    className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+                      selectedDomain === domain
+                        ? "bg-red text-white border-red"
+                        : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                    }`}
+                  >
+                    {domain.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              
               <LeaderboardTable 
-                users={users} 
+                users={selectedDomain ? users.filter(u => u.Domain === selectedDomain) : users} 
                 onRowClick={(uid, name) => {
                   setModalUser({ uid, name });
                   setModalOpen(true);
@@ -263,6 +307,64 @@ export default function AttendanceDashboard() {
           logs={allLogs}
         />
       )}
+
+      {/* Live Modal for Mobile */}
+      {liveModalOpen && (
+        <LiveModal 
+          isOpen={liveModalOpen}
+          onClose={() => setLiveModalOpen(false)}
+          activeUsers={active}
+        />
+      )}
+    </div>
+  );
+}
+
+function LiveModal({ isOpen, onClose, activeUsers }: { isOpen: boolean; onClose: () => void; activeUsers: UserStats[] }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-black border border-neutral-800 max-w-md w-full mx-4 max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-neutral-800 bg-neutral-900/80 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-red animate-pulse" />
+            <span className="text-sm font-bold text-white tracking-widest">LIVE IN LAB</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {activeUsers.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-4 h-4 bg-neutral-800 mx-auto mb-3 rounded-full" />
+              <p className="text-sm text-neutral-500 font-bold tracking-widest">NO ONE IN LAB</p>
+            </div>
+          ) : (
+            activeUsers.map((user) => {
+              const liveDur = Math.max(0, Date.now() - user.lastTapMs);
+              return (
+                <div key={user.UID} className="flex items-center justify-between px-4 py-3 bg-neutral-950 border-l-2 border-red">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{user.Name}</p>
+                    <p className="text-[10px] text-neutral-600 font-mono mt-0.5">
+                      IN @ {new Date(user.lastTapMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-red font-mono flex-shrink-0 ml-3">{formatDuration(liveDur)}</p>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
