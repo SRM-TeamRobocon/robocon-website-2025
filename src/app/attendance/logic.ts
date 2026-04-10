@@ -52,7 +52,7 @@ export function parseCSV(csvString: string): TapLog[] {
         Time: values[3],
         timestamp: parseDateTime(values[2], values[3]),
         action,
-        domain: rawDomain || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN
+        domain: normalizeDomain(rawDomain || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN)
       };
       if (!isNaN(log.timestamp)) results.push(log);
     }
@@ -100,7 +100,7 @@ export function parseData(data: any): TapLog[] {
           Time: String(row[3]),
           timestamp: parseDateTime(String(row[2]), String(row[3])),
           action,
-          domain: domainRaw || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN
+          domain: normalizeDomain(domainRaw || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN)
         };
         if (!isNaN(log.timestamp)) results.push(log);
       }
@@ -353,6 +353,17 @@ export function generateSessionCSV(logs: TapLog[]): string {
 function formatTimeFromTimestamp(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
+function normalizeDomain(domain: string): string {
+  const cleaned = String(domain || "").trim().toUpperCase();
+  if (!cleaned) return ATTENDANCE_CONFIG.DEFAULT_DOMAIN;
+
+  const aliasMap: Record<string, string> = {
+    SEISED: "SIESED"
+  };
+
+  return aliasMap[cleaned] || cleaned;
 }
 
 function normalizeUid(uid: string): string {
