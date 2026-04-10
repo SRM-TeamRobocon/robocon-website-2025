@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { UserStats, formatDuration } from "../logic";
-import { Search } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { ATTENDANCE_CONFIG } from "../attendance.config";
 
 interface LeaderboardTableProps {
@@ -10,10 +10,13 @@ interface LeaderboardTableProps {
   onRowClick?: (uid: string, name: string) => void;
 }
 
+type SortOption = "hours" | "domain" | "name";
+
 export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("hours");
 
-  const filteredUsers = useMemo(() => {
+  const filteredAndSortedUsers = useMemo(() => {
     let result = users;
 
     // Search filter
@@ -22,16 +25,47 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
       result = result.filter(u => u.Name.toLowerCase().includes(q));
     }
 
+    // Sort
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case "domain":
+          const domainA = a.Domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN;
+          const domainB = b.Domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN;
+          if (domainA !== domainB) return domainA.localeCompare(domainB);
+          return b.overallTotalTimeMs - a.overallTotalTimeMs;
+        case "name":
+          return a.Name.localeCompare(b.Name);
+        case "hours":
+        default:
+          return b.overallTotalTimeMs - a.overallTotalTimeMs;
+      }
+    });
+
     return result;
-  }, [users, search]);
+  }, [users, search, sortBy]);
 
   return (
     <div className="bg-black/40 border border-neutral-800">
       {/* Header & Search */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-neutral-800 gap-4">
-        <h3 className="text-[10px] text-neutral-500 font-bold tracking-widest uppercase flex-shrink-0">
-          Roster <span className="ml-2 px-2 py-0.5 bg-neutral-900 border border-neutral-800 rounded-full">{users.length} members</span>
-        </h3>
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <h3 className="text-[10px] text-neutral-500 font-bold tracking-widest uppercase">
+             <span className="ml-2 px-2 py-0.5 bg-neutral-900 border border-neutral-800 rounded-full">{users.length} members</span>
+          </h3>
+          
+          {/* <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="bg-neutral-900/50 border border-neutral-800 text-[10px] text-neutral-300 px-3 py-1 pr-8 focus:outline-none focus:border-red/50 transition-colors appearance-none"
+            >
+              <option value="hours">Sort by Hours</option>
+              <option value="domain">Sort by Domain</option>
+              <option value="name">Sort by Name</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-neutral-500 pointer-events-none" />
+          </div> */}
+        </div>
         
         <div className="relative w-full sm:w-64">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -39,7 +73,7 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
           </div>
           <input
             type="text"
-            placeholder="Search roster..."
+            placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-neutral-900/50 border border-neutral-800 text-sm text-white pl-9 pr-3 py-2 placeholder-neutral-600 focus:outline-none focus:border-red/50 transition-colors"
@@ -68,12 +102,12 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
 
       {/* Rows */}
       <div className="flex flex-col">
-        {filteredUsers.length === 0 ? (
+        {filteredAndSortedUsers.length === 0 ? (
           <div className="p-8 text-center text-neutral-500 text-sm">
             No members found matching &quot;{search}&quot;
           </div>
         ) : (
-          filteredUsers.map((user, i) => {
+          filteredAndSortedUsers.map((user, i) => {
             // True rank is just the index in the original sorted users array
             const trueRank = users.findIndex(u => u.UID === user.UID) + 1;
             
