@@ -6,7 +6,7 @@ import { Download } from "lucide-react";
 import { TapLog, UserStats, parseCSV, parseData, calculateStats, formatDuration, getAvailableMonths, filterLogsByMonth, generateSessionCSV } from "./logic";
 import { HeroCards } from "./components/HeroCards";
 import { LeaderboardTable } from "./components/LeaderboardTable";
-import { LivePanel } from "./components/LivePanel";
+import { DomainLeaderboard, LivePanel, type DomainLeaderboardEntry } from "./components/LivePanel";
 import { ActivityChart } from "./components/ActivityChart";
 import { MemberModal } from "./components/MemberModal";
 
@@ -122,7 +122,30 @@ export default function AttendanceDashboard() {
   const active = users.filter(u => u.status === "IN");
   const totalMs = users.reduce((s, u) => s + u.overallTotalTimeMs, 0);
   const availableMonths = getAvailableMonths(allLogs);
-  const availableDomains = Array.from(new Set(users.map(u => u.Domain).filter(Boolean))).sort();
+
+  // Exclude TEAM from domain ranking and domain-filter tabs.
+  const availableDomains = Array.from(
+    new Set(
+      users
+        .map(u => (u.Domain || "").trim().toUpperCase())
+        .filter(domain => domain && domain !== "TEAM")
+    )
+  ).sort();
+
+  const domainTotalsMap = new Map<string, { total: number; members: number }>();
+  users.forEach(u => {
+    const domain = (u.Domain || "UNKNOWN").trim().toUpperCase();
+    if (domain === "TEAM") return;
+
+    const current = domainTotalsMap.get(domain) || { total: 0, members: 0 };
+    current.total += u.overallTotalTimeMs;
+    current.members += 1;
+    domainTotalsMap.set(domain, current);
+  });
+
+  const domainLeaderboard = Array.from(domainTotalsMap.entries())
+    .map(([domain, stats]) => ({ domain, total: stats.total, members: stats.members }))
+    .sort((a, b) => b.total - a.total);
 
   return (
     <div className="min-h-screen flex flex-col relative z-10 overflow-x-hidden">
@@ -131,7 +154,15 @@ export default function AttendanceDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-              <Image src="/textLogo.svg" alt="Logo" height={80} width={80} unoptimized className="sw-15 h-15" />
+              <Image
+                  src={"/textLogo.svg"}
+                  alt="logo"
+                  width={210}
+                  height={200}
+                  className="w-44 md:w-52 cursor-pointer z-50"
+                  // onClick={() => router.push("/")}
+                  unoptimized
+                ></Image>
               {/* <div>
                 <h1 className="text-white font-bold text-sm sm:text-lg leading-tight">
                   SRM <span className="text-red">TEAM</span>
@@ -231,62 +262,67 @@ export default function AttendanceDashboard() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
-          <div className="lg:col-span-3 space-y-8 sm:space-y-10 order-2 lg:order-1">
-            <section>
-              <SectionHeader>Top Performers</SectionHeader>
-              <HeroCards topUsers={users.slice(0, 3)} />
-            </section>
-            
-            <section>
-              <ActivityChart logs={filterLogsByMonth(allLogs, selectedMonth, selectedWeek)} />
-            </section>
+        <div className="space-y-8 sm:space-y-10">
+          <section>
+            <SectionHeader>Top Performers</SectionHeader>
+            <HeroCards topUsers={users.slice(0, 3)} />
+          </section>
+          
+          <section>
+            <ActivityChart logs={filterLogsByMonth(allLogs, selectedMonth, selectedWeek)} />
+          </section>
 
-            <section>
-              <SectionHeader>All Members</SectionHeader>
-              
-              {/* Domain Tabs */}
-              <div className="mb-4 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedDomain(null)}
-                  className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
-                    selectedDomain === null
-                      ? "bg-red text-white border-red"
-                      : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
-                  }`}
-                >
-                  ALL DOMAINS
-                </button>
-                {availableDomains.map(domain => (
+          <section>
+            <SectionHeader>All Members</SectionHeader>
+
+            <div className="mb-4 lg:hidden">
+              <TopDomainBlocks items={domainLeaderboard} />
+            </div>
+
+            <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-7 xl:grid-cols-[minmax(0,1fr)_460px]">
+              <div>
+                {/* Domain Tabs */}
+                <div className="mb-4 flex flex-wrap gap-2">
                   <button
-                    key={domain}
-                    onClick={() => setSelectedDomain(domain)}
+                    onClick={() => setSelectedDomain(null)}
                     className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
-                      selectedDomain === domain
+                      selectedDomain === null
                         ? "bg-red text-white border-red"
                         : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
                     }`}
                   >
-                    {domain.toUpperCase()}
+                    ALL DOMAINS
                   </button>
-                ))}
+                  {availableDomains.map(domain => (
+                    <button
+                      key={domain}
+                      onClick={() => setSelectedDomain(domain)}
+                      className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+                        selectedDomain === domain
+                          ? "bg-red text-white border-red"
+                          : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                      }`}
+                    >
+                      {domain}
+                    </button>
+                  ))}
+                </div>
+                
+                <LeaderboardTable 
+                  users={selectedDomain ? users.filter(u => (u.Domain || "").toUpperCase() === selectedDomain) : users}
+                  onRowClick={(uid, name) => {
+                    setModalUser({ uid, name });
+                    setModalOpen(true);
+                  }} 
+                />
               </div>
-              
-              <LeaderboardTable 
-                users={selectedDomain ? users.filter(u => u.Domain === selectedDomain) : users} 
-                onRowClick={(uid, name) => {
-                  setModalUser({ uid, name });
-                  setModalOpen(true);
-                }} 
-              />
-            </section>
-          </div>
 
-          <div className="lg:col-span-1 order-1 lg:order-2 hidden lg:block">
-            <div className="sticky top-24 h-[calc(100vh-120px)]">
-              <LivePanel activeUsers={active} />
+              <div className="hidden lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-5">
+                <LivePanel activeUsers={active} className="h-[500px]" />
+                <DomainLeaderboard items={domainLeaderboard} compact />
+              </div>
             </div>
-          </div>
+          </section>
         </div>
       </main>
 
@@ -314,18 +350,29 @@ export default function AttendanceDashboard() {
           isOpen={liveModalOpen}
           onClose={() => setLiveModalOpen(false)}
           activeUsers={active}
+          domainLeaderboard={domainLeaderboard}
         />
       )}
     </div>
   );
 }
 
-function LiveModal({ isOpen, onClose, activeUsers }: { isOpen: boolean; onClose: () => void; activeUsers: UserStats[] }) {
+function LiveModal({
+  isOpen,
+  onClose,
+  activeUsers,
+  domainLeaderboard,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  activeUsers: UserStats[];
+  domainLeaderboard: DomainLeaderboardEntry[];
+}) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-black border border-neutral-800 max-w-md w-full mx-4 max-h-[80vh] flex flex-col">
+      <div className="bg-black border border-neutral-800 max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-neutral-800 bg-neutral-900/80 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -340,30 +387,50 @@ function LiveModal({ isOpen, onClose, activeUsers }: { isOpen: boolean; onClose:
           </button>
         </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {activeUsers.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-4 h-4 bg-neutral-800 mx-auto mb-3 rounded-full" />
-              <p className="text-sm text-neutral-500 font-bold tracking-widest">NO ONE IN LAB</p>
-            </div>
-          ) : (
-            activeUsers.map((user) => {
-              const liveDur = Math.max(0, Date.now() - user.lastTapMs);
-              return (
-                <div key={user.UID} className="flex items-center justify-between px-4 py-3 bg-neutral-950 border-l-2 border-red">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{user.Name}</p>
-                    <p className="text-[10px] text-neutral-600 font-mono mt-0.5">
-                      IN @ {new Date(user.lastTapMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <p className="text-sm font-bold text-red font-mono flex-shrink-0 ml-3">{formatDuration(liveDur)}</p>
-                </div>
-              );
-            })
-          )}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+            <LivePanel activeUsers={activeUsers} className="h-[320px] sm:h-[360px]" />
+            <DomainLeaderboard items={domainLeaderboard} />
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TopDomainBlocks({ items }: { items: DomainLeaderboardEntry[] }) {
+  const topThree = items.slice(0, 3);
+  const slots = [topThree[0] || null, topThree[1] || null, topThree[2] || null];
+
+  return (
+    <div className="rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(18,18,18,0.98),rgba(6,6,6,0.95))] p-3 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-[10px] font-bold tracking-[0.24em] text-neutral-400">TOP 3 DOMAINS</h3>
+        <span className="rounded-md border border-neutral-700 bg-black/40 px-2 py-1 text-[10px] font-bold tracking-wider text-red">
+          MOBILE
+        </span>
+      </div>
+
+      <div className="space-y-2.5">
+        {slots.map((item, index) => (
+          <div
+            key={item?.domain || `empty-domain-${index}`}
+            className="rounded-md border border-neutral-700 bg-black/55 px-3 py-3"
+          >
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold tracking-wider text-red">#{index + 1}</p>
+                <p className="truncate text-[12px] font-bold text-white">{item?.domain || "N/A"}</p>
+              </div>
+              <p className="font-mono text-xs font-bold text-cyan-300">
+                {item ? formatDuration(item.total) : "0h 0m"}
+              </p>
+            </div>
+            <p className="text-[10px] font-bold tracking-wider text-neutral-500">
+              {item ? `${item.members} members` : "No members"}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );

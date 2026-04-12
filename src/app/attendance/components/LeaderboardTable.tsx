@@ -82,7 +82,7 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
       </div>
 
       {/* Desktop Table Header */}
-      <div className="hidden sm:grid grid-cols-[80px_1fr_140px_200px_150px] border-b border-neutral-800 bg-neutral-900/40">
+      <div className="hidden sm:grid grid-cols-[80px_1fr_140px_110px_150px] border-b border-neutral-800 bg-neutral-900/40">
         <div className="px-6 py-4 text-[10px] text-neutral-500 font-bold tracking-widest uppercase">
           #
         </div>
@@ -146,7 +146,7 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
                 </div>
 
                 {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-[80px_1fr_140px_200px_150px] items-center">
+                <div className="hidden sm:grid grid-cols-[80px_1fr_140px_110px_150px] items-center">
                   <div className="px-6 py-4">
                     <span className={`text-xs font-bold ${trueRank <= 3 ? 'text-red bg-red/10 px-2 py-1 rounded-sm' : 'text-neutral-500'}`}>
                       {trueRank}
