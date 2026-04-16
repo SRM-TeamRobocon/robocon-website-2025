@@ -265,18 +265,18 @@ export default function AttendanceDashboard() {
         <div className="space-y-8 sm:space-y-10">
           <section>
             <SectionHeader>Top Performers</SectionHeader>
-            <HeroCards topUsers={users.slice(0, 3)} />
+            <HeroCards topUsers={users.slice(0, 3)} loading={loading} />
           </section>
           
           <section>
-            <ActivityChart logs={filterLogsByMonth(allLogs, selectedMonth, selectedWeek)} />
+            <ActivityChart logs={filterLogsByMonth(allLogs, selectedMonth, selectedWeek)} loading={loading} />
           </section>
 
           <section>
             <SectionHeader>All Members</SectionHeader>
 
             <div className="mb-4 lg:hidden">
-              <TopDomainBlocks items={domainLeaderboard} />
+              <TopDomainBlocks items={domainLeaderboard} loading={loading} />
             </div>
 
             <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-7 xl:grid-cols-[minmax(0,1fr)_460px]">
@@ -309,6 +309,7 @@ export default function AttendanceDashboard() {
                 </div>
                 
                 <LeaderboardTable 
+                  loading={loading}
                   users={selectedDomain ? users.filter(u => (u.Domain || "").toUpperCase() === selectedDomain) : users}
                   onRowClick={(uid, name) => {
                     setModalUser({ uid, name });
@@ -318,8 +319,8 @@ export default function AttendanceDashboard() {
               </div>
 
               <div className="hidden lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-5">
-                <LivePanel activeUsers={active} className="h-[500px]" />
-                <DomainLeaderboard items={domainLeaderboard} compact />
+                <LivePanel activeUsers={active} className="h-[500px]" loading={loading} />
+                <DomainLeaderboard items={domainLeaderboard} compact loading={loading} />
               </div>
             </div>
           </section>
@@ -351,6 +352,7 @@ export default function AttendanceDashboard() {
           onClose={() => setLiveModalOpen(false)}
           activeUsers={active}
           domainLeaderboard={domainLeaderboard}
+          loading={loading}
         />
       )}
     </div>
@@ -362,11 +364,13 @@ function LiveModal({
   onClose,
   activeUsers,
   domainLeaderboard,
+  loading,
 }: {
   isOpen: boolean;
   onClose: () => void;
   activeUsers: UserStats[];
   domainLeaderboard: DomainLeaderboardEntry[];
+  loading: boolean;
 }) {
   if (!isOpen) return null;
 
@@ -389,8 +393,8 @@ function LiveModal({
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-            <LivePanel activeUsers={activeUsers} className="h-[320px] sm:h-[360px]" />
-            <DomainLeaderboard items={domainLeaderboard} />
+            <LivePanel activeUsers={activeUsers} className="h-[320px] sm:h-[360px]" loading={loading} />
+            <DomainLeaderboard items={domainLeaderboard} loading={loading} />
           </div>
         </div>
       </div>
@@ -398,7 +402,36 @@ function LiveModal({
   );
 }
 
-function TopDomainBlocks({ items }: { items: DomainLeaderboardEntry[] }) {
+function TopDomainBlocks({ items, loading }: { items: DomainLeaderboardEntry[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="attendance-skeleton-surface rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(18,18,18,0.98),rgba(6,6,6,0.95))] p-3 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="h-3 w-28 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+          <div className="h-6 w-14 rounded-md bg-neutral-800/90 attendance-skeleton-block" />
+        </div>
+
+        <div className="space-y-2.5">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={`mobile-domain-skeleton-${index}`}
+              className="rounded-md border border-neutral-700 bg-black/55 px-3 py-3"
+            >
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="h-3 w-8 rounded-sm bg-neutral-800/90 attendance-skeleton-block mb-2" />
+                  <div className="h-4 w-20 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+                </div>
+                <div className="h-4 w-14 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              </div>
+              <div className="h-3 w-16 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const topThree = items.slice(0, 3);
   const slots = [topThree[0] || null, topThree[1] || null, topThree[2] || null];
 

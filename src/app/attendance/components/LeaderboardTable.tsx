@@ -2,17 +2,18 @@
 
 import { useState, useMemo } from "react";
 import { UserStats, formatDuration } from "../logic";
-import { Search, ChevronDown } from "lucide-react";
+import { Search } from "lucide-react";
 import { ATTENDANCE_CONFIG } from "../attendance.config";
 
 interface LeaderboardTableProps {
   users: UserStats[];
+  loading?: boolean;
   onRowClick?: (uid: string, name: string) => void;
 }
 
 type SortOption = "hours" | "domain" | "name";
 
-export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
+export function LeaderboardTable({ users, loading = false, onRowClick }: LeaderboardTableProps) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("hours");
 
@@ -50,7 +51,7 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-neutral-800 gap-4">
         <div className="flex items-center gap-4 flex-shrink-0">
           <h3 className="text-[10px] text-neutral-500 font-bold tracking-widest uppercase">
-             <span className="ml-2 px-2 py-0.5 bg-neutral-900 border border-neutral-800 rounded-full">{users.length} members</span>
+             <span className="ml-2 px-2 py-0.5 bg-neutral-900 border border-neutral-800 rounded-full">{loading ? "Loading..." : `${users.length} members`}</span>
           </h3>
           
           {/* <div className="relative">
@@ -76,7 +77,8 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-neutral-900/50 border border-neutral-800 text-sm text-white pl-9 pr-3 py-2 placeholder-neutral-600 focus:outline-none focus:border-red/50 transition-colors"
+            disabled={loading}
+            className="w-full bg-neutral-900/50 border border-neutral-800 text-sm text-white pl-9 pr-3 py-2 placeholder-neutral-600 focus:outline-none focus:border-red/50 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
       </div>
@@ -102,12 +104,42 @@ export function LeaderboardTable({ users, onRowClick }: LeaderboardTableProps) {
 
       {/* Rows */}
       <div className="flex flex-col">
-        {filteredAndSortedUsers.length === 0 ? (
+        {loading ? (
+          <>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={`skeleton-desktop-${i}`} className="hidden sm:grid grid-cols-[80px_1fr_140px_110px_150px] items-center border-b border-neutral-800/50 table-skeleton-row">
+                <div className="px-6 py-4">
+                  <div className="h-3 w-7 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+                </div>
+                <div className="px-6 py-4">
+                  <div className="h-4 w-3/5 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+                </div>
+                <div className="px-6 py-4">
+                  <div className="h-3 w-2/3 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+                </div>
+                <div className="px-6 py-4">
+                  <div className="h-3 w-16 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+                </div>
+                <div className="px-6 py-4">
+                  <div className="h-6 w-20 rounded-sm border border-neutral-700 bg-neutral-900/80 table-skeleton-block" />
+                </div>
+              </div>
+            ))}
+
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={`skeleton-mobile-${i}`} className="sm:hidden p-4 border-b border-neutral-800/50 table-skeleton-row">
+                <div className="mb-2 h-4 w-3/4 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+                <div className="mb-2 h-3 w-1/3 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+                <div className="h-3 w-1/2 rounded-sm bg-neutral-800/80 table-skeleton-block" />
+              </div>
+            ))}
+          </>
+        ) : filteredAndSortedUsers.length === 0 ? (
           <div className="p-8 text-center text-neutral-500 text-sm">
             No members found matching &quot;{search}&quot;
           </div>
         ) : (
-          filteredAndSortedUsers.map((user, i) => {
+          filteredAndSortedUsers.map((user) => {
             // True rank is just the index in the original sorted users array
             const trueRank = users.findIndex(u => u.UID === user.UID) + 1;
             

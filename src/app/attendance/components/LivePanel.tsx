@@ -13,11 +13,61 @@ export function DomainLeaderboard({
   items = [],
   compact = false,
   className = "",
+  loading = false,
 }: {
   items?: DomainLeaderboardEntry[];
   compact?: boolean;
   className?: string;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <div
+        className={`overflow-hidden rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(16,16,16,0.98),rgba(4,4,4,0.96))] shadow-[0_16px_40px_rgba(0,0,0,0.22)] attendance-skeleton-surface ${className}`}
+      >
+        <div className="border-b border-neutral-700 bg-neutral-900/70 px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="h-3 w-40 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              <div className="mt-2 h-3 w-32 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+            </div>
+            <div className="h-6 w-20 rounded-md bg-neutral-800/90 attendance-skeleton-block" />
+          </div>
+          <div className="mt-3 rounded-md border border-neutral-700 bg-black/40 px-3 py-2.5">
+            <div className="h-3 w-14 rounded-sm bg-neutral-800/80 attendance-skeleton-block mb-2" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="h-4 w-20 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              <div className="h-4 w-16 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+            </div>
+          </div>
+        </div>
+
+        <div className={`p-4 ${compact ? "space-y-2.5" : "space-y-3.5 sm:p-5"}`}>
+          {Array.from({ length: compact ? 4 : 6 }).map((_, i) => (
+            <div
+              key={`domain-skeleton-${i}`}
+              className="rounded-md border border-neutral-700 bg-black/50 p-3.5"
+            >
+              <div className="mb-2.5 flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-md bg-neutral-800/90 attendance-skeleton-block" />
+                    <div className="h-4 w-20 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+                  </div>
+                  <div className="h-3 w-16 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+                </div>
+                <div className="h-4 w-14 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              </div>
+              <div className="h-1.5 rounded-full bg-neutral-900">
+                <div className="h-full w-3/5 rounded-full bg-neutral-800/80 attendance-skeleton-block" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const topTotal = items[0]?.total || 1;
   const topDomain = items[0];
 
@@ -106,9 +156,11 @@ export function DomainLeaderboard({
 export function LivePanel({
   activeUsers,
   className = "",
+  loading = false,
 }: {
   activeUsers: UserStats[];
   className?: string;
+  loading?: boolean;
 }) {
   const [, setTick] = useState(0);
   const sortedActiveUsers = [...activeUsers].sort((a, b) => (b.lastTapMs - a.lastTapMs));
@@ -121,6 +173,49 @@ export function LivePanel({
     const iv = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(iv);
   }, []);
+
+  if (loading) {
+    return (
+      <div className={`attendance-skeleton-surface flex flex-col overflow-hidden rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(10,10,10,0.98),rgba(2,2,2,0.96))] shadow-[0_16px_40px_rgba(0,0,0,0.22)] ${className}`}>
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-neutral-700 bg-neutral-900/80 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-neutral-700 attendance-skeleton-block" />
+            <div>
+              <div className="h-3 w-20 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              <div className="mt-2 h-3 w-28 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+            </div>
+          </div>
+          <div className="h-6 w-16 rounded-md bg-neutral-800/90 attendance-skeleton-block" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 border-b border-neutral-700 bg-black/45 px-4 py-3">
+          <div className="rounded-md border border-neutral-700 bg-neutral-950/60 px-3 py-2">
+            <div className="h-3 w-14 rounded-sm bg-neutral-800/80 attendance-skeleton-block mb-2" />
+            <div className="h-4 w-16 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+          </div>
+          <div className="rounded-md border border-neutral-700 bg-neutral-950/60 px-3 py-2">
+            <div className="h-3 w-14 rounded-sm bg-neutral-800/80 attendance-skeleton-block mb-2" />
+            <div className="h-4 w-16 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+          </div>
+        </div>
+
+        <div className="flex-1 p-3 sm:p-4 space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={`live-skeleton-${i}`}
+              className="rounded-md border border-neutral-700 bg-neutral-950/90 px-3.5 py-3"
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full bg-neutral-700 attendance-skeleton-block" />
+                <div className="h-4 w-28 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              </div>
+              <div className="h-3 w-24 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col overflow-hidden rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(10,10,10,0.98),rgba(2,2,2,0.96))] shadow-[0_16px_40px_rgba(0,0,0,0.22)] ${className}`}>
