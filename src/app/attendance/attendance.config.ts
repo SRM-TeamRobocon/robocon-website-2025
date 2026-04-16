@@ -68,6 +68,6 @@ export const ATTENDANCE_MEMBERS: AttendanceMember[] = [
   { uid: "298A194", name: "Yashodhara", domain: "MCSOD" },
   { uid: "9548E54", name: "Nithya Guru", domain: "SAMBED" },
   { uid: "59F2A794", name: "Sana", domain: "SAMBED" },
-  { uid: "99A06661", name: "Agamjot Kaur", domain: "SIESED" },
+  { uid: "99A06661", name: "Agamjot Kaur", domain: "MCSOCD" },
 ];
 
