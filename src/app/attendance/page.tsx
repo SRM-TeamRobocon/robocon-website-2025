@@ -18,7 +18,10 @@ export default function AttendanceDashboard() {
   const [error, setError] = useState<string | null>(null);
   
   // Filters
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
 
   // Member Modal State

@@ -7,6 +7,7 @@ export interface AttendanceMember {
 const DEFAULT_DOMAIN = "GENERAL";
 const DEFAULT_NAME_PREFIX = "Member";
 const FIXED_SESSION_MS = 4 * 60 * 60 * 1000;
+const MAX_VALID_SESSION_MS = 15 * 60 * 60 * 1000;
 
 const ATTENDANCE_UID_ALIASES: Record<string, string> = {
   // Historical sheet formatting issue for Nithya (scientific notation)
@@ -70,6 +71,7 @@ export interface TapLog {
   timestamp: number;
   action?: "IN" | "OUT";
   domain?: string;
+  reason?: string;
 }
 
 export interface UserStats {
@@ -102,6 +104,7 @@ export function parseCSV(csvString: string): TapLog[] {
       const fallbackName = buildFallbackName(normalizedUid);
       const rawName = values[0] ? values[0].trim() : "";
       const rawDomain = values[5] ? values[5].trim().toUpperCase() : "";
+      const rawReason = values[6] ? values[6].trim().toUpperCase() : "";
       
       const log: TapLog = {
         Name: rawName || member?.name || fallbackName,
@@ -110,7 +113,8 @@ export function parseCSV(csvString: string): TapLog[] {
         Time: values[3],
         timestamp: parseDateTime(values[2], values[3]),
         action,
-        domain: normalizeDomain(rawDomain || member?.domain || DEFAULT_DOMAIN)
+        domain: normalizeDomain(rawDomain || member?.domain || DEFAULT_DOMAIN),
+        reason: rawReason
       };
       if (!isNaN(log.timestamp)) results.push(log);
     }
@@ -146,6 +150,7 @@ export function parseData(data: any): TapLog[] {
         const actionRaw = row[4] ? String(row[4]).trim().toUpperCase() : "";
         const action = (actionRaw === "IN" || actionRaw === "OUT") ? actionRaw as "IN" | "OUT" : undefined;
         const domainRaw = row[5] ? String(row[5]).trim().toUpperCase() : "";
+        const reasonRaw = row[6] ? String(row[6]).trim().toUpperCase() : "";
         const normalizedUid = normalizeUid(String(row[1]));
         const member = getMemberFromUid(normalizedUid);
         const fallbackName = buildFallbackName(normalizedUid);
@@ -158,7 +163,8 @@ export function parseData(data: any): TapLog[] {
           Time: String(row[3]),
           timestamp: parseDateTime(String(row[2]), String(row[3])),
           action,
-          domain: normalizeDomain(domainRaw || member?.domain || DEFAULT_DOMAIN)
+          domain: normalizeDomain(domainRaw || member?.domain || DEFAULT_DOMAIN),
+          reason: reasonRaw
         };
         if (!isNaN(log.timestamp)) results.push(log);
       }
@@ -220,7 +226,8 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
   const sortedLogs = [...logs].sort((a, b) => a.timestamp - b.timestamp);
   const userMap = new Map<string, UserStats & { datesVisited: Set<string> }>();
 
-  for (const log of sortedLogs) {
+  for (let idx = 0; idx < sortedLogs.length; idx++) {
+    const log = sortedLogs[idx];
     if (!userMap.has(log.UID)) {
       userMap.set(log.UID, {
         UID: log.UID, Name: log.Name, Domain: log.domain || DEFAULT_DOMAIN, status: "OUT",
@@ -244,22 +251,26 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
         user.status = "IN";
         user.lastTapMs = log.timestamp;
       } else {
-        // Duplicate IN means missing OUT; count fixed 4h.
-        user.overallTotalTimeMs += FIXED_SESSION_MS;
-        user.totalTimeMs += FIXED_SESSION_MS;
+        // Duplicate IN fallback (sheet auto-fix should usually prevent this).
+        if (!hasAutoFixOutNearCurrentIn(sortedLogs, idx, log.UID, log.timestamp)) {
+          user.overallTotalTimeMs += FIXED_SESSION_MS;
+          user.totalTimeMs += FIXED_SESSION_MS;
+        }
         user.lastTapMs = log.timestamp;
       }
     } else if (action === "OUT") {
       if (user.status === "IN") {
         user.status = "OUT";
         const dur = log.timestamp - user.lastTapMs;
-        const resolvedDur = dur > 0 ? dur : FIXED_SESSION_MS;
+        const resolvedDur = resolveSessionDuration(dur, log.reason);
         user.overallTotalTimeMs += resolvedDur;
         user.totalTimeMs += resolvedDur;
       } else {
-        // OUT without a prior IN; count fixed 4h.
-        user.overallTotalTimeMs += FIXED_SESSION_MS;
-        user.totalTimeMs += FIXED_SESSION_MS;
+        // OUT without a prior IN; only count fixed 4h when explicitly marked.
+        if (isFixed4HourReason(log.reason)) {
+          user.overallTotalTimeMs += FIXED_SESSION_MS;
+          user.totalTimeMs += FIXED_SESSION_MS;
+        }
       }
     }
   }
@@ -267,6 +278,16 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
   // Apply streak
   for (const user of Array.from(userMap.values())) {
     user.currentStreak = calculateStreak(Array.from(user.datesVisited), currentTimeMs);
+
+    // Safety net: stale open session should not stay IN forever on dashboard.
+    if (user.status === "IN") {
+      const liveDuration = currentTimeMs - user.lastTapMs;
+      if (liveDuration > MAX_VALID_SESSION_MS) {
+        user.status = "OUT";
+        user.overallTotalTimeMs += FIXED_SESSION_MS;
+        user.totalTimeMs += FIXED_SESSION_MS;
+      }
+    }
   }
 
   return Array.from(userMap.values());
@@ -334,7 +355,8 @@ export function generateSessionCSV(logs: TapLog[]): string {
     workHours: string;
   }> = [];
 
-  for (const log of sortedLogs) {
+  for (let idx = 0; idx < sortedLogs.length; idx++) {
+    const log = sortedLogs[idx];
     if (!userMap.has(log.UID)) {
       userMap.set(log.UID, { status: "OUT", lastInLog: null });
     }
@@ -350,15 +372,17 @@ export function generateSessionCSV(logs: TapLog[]): string {
         user.status = "IN";
         user.lastInLog = log;
       } else if (user.lastInLog) {
-        // Duplicate IN -> auto-close previous session at fixed 4h.
-        const autoOutTs = user.lastInLog.timestamp + FIXED_SESSION_MS;
-        sessions.push({
-          name: user.lastInLog.Name,
-          date: user.lastInLog.Date,
-          inTime: user.lastInLog.Time,
-          outTime: formatTimeFromTimestamp(autoOutTs),
-          workHours: formatDuration(FIXED_SESSION_MS)
-        });
+        // Duplicate IN fallback (sheet auto-fix should usually prevent this).
+        if (!hasAutoFixOutNearCurrentIn(sortedLogs, idx, log.UID, log.timestamp)) {
+          const autoOutTs = user.lastInLog.timestamp + FIXED_SESSION_MS;
+          sessions.push({
+            name: user.lastInLog.Name,
+            date: user.lastInLog.Date,
+            inTime: user.lastInLog.Time,
+            outTime: formatTimeFromTimestamp(autoOutTs),
+            workHours: formatDuration(FIXED_SESSION_MS)
+          });
+        }
         user.status = "IN";
         user.lastInLog = log;
       }
@@ -366,8 +390,10 @@ export function generateSessionCSV(logs: TapLog[]): string {
       if (user.status === "IN" && user.lastInLog) {
         user.status = "OUT";
         const dur = log.timestamp - user.lastInLog.timestamp;
-        const resolvedDur = dur > 0 ? dur : FIXED_SESSION_MS;
-        const resolvedOutTs = dur > 0 ? log.timestamp : user.lastInLog.timestamp + FIXED_SESSION_MS;
+        const resolvedDur = resolveSessionDuration(dur, log.reason);
+        const resolvedOutTs = resolvedDur === FIXED_SESSION_MS
+          ? user.lastInLog.timestamp + FIXED_SESSION_MS
+          : log.timestamp;
         sessions.push({
           name: user.lastInLog.Name,
           date: user.lastInLog.Date,
@@ -376,15 +402,17 @@ export function generateSessionCSV(logs: TapLog[]): string {
           workHours: formatDuration(resolvedDur)
         });
       } else {
-        // OUT without IN -> backfill a fixed 4h session.
-        const assumedInTs = log.timestamp - FIXED_SESSION_MS;
-        sessions.push({
-          name: log.Name,
-          date: formatDateFromTimestamp(assumedInTs),
-          inTime: formatTimeFromTimestamp(assumedInTs),
-          outTime: formatTimeFromTimestamp(log.timestamp),
-          workHours: formatDuration(FIXED_SESSION_MS)
-        });
+        if (isFixed4HourReason(log.reason)) {
+          // OUT without IN -> backfill a fixed 4h session only when marked.
+          const assumedInTs = log.timestamp - FIXED_SESSION_MS;
+          sessions.push({
+            name: log.Name,
+            date: formatDateFromTimestamp(assumedInTs),
+            inTime: formatTimeFromTimestamp(assumedInTs),
+            outTime: formatTimeFromTimestamp(log.timestamp),
+            workHours: formatDuration(FIXED_SESSION_MS)
+          });
+        }
       }
     }
   }
@@ -409,6 +437,34 @@ function formatTimeFromTimestamp(ts: number): string {
 function formatDateFromTimestamp(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function resolveSessionDuration(durationMs: number, reason?: string): number {
+  if (isFixed4HourReason(reason)) return FIXED_SESSION_MS;
+  if (durationMs <= 0) return FIXED_SESSION_MS;
+  if (durationMs > MAX_VALID_SESSION_MS) return FIXED_SESSION_MS;
+  return durationMs;
+}
+
+function isFixed4HourReason(reason?: string): boolean {
+  const normalized = String(reason || "").toUpperCase();
+  return normalized.includes("4H");
+}
+
+function hasAutoFixOutNearCurrentIn(
+  sortedLogs: TapLog[],
+  inIndex: number,
+  uid: string,
+  timestamp: number
+): boolean {
+  for (let i = inIndex + 1; i < sortedLogs.length; i++) {
+    const next = sortedLogs[i];
+    if (next.timestamp > timestamp + 1000) break;
+    if (next.UID === uid && next.action === "OUT" && isFixed4HourReason(next.reason)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function normalizeDomain(domain: string): string {
