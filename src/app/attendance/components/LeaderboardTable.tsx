@@ -3,7 +3,8 @@
 import { useState, useMemo } from "react";
 import { UserStats, formatDuration } from "../logic";
 import { Search } from "lucide-react";
-import { ATTENDANCE_CONFIG } from "../attendance.config";
+
+const DEFAULT_DOMAIN = "GENERAL";
 
 interface LeaderboardTableProps {
   users: UserStats[];
@@ -30,8 +31,8 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case "domain":
-          const domainA = a.Domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN;
-          const domainB = b.Domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN;
+          const domainA = a.Domain || DEFAULT_DOMAIN;
+          const domainB = b.Domain || DEFAULT_DOMAIN;
           if (domainA !== domainB) return domainA.localeCompare(domainB);
           return b.overallTotalTimeMs - a.overallTotalTimeMs;
         case "name":
@@ -161,7 +162,7 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
                     </div>
                     <div className="mb-1">
                       <span className="text-[10px] font-bold tracking-wider text-cyan-400/90">
-                        {user.Domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN}
+                        {user.Domain || DEFAULT_DOMAIN}
                       </span>
                     </div>
                     <span className="text-sm font-mono text-neutral-400">{formatDuration(user.overallTotalTimeMs)}</span>
@@ -192,7 +193,7 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
                   </div>
                   <div className="px-6 py-4">
                     <span className="text-[11px] font-bold tracking-wider text-cyan-400/90">
-                      {user.Domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN}
+                      {user.Domain || DEFAULT_DOMAIN}
                     </span>
                   </div>
                   <div className="px-6 py-4">

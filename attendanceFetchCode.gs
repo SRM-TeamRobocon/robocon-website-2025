@@ -7,16 +7,10 @@
 // Fetch URL: <deploy-url>?action=get
 // Tap URL:   <deploy-url>?name=X&uid=Y&status=Z
 
-var CONFIG = {
-  TZ: "Asia/Kolkata",
-  MAX_SESSION_HOURS: 16,
-  DUPLICATE_IN_HOURS: 6,
-  DEFAULT_NAME_PREFIX: "Member",
-  DEFAULT_DOMAIN: "GENERAL"
-};
-
-var MAX_SESSION_MS = CONFIG.MAX_SESSION_HOURS * 60 * 60 * 1000;
-var DUPLICATE_IN_MS = CONFIG.DUPLICATE_IN_HOURS * 60 * 60 * 1000;
+var TIME_ZONE = "Asia/Kolkata";
+var FIXED_SESSION_MS = 4 * 60 * 60 * 1000;
+var DEFAULT_NAME_PREFIX = "Member";
+var DEFAULT_DOMAIN = "GENERAL";
 
 var STUDENTS = {
   "A9DC6F63": { name: "Anubhav", domain: "SPACED" },
@@ -72,7 +66,7 @@ function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
   var now = new Date();
 
-  autoCheckoutExpiredSessions(sheet, now);
+  autoCheckoutAtMidnight(sheet, now);
 
   if (params.action === "get") {
     var data = sheet.getDataRange().getDisplayValues();
@@ -87,7 +81,7 @@ function doGet(e) {
 
   var student = STUDENTS[uid] || null;
   var resolvedName = student ? student.name : (params.name || buildFallbackName(uid));
-  var resolvedDomain = student ? student.domain : CONFIG.DEFAULT_DOMAIN;
+  var resolvedDomain = student ? student.domain : DEFAULT_DOMAIN;
   var explicitStatus = normalizeStatus(params.status);
 
   var stateMap = buildOpenSessionState(sheet);
@@ -97,9 +91,9 @@ function doGet(e) {
     nextStatus = currentlyOpen ? "OUT" : "IN";
   }
 
-  // If another IN comes while already IN, auto-close previous with fixed 6h.
+  // If another IN comes while already IN, auto-close previous with fixed 4h.
   if (nextStatus === "IN" && currentlyOpen) {
-    var forcedOutAt = new Date(currentlyOpen.lastInTs + DUPLICATE_IN_MS);
+    var forcedOutAt = new Date(currentlyOpen.lastInTs + FIXED_SESSION_MS);
     appendAttendanceRow(
       sheet,
       currentlyOpen.name || resolvedName,
@@ -110,9 +104,10 @@ function doGet(e) {
     );
   }
 
-  // If OUT arrives without open IN, convert to IN (self-heal bad status sequence).
+  // If OUT arrives without open IN, backfill an assumed IN 4h earlier.
   if (nextStatus === "OUT" && !currentlyOpen) {
-    nextStatus = "IN";
+    var assumedInAt = new Date(now.getTime() - FIXED_SESSION_MS);
+    appendAttendanceRow(sheet, resolvedName, uid, assumedInAt, "IN", resolvedDomain);
   }
 
   appendAttendanceRow(sheet, resolvedName, uid, now, nextStatus, resolvedDomain);
@@ -120,8 +115,8 @@ function doGet(e) {
 }
 
 function appendAttendanceRow(sheet, name, uid, whenDate, status, domain) {
-  var rowDate = Utilities.formatDate(whenDate, CONFIG.TZ, "dd/MM/yyyy");
-  var rowTime = Utilities.formatDate(whenDate, CONFIG.TZ, "HH:mm:ss");
+  var rowDate = Utilities.formatDate(whenDate, TIME_ZONE, "dd/MM/yyyy");
+  var rowTime = Utilities.formatDate(whenDate, TIME_ZONE, "HH:mm:ss");
   sheet.appendRow([name, uid, rowDate, rowTime, status, domain]);
 }
 
@@ -146,7 +141,7 @@ function buildOpenSessionState(sheet) {
     if (action === "IN") {
       stateMap[uid] = {
         name: String(row[0] || (STUDENTS[uid] ? STUDENTS[uid].name : buildFallbackName(uid))),
-        domain: String(row[5] || (STUDENTS[uid] ? STUDENTS[uid].domain : CONFIG.DEFAULT_DOMAIN)),
+        domain: String(row[5] || (STUDENTS[uid] ? STUDENTS[uid].domain : DEFAULT_DOMAIN)),
         lastInTs: ts
       };
     } else {
@@ -157,24 +152,30 @@ function buildOpenSessionState(sheet) {
   return stateMap;
 }
 
-function autoCheckoutExpiredSessions(sheet, now) {
+function autoCheckoutAtMidnight(sheet, now) {
   var stateMap = buildOpenSessionState(sheet);
   var nowTs = now.getTime();
   for (var uid in stateMap) {
     if (!stateMap.hasOwnProperty(uid)) continue;
     var entry = stateMap[uid];
-    if (nowTs - entry.lastInTs > MAX_SESSION_MS) {
-      var outAt = new Date(entry.lastInTs + MAX_SESSION_MS);
+    var outAt = getNextMidnight(entry.lastInTs);
+    if (nowTs >= outAt.getTime()) {
       appendAttendanceRow(
         sheet,
         entry.name || (STUDENTS[uid] ? STUDENTS[uid].name : buildFallbackName(uid)),
         uid,
         outAt,
         "OUT",
-        entry.domain || (STUDENTS[uid] ? STUDENTS[uid].domain : CONFIG.DEFAULT_DOMAIN)
+        entry.domain || (STUDENTS[uid] ? STUDENTS[uid].domain : DEFAULT_DOMAIN)
       );
     }
   }
+}
+
+function getNextMidnight(ts) {
+  var oneDayMs = 24 * 60 * 60 * 1000;
+  var nextDateKey = Utilities.formatDate(new Date(ts + oneDayMs), TIME_ZONE, "yyyy-MM-dd");
+  return new Date(nextDateKey + "T00:00:00+05:30");
 }
 
 function normalizeUid(uid) {
@@ -215,5 +216,5 @@ function pad2(v) {
 function buildFallbackName(uid) {
   var last4 = String(uid || "").slice(-4);
   if (!last4) last4 = "0000";
-  return CONFIG.DEFAULT_NAME_PREFIX + " " + last4;
+  return DEFAULT_NAME_PREFIX + " " + last4;
 }

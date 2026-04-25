@@ -1,4 +1,66 @@
-import { ATTENDANCE_CONFIG, ATTENDANCE_MEMBERS, ATTENDANCE_UID_ALIASES, AttendanceMember } from "./attendance.config";
+export interface AttendanceMember {
+  uid: string;
+  name: string;
+  domain: string;
+}
+
+const DEFAULT_DOMAIN = "GENERAL";
+const DEFAULT_NAME_PREFIX = "Member";
+const FIXED_SESSION_MS = 4 * 60 * 60 * 1000;
+
+const ATTENDANCE_UID_ALIASES: Record<string, string> = {
+  // Historical sheet formatting issue for Nithya (scientific notation)
+  "955E57": "9548E54",
+};
+
+const ATTENDANCE_MEMBERS: AttendanceMember[] = [
+  { uid: "A9DC6F63", name: "Anubhav", domain: "SPACED" },
+  { uid: "493FEAB", name: "Abraham", domain: "MCSOD" },
+  { uid: "895D8654", name: "Rayyah", domain: "SPACED" },
+  { uid: "99ECB9D", name: "K Manish", domain: "SAMBED" },
+  { uid: "F9A537AC", name: "Rijul", domain: "SAMBED" },
+  { uid: "F968AB94", name: "Syed Misbahul", domain: "MCSOD" },
+  { uid: "F94A9894", name: "Vrashni", domain: "SIESED" },
+  { uid: "9EE14AB", name: "Niranjana", domain: "SIESED" },
+  { uid: "A918A994", name: "Sangamithraa", domain: "SAMBED" },
+  { uid: "29A6C09D", name: "Shaziya", domain: "SIESED" },
+  { uid: "9DE18AB", name: "Deepa", domain: "MCSOD" },
+  { uid: "79859A94", name: "Shresth", domain: "SAMBED" },
+  { uid: "A95D8654", name: "Smriti Dubey", domain: "MCSOD" },
+  { uid: "B9C62E6C", name: "TEAM LEAD", domain: "TEAM" },
+  { uid: "E9818E54", name: "Ashwin", domain: "MCSOD" },
+  { uid: "39999D94", name: "Arshia Gupta", domain: "SPACED" },
+  { uid: "89EA17AB", name: "Krish Parekh", domain: "SPACED" },
+  { uid: "4946AA94", name: "Aman Chouhan", domain: "SPACED" },
+  { uid: "E9ECA894", name: "Adarsh Mittal", domain: "SPACED" },
+  { uid: "49EAA994", name: "Swastika", domain: "MCSOD" },
+  { uid: "79A24AB", name: "Soham", domain: "MCSOD" },
+  { uid: "697713AB", name: "Bhaskar", domain: "SIESED" },
+  { uid: "29EBC39D", name: "Karthik", domain: "SIESED" },
+  { uid: "C98E23AB", name: "Rajat", domain: "SPACED" },
+  { uid: "29781BAB", name: "Nitiraj", domain: "MCSOD" },
+  { uid: "29908754", name: "Nilesh", domain: "SIESED" },
+  { uid: "E9689054", name: "Mohamed Abdullah", domain: "SIESED" },
+  { uid: "4929BD9D", name: "Daksh", domain: "SPACED" },
+  { uid: "29D35E61", name: "Tanisha", domain: "SAMBED" },
+  { uid: "D92E9994", name: "Vineet", domain: "SIESED" },
+  { uid: "D9CCBB9D", name: "Keerthana", domain: "SAMBED" },
+  { uid: "79F28654", name: "Samparna", domain: "SAMBED" },
+  { uid: "D94419AB", name: "Bhargave", domain: "SIESED" },
+  { uid: "8949D162", name: "Dominic", domain: "SPACED" },
+  { uid: "4920A594", name: "Pranav", domain: "MCSOD" },
+  { uid: "19979B94", name: "Nimish", domain: "SAMBED" },
+  { uid: "C975A294", name: "Swarnava", domain: "SPACED" },
+  { uid: "2965A994", name: "Ananya", domain: "MCSOD" },
+  { uid: "C9C89F94", name: "Devdath", domain: "SIESED" },
+  { uid: "B9C79594", name: "Swapneel", domain: "SPACED" },
+  { uid: "9118D54", name: "Rohan", domain: "MCSOD" },
+  { uid: "698F9D94", name: "Mireya", domain: "SAMBED" },
+  { uid: "298A194", name: "Yashodhara", domain: "MCSOD" },
+  { uid: "9548E54", name: "Nithya Guru", domain: "SAMBED" },
+  { uid: "59F2A794", name: "Sana", domain: "SAMBED" },
+  { uid: "99A06661", name: "Agamjot Kaur", domain: "MCSOCD" },
+];
 
 export interface TapLog {
   Name: string;
@@ -20,10 +82,6 @@ export interface UserStats {
   lastTapMs: number;
   currentStreak: number;
 }
-
-const MAX_SESSION_MS = ATTENDANCE_CONFIG.MAX_SESSION_HOURS * 60 * 60 * 1000;
-const CAPPED_SESSION_MS = ATTENDANCE_CONFIG.CAPPED_SESSION_HOURS * 60 * 60 * 1000;
-const DUPLICATE_IN_SESSION_MS = ATTENDANCE_CONFIG.DUPLICATE_IN_HOURS * 60 * 60 * 1000;
 
 const MEMBER_BY_UID = new Map<string, AttendanceMember>(
   ATTENDANCE_MEMBERS.map((m) => [normalizeUid(m.uid), m])
@@ -52,7 +110,7 @@ export function parseCSV(csvString: string): TapLog[] {
         Time: values[3],
         timestamp: parseDateTime(values[2], values[3]),
         action,
-        domain: normalizeDomain(rawDomain || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN)
+        domain: normalizeDomain(rawDomain || member?.domain || DEFAULT_DOMAIN)
       };
       if (!isNaN(log.timestamp)) results.push(log);
     }
@@ -100,7 +158,7 @@ export function parseData(data: any): TapLog[] {
           Time: String(row[3]),
           timestamp: parseDateTime(String(row[2]), String(row[3])),
           action,
-          domain: normalizeDomain(domainRaw || member?.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN)
+          domain: normalizeDomain(domainRaw || member?.domain || DEFAULT_DOMAIN)
         };
         if (!isNaN(log.timestamp)) results.push(log);
       }
@@ -165,7 +223,7 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
   for (const log of sortedLogs) {
     if (!userMap.has(log.UID)) {
       userMap.set(log.UID, {
-        UID: log.UID, Name: log.Name, Domain: log.domain || ATTENDANCE_CONFIG.DEFAULT_DOMAIN, status: "OUT",
+        UID: log.UID, Name: log.Name, Domain: log.domain || DEFAULT_DOMAIN, status: "OUT",
         totalTimeMs: 0, overallTotalTimeMs: 0, lastTapMs: 0, currentStreak: 0,
         datesVisited: new Set()
       });
@@ -186,41 +244,29 @@ export function calculateStats(logs: TapLog[], currentTimeMs: number): UserStats
         user.status = "IN";
         user.lastTapMs = log.timestamp;
       } else {
-        // Duplicate IN means missing OUT; close previous session with fixed 6h.
-        user.overallTotalTimeMs += DUPLICATE_IN_SESSION_MS;
-        user.totalTimeMs += DUPLICATE_IN_SESSION_MS;
+        // Duplicate IN means missing OUT; count fixed 4h.
+        user.overallTotalTimeMs += FIXED_SESSION_MS;
+        user.totalTimeMs += FIXED_SESSION_MS;
         user.lastTapMs = log.timestamp;
       }
     } else if (action === "OUT") {
       if (user.status === "IN") {
         user.status = "OUT";
-        let dur = log.timestamp - user.lastTapMs;
-        
-        if (dur > MAX_SESSION_MS) {
-          dur = CAPPED_SESSION_MS;
-        }
-
-        if (dur > 0) {
-          user.overallTotalTimeMs += dur;
-          user.totalTimeMs += dur;
-        }
+        const dur = log.timestamp - user.lastTapMs;
+        const resolvedDur = dur > 0 ? dur : FIXED_SESSION_MS;
+        user.overallTotalTimeMs += resolvedDur;
+        user.totalTimeMs += resolvedDur;
+      } else {
+        // OUT without a prior IN; count fixed 4h.
+        user.overallTotalTimeMs += FIXED_SESSION_MS;
+        user.totalTimeMs += FIXED_SESSION_MS;
       }
     }
   }
 
-  // Final check for anyone currently "IN", and apply streak
+  // Apply streak
   for (const user of Array.from(userMap.values())) {
     user.currentStreak = calculateStreak(Array.from(user.datesVisited), currentTimeMs);
-    
-    if (user.status === "IN") {
-      const dur = currentTimeMs - user.lastTapMs;
-      if (dur > MAX_SESSION_MS) {
-        // Force checkout them in-memory
-        user.status = "OUT";
-        user.overallTotalTimeMs += CAPPED_SESSION_MS;
-        user.totalTimeMs += CAPPED_SESSION_MS;
-      }
-    }
   }
 
   return Array.from(userMap.values());
@@ -304,14 +350,14 @@ export function generateSessionCSV(logs: TapLog[]): string {
         user.status = "IN";
         user.lastInLog = log;
       } else if (user.lastInLog) {
-        // Duplicate IN -> auto-close previous session at fixed 6h.
-        const autoOutTs = user.lastInLog.timestamp + DUPLICATE_IN_SESSION_MS;
+        // Duplicate IN -> auto-close previous session at fixed 4h.
+        const autoOutTs = user.lastInLog.timestamp + FIXED_SESSION_MS;
         sessions.push({
           name: user.lastInLog.Name,
           date: user.lastInLog.Date,
           inTime: user.lastInLog.Time,
           outTime: formatTimeFromTimestamp(autoOutTs),
-          workHours: formatDuration(DUPLICATE_IN_SESSION_MS)
+          workHours: formatDuration(FIXED_SESSION_MS)
         });
         user.status = "IN";
         user.lastInLog = log;
@@ -319,21 +365,26 @@ export function generateSessionCSV(logs: TapLog[]): string {
     } else if (action === "OUT") {
       if (user.status === "IN" && user.lastInLog) {
         user.status = "OUT";
-        let dur = log.timestamp - user.lastInLog.timestamp;
-        
-        if (dur > MAX_SESSION_MS) {
-          dur = CAPPED_SESSION_MS;
-        }
-
-        if (dur > 0) {
-          sessions.push({
-            name: user.lastInLog.Name,
-            date: user.lastInLog.Date,
-            inTime: user.lastInLog.Time,
-            outTime: log.Time,
-            workHours: formatDuration(dur)
-          });
-        }
+        const dur = log.timestamp - user.lastInLog.timestamp;
+        const resolvedDur = dur > 0 ? dur : FIXED_SESSION_MS;
+        const resolvedOutTs = dur > 0 ? log.timestamp : user.lastInLog.timestamp + FIXED_SESSION_MS;
+        sessions.push({
+          name: user.lastInLog.Name,
+          date: user.lastInLog.Date,
+          inTime: user.lastInLog.Time,
+          outTime: formatTimeFromTimestamp(resolvedOutTs),
+          workHours: formatDuration(resolvedDur)
+        });
+      } else {
+        // OUT without IN -> backfill a fixed 4h session.
+        const assumedInTs = log.timestamp - FIXED_SESSION_MS;
+        sessions.push({
+          name: log.Name,
+          date: formatDateFromTimestamp(assumedInTs),
+          inTime: formatTimeFromTimestamp(assumedInTs),
+          outTime: formatTimeFromTimestamp(log.timestamp),
+          workHours: formatDuration(FIXED_SESSION_MS)
+        });
       }
     }
   }
@@ -355,9 +406,14 @@ function formatTimeFromTimestamp(ts: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 }
 
+function formatDateFromTimestamp(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
 function normalizeDomain(domain: string): string {
   const cleaned = String(domain || "").trim().toUpperCase();
-  if (!cleaned) return ATTENDANCE_CONFIG.DEFAULT_DOMAIN;
+  if (!cleaned) return DEFAULT_DOMAIN;
 
   const aliasMap: Record<string, string> = {
     SEISED: "SIESED"
@@ -378,7 +434,7 @@ function getMemberFromUid(uid: string): AttendanceMember | undefined {
 }
 
 function buildFallbackName(uid: string): string {
-  if (!uid) return `${ATTENDANCE_CONFIG.DEFAULT_NAME_PREFIX} 0000`;
+  if (!uid) return `${DEFAULT_NAME_PREFIX} 0000`;
   const last4 = uid.slice(-4).padStart(4, "0");
-  return `${ATTENDANCE_CONFIG.DEFAULT_NAME_PREFIX} ${last4}`;
+  return `${DEFAULT_NAME_PREFIX} ${last4}`;
 }
