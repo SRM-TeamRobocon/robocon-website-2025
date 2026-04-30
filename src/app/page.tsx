@@ -86,9 +86,9 @@ export default function Home() {
       </section> */}
 
       {/*Workshop section*/}
-      <section className="relative max-md:mt-20">
+      {/* <section className="relative max-md:mt-20">
         <WorkshopSection />
-      </section>
+      </section> */}
 
       <section className="">
         <JoselinSection />
