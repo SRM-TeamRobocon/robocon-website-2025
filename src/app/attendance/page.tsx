@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { Download } from "lucide-react";
-import { TapLog, UserStats, parseCSV, parseData, calculateStats, formatDuration, getAvailableMonths, filterLogsByMonth, generateSessionCSV } from "./logic";
+import { TapLog, UserStats, ParseAttendanceResult, parseCSV, parseData, calculateStats, formatDuration, getAvailableMonths, filterLogsByMonth, generateSessionCSV } from "./logic";
 import { HeroCards } from "./components/HeroCards";
 import { LeaderboardTable } from "./components/LeaderboardTable";
 import { DomainLeaderboard, LivePanel, type DomainLeaderboardEntry } from "./components/LivePanel";
@@ -12,16 +12,15 @@ import { MemberModal } from "./components/MemberModal";
 
 export default function AttendanceDashboard() {
   const [allLogs, setAllLogs] = useState<TapLog[]>([]);
-  const [users, setUsers] = useState<UserStats[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserStats[]>([]);
+  const [globalUsers, setGlobalUsers] = useState<UserStats[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [parseWarning, setParseWarning] = useState<string | null>(null);
   
   // Filters
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
 
   // Member Modal State
@@ -38,18 +37,27 @@ export default function AttendanceDashboard() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const prevActiveRef = useRef<Set<string>>(new Set());
 
-  const recalculate = (logs: TapLog[], monthKey: string | null, weekKey: number | null) => {
-    const filtered = filterLogsByMonth(logs, monthKey, weekKey);
-    const stats = calculateStats(filtered, Date.now());
+  const buildSortedStats = useCallback((logs: TapLog[], nowMs: number) => {
+    const stats = calculateStats(logs, nowMs);
     stats.sort((a, b) => b.overallTotalTimeMs - a.overallTotalTimeMs);
-    setUsers(stats);
+    return stats;
+  }, []);
 
-    // Check for new live entries
-    const currentActive = new Set(stats.filter(u => u.status === "IN").map(u => u.UID));
+  const recalculate = useCallback((logs: TapLog[], monthKey: string | null, weekKey: number | null) => {
+    const nowMs = Date.now();
+    const filteredLogs = filterLogsByMonth(logs, monthKey, weekKey);
+    const globalStats = buildSortedStats(logs, nowMs);
+    const scopedStats = buildSortedStats(filteredLogs, nowMs);
+
+    setGlobalUsers(globalStats);
+    setFilteredUsers(scopedStats);
+
+    // Check for new live entries globally (ignores month/week filters).
+    const currentActive = new Set(globalStats.filter(u => u.status === "IN").map(u => u.UID));
     if (prevActiveRef.current.size > 0 && currentActive.size > prevActiveRef.current.size) {
       for (const uid of Array.from(currentActive)) {
         if (!prevActiveRef.current.has(uid)) {
-          const user = stats.find(u => u.UID === uid);
+          const user = globalStats.find(u => u.UID === uid);
           if (user) {
             setToastMessage(`🤖 ${user.Name} has entered the lab.`);
             setTimeout(() => setToastMessage(null), 5000);
@@ -58,34 +66,48 @@ export default function AttendanceDashboard() {
       }
     }
     prevActiveRef.current = currentActive;
-  };
+  }, [buildSortedStats]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/attendance?t=${Date.now()}`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const text = await res.text();
       
-      let logs: TapLog[];
+      let parsedResult: ParseAttendanceResult;
       try {
-        logs = parseData(JSON.parse(text));
+        parsedResult = parseData(JSON.parse(text));
       } catch {
-        logs = parseCSV(text);
+        parsedResult = parseCSV(text);
       }
+      const logs = parsedResult.logs;
       if (logs.length === 0) throw new Error("No valid rows found in sheet");
+
+      const { skippedRows, skippedSamples } = parsedResult.diagnostics;
+      if (skippedRows > 0) {
+        const rowWord = skippedRows === 1 ? "row was" : "rows were";
+        const sampleText = skippedSamples.length > 0
+          ? ` Example: ${skippedSamples.join(" | ")}`
+          : "";
+        setParseWarning(`${skippedRows} ${rowWord} skipped due to invalid format.${sampleText}`);
+      } else {
+        setParseWarning(null);
+      }
 
       setAllLogs(logs);
       recalculate(logs, selectedMonth, selectedWeek);
       setError(null);
-    } catch (err: any) {
-      console.error("Fetch failed:", err.message);
-      setError(err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch attendance data";
+      console.error("Fetch failed:", message);
+      setError(message);
+      setParseWarning(null);
     } finally {
       setLastRefresh(new Date());
       setLoading(false);
     }
-  };
+  }, [recalculate, selectedMonth, selectedWeek]);
 
   // Reset week when month changes
   useEffect(() => {
@@ -96,13 +118,13 @@ export default function AttendanceDashboard() {
     if (allLogs.length > 0) {
       recalculate(allLogs, selectedMonth, selectedWeek);
     }
-  }, [selectedMonth, selectedWeek]);
+  }, [allLogs, recalculate, selectedMonth, selectedWeek]);
 
   useEffect(() => {
     fetchData();
     const iv = setInterval(fetchData, 60_000);
     return () => clearInterval(iv);
-  }, []);
+  }, [fetchData]);
 
   const handleDownload = () => {
     const logs = filterLogsByMonth(allLogs, selectedMonth, selectedWeek);
@@ -122,21 +144,21 @@ export default function AttendanceDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const active = users.filter(u => u.status === "IN");
-  const totalMs = users.reduce((s, u) => s + u.overallTotalTimeMs, 0);
+  const active = globalUsers.filter(u => u.status === "IN");
+  const totalMs = filteredUsers.reduce((s, u) => s + u.overallTotalTimeMs, 0);
   const availableMonths = getAvailableMonths(allLogs);
 
   // Exclude TEAM from domain ranking and domain-filter tabs.
   const availableDomains = Array.from(
     new Set(
-      users
+      filteredUsers
         .map(u => (u.Domain || "").trim().toUpperCase())
         .filter(domain => domain && domain !== "TEAM")
     )
   ).sort();
 
   const domainTotalsMap = new Map<string, { total: number; members: number }>();
-  users.forEach(u => {
+  filteredUsers.forEach(u => {
     const domain = (u.Domain || "UNKNOWN").trim().toUpperCase();
     if (domain === "TEAM") return;
 
@@ -177,7 +199,7 @@ export default function AttendanceDashboard() {
             <div className="hidden sm:flex items-center gap-6 lg:gap-8">
               <StatItem label="In Lab" value={active.length.toString()} accent />
               <StatItem label="Total Hours" value={formatDuration(totalMs)} />
-              <StatItem label="Members" value={users.length.toString()} />
+              <StatItem label="Members" value={filteredUsers.length.toString()} />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
@@ -211,6 +233,12 @@ export default function AttendanceDashboard() {
           <div className="mb-6 px-4 py-3 bg-red/5 border-l-4 border-red">
             <p className="text-xs text-red font-bold tracking-wider">CONNECTION ERROR</p>
             <p className="text-[11px] text-neutral-400 mt-0.5">{error}</p>
+          </div>
+        )}
+        {parseWarning && (
+          <div className="mb-6 px-4 py-3 bg-amber-500/5 border-l-4 border-amber-500">
+            <p className="text-xs text-amber-400 font-bold tracking-wider">PARTIAL DATA WARNING</p>
+            <p className="text-[11px] text-neutral-300 mt-0.5">{parseWarning}</p>
           </div>
         )}
 
@@ -268,7 +296,7 @@ export default function AttendanceDashboard() {
         <div className="space-y-8 sm:space-y-10">
           <section>
             <SectionHeader>Top Performers</SectionHeader>
-            <HeroCards topUsers={users.slice(0, 3)} loading={loading} />
+            <HeroCards topUsers={filteredUsers.slice(0, 3)} loading={loading} />
           </section>
           
           <section>
@@ -313,7 +341,7 @@ export default function AttendanceDashboard() {
                 
                 <LeaderboardTable 
                   loading={loading}
-                  users={selectedDomain ? users.filter(u => (u.Domain || "").toUpperCase() === selectedDomain) : users}
+                  users={selectedDomain ? filteredUsers.filter(u => (u.Domain || "").toUpperCase() === selectedDomain) : filteredUsers}
                   onRowClick={(uid, name) => {
                     setModalUser({ uid, name });
                     setModalOpen(true);

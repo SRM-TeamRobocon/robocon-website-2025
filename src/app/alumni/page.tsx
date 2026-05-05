@@ -21,7 +21,6 @@ interface AlumniData {
 }
 
 export default function Alumni() {
-  console.log(alumniData);
   return (
     <div className=" overflow-x-hidden ">
       <Header  />

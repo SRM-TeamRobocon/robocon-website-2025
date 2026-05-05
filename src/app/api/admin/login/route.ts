@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -27,7 +29,6 @@ export async function POST(request: Request) {
         if (userRole !== null) {
             // Sign JWT
             const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_robocon_2026_!@#');
-            console.log("Signing JWT...");
             const token = await new SignJWT({ user: username, role: userRole })
                 .setProtectedHeader({ alg: "HS256" })
                 .setIssuedAt()
@@ -37,7 +38,6 @@ export async function POST(request: Request) {
             const response = NextResponse.json({ success: true }, { status: 200 });
 
             // Set HttpOnly cookie
-            console.log("JWT Signed. Setting cookie...");
             response.cookies.set({
                 name: "admin_token",
                 value: token,

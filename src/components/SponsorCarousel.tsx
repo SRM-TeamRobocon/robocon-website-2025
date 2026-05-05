@@ -1,7 +1,7 @@
 import { Swiper, SwiperSlide } from "swiper/react";
 import sponsors from "@/../public/sponsors/sponsorsData.js";
 import Image from "next/image";
-import useIsDesktop, { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 // Import Swiper styles
 import "swiper/css";
@@ -12,10 +12,11 @@ import { Autoplay } from "swiper/modules";
 export default function SponsorCarousel() {
   const [windowWidth, setWindowWidth] = useState(400);
 
-  let w = 0;
   useEffect(() => {
-    setWindowWidth(window.innerWidth)
-    console.log(windowWidth / 300 <= 5 ? windowWidth / 300 : 5);
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (

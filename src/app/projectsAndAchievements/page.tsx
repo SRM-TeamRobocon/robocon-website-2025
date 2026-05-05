@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Achievement from "@/components/AchievementsCard";
 import { achievements } from "@/constants/constants"
+import Image from "next/image";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 
@@ -102,7 +103,13 @@ const page = () => {
                     }}
                   ></div>
 
-                  <img src={d.img} alt="" className="h-96 w-96 z-1" />
+                  <Image
+                    src={d.img}
+                    alt={d.name}
+                    width={384}
+                    height={384}
+                    className="h-96 w-96 z-1"
+                  />
                 </div>
                 <div className="text-gray-50 flex flex-col justify-center items-center gap-3 p-4 text-2xl h-full">
                   <p>{d.name}</p>

@@ -60,7 +60,7 @@ const ATTENDANCE_MEMBERS: AttendanceMember[] = [
   { uid: "298A194", name: "Yashodhara", domain: "MCSOD" },
   { uid: "9548E54", name: "Nithya Guru", domain: "SAMBED" },
   { uid: "59F2A794", name: "Sana", domain: "SAMBED" },
-  { uid: "99A06661", name: "Agamjot Kaur", domain: "MCSOCD" },
+  { uid: "99A06661", name: "Agamjot Kaur", domain: "SIESED" },
 ];
 
 export interface TapLog {
@@ -85,94 +85,326 @@ export interface UserStats {
   currentStreak: number;
 }
 
+export interface ParseDiagnostics {
+  totalRows: number;
+  parsedRows: number;
+  skippedRows: number;
+  skippedSamples: string[];
+  headerDetected: boolean;
+}
+
+export interface ParseAttendanceResult {
+  logs: TapLog[];
+  diagnostics: ParseDiagnostics;
+}
+
 const MEMBER_BY_UID = new Map<string, AttendanceMember>(
   ATTENDANCE_MEMBERS.map((m) => [normalizeUid(m.uid), m])
 );
 
-export function parseCSV(csvString: string): TapLog[] {
-  const lines = csvString.trim().split('\n');
-  if (lines.length < 2) return [];
+const MAX_SKIP_SAMPLES = 5;
 
-  const results: TapLog[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    if (values.length >= 4) {
-      const actionRaw = values[4] ? values[4].trim().toUpperCase() : "";
-      const action = (actionRaw === "IN" || actionRaw === "OUT") ? actionRaw as "IN" | "OUT" : undefined;
-      const normalizedUid = normalizeUid(values[1]);
-      const member = getMemberFromUid(normalizedUid);
-      const fallbackName = buildFallbackName(normalizedUid);
-      const rawName = values[0] ? values[0].trim() : "";
-      const rawDomain = values[5] ? values[5].trim().toUpperCase() : "";
-      const rawReason = values[6] ? values[6].trim().toUpperCase() : "";
-      
-      const log: TapLog = {
-        Name: rawName || member?.name || fallbackName,
-        UID: normalizedUid,
-        Date: values[2],
-        Time: values[3],
-        timestamp: parseDateTime(values[2], values[3]),
-        action,
-        domain: normalizeDomain(rawDomain || member?.domain || DEFAULT_DOMAIN),
-        reason: rawReason
-      };
-      if (!isNaN(log.timestamp)) results.push(log);
-    }
+type DateParts = { year: number; month: number; day: number };
+type TimeParts = { hours: number; minutes: number; seconds: number };
+
+export function parseCSV(csvString: string): ParseAttendanceResult {
+  if (!csvString || csvString.trim() === "") {
+    return buildParseResult([], 0, 0, [], false);
   }
-  return results;
+
+  const rows = csvString
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim() !== "")
+    .map(splitCsvLine);
+
+  return parseRows(rows);
 }
 
 function parseDateTime(dateStr: string, timeStr: string): number {
-  if (!dateStr || !timeStr) return NaN;
-  const cleanTime = timeStr.replace(/\./g, ':');
+  const date = parseDateParts(dateStr);
+  const time = parseTimeParts(timeStr);
+  if (!date || !time) return NaN;
 
-  // Try DD/MM/YYYY
-  if (dateStr.includes('/')) {
-    const parts = dateStr.split('/');
-    if (parts.length === 3) {
-      const iso = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}T${cleanTime}`;
-      const d = new Date(iso);
-      if (!isNaN(d.getTime())) return d.getTime();
-    }
+  const dt = new Date(
+    date.year,
+    date.month - 1,
+    date.day,
+    time.hours,
+    time.minutes,
+    time.seconds,
+    0
+  );
+
+  if (
+    dt.getFullYear() !== date.year ||
+    dt.getMonth() + 1 !== date.month ||
+    dt.getDate() !== date.day ||
+    dt.getHours() !== time.hours ||
+    dt.getMinutes() !== time.minutes ||
+    dt.getSeconds() !== time.seconds
+  ) {
+    return NaN;
   }
 
-  // Try YYYY-MM-DD (ISO)
-  const d = new Date(`${dateStr}T${cleanTime}`);
-  return d.getTime();
+  return dt.getTime();
 }
 
-export function parseData(data: any): TapLog[] {
+export function parseData(data: any): ParseAttendanceResult {
   if (Array.isArray(data)) {
-    const results: TapLog[] = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row.length >= 4) {
-        const actionRaw = row[4] ? String(row[4]).trim().toUpperCase() : "";
-        const action = (actionRaw === "IN" || actionRaw === "OUT") ? actionRaw as "IN" | "OUT" : undefined;
-        const domainRaw = row[5] ? String(row[5]).trim().toUpperCase() : "";
-        const reasonRaw = row[6] ? String(row[6]).trim().toUpperCase() : "";
-        const normalizedUid = normalizeUid(String(row[1]));
-        const member = getMemberFromUid(normalizedUid);
-        const fallbackName = buildFallbackName(normalizedUid);
-        const rawName = String(row[0] || "").trim();
-        
-        const log: TapLog = {
-          Name: rawName || member?.name || fallbackName,
-          UID: normalizedUid,
-          Date: String(row[2]),
-          Time: String(row[3]),
-          timestamp: parseDateTime(String(row[2]), String(row[3])),
-          action,
-          domain: normalizeDomain(domainRaw || member?.domain || DEFAULT_DOMAIN),
-          reason: reasonRaw
-        };
-        if (!isNaN(log.timestamp)) results.push(log);
-      }
-    }
-    return results;
+    const rows = data.map((row) =>
+      Array.isArray(row)
+        ? row.map((value) => String(value ?? "").trim())
+        : [String(row ?? "").trim()]
+    );
+    return parseRows(rows);
   }
   if (typeof data === "string") return parseCSV(data);
-  return [];
+  return buildParseResult([], 0, 0, [], false);
+}
+
+function parseRows(rows: string[][]): ParseAttendanceResult {
+  if (rows.length === 0) {
+    return buildParseResult([], 0, 0, [], false);
+  }
+
+  const headerDetected = isLikelyHeaderRow(rows[0]);
+  const startIndex = headerDetected ? 1 : 0;
+
+  const logs: TapLog[] = [];
+  const skippedSamples: string[] = [];
+  let totalRows = 0;
+  let skippedRows = 0;
+
+  for (let i = startIndex; i < rows.length; i++) {
+    const row = rows[i].map((cell) => String(cell ?? "").trim());
+    if (row.length === 0 || row.every((cell) => cell === "")) {
+      continue;
+    }
+
+    totalRows++;
+    if (row.length < 4) {
+      skippedRows++;
+      pushSkipSample(skippedSamples, i + 1, "Missing required columns");
+      continue;
+    }
+
+    const rawUid = row[1] || "";
+    const normalizedUid = normalizeUid(rawUid);
+    if (!normalizedUid) {
+      skippedRows++;
+      pushSkipSample(skippedSamples, i + 1, "Missing/invalid UID");
+      continue;
+    }
+
+    const rawDate = row[2] || "";
+    const rawTime = row[3] || "";
+    const timestamp = parseDateTime(rawDate, rawTime);
+    if (Number.isNaN(timestamp)) {
+      skippedRows++;
+      pushSkipSample(
+        skippedSamples,
+        i + 1,
+        `Unparseable date/time (${rawDate} ${rawTime})`
+      );
+      continue;
+    }
+
+    const actionRaw = row[4] ? row[4].toUpperCase() : "";
+    const action = actionRaw === "IN" || actionRaw === "OUT"
+      ? (actionRaw as "IN" | "OUT")
+      : undefined;
+
+    const domainRaw = row[5] ? row[5].toUpperCase() : "";
+    const reasonRaw = row[6] ? row[6].toUpperCase() : "";
+
+    const member = getMemberFromUid(normalizedUid);
+    const fallbackName = buildFallbackName(normalizedUid);
+    const rawName = row[0] ? row[0].trim() : "";
+
+    logs.push({
+      Name: rawName || member?.name || fallbackName,
+      UID: normalizedUid,
+      Date: rawDate,
+      Time: rawTime,
+      timestamp,
+      action,
+      domain: normalizeDomain(domainRaw || member?.domain || DEFAULT_DOMAIN),
+      reason: reasonRaw,
+    });
+  }
+
+  return buildParseResult(logs, totalRows, skippedRows, skippedSamples, headerDetected);
+}
+
+function parseDateParts(rawDate: string): DateParts | null {
+  const cleaned = String(rawDate || "").trim();
+  if (!cleaned) return null;
+
+  const delimiter = cleaned.includes("/") ? "/" : cleaned.includes("-") ? "-" : "";
+  if (!delimiter) return null;
+
+  const parts = cleaned.split(delimiter).map((part) => part.trim());
+  if (parts.length !== 3) return null;
+
+  const numbers = parts.map((part) => Number.parseInt(part, 10));
+  if (numbers.some((part) => Number.isNaN(part))) return null;
+
+  const [a, b, c] = numbers;
+  const firstPart = parts[0];
+  const thirdPart = parts[2];
+
+  // YYYY-MM-DD or YYYY/MM/DD
+  if (firstPart.length === 4) {
+    const candidate = { year: a, month: b, day: c };
+    return isValidDateParts(candidate) ? candidate : null;
+  }
+
+  // DD/MM/YYYY or MM/DD/YYYY or DD-MM-YYYY
+  if (thirdPart.length === 4) {
+    const dayFirst = { year: c, month: b, day: a };
+    const monthFirst = { year: c, month: a, day: b };
+    const dayFirstValid = isValidDateParts(dayFirst);
+    const monthFirstValid = isValidDateParts(monthFirst);
+
+    if (a > 12 && dayFirstValid) return dayFirst;
+    if (b > 12 && monthFirstValid) return monthFirst;
+    if (delimiter === "-" && dayFirstValid) return dayFirst;
+    if (dayFirstValid && !monthFirstValid) return dayFirst;
+    if (monthFirstValid && !dayFirstValid) return monthFirst;
+    if (dayFirstValid && monthFirstValid) return dayFirst;
+  }
+
+  return null;
+}
+
+function parseTimeParts(rawTime: string): TimeParts | null {
+  const cleaned = String(rawTime || "")
+    .trim()
+    .replace(/\./g, ":")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+
+  if (!cleaned) return null;
+
+  const match = cleaned.match(/^(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?\s*(AM|PM)?$/);
+  if (!match) return null;
+
+  let hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2] || "0", 10);
+  const seconds = Number.parseInt(match[3] || "0", 10);
+  const meridiem = match[4];
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
+  if (minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) return null;
+
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return null;
+    if (meridiem === "AM") {
+      hours = hours === 12 ? 0 : hours;
+    } else {
+      hours = hours === 12 ? 12 : hours + 12;
+    }
+  } else if (hours < 0 || hours > 23) {
+    return null;
+  }
+
+  return { hours, minutes, seconds };
+}
+
+function isValidDateParts(parts: DateParts): boolean {
+  const { year, month, day } = parts;
+  if (year < 1900 || year > 9999) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+
+  const d = new Date(year, month - 1, day);
+  return (
+    d.getFullYear() === year &&
+    d.getMonth() + 1 === month &&
+    d.getDate() === day
+  );
+}
+
+function splitCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === "\"") {
+      if (inQuotes && line[i + 1] === "\"") {
+        current += "\"";
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+function isLikelyHeaderRow(row: string[]): boolean {
+  const normalized = row.map((cell) =>
+    String(cell || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
+  );
+
+  const nameCol = normalized[0] || "";
+  const uidCol = normalized[1] || "";
+  const dateCol = normalized[2] || "";
+  const timeCol = normalized[3] || "";
+  const statusCol = normalized[4] || "";
+
+  const hasNameHeader =
+    nameCol.includes("NAME") ||
+    nameCol.includes("MEMBER") ||
+    nameCol.includes("STUDENT");
+  const hasUidHeader = uidCol.includes("UID") || uidCol.includes("CARD");
+  const hasDateHeader = dateCol.includes("DATE");
+  const hasTimeHeader = timeCol.includes("TIME");
+  const hasStatusHeader =
+    statusCol.includes("STATUS") ||
+    statusCol.includes("ACTION") ||
+    statusCol.includes("INOUT");
+
+  return (hasNameHeader && hasUidHeader) || (hasDateHeader && hasTimeHeader) || hasStatusHeader;
+}
+
+function pushSkipSample(samples: string[], rowNumber: number, reason: string): void {
+  if (samples.length >= MAX_SKIP_SAMPLES) return;
+  samples.push(`Row ${rowNumber}: ${reason}`);
+}
+
+function buildParseResult(
+  logs: TapLog[],
+  totalRows: number,
+  skippedRows: number,
+  skippedSamples: string[],
+  headerDetected: boolean
+): ParseAttendanceResult {
+  return {
+    logs,
+    diagnostics: {
+      totalRows,
+      parsedRows: logs.length,
+      skippedRows,
+      skippedSamples,
+      headerDetected,
+    },
+  };
 }
 
 function calculateStreak(datesStr: string[], currentTimeMs: number): number {
@@ -181,15 +413,15 @@ function calculateStreak(datesStr: string[], currentTimeMs: number): number {
   // parse dates, get unique midnight timestamps
   const uniqueNumbers = new Set<number>();
   for (const dStr of datesStr) {
-    const parts = dStr.includes('/') ? dStr.split('/') : dStr.split('-');
-    const year = parts[0].length === 4 ? parts[0] : parts[2];
-    const month = parts[0].length === 4 ? parts[1] : parts[1];
-    const day = parts[0].length === 4 ? parts[2] : parts[0];
-    
-    const d = new Date(Number(year), Number(month)-1, Number(day));
+    const parsed = parseDateParts(dStr);
+    if (!parsed) continue;
+
+    const d = new Date(parsed.year, parsed.month - 1, parsed.day);
     d.setHours(0, 0, 0, 0);
     uniqueNumbers.add(d.getTime());
   }
+
+  if (uniqueNumbers.size === 0) return 0;
   
   const midnights = Array.from(uniqueNumbers).sort((a, b) => b - a); // sort descending
 

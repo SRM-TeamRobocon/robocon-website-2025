@@ -2,15 +2,37 @@ import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
 import { sendConfirmationEmails } from "@/lib/send-emails";
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+export const dynamic = "force-dynamic";
 
-const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_WEBHOOK_URL!;
+function getRazorpayClient() {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return null;
+
+    return new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+    });
+}
 
 export async function POST(req: NextRequest) {
     try {
+        const razorpay = getRazorpayClient();
+        if (!razorpay) {
+            return NextResponse.json(
+                { error: "Payment gateway is not configured on server" },
+                { status: 500 }
+            );
+        }
+
+        const googleSheetUrl = process.env.GOOGLE_SHEET_WEBHOOK_URL;
+        if (!googleSheetUrl) {
+            return NextResponse.json(
+                { error: "Google Sheet webhook is not configured on server" },
+                { status: 500 }
+            );
+        }
+
         const body = await req.json();
         const { formData, paymentId, orderId } = body;
 
@@ -65,7 +87,7 @@ export async function POST(req: NextRequest) {
         params.append("TransactionID", "");
         params.append("PaymentStatus", "VERIFIED");
 
-        const sheetRes = await fetch(GOOGLE_SHEET_URL, {
+        const sheetRes = await fetch(googleSheetUrl, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: params.toString(),
