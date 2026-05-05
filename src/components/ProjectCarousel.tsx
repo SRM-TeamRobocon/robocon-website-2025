@@ -2,20 +2,18 @@
 import { Project } from "@/constants/types";
 import DialogBox from "./DialogBox-projects";
 import { useEffect, useState } from "react";
-import DialogBoxEvents from "./DialogBox";
 
 export default function Carousel({ data }: { data: Project[] }) {
   const [isOpen, open] = useState<Project | null>(null);
   const [isPhone, setIsPhone] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log(isOpen);
-  }, [isOpen]);
-
-  useEffect(() => {
-    setIsPhone(window.innerWidth <= 768);
-    console.log(isPhone);
+    const handleResize = () => setIsPhone(window.innerWidth <= 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
+
   return (
     <div className="w-full lg:w-5/6 h-full grid lg:flex gap-2 overflow-x-scroll text-white rounded-lg snap-mandatory snap-x carousel place-items-center">
       {data.map((project: Project, index: number) => {

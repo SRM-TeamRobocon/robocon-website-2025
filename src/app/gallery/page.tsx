@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useEffect } from "react";
 import { LayoutGrid } from "@/components/ui/layout-grid";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
 import Image from "next/image";
 import photoNames from "../../../public/gallery/photoData";
 import AOS from "aos";
-import { Carousel, Card } from "@/components/ui/apple-cards-carousel";
+import { Carousel } from "@/components/ui/apple-cards-carousel";
 import jsonData from "@/app/gallery/carousel-data.json";
 
 const SkeletonOne = () => {
@@ -222,23 +221,13 @@ let cards = photoNames.map((photoName, index) => ({
 }));
 
 export default function GalleryPage() {
-  const [isClient, setIsClient] = useState(false);
-
-  const [galleryHeight, setGalleryHeight] = useState<number>(500);
-
   useEffect(() => {
-    setIsClient(true); // Ensure dynamic libraries run only on the client
     if (typeof window !== "undefined") {
       AOS.init({
         duration: 800,
         once: false,
       });
     }
-  }, []);
-
-  useEffect(() => {
-    console.log(((cards.length / 2) * 400).toFixed(0));
-    setGalleryHeight(parseInt(((cards.length / 2) * 400).toFixed(0)));
   }, []);
 
   return (

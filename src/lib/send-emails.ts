@@ -4,13 +4,17 @@ const SMTP_EMAIL = process.env.SMTP_EMAIL;
 const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
 const ORGANIZER_EMAIL = process.env.ORGANIZER_EMAIL;
 
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: SMTP_EMAIL,
-        pass: SMTP_PASSWORD,
-    },
-});
+function getTransporter() {
+    if (!SMTP_EMAIL || !SMTP_PASSWORD) return null;
+
+    return nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: SMTP_EMAIL,
+            pass: SMTP_PASSWORD,
+        },
+    });
+}
 
 interface RegistrationDetails {
     formData: Record<string, string>;
@@ -172,6 +176,11 @@ export async function sendConfirmationEmails(
     }
 
     const workshop = details.formData.Workshop || "Workshop";
+    const transporter = getTransporter();
+    if (!transporter) {
+        console.warn("⚠️ Mail transporter could not be initialized");
+        return;
+    }
 
     const participantMailOptions = {
         from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,

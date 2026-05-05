@@ -1,4 +1,4 @@
-import { generateTicketId, generateQrCode, sendConfirmationEmail } from "./src/utils/ticket";
+import { generateTicketId, generateQrCode, sendConfirmationEmail } from "../src/utils/ticket";
 
 async function run() {
     console.log("Generating ticket...");

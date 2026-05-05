@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendConfirmationEmails } from "@/lib/send-emails";
 
-const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_WEBHOOK_URL!;
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
     try {
+        const googleSheetUrl = process.env.GOOGLE_SHEET_WEBHOOK_URL;
+        if (!googleSheetUrl) {
+            return NextResponse.json(
+                { error: "Google Sheet webhook is not configured on server" },
+                { status: 500 }
+            );
+        }
+
         const body = await req.json();
         const { formData, transactionId } = body;
 
@@ -34,7 +41,7 @@ export async function POST(req: NextRequest) {
         params.append("TransactionID", transactionId.trim());
         params.append("PaymentStatus", "PENDING");
 
-        const sheetRes = await fetch(GOOGLE_SHEET_URL, {
+        const sheetRes = await fetch(googleSheetUrl, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: params.toString(),

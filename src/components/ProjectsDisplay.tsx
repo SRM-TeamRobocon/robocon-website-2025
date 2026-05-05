@@ -1,5 +1,6 @@
 import { useRouter } from "next/navigation";
 import React from "react";
+import Image from "next/image";
 
 const ProjectsDisplay = () => {
   const router = useRouter();
@@ -18,10 +19,11 @@ const ProjectsDisplay = () => {
                 className="group flex-shrink-0 h-[400px] w-1/3 relative"
               >
                 <div className="group flex justify-center text-center relative overflow-hidden w-full h-full">
-                  <img
+                  <Image
                     src={d.img}
-                    alt=""
-                    className=" object-cover ease-in-out duration-500 group-hover:rotate-2 group-hover:scale-125 w-full h-full"
+                    alt={`Project ${index + 1}`}
+                    fill
+                    className="object-cover ease-in-out duration-500 group-hover:rotate-2 group-hover:scale-125 w-full h-full"
                   />
                   <div className="absolute bg-red w-full h-full opacity-0 transition-opacity duration-500 group-hover:opacity-80 flex items-center justify-center">
                     <h2 className="text-white text-xl md:text-5xl font-kurat select-none">

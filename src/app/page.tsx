@@ -2,32 +2,17 @@
 
 import CountUpUnit from "@/components/CountUpUnit";
 import Image from "next/image";
-import React, { useState } from "react";
 import Link from "next/link";
 import SponsorCarousel from "@/components/SponsorCarousel";
 import {
   noOfAlumni,
-  noOfTeamMembers,
   noOfParticipations,
   noOfRobots,
 } from "@/constants/constants";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import ProjectsDisplay from "@/components/ProjectsDisplay";
-
-import RoboConEvent from "@/components/RoboConEvent";
-import RecruitmentSection from "@/components/RecruitmentSection";
-import HackathonSection from "@/components/HackathonSection";
 import JoselinSection from "@/components/JoselinSection";
-import WorkshopReg from "@/app/workshopReg/page";
-import WorkshopSection from "@/components/WorkshopSection";
 export default function Home() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const setIsMenuOpenFunction = (arg0: boolean) => {
-    setIsMenuOpen(arg0);
-  };
-
   return (
     <div className="overflow-x-hidden">
       <Header />

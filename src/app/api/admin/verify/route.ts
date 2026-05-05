@@ -4,6 +4,8 @@ import * as jose from "jose";
 import { updatePaymentStatus, updateTicketId } from "@/utils/googleSheets";
 import { generateTicketId, generateQrCode, sendConfirmationEmail } from "@/utils/ticket";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
     try {
         // Enforce Lead Role

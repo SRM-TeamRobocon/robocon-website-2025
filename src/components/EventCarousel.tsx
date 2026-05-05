@@ -7,17 +7,12 @@ export default function Carousel({ data }: { data: Event[] }) {
   const [isOpen, open] = useState<Event | null>(null);
   const [isPhone, setPhone] = useState<boolean>(false);
 
-
   useEffect(() => {
     const handleResize = () => setPhone(window.innerWidth <= 768);
-    handleResize(); 
+    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  useEffect(() => {
-    console.log(isOpen);
-  }, [isOpen]);
 
   return (
     <div className="w-full lg:w-5/6 h-full flex gap-2 overflow-y-scroll rounded-lg snap-mandatory snap-x carousel">

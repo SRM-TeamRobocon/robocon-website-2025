@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import * as jose from 'jose';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Protect all /admin UI routes and /api/admin backend routes EXCEPT login paths
@@ -10,8 +10,6 @@ export async function middleware(request: NextRequest) {
         const token = request.cookies.get('admin_token')?.value;
 
         if (!token) {
-            console.log("Middleware: No token found. Denying config access.");
-
             // Return 401 JSON for API routes
             if (pathname.startsWith('/api/admin')) {
                 return NextResponse.json({ success: false, error: "Unauthorized access" }, { status: 401 });
@@ -25,12 +23,9 @@ export async function middleware(request: NextRequest) {
             // Very basic JWT verification using jose (edge runtime compatible)
             const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_robocon_2026_!@#');
             await jose.jwtVerify(token, secret);
-            console.log("Middleware: Token verified successfully.");
             return NextResponse.next();
-        } catch (err) {
+        } catch {
             // Invalid token
-            console.log("Middleware: Token validation failed: ", err);
-
             // Return 401 JSON for API routes
             if (pathname.startsWith('/api/admin')) {
                 return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });

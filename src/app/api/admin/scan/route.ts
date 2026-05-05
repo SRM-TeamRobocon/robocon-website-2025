@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { updateSessionAttendance, getRegistrations, SESSION_COLUMN_MAP, AttendanceSession } from "@/utils/googleSheets";
 
+export const dynamic = "force-dynamic";
+
 const VALID_SESSIONS = Object.keys(SESSION_COLUMN_MAP) as AttendanceSession[];
 
 export async function POST(request: Request) {

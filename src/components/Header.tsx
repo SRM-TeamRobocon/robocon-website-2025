@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useContext, useEffect } from "react";
+import { useEffect } from "react";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
 import Menu3FillIcon from "remixicon-react/Menu3FillIcon";
 import AOS from "aos";
@@ -109,10 +109,7 @@ export default function Header() {
         <div
           className={`bg-red nav-bar-clip pl-6 pr-4 flex justify-center items-center md:hidden z-20`}
           data-aos="slide-left"
-          onClick={() => {
-            setMenuValue(!isMenuOpen);
-            console.log(isMenuOpen);
-          }}
+          onClick={() => setMenuValue(!isMenuOpen)}
         >
           {isMenuOpen ? (
             <CloseFillIcon size={30} className="text-white" />
