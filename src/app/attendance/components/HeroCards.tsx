@@ -3,7 +3,41 @@
 import { motion } from "framer-motion";
 import { UserStats, formatDuration } from "../logic";
 
-export function HeroCards({ topUsers }: { topUsers: UserStats[] }) {
+export function HeroCards({
+  topUsers,
+  loading = false,
+}: {
+  topUsers: UserStats[];
+  loading?: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={`hero-skeleton-${i}`}
+            className="attendance-skeleton-surface bg-black border border-neutral-800 p-5 sm:p-6 relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 h-[3px] w-full bg-neutral-700/70 attendance-skeleton-block" />
+
+            <div className="mb-4 sm:mb-5 flex items-center justify-between">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+              <div className="h-5 w-12 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+            </div>
+
+            <div className="mb-2 h-6 w-2/3 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+            <div className="mb-5 h-3 w-1/2 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+
+            <div className="pt-3 sm:pt-4 border-t border-neutral-800">
+              <div className="mb-2 h-3 w-24 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+              <div className="h-8 w-28 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (!topUsers || topUsers.length === 0) return null;
 
   const ranks = [

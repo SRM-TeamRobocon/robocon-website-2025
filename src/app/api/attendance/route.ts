@@ -2,9 +2,8 @@
 // Uses Node.js https module because fetch() doesn't handle Google's redirect chain properly
 import { NextResponse } from "next/server";
 import https from "https";
-import { ATTENDANCE_CONFIG } from "@/app/attendance/attendance.config";
 
-const APPS_SCRIPT_URL = ATTENDANCE_CONFIG.GOOGLE_SCRIPT_URL;
+const APPS_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +43,13 @@ let cacheTime = 0;
 
 export async function GET() {
   try {
+    if (!APPS_SCRIPT_URL) {
+      return NextResponse.json(
+        { error: "GOOGLE_SCRIPT_URL is not configured" },
+        { status: 500 }
+      );
+    }
+
     // 30 Seconds In-Memory Cache to drastically speed up load times
     if (Date.now() - cacheTime < 30_000 && cachedData) {
       return new NextResponse(cachedData, {

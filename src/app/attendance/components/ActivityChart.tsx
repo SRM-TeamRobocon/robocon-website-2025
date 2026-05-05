@@ -1,10 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { TapLog } from "../logic";
 
-export function ActivityChart({ logs }: { logs: TapLog[] }) {
+export function ActivityChart({
+  logs,
+  loading = false,
+}: {
+  logs: TapLog[];
+  loading?: boolean;
+}) {
   const data = useMemo(() => {
     // 1. Group logs strictly by the Date strings they provide
     // First, find all unique dates
@@ -37,6 +43,25 @@ export function ActivityChart({ logs }: { logs: TapLog[] }) {
       activity: Math.round(dateMap.get(date)!),
     }));
   }, [logs]);
+
+  if (loading) {
+    return (
+      <div className="h-48 sm:h-64 w-full mt-4 bg-black border border-neutral-800 p-4 attendance-skeleton-surface">
+        <div className="h-3 w-48 rounded-sm bg-neutral-800/90 attendance-skeleton-block mb-5" />
+        <div className="h-[80%] w-full rounded-sm border border-neutral-800 bg-neutral-950/60 p-3">
+          <div className="h-full w-full flex items-end gap-2 sm:gap-3">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={`chart-skeleton-bar-${i}`}
+                style={{ height: `${30 + ((i * 13) % 50)}%` }}
+                className="flex-1 rounded-sm bg-neutral-800/80 attendance-skeleton-block"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (data.length === 0) return null;
 
