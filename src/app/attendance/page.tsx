@@ -20,7 +20,13 @@ export default function AttendanceDashboard() {
   const [parseWarning, setParseWarning] = useState<string | null>(null);
   
   // Filters
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    return null;
+  });
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
 
   // Member Modal State
