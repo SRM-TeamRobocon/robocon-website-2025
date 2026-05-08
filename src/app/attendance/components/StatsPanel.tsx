@@ -13,7 +13,7 @@ export function StatsPanel({ totalActive, totalHoursMs, totalUsers }: { totalAct
 
 function Stat({ label, value, accent }: { label: string; value: string; accent: string }) {
   const borderColor = accent === "red" ? "border-red-500/50" : "border-zinc-700";
-  const valueColor = accent === "red" ? "text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-500" : "text-zinc-100";
+  const valueColor = accent === "red" ? "text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]" : "text-zinc-100";
 
   return (
     <div className={`border-l-2 ${borderColor} pl-4 py-1`}>

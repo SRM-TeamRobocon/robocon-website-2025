@@ -1,0 +1,25 @@
+
+> robon-website@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 26.2s
+  Running TypeScript ...
+Failed to type check.
+
+./src/components/ui/apple-cards-carousel.tsx:131:21
+Type error: Type '{ opacity: number; y: number; transition: { duration: number; delay: number; ease: "easeOut"; once: true; }; }' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls | undefined'.
+  Types of property 'transition' are incompatible.
+    Object literal may only specify known properties, and 'once' does not exist in type 'Transition<any>'.
+
+  [90m129 |[0m                     delay: [35m0.2[0m * index,
+  [90m130 |[0m                     ease: [32m"easeOut"[0m,
+[31m[1m>[0m [90m131 |[0m                     once: [36mtrue[0m,
+  [90m    |[0m                     [31m[1m^[0m
+  [90m132 |[0m                   },
+  [90m133 |[0m                 }}
+  [90m134 |[0m                 key={[32m"card"[0m + index}
+Next.js build worker exited with code: 1 and signal: null

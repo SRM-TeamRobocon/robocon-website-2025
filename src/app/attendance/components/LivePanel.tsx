@@ -96,7 +96,7 @@ export function DomainLeaderboard({
             <p className="text-[9px] font-bold tracking-[0.24em] text-red-400/80">LEADER</p>
             <p className="truncate text-sm font-bold text-white mt-0.5">{topDomain?.domain || "N/A"}</p>
           </div>
-          <p className="flex-shrink-0 font-mono text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-500 relative z-10">
+          <p className="flex-shrink-0 font-mono text-base font-bold text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)] relative z-10">
             {topDomain ? formatDuration(topDomain.total) : "0h 0m"}
           </p>
         </div>

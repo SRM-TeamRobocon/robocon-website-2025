@@ -10,6 +10,8 @@ import { LeaderboardTable } from "./components/LeaderboardTable";
 import { DomainLeaderboard, LivePanel, type DomainLeaderboardEntry } from "./components/LivePanel";
 import { ActivityChart } from "./components/ActivityChart";
 import { MemberModal } from "./components/MemberModal";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 export default function AttendanceDashboard() {
   const [allLogs, setAllLogs] = useState<TapLog[]>([]);
@@ -129,8 +131,7 @@ export default function AttendanceDashboard() {
 
   useEffect(() => {
     fetchData();
-    const iv = setInterval(fetchData, 60_000);
-    return () => clearInterval(iv);
+    // Removed auto-sync interval as requested
   }, [fetchData]);
 
   const handleDownload = () => {
@@ -180,50 +181,37 @@ export default function AttendanceDashboard() {
     .sort((a, b) => b.total - a.total);
 
   return (
-    <div className="min-h-screen flex flex-col relative z-10 overflow-x-hidden">
-      {/* ── Premium Sticky Header ── */}
-      <header className="bg-gradient-to-b from-zinc-900/80 via-zinc-900/40 to-zinc-950/40 backdrop-blur-xl border-b border-zinc-800/50 sticky top-0 z-50 shadow-[0_10px_30px_rgba(239,68,68,0.05)]">
+    <div className="min-h-screen flex flex-col bg-black text-white relative">
+      <Header />
+      
+      {/* ── Secondary Telemetry Header ── */}
+      <header className="bg-black/40 backdrop-blur-md border-b border-zinc-800/50 sticky top-0 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.3)] mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
-            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-              <Image
-                  src={"/textLogo.svg"}
-                  alt="logo"
-                  width={210}
-                  height={200}
-                  className="w-44 md:w-52 cursor-pointer z-50 hover:opacity-80 transition-opacity"
-                  // onClick={() => router.push("/")}
-                  unoptimized
-                ></Image>
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 bg-red-500 rounded-full" />
+              <span className="text-[10px] sm:text-xs font-bold tracking-[0.3em] text-zinc-400 uppercase">Attendance Telemetry</span>
             </div>
 
             {/* Telemetry Stats - Desktop */}
-            <div className="hidden lg:flex items-center gap-8">
+            <div className="hidden lg:flex items-center gap-10">
               <StatItem label="In Lab" value={active.length.toString()} accent />
               <StatItem label="Total Hours" value={formatDuration(totalMs)} />
               <StatItem label="Members" value={filteredUsers.length.toString()} />
             </div>
 
             {/* Right Controls */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-[8px] sm:text-[9px] text-zinc-500 font-mono hidden md:block tracking-wider">
-                {lastRefresh.toLocaleTimeString()}
+            <div className="flex items-center gap-3">
+              <span className="text-[9px] text-zinc-500 font-mono hidden md:block tracking-widest">
+                LATEST SYNC: {lastRefresh.toLocaleTimeString()}
               </span>
-              
-              {/* Mobile Live Button */}
-              <button
-                onClick={() => setLiveModalOpen(true)}
-                className="lg:hidden h-9 px-3 bg-gradient-to-r from-red-500/20 to-red-500/10 border border-red-500/40 text-red-400 text-[10px] sm:text-xs font-bold tracking-wider hover:from-red-500/30 hover:to-red-500/20 transition-all active:scale-95"
-              >
-                LIVE ({active.length})
-              </button>
               
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="h-9 px-3 sm:px-5 bg-gradient-to-r from-red-500/20 to-red-500/10 border border-red-500/40 text-red-400 text-[10px] sm:text-xs font-bold tracking-wider hover:from-red-500/30 hover:to-red-500/20 transition-all disabled:opacity-50 active:scale-95"
+                className="h-8 px-4 bg-red-500/10 border border-red-500/40 text-red-400 text-[10px] font-bold tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50"
               >
-                {loading ? "⟳ SYNCING" : "↻ SYNC"}
+                {loading ? "SYNCING..." : "SYNC NOW"}
               </button>
             </div>
           </div>
@@ -404,6 +392,7 @@ export default function AttendanceDashboard() {
           loading={loading}
         />
       )}
+      <Footer />
     </div>
   );
 }
@@ -544,7 +533,7 @@ function StatItem({ label, value, accent }: { label: string; value: string; acce
   return (
     <div className="text-center sm:text-left">
       <p className="text-[8px] sm:text-[9px] text-zinc-500 tracking-widest font-bold uppercase">{label}</p>
-      <p className={`text-lg sm:text-xl font-bold tracking-tight ${accent ? "text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-500" : "text-white"}`}>{value}</p>
+      <p className={`text-lg sm:text-xl font-bold tracking-tight ${accent ? "text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "text-white"}`}>{value}</p>
     </div>
   );
 }
