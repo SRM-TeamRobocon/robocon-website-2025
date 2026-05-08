@@ -15,15 +15,10 @@ export default function ParticlesCom() {
 
     return (
         <Particles
-            className="fixed w-full h-full -z-10"
+            className="fixed w-full h-full -z-[1] pointer-events-none"
             id="tsparticles"
             init={particlesInit}
             options={{
-                background: {
-                    color: {
-                        value: "#000000",
-                    },
-                },
                 fpsLimit: 30,
                 interactivity: {
                     events: {
@@ -49,14 +44,14 @@ export default function ParticlesCom() {
                 },
                 particles: {
                     color: {
-                        value: "#D5D5D5",
+                        value: "#FFFFFF",
                     },
                     links: {
-                        color: "#D5D5D5",
+                        color: "#FFFFFF",
                         distance: 500,
                         enable: true,
-                        opacity: 0.5,
-                        width: 1,
+                        opacity: 1,
+                        width: 1.2,
                     },
                     move: {
                         direction: "none",
@@ -71,13 +66,13 @@ export default function ParticlesCom() {
                     number: {
                         density: {
                             enable: true,
-                            area: 800,
+                            area: 600,
                         },
-                        value: 15,
-                        limit: 50
+                        value: 200,
+                        limit: 40
                     },
                     opacity: {
-                        value: 0.5,
+                        value: 0.8,
                     },
                     shape: {
                         type: "circle",

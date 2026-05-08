@@ -34,9 +34,6 @@ export default function Header() {
   const router = useRouter();
   return (
     <div>
-      <div className="-z-50">
-        <ParticlesCom />
-      </div>
       {/* Header section */}
       <div className="mt-12 md:mt-16 pl-10 md:pl-16 flex justify-between z-50 w-full">
         {/* Navbar Logo */}

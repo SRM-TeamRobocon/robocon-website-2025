@@ -23,7 +23,7 @@ import { GiSplitCross } from "react-icons/gi";
 import jsonData from "@/app/gallery/carousel-data.json"; // Link your JSON data here
 
 interface CarouselProps {
-  items: JSX.Element[];
+  items: React.ReactNode[];
   initialScroll?: number;
 }
 
@@ -128,9 +128,9 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
                     duration: 0.5,
                     delay: 0.2 * index,
                     ease: "easeOut",
-                    once: true,
                   },
                 }}
+                viewport={{ once: true }}
                 key={"card" + index}
                 className="last:pr-[5%] md:last:pr-[33%] rounded-3xl"
               >
