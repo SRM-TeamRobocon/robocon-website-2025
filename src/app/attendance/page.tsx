@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { Download } from "lucide-react";
+import { motion } from "framer-motion";
 import { TapLog, UserStats, ParseAttendanceResult, parseCSV, parseData, calculateStats, formatDuration, getAvailableMonths, filterLogsByMonth, generateSessionCSV } from "./logic";
 import { HeroCards } from "./components/HeroCards";
 import { LeaderboardTable } from "./components/LeaderboardTable";
@@ -180,43 +181,39 @@ export default function AttendanceDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col relative z-10 overflow-x-hidden">
-      {/* ── Sticky Header ── */}
-      <header className="bg-black/80 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-50">
+      {/* ── Premium Sticky Header ── */}
+      <header className="bg-gradient-to-b from-zinc-900/80 via-zinc-900/40 to-zinc-950/40 backdrop-blur-xl border-b border-zinc-800/50 sticky top-0 z-50 shadow-[0_10px_30px_rgba(239,68,68,0.05)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
             <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
               <Image
                   src={"/textLogo.svg"}
                   alt="logo"
                   width={210}
                   height={200}
-                  className="w-44 md:w-52 cursor-pointer z-50"
+                  className="w-44 md:w-52 cursor-pointer z-50 hover:opacity-80 transition-opacity"
                   // onClick={() => router.push("/")}
                   unoptimized
                 ></Image>
-              {/* <div>
-                <h1 className="text-white font-bold text-sm sm:text-lg leading-tight">
-                  SRM <span className="text-red">TEAM</span>
-                </h1>
-                <h1 className="text-white font-bold text-sm sm:text-lg leading-tight -mt-0.5">ROBOCON</h1>
-              </div> */}
             </div>
 
-            <div className="hidden sm:flex items-center gap-6 lg:gap-8">
+            {/* Telemetry Stats - Desktop */}
+            <div className="hidden lg:flex items-center gap-8">
               <StatItem label="In Lab" value={active.length.toString()} accent />
               <StatItem label="Total Hours" value={formatDuration(totalMs)} />
               <StatItem label="Members" value={filteredUsers.length.toString()} />
             </div>
 
+            {/* Right Controls */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-[9px] text-neutral-600 hidden md:block">
+              <span className="text-[8px] sm:text-[9px] text-zinc-500 font-mono hidden md:block tracking-wider">
                 {lastRefresh.toLocaleTimeString()}
               </span>
               
               {/* Mobile Live Button */}
               <button
                 onClick={() => setLiveModalOpen(true)}
-                className="lg:hidden h-9 px-3 bg-red/10 border border-red/30 text-red text-[10px] sm:text-xs font-bold tracking-wider hover:bg-red/20 transition-all"
+                className="lg:hidden h-9 px-3 bg-gradient-to-r from-red-500/20 to-red-500/10 border border-red-500/40 text-red-400 text-[10px] sm:text-xs font-bold tracking-wider hover:from-red-500/30 hover:to-red-500/20 transition-all active:scale-95"
               >
                 LIVE ({active.length})
               </button>
@@ -224,62 +221,74 @@ export default function AttendanceDashboard() {
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="h-9 px-3 sm:px-5 bg-red/10 border border-red/30 text-red text-[10px] sm:text-xs font-bold tracking-wider hover:bg-red/20 transition-all disabled:opacity-40 active:scale-95"
+                className="h-9 px-3 sm:px-5 bg-gradient-to-r from-red-500/20 to-red-500/10 border border-red-500/40 text-red-400 text-[10px] sm:text-xs font-bold tracking-wider hover:from-red-500/30 hover:to-red-500/20 transition-all disabled:opacity-50 active:scale-95"
               >
-                {loading ? "SYNCING" : "SYNC"}
+                {loading ? "⟳ SYNCING" : "↻ SYNC"}
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* ── Content ── */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      {/* ── Premium Content Layout ── */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        {/* Error Alert - Premium Styling */}
         {error && (
-          <div className="mb-6 px-4 py-3 bg-red/5 border-l-4 border-red">
-            <p className="text-xs text-red font-bold tracking-wider">CONNECTION ERROR</p>
-            <p className="text-[11px] text-neutral-400 mt-0.5">{error}</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-xl bg-gradient-to-r from-red-500/10 via-red-500/5 to-transparent border border-red-500/30 p-4 backdrop-blur-sm"
+          >
+            <p className="text-xs text-red-400 font-bold tracking-wider uppercase">⚠ Connection Error</p>
+            <p className="text-[11px] text-red-300/80 mt-1.5 font-medium">{error}</p>
+          </motion.div>
         )}
+        
+        {/* Data Quality Warning - Premium Styling */}
         {parseWarning && (
-          <div className="mb-6 px-4 py-3 bg-amber-500/5 border-l-4 border-amber-500">
-            <p className="text-xs text-amber-400 font-bold tracking-wider">PARTIAL DATA WARNING</p>
-            <p className="text-[11px] text-neutral-300 mt-0.5">{parseWarning}</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 p-4 backdrop-blur-sm"
+          >
+            <p className="text-xs text-amber-400 font-bold tracking-wider uppercase">⚠ Partial Data</p>
+            <p className="text-[11px] text-amber-300/80 mt-1.5 font-medium">{parseWarning}</p>
+          </motion.div>
         )}
 
-        {/* ── Filter & Export Controls ── */}
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* ── Premium Filter & Export Controls ── */}
+        <div className="mb-8 sm:mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setSelectedMonth(null)}
-              className={`px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+              className={`px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-bold tracking-wider rounded-lg border transition-all duration-200 ${
                 selectedMonth === null
-                  ? "bg-red text-white border-red"
-                  : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                  ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
+                  : "bg-zinc-900/40 text-zinc-400 border-zinc-700/50 hover:bg-zinc-800/50 hover:text-zinc-300 hover:border-zinc-600/50"
               }`}
             >
               ALL TIME
             </button>
             {availableMonths.map(m => (
-              <button
+              <motion.button
                 key={m.key}
+                whileHover={{ scale: 1.02 }}
                 onClick={() => setSelectedMonth(m.key)}
-                className={`px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+                className={`px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-bold tracking-wider rounded-lg border transition-all duration-200 ${
                   selectedMonth === m.key
-                    ? "bg-red text-white border-red"
-                    : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                    ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
+                    : "bg-zinc-900/40 text-zinc-400 border-zinc-700/50 hover:bg-zinc-800/50 hover:text-zinc-300 hover:border-zinc-600/50"
                 }`}
               >
                 {m.label.toUpperCase()}
-              </button>
+              </motion.button>
             ))}
 
             {selectedMonth && (
                <select 
                  value={selectedWeek || ""} 
                  onChange={e => setSelectedWeek(e.target.value ? Number(e.target.value) : null)}
-                 className="bg-black text-neutral-300 border border-neutral-800 hover:border-neutral-600 px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider focus:outline-none transition-colors ml-0 sm:ml-2"
+                 className="bg-zinc-900/40 text-zinc-300 border border-zinc-700/50 hover:border-zinc-600/50 px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider focus:outline-none focus:border-red-500/50 transition-colors ml-0 sm:ml-2 rounded-lg"
                >
                  <option value="">ALL WEEKS</option>
                  <option value="1">WEEK 1 (1st-7th)</option>
@@ -291,12 +300,13 @@ export default function AttendanceDashboard() {
              )}
           </div>
 
-          <button 
+          <motion.button 
+             whileHover={{ scale: 1.02 }}
              onClick={handleDownload}
-             className="flex items-center justify-center gap-2 px-4 py-2 border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-[10px] sm:text-xs font-bold tracking-widest shrink-0"
+             className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-blue-500/40 bg-gradient-to-r from-blue-500/20 to-blue-500/10 text-blue-300 hover:from-blue-500/30 hover:to-blue-500/20 transition-all duration-200 text-[10px] sm:text-xs font-bold tracking-widest shrink-0"
           >
              <Download size={14} /> EXPORT CSV
-          </button>
+          </motion.button>
         </div>
 
         <div className="space-y-8 sm:space-y-10">
@@ -318,32 +328,34 @@ export default function AttendanceDashboard() {
 
             <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-7 xl:grid-cols-[minmax(0,1fr)_460px]">
               <div>
-                {/* Domain Tabs */}
-                <div className="mb-4 flex flex-wrap gap-2">
-                  <button
+                {/* Domain Filter Tabs - Premium */}
+                <motion.div className="mb-6 flex flex-wrap gap-2" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
                     onClick={() => setSelectedDomain(null)}
-                    className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+                    className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider rounded-lg border transition-all duration-200 ${
                       selectedDomain === null
-                        ? "bg-red text-white border-red"
-                        : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                        ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
+                        : "bg-zinc-900/40 text-zinc-400 border-zinc-700/50 hover:bg-zinc-800/50 hover:text-zinc-300 hover:border-zinc-600/50"
                     }`}
                   >
                     ALL DOMAINS
-                  </button>
+                  </motion.button>
                   {availableDomains.map(domain => (
-                    <button
+                    <motion.button
                       key={domain}
+                      whileHover={{ scale: 1.02 }}
                       onClick={() => setSelectedDomain(domain)}
-                      className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider border transition-all ${
+                      className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider rounded-lg border transition-all duration-200 ${
                         selectedDomain === domain
-                          ? "bg-red text-white border-red"
-                          : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                          ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
+                          : "bg-zinc-900/40 text-zinc-400 border-zinc-700/50 hover:bg-zinc-800/50 hover:text-zinc-300 hover:border-zinc-600/50"
                       }`}
                     >
                       {domain}
-                    </button>
+                    </motion.button>
                   ))}
-                </div>
+                </motion.div>
                 
                 <LeaderboardTable 
                   loading={loading}
@@ -412,23 +424,27 @@ function LiveModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-black border border-neutral-800 max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
+      <div className="bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-2xl border border-zinc-800/60 max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.1)] rounded-2xl relative">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500/80 via-red-500/40 to-transparent"></div>
         {/* Header */}
-        <div className="px-5 py-4 border-b border-neutral-800 bg-neutral-900/80 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-red animate-pulse" />
-            <span className="text-sm font-bold text-white tracking-widest">LIVE IN LAB</span>
+        <div className="px-5 py-4 border-b border-zinc-800/60 bg-zinc-900/30 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+            </span>
+            <span className="text-sm font-bold text-white tracking-[0.2em]">LIVE IN LAB</span>
           </div>
           <button
             onClick={onClose}
-            className="text-neutral-500 hover:text-white transition-colors"
+            className="text-zinc-500 hover:text-white hover:bg-zinc-800/50 p-1.5 rounded-full transition-all duration-200"
           >
             ✕
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 no-scrollbar">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <LivePanel activeUsers={activeUsers} className="h-[320px] sm:h-[360px]" loading={loading} />
             <DomainLeaderboard items={domainLeaderboard} loading={loading} />
@@ -442,26 +458,26 @@ function LiveModal({
 function TopDomainBlocks({ items, loading }: { items: DomainLeaderboardEntry[]; loading: boolean }) {
   if (loading) {
     return (
-      <div className="attendance-skeleton-surface rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(18,18,18,0.98),rgba(6,6,6,0.95))] p-3 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="h-3 w-28 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
-          <div className="h-6 w-14 rounded-md bg-neutral-800/90 attendance-skeleton-block" />
+      <div className="attendance-skeleton-surface rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="h-3 w-28 rounded-sm bg-zinc-800/90 attendance-skeleton-block" />
+          <div className="h-6 w-14 rounded-md bg-zinc-800/90 attendance-skeleton-block" />
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={`mobile-domain-skeleton-${index}`}
-              className="rounded-md border border-neutral-700 bg-black/55 px-3 py-3"
+              className="rounded-xl border border-zinc-800/40 bg-zinc-900/30 px-3.5 py-3.5"
             >
               <div className="mb-1.5 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="h-3 w-8 rounded-sm bg-neutral-800/90 attendance-skeleton-block mb-2" />
-                  <div className="h-4 w-20 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+                  <div className="h-3 w-8 rounded-sm bg-zinc-800/90 attendance-skeleton-block mb-2" />
+                  <div className="h-4 w-20 rounded-sm bg-zinc-800/90 attendance-skeleton-block" />
                 </div>
-                <div className="h-4 w-14 rounded-sm bg-neutral-800/90 attendance-skeleton-block" />
+                <div className="h-4 w-14 rounded-sm bg-zinc-800/90 attendance-skeleton-block" />
               </div>
-              <div className="h-3 w-16 rounded-sm bg-neutral-800/80 attendance-skeleton-block" />
+              <div className="h-3 w-16 rounded-sm bg-zinc-800/80 attendance-skeleton-block" />
             </div>
           ))}
         </div>
@@ -473,30 +489,32 @@ function TopDomainBlocks({ items, loading }: { items: DomainLeaderboardEntry[]; 
   const slots = [topThree[0] || null, topThree[1] || null, topThree[2] || null];
 
   return (
-    <div className="rounded-md border border-neutral-700 bg-[linear-gradient(180deg,rgba(18,18,18,0.98),rgba(6,6,6,0.95))] p-3 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold tracking-[0.24em] text-neutral-400">TOP 3 DOMAINS</h3>
-        <span className="rounded-md border border-neutral-700 bg-black/40 px-2 py-1 text-[10px] font-bold tracking-wider text-red">
+    <div className="rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-red-500/50 via-red-500/10 to-transparent"></div>
+      
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-[10px] font-bold tracking-[0.24em] text-zinc-400">TOP 3 DOMAINS</h3>
+        <span className="rounded-md border border-zinc-800/60 bg-zinc-900/60 px-2 py-1 text-[9px] font-bold tracking-widest text-zinc-400">
           MOBILE
         </span>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {slots.map((item, index) => (
           <div
             key={item?.domain || `empty-domain-${index}`}
-            className="rounded-md border border-neutral-700 bg-black/55 px-3 py-3"
+            className="rounded-xl border border-zinc-800/40 bg-zinc-900/40 px-3.5 py-3.5 transition-colors hover:border-zinc-700/80 hover:bg-zinc-800/60"
           >
             <div className="mb-1.5 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold tracking-wider text-red">#{index + 1}</p>
-                <p className="truncate text-[12px] font-bold text-white">{item?.domain || "N/A"}</p>
+                <p className={`text-[10px] font-bold tracking-widest mb-0.5 ${index === 0 ? 'text-red-400' : 'text-zinc-500'}`}>#{index + 1}</p>
+                <p className="truncate text-[13px] font-bold text-zinc-100">{item?.domain || "N/A"}</p>
               </div>
-              <p className="font-mono text-xs font-bold text-cyan-300">
+              <p className="font-mono text-[13px] font-bold text-cyan-400/90">
                 {item ? formatDuration(item.total) : "0h 0m"}
               </p>
             </div>
-            <p className="text-[10px] font-bold tracking-wider text-neutral-500">
+            <p className="text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
               {item ? `${item.members} members` : "No members"}
             </p>
           </div>
@@ -508,17 +526,25 @@ function TopDomainBlocks({ items, loading }: { items: DomainLeaderboardEntry[]; 
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-l-4 border-red pl-3 mb-4 sm:mb-6 mt-8">
-      <h2 className="text-xl sm:text-2xl font-bold text-white">{children}</h2>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4 }}
+      className="mb-6 sm:mb-8 mt-10 sm:mt-12"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-1 h-8 bg-gradient-to-b from-red-500 to-red-500/30 rounded-full" />
+        <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{children}</h2>
+      </div>
+    </motion.div>
   );
 }
 
 function StatItem({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="text-center sm:text-left">
-      <p className="text-[9px] sm:text-[10px] text-neutral-500 tracking-wider font-bold uppercase">{label}</p>
-      <p className={`text-lg sm:text-xl font-bold ${accent ? "text-red" : "text-white"}`}>{value}</p>
+      <p className="text-[8px] sm:text-[9px] text-zinc-500 tracking-widest font-bold uppercase">{label}</p>
+      <p className={`text-lg sm:text-xl font-bold tracking-tight ${accent ? "text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-500" : "text-white"}`}>{value}</p>
     </div>
   );
 }

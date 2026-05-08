@@ -1,0 +1,32 @@
+
+> robon-website@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/app/globals.css
+Error evaluating Node.js code
+CssSyntaxError: /home/daksh/Desktop/robocon/robocon-website-2025/src/app/globals.css:3:1: The `border-border` class does not exist. If `border-border` is a custom class, make sure it is defined within a `@layer` directive.
+    at Input.error (node_modules/postcss/lib/input.js:135:16) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/node_modules_13sb.px._.js:4692:22]
+    at error (node_modules/postcss/lib/node.js:146:32) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/node_modules_13sb.px._.js:954:38]
+    [at processApply (/home/daksh/Desktop/robocon/robocon-website-2025/node_modules/tailwindcss/lib/lib/expandApplyAtRules.js:380:29)]
+    [at /home/daksh/Desktop/robocon/robocon-website-2025/node_modules/tailwindcss/lib/lib/expandApplyAtRules.js:551:9]
+    [at /home/daksh/Desktop/robocon/robocon-website-2025/node_modules/tailwindcss/lib/processTailwindFeatures.js:55:50]
+    [at async plugins (/home/daksh/Desktop/robocon/robocon-website-2025/node_modules/tailwindcss/lib/plugin.js:38:17)]
+    at async LazyResult.runAsync (node_modules/postcss/lib/lazy-result.js:293:11) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/node_modules_13sb.px._.js:6255:21]
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/[root-of-the-server]__0iv9ksq._.js:172:36]
+    at async run (turbopack:///[turbopack-node]/child_process/evaluate.ts:89:23) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/[root-of-the-server]__0rua-~2._.js:443:31]
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.tsx [Server Component]
+
+
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/[root-of-the-server]__0iv9ksq._.js:172:36])
+    at async run (turbopack:///[turbopack-node]/child_process/evaluate.ts:89:23) [/home/daksh/Desktop/robocon/robocon-website-2025/.next/build/chunks/[root-of-the-server]__0rua-~2._.js:443:31])
