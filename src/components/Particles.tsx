@@ -50,7 +50,7 @@ export default function ParticlesCom() {
                         color: "#FFFFFF",
                         distance: 500,
                         enable: true,
-                        opacity: 1,
+                        opacity: 0.8,
                         width: 1.2,
                     },
                     move: {
