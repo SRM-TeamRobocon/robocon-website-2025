@@ -182,7 +182,7 @@ export default function AttendanceDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col robocon-theme-bg text-white relative">
-      <Header />
+      {/* <Header /> */}
       
       {/* ── Secondary Telemetry Header ── */}
       <header className="bg-black/60 backdrop-blur-xl border-b border-zinc-800/50 sticky top-0 z-40 shadow-2xl transition-all duration-300">

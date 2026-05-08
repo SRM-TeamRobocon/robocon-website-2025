@@ -15,15 +15,10 @@ export default function ParticlesCom() {
 
     return (
         <Particles
-            className="fixed w-full h-full z-[100] pointer-events-none"
+            className="fixed w-full h-full -z-[1] pointer-events-none"
             id="tsparticles"
             init={particlesInit}
             options={{
-                background: {
-                    color: {
-                        value: "#000000",
-                    },
-                },
                 fpsLimit: 30,
                 interactivity: {
                     events: {
