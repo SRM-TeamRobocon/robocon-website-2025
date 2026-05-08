@@ -279,6 +279,36 @@
     background-color: black;
     color: white;
   }
+
+  .robocon-theme-bg {
+    background: radial-gradient(circle at center, #050505 0%, #000000 100%);
+    position: relative;
+  }
+
+  .robocon-theme-bg::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(0, 120, 255, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .sharp-card {
+    @apply border border-zinc-800/50 bg-zinc-900/40 backdrop-blur-xl transition-all duration-300;
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.5);
+  }
+
+  .sharp-card:hover {
+    @apply border-zinc-700/80 bg-zinc-800/60;
+    box-shadow: 0 8px 30px -5px rgba(0, 0, 0, 0.7);
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-200%) skewX(-20deg); }
+    100% { transform: translateX(200%) skewX(-20deg); }
+  }
+  
   html {
     @apply font-sans;
   }

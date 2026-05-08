@@ -75,12 +75,6 @@ export function HeroCards({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6">
-      <style jsx global>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-200%) skewX(-20deg); }
-          100% { transform: translateX(200%) skewX(-20deg); }
-        }
-      `}</style>
       {topUsers.map((user, i) => {
         const r = ranks[i] || ranks[2];
         const IconComponent = r.icon;

@@ -181,37 +181,54 @@ export default function AttendanceDashboard() {
     .sort((a, b) => b.total - a.total);
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white relative">
+    <div className="min-h-screen flex flex-col robocon-theme-bg text-white relative">
       <Header />
       
       {/* ── Secondary Telemetry Header ── */}
-      <header className="bg-black/40 backdrop-blur-md border-b border-zinc-800/50 sticky top-0 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.3)] mt-8">
+      <header className="bg-black/60 backdrop-blur-xl border-b border-zinc-800/50 sticky top-0 z-40 shadow-2xl transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-6 bg-red-500 rounded-full" />
-              <span className="text-[10px] sm:text-xs font-bold tracking-[0.3em] text-zinc-400 uppercase">Attendance Telemetry</span>
+          <div className="flex flex-col sm:flex-row items-center justify-between py-3 sm:py-0 sm:h-20 gap-3 sm:gap-4">
+            <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-8 bg-red-500 rounded-full shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] sm:text-xs font-black tracking-[0.4em] text-zinc-100 uppercase">TELEMETRY</span>
+                  <span className="text-[8px] sm:text-[9px] font-black tracking-[0.2em] text-zinc-500 uppercase">DASHBOARD_v2.0</span>
+                </div>
+              </div>
+              
+              {/* Mobile Live Button */}
+              <button
+                onClick={() => setLiveModalOpen(true)}
+                className="lg:hidden flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/40 rounded-full text-red-400 text-[10px] font-black tracking-widest hover:bg-red-500/20 transition-all active:scale-95"
+              >
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                LIVE ({active.length})
+              </button>
             </div>
 
-            {/* Telemetry Stats - Desktop */}
-            <div className="hidden lg:flex items-center gap-10">
+            {/* Telemetry Stats - Responsive */}
+            <div className="flex items-center justify-around w-full sm:w-auto sm:gap-12 border-t border-zinc-800/30 sm:border-0 pt-4 sm:pt-0">
               <StatItem label="In Lab" value={active.length.toString()} accent />
+              <div className="w-px h-10 bg-zinc-800/30 sm:hidden" />
               <StatItem label="Total Hours" value={formatDuration(totalMs)} />
+              <div className="w-px h-10 bg-zinc-800/30 sm:hidden" />
               <StatItem label="Members" value={filteredUsers.length.toString()} />
             </div>
 
-            {/* Right Controls */}
-            <div className="flex items-center gap-3">
-              <span className="text-[9px] text-zinc-500 font-mono hidden md:block tracking-widest">
-                LATEST SYNC: {lastRefresh.toLocaleTimeString()}
-              </span>
+            {/* Right Controls - Desktop */}
+            <div className="hidden sm:flex items-center gap-6">
+              <div className="flex flex-col items-end">
+                <span className="text-[9px] text-zinc-500 font-mono tracking-widest uppercase">SYSTEM_CLOCK</span>
+                <span className="text-[11px] text-zinc-300 font-mono tracking-widest">{lastRefresh.toLocaleTimeString()}</span>
+              </div>
               
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="h-8 px-4 bg-red-500/10 border border-red-500/40 text-red-400 text-[10px] font-bold tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50"
+                className="h-10 px-6 bg-white text-black text-[10px] font-black tracking-[0.2em] hover:bg-zinc-200 transition-all disabled:opacity-50 shadow-[0_0_20px_rgba(255,255,255,0.15)] rounded-sm uppercase"
               >
-                {loading ? "SYNCING..." : "SYNC NOW"}
+                {loading ? "SYNCING" : "RE-SYNC"}
               </button>
             </div>
           </div>
@@ -447,7 +464,7 @@ function LiveModal({
 function TopDomainBlocks({ items, loading }: { items: DomainLeaderboardEntry[]; loading: boolean }) {
   if (loading) {
     return (
-      <div className="attendance-skeleton-surface rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+      <div className="sharp-card p-4">
         <div className="mb-4 flex items-center justify-between">
           <div className="h-3 w-28 rounded-sm bg-zinc-800/90 attendance-skeleton-block" />
           <div className="h-6 w-14 rounded-md bg-zinc-800/90 attendance-skeleton-block" />
@@ -478,34 +495,44 @@ function TopDomainBlocks({ items, loading }: { items: DomainLeaderboardEntry[]; 
   const slots = [topThree[0] || null, topThree[1] || null, topThree[2] || null];
 
   return (
-    <div className="rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] relative overflow-hidden group">
+    <div className="sharp-card p-5 relative overflow-hidden group">
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-red-500/50 via-red-500/10 to-transparent"></div>
       
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold tracking-[0.24em] text-zinc-400">TOP 3 DOMAINS</h3>
-        <span className="rounded-md border border-zinc-800/60 bg-zinc-900/60 px-2 py-1 text-[9px] font-bold tracking-widest text-zinc-400">
-          MOBILE
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="text-[10px] font-black tracking-[0.3em] text-zinc-100 uppercase">TOP DOMAINS</h3>
+        <span className="rounded-md border border-zinc-800/60 bg-zinc-900/60 px-2.5 py-1 text-[9px] font-black tracking-widest text-zinc-400">
+          RANKING
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {slots.map((item, index) => (
           <div
             key={item?.domain || `empty-domain-${index}`}
-            className="rounded-xl border border-zinc-800/40 bg-zinc-900/40 px-3.5 py-3.5 transition-colors hover:border-zinc-700/80 hover:bg-zinc-800/60"
+            className="rounded-xl border border-zinc-800/40 bg-zinc-950/40 px-4 py-4 transition-all duration-300 hover:border-zinc-700/80 hover:bg-zinc-900/60"
           >
-            <div className="mb-1.5 flex items-center justify-between gap-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className={`text-[10px] font-bold tracking-widest mb-0.5 ${index === 0 ? 'text-red-400' : 'text-zinc-500'}`}>#{index + 1}</p>
-                <p className="truncate text-[13px] font-bold text-zinc-100">{item?.domain || "N/A"}</p>
+                <p className={`text-[10px] font-black tracking-widest mb-1 ${index === 0 ? 'text-red-400' : 'text-zinc-500'}`}>#0{index + 1}</p>
+                <p className="truncate text-[13px] font-black text-zinc-100 uppercase tracking-tight">{item?.domain || "N/A"}</p>
               </div>
-              <p className="font-mono text-[13px] font-bold text-cyan-400/90">
+              <p className="font-mono text-sm font-black text-cyan-400/90">
                 {item ? formatDuration(item.total) : "0h 0m"}
               </p>
             </div>
-            <p className="text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
-              {item ? `${item.members} members` : "No members"}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black tracking-wider text-zinc-500 uppercase">
+                {item ? `${item.members} members` : "No members"}
+              </p>
+              {item && (
+                <div className="w-16 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-red-500/60" 
+                    style={{ width: `${Math.max(10, (item.total / (items[0]?.total || 1)) * 100)}%` }} 
+                  />
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -531,9 +558,9 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 function StatItem({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="text-center sm:text-left">
-      <p className="text-[8px] sm:text-[9px] text-zinc-500 tracking-widest font-bold uppercase">{label}</p>
-      <p className={`text-lg sm:text-xl font-bold tracking-tight ${accent ? "text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "text-white"}`}>{value}</p>
+    <div className="text-center sm:text-left flex flex-col items-center sm:items-start">
+      <p className="text-[8px] sm:text-[9px] text-zinc-500 tracking-[0.2em] font-black uppercase mb-0.5">{label}</p>
+      <p className={`text-xl sm:text-2xl font-black tracking-tighter ${accent ? "text-red-500 drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]" : "text-white"} font-mono`}>{value}</p>
     </div>
   );
 }

@@ -1,0 +1,61 @@
+
+> robon-website@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 29.2s
+  Running TypeScript ...
+  Finished TypeScript in 23.4s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/23) ...
+  Generating static pages using 7 workers (5/23) 
+  Generating static pages using 7 workers (11/23) 
+  Generating static pages using 7 workers (17/23) 
+✓ Generating static pages using 7 workers (23/23) in 867ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /achievements
+├ ○ /admin/dashboard
+├ ƒ /admin/dashboard/[event]
+├ ○ /admin/login
+├ ○ /admin/scanner
+├ ○ /alumni
+├ ƒ /api/admin/login
+├ ƒ /api/admin/me
+├ ƒ /api/admin/registrations
+├ ƒ /api/admin/scan
+├ ƒ /api/admin/update-attendance
+├ ƒ /api/admin/verify
+├ ƒ /api/attendance
+├ ƒ /api/attendance/auto-checkout
+├ ƒ /api/payment/create-order
+├ ƒ /api/payment/submit-manual-registration
+├ ƒ /api/payment/submit-registration
+├ ƒ /api/payment/verify
+├ ○ /attendance
+├ ○ /events
+├ ○ /gallery
+├ ○ /projects
+├ ○ /projectsAndAchievements
+├ ○ /registration
+├ ○ /swb_reg
+├ ○ /team
+├ ○ /workshopReg
+├ ○ /workshopReg/failed
+├ ○ /workshopReg/success
+├ ○ /workshopReg2
+├ ○ /workshopReg2/failed
+└ ○ /workshopReg2/success
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

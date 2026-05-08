@@ -131,9 +131,24 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
           </div>
         ) : (
           filteredAndSortedUsers.map((user, i) => {
-            // True rank is just the index in the original sorted users array
             const trueRank = users.findIndex(u => u.UID === user.UID) + 1;
             
+            // Define rank-specific shiny styles
+            const isTop3 = trueRank <= 3;
+            let rankStyles = "text-zinc-500 bg-zinc-800/50 border-zinc-800";
+            let rowEffect = "";
+            
+            if (trueRank === 1) {
+              rankStyles = "bg-gradient-to-br from-zinc-100 via-white to-zinc-300 text-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.4)] border-zinc-100 font-black";
+              rowEffect = "after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent after:skew-x-[-20deg] after:animate-[shimmer_5s_infinite]";
+            } else if (trueRank === 2) {
+              rankStyles = "bg-gradient-to-br from-amber-300 via-yellow-100 to-amber-500 text-amber-950 shadow-[0_0_15px_rgba(245,158,11,0.4)] border-amber-400 font-black";
+              rowEffect = "after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent after:skew-x-[-20deg] after:animate-[shimmer_6s_infinite]";
+            } else if (trueRank === 3) {
+              rankStyles = "bg-gradient-to-br from-slate-300 via-slate-100 to-slate-500 text-slate-950 shadow-[0_0_10px_rgba(148,163,184,0.4)] border-slate-400 font-black";
+              rowEffect = "after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent after:skew-x-[-20deg] after:animate-[shimmer_7s_infinite]";
+            }
+
             return (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
@@ -141,73 +156,73 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
                 transition={{ duration: 0.3, delay: Math.min(i * 0.05, 0.5) }}
                 key={user.UID}
                 onClick={() => onRowClick && onRowClick(user.UID, user.Name)}
-                className="group border-b border-zinc-800/30 hover:bg-zinc-800/40 transition-all duration-200 cursor-pointer"
+                className={`group border-b border-zinc-800/30 hover:bg-zinc-800/40 transition-all duration-200 cursor-pointer relative overflow-hidden ${rowEffect}`}
               >
                 {/* Mobile View */}
-                <div className="sm:hidden p-4 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-sm ${trueRank <= 3 ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-zinc-500 bg-zinc-800/50'}`}>
+                <div className="sm:hidden p-4.5 flex items-center justify-between">
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-md border ${rankStyles}`}>
                         #{trueRank}
                       </span>
-                      <span className="text-white font-bold tracking-wide">{user.Name}</span>
+                      <span className="text-sm font-black text-white tracking-wide truncate uppercase">{user.Name}</span>
                       {user.currentStreak >= 2 && (
-                         <span className="text-[10px] text-orange-400 font-bold tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded-sm border border-orange-500/20" title={`${user.currentStreak} Day Streak`}>
+                         <span className="flex-shrink-0 text-[10px] text-orange-400 font-black tracking-tighter bg-orange-500/10 px-1.5 py-0.5 rounded-md border border-orange-500/20">
                            🔥 {user.currentStreak}
                          </span>
                       )}
                     </div>
-                    <div className="mb-1">
-                      <span className="text-[9px] font-bold tracking-[0.1em] text-cyan-400/80 uppercase">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] font-black tracking-[0.1em] text-cyan-400/90 uppercase bg-cyan-400/5 px-2 py-0.5 rounded-md border border-cyan-400/20">
                         {user.Domain || DEFAULT_DOMAIN}
                       </span>
+                      <span className="text-xs font-mono font-black text-zinc-100">{formatDuration(user.overallTotalTimeMs)}</span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-zinc-400">{formatDuration(user.overallTotalTimeMs)}</span>
                   </div>
-                  <div>
-                    <span className={`text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 sm:py-1.5 tracking-wider border rounded-md ${
+                  <div className="flex-shrink-0">
+                    <span className={`text-[9px] font-black px-3 py-2 tracking-[0.15em] border rounded-lg shadow-sm ${
                       user.status === "IN"
-                        ? "text-red-400 border-red-500/30 bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
-                        : "text-zinc-500 border-zinc-800 bg-zinc-900/50"
+                        ? "text-red-400 border-red-500/40 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                        : "text-zinc-500 border-zinc-800 bg-zinc-950/50"
                     }`}>
-                      {user.status === "IN" ? "■ IN LAB" : "OUT"}
+                      {user.status === "IN" ? "■ IN LAB" : "OFFLINE"}
                     </span>
                   </div>
                 </div>
 
                 {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-[80px_1fr_140px_110px_150px] items-center h-16">
+                <div className="hidden sm:grid grid-cols-[100px_1fr_160px_130px_160px] items-center h-16">
                   <div className="px-6">
-                    <span className={`text-xs font-bold px-2 py-1 rounded-md ${trueRank <= 3 ? 'text-red-400 bg-red-500/10 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]' : 'text-zinc-500 bg-zinc-800/50 border border-zinc-800'}`}>
+                    <span className={`inline-flex items-center justify-center min-w-[36px] text-xs px-2.5 py-1 rounded-lg border ${rankStyles}`}>
                       #{trueRank}
                     </span>
                   </div>
-                  <div className="px-6 flex items-center gap-2">
-                    <span className="text-sm font-bold text-zinc-100 group-hover:text-white transition-colors">{user.Name}</span>
+                  <div className="px-6 flex items-center gap-3">
+                    <span className="text-sm font-black text-zinc-100 group-hover:text-white transition-colors uppercase tracking-tight">{user.Name}</span>
                     {user.currentStreak >= 2 && (
-                       <span className="text-[10px] text-orange-400 font-bold tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded-sm border border-orange-500/20" title={`${user.currentStreak} Day Streak`}>
+                       <span className="text-[10px] text-orange-400 font-black tracking-wider bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 shadow-sm" title={`${user.currentStreak} Day Streak`}>
                          🔥 {user.currentStreak}
                        </span>
                     )}
                   </div>
                   <div className="px-6">
-                    <span className="text-[10px] font-bold tracking-[0.1em] text-cyan-400/80 uppercase">
+                    <span className="inline-block text-[10px] font-black tracking-[0.12em] text-cyan-400/80 uppercase bg-cyan-400/5 px-2.5 py-1 rounded-md border border-cyan-400/20">
                       {user.Domain || DEFAULT_DOMAIN}
                     </span>
                   </div>
                   <div className="px-6">
-                    <span className="text-sm font-mono font-bold text-zinc-400 group-hover:text-cyan-300 transition-colors">{formatDuration(user.overallTotalTimeMs)}</span>
+                    <span className="text-sm font-mono font-black text-zinc-100 group-hover:text-cyan-300 transition-colors">{formatDuration(user.overallTotalTimeMs)}</span>
                   </div>
                   <div className="px-6">
-                     <span className={`text-[10px] font-bold px-3 py-1.5 tracking-wider border rounded-md ${
+                     <span className={`inline-block text-[10px] font-black px-4 py-2 tracking-[0.15em] border rounded-lg transition-all duration-300 ${
                       user.status === "IN"
-                        ? "text-red-400 border-red-500/30 bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.1)] relative overflow-hidden"
-                        : "text-zinc-500 border-zinc-800 bg-zinc-900/50"
+                        ? "text-red-400 border-red-500/40 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.1)] relative overflow-hidden group-hover:border-red-500/60"
+                        : "text-zinc-500 border-zinc-800/80 bg-zinc-950/40 group-hover:border-zinc-700"
                     }`}>
                       {user.status === "IN" && (
                         <span className="absolute inset-0 bg-red-500/10 animate-pulse pointer-events-none" />
                       )}
-                      {user.status === "IN" ? "■ IN LAB" : "OUT"}
+                      {user.status === "IN" ? "■ IN LAB" : "OFFLINE"}
                     </span>
                   </div>
                 </div>
