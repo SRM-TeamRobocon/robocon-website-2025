@@ -237,10 +237,6 @@ export function LivePanel({
       {/* Header */}
       <div className="flex flex-shrink-0 items-center justify-between border-b border-zinc-800/40 bg-zinc-900/30 px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-          </span>
           <div>
             <span className="text-[11px] font-bold tracking-[0.2em] text-white">LIVE IN LAB</span>
             <p className="mt-1 text-[10px] font-mono text-zinc-500">Members currently clocked in</p>
@@ -290,11 +286,7 @@ export function LivePanel({
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2.5">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-40"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]"></span>
-                        </span>
-                        <p className="truncate text-sm font-bold text-zinc-100">{user.Name}</p>
+                        <p className="truncate text-sm font-black text-zinc-100 uppercase tracking-tight">{user.Name}</p>
                       </div>
                       <p className="mt-1.5 text-[10px] font-mono text-zinc-500 flex items-center gap-1.5">
                         <span className="text-zinc-600">IN @</span> {new Date(user.lastTapMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

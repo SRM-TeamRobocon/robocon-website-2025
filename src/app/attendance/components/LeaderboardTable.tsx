@@ -159,33 +159,35 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
                 className={`group border-b border-zinc-800/30 hover:bg-zinc-800/40 transition-all duration-200 cursor-pointer relative overflow-hidden ${rowEffect}`}
               >
                 {/* Mobile View */}
-                <div className="sm:hidden p-4.5 flex items-center justify-between">
-                  <div className="flex-1 min-w-0 pr-4">
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-md border ${rankStyles}`}>
+                <div className="sm:hidden p-6 flex flex-col gap-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`flex-shrink-0 text-[11px] px-2.5 py-1 rounded-md border ${rankStyles}`}>
                         #{trueRank}
                       </span>
-                      <span className="text-sm font-black text-white tracking-wide truncate uppercase">{user.Name}</span>
-                      {user.currentStreak >= 2 && (
-                         <span className="flex-shrink-0 text-[10px] text-orange-400 font-black tracking-tighter bg-orange-500/10 px-1.5 py-0.5 rounded-md border border-orange-500/20">
-                           🔥 {user.currentStreak}
-                         </span>
-                      )}
+                      <span className="text-base font-black text-white tracking-wide truncate uppercase">{user.Name}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[9px] font-black tracking-[0.1em] text-cyan-400/90 uppercase bg-cyan-400/5 px-2 py-0.5 rounded-md border border-cyan-400/20">
+                    {user.currentStreak >= 2 && (
+                       <span className="flex-shrink-0 text-[10px] text-orange-400 font-black tracking-tighter bg-orange-500/10 px-1.5 py-0.5 rounded-md border border-orange-500/20">
+                         🔥 {user.currentStreak}
+                       </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between gap-4 border-t border-zinc-800/30 pt-4">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] font-black tracking-[0.15em] text-cyan-400/90 uppercase bg-cyan-400/5 px-2.5 py-1 rounded-md border border-cyan-400/20 w-fit">
                         {user.Domain || DEFAULT_DOMAIN}
                       </span>
-                      <span className="text-xs font-mono font-black text-zinc-100">{formatDuration(user.overallTotalTimeMs)}</span>
+                      <span className="text-sm font-mono font-black text-zinc-100">{formatDuration(user.overallTotalTimeMs)}</span>
                     </div>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <span className={`text-[9px] font-black px-3 py-2 tracking-[0.15em] border rounded-lg shadow-sm ${
+                    
+                    <span className={`text-[10px] font-black px-4 py-2.5 tracking-[0.15em] border rounded-xl shadow-sm ${
                       user.status === "IN"
                         ? "text-red-400 border-red-500/40 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
                         : "text-zinc-500 border-zinc-800 bg-zinc-950/50"
                     }`}>
-                      {user.status === "IN" ? "■ IN LAB" : "OFFLINE"}
+                      {user.status === "IN" ? "IN LAB" : "OFFLINE"}
                     </span>
                   </div>
                 </div>
@@ -222,7 +224,7 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
                       {user.status === "IN" && (
                         <span className="absolute inset-0 bg-red-500/10 animate-pulse pointer-events-none" />
                       )}
-                      {user.status === "IN" ? "■ IN LAB" : "OFFLINE"}
+                      {user.status === "IN" ? "IN LAB" : "OFFLINE"}
                     </span>
                   </div>
                 </div>
