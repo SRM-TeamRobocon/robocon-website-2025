@@ -281,15 +281,24 @@
   }
 
   .robocon-theme-bg {
-    background: radial-gradient(circle at center, #050505 0%, #000000 100%);
     position: relative;
+    background: transparent !important;
   }
 
   .robocon-theme-bg::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: radial-gradient(circle at center, rgba(0, 120, 255, 0.08) 0%, transparent 70%);
+    background: radial-gradient(circle at center, #050505 0%, #000000 100%);
+    pointer-events: none;
+    z-index: -2;
+  }
+
+  .robocon-theme-bg::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(0, 120, 255, 0.04) 0%, transparent 70%);
     pointer-events: none;
     z-index: -1;
   }

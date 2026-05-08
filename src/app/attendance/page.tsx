@@ -325,33 +325,36 @@ export default function AttendanceDashboard() {
           </section>
 
           <section>
-            <SectionHeader>All Members</SectionHeader>
-
-            <div className="mb-4 lg:hidden">
-              <TopDomainBlocks items={domainLeaderboard} loading={loading} />
+            <SectionHeader>Live Analytics</SectionHeader>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+              <LivePanel activeUsers={active} className="h-[400px] lg:h-[450px]" loading={loading} />
+              <div className="flex flex-col gap-6">
+                 <TopDomainBlocks items={domainLeaderboard} loading={loading} />
+                 <DomainLeaderboard items={domainLeaderboard} compact loading={loading} />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-7 xl:grid-cols-[minmax(0,1fr)_460px]">
-              <div>
+            <SectionHeader>All Members</SectionHeader>
+            <div className="flex flex-col gap-6">
                 {/* Domain Filter Tabs - Premium */}
-                <motion.div className="mb-6 flex flex-wrap gap-2" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                <motion.div className="flex flex-wrap gap-2" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.3 }}>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     onClick={() => setSelectedDomain(null)}
-                    className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider rounded-lg border transition-all duration-200 ${
+                    className={`px-3 py-2 text-[10px] sm:text-xs font-black tracking-wider rounded-lg border transition-all duration-200 ${
                       selectedDomain === null
                         ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
                         : "bg-zinc-900/40 text-zinc-400 border-zinc-700/50 hover:bg-zinc-800/50 hover:text-zinc-300 hover:border-zinc-600/50"
                     }`}
                   >
-                    ALL DOMAINS
+                    ALL_OPERATORS
                   </motion.button>
                   {availableDomains.map(domain => (
                     <motion.button
                       key={domain}
                       whileHover={{ scale: 1.02 }}
                       onClick={() => setSelectedDomain(domain)}
-                      className={`px-3 py-2 text-[10px] sm:text-xs font-bold tracking-wider rounded-lg border transition-all duration-200 ${
+                      className={`px-3 py-2 text-[10px] sm:text-xs font-black tracking-wider rounded-lg border transition-all duration-200 ${
                         selectedDomain === domain
                           ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
                           : "bg-zinc-900/40 text-zinc-400 border-zinc-700/50 hover:bg-zinc-800/50 hover:text-zinc-300 hover:border-zinc-600/50"
@@ -362,20 +365,16 @@ export default function AttendanceDashboard() {
                   ))}
                 </motion.div>
                 
-                <LeaderboardTable 
-                  loading={loading}
-                  users={selectedDomain ? filteredUsers.filter(u => (u.Domain || "").toUpperCase() === selectedDomain) : filteredUsers}
-                  onRowClick={(uid, name) => {
-                    setModalUser({ uid, name });
-                    setModalOpen(true);
-                  }} 
-                />
-              </div>
-
-              <div className="hidden lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-5">
-                <LivePanel activeUsers={active} className="h-[500px]" loading={loading} />
-                <DomainLeaderboard items={domainLeaderboard} compact loading={loading} />
-              </div>
+                <div className="w-full">
+                  <LeaderboardTable 
+                    loading={loading}
+                    users={selectedDomain ? filteredUsers.filter(u => (u.Domain || "").toUpperCase() === selectedDomain) : filteredUsers}
+                    onRowClick={(uid, name) => {
+                      setModalUser({ uid, name });
+                      setModalOpen(true);
+                    }} 
+                  />
+                </div>
             </div>
           </section>
         </div>

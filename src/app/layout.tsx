@@ -27,7 +27,9 @@ export default function RootLayout({
         />
         <MenuContextProvider>
           <ParticlesCom />
-          {children}
+          <div className="relative z-10">
+            {children}
+          </div>
           <Analytics />
         </MenuContextProvider>
       </body>
