@@ -304,13 +304,12 @@
   }
 
   .sharp-card {
-    @apply border border-zinc-800/50 bg-zinc-900/40 backdrop-blur-xl transition-all duration-300;
-    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.5);
+    @apply border border-white/10 bg-white/[0.03] backdrop-blur-3xl transition-all duration-300;
   }
 
   .sharp-card:hover {
-    @apply border-zinc-700/80 bg-zinc-800/60;
-    box-shadow: 0 8px 30px -5px rgba(0, 0, 0, 0.7);
+    @apply border-white/20 bg-white/[0.08];
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
   }
 
   @keyframes shimmer {

@@ -48,7 +48,7 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
   }, [users, search, sortBy]);
 
   return (
-    <div className="bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl border border-zinc-800/40 rounded-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+    <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.8)]">
       {/* Header & Search */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 sm:p-6 border-b border-zinc-800/40 gap-4 relative">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-red-500/50 via-red-500/10 to-transparent"></div>
@@ -174,9 +174,9 @@ export function LeaderboardTable({ users, loading = false, onRowClick }: Leaderb
                     )}
                   </div>
                   
-                  <div className="flex items-center justify-between gap-4 border-t border-zinc-800/30 pt-4">
+                    <div className="flex items-center justify-between gap-4 border-t border-zinc-800/30 pt-4">
                     <div className="flex flex-col gap-1.5">
-                      <span className="text-[9px] font-black tracking-[0.15em] text-cyan-400/90 uppercase bg-cyan-400/5 px-2.5 py-1 rounded-md border border-cyan-400/20 w-fit">
+                      <span className="hidden sm:inline-block text-[9px] font-black tracking-[0.15em] text-cyan-400/90 uppercase bg-cyan-400/5 px-2.5 py-1 rounded-md border border-cyan-400/20 w-fit">
                         {user.Domain || DEFAULT_DOMAIN}
                       </span>
                       <span className="text-sm font-mono font-black text-zinc-100">{formatDuration(user.overallTotalTimeMs)}</span>

@@ -15,7 +15,7 @@ export default function ParticlesCom() {
 
     return (
         <Particles
-            className="fixed w-full h-full z-0 pointer-events-none"
+            className="fixed w-full h-full z-[100] pointer-events-none"
             id="tsparticles"
             init={particlesInit}
             options={{

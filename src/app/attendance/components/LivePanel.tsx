@@ -74,7 +74,7 @@ export function DomainLeaderboard({
 
   return (
     <div
-      className={`relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] group hover:border-zinc-700/60 transition-all duration-300 ${className}`}
+      className={`relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] group hover:border-white/20 transition-all duration-300 ${className}`}
     >
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-red-500/50 via-red-500/10 to-transparent"></div>
       
@@ -231,7 +231,7 @@ export function LivePanel({
   }
 
   return (
-    <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] group hover:border-zinc-700/60 transition-all duration-300 ${className}`}>
+    <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] group hover:border-white/20 transition-all duration-300 ${className}`}>
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-red-500/50 via-red-500/10 to-transparent"></div>
       
       {/* Header */}
