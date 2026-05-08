@@ -53,7 +53,7 @@ export default function ParticlesCom() {
                     },
                     links: {
                         color: "#FFFFFF",
-                        distance: 150,
+                        distance: 500,
                         enable: true,
                         opacity: 1,
                         width: 1.2,
@@ -71,10 +71,10 @@ export default function ParticlesCom() {
                     number: {
                         density: {
                             enable: true,
-                            area: 800,
+                            area: 600,
                         },
-                        value: 80,
-                        limit: 150
+                        value: 200,
+                        limit: 40
                     },
                     opacity: {
                         value: 0.8,

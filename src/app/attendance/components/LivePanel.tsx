@@ -43,7 +43,7 @@ export function DomainLeaderboard({
           </div>
         </div>
 
-        <div className={`p-4 ${compact ? "space-y-2.5" : "space-y-3.5 sm:p-5"}`}>
+        <div className={`flex-1 overflow-y-auto p-4 no-scrollbar ${compact ? "space-y-2.5" : "space-y-3.5 sm:p-5"}`}>
           {Array.from({ length: compact ? 4 : 6 }).map((_, i) => (
             <div
               key={`domain-skeleton-${i}`}
@@ -74,11 +74,11 @@ export function DomainLeaderboard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] group hover:border-zinc-700/60 transition-all duration-300 ${className}`}
+      className={`relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800/40 bg-gradient-to-br from-zinc-900/60 via-zinc-900/40 to-zinc-950/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] group hover:border-zinc-700/60 transition-all duration-300 ${className}`}
     >
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-red-500/50 via-red-500/10 to-transparent"></div>
       
-      <div className="border-b border-zinc-800/40 bg-zinc-900/30 px-5 py-4">
+      <div className="flex-shrink-0 border-b border-zinc-800/40 bg-zinc-900/30 px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h4 className="text-[10px] font-bold tracking-[0.24em] text-zinc-400">DOMAIN LEADERBOARD</h4>
@@ -102,7 +102,7 @@ export function DomainLeaderboard({
         </div>
       </div>
 
-      <div className={`p-4 ${compact ? "space-y-2.5" : "space-y-3.5 sm:p-5"}`}>
+      <div className={`flex-1 overflow-y-auto p-4 no-scrollbar ${compact ? "space-y-2.5" : "space-y-3.5 sm:p-5"}`}>
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-4 py-8 text-center text-[11px] text-zinc-500 font-mono uppercase tracking-widest">
             No domain data
@@ -112,6 +112,8 @@ export function DomainLeaderboard({
             {items.map((item, index) => {
               const share = Math.round((item.total / topTotal) * 100);
               const fillWidth = `${Math.max(5, share)}%`;
+              const isTop = index === 0;
+              const shineClass = isTop ? "after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent after:skew-x-[-20deg] after:animate-[shimmer_5s_infinite]" : "";
 
               return (
                 <motion.div
@@ -119,7 +121,7 @@ export function DomainLeaderboard({
                   whileInView={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
                   key={item.domain}
-                  className="rounded-xl border border-zinc-800/40 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-800/60 hover:-translate-y-0.5"
+                  className={`rounded-xl border border-zinc-800/40 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-800/60 hover:-translate-y-0.5 relative overflow-hidden ${shineClass}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
