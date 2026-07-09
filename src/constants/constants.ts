@@ -168,6 +168,26 @@ export const events: Event[] = [
 ];
 
 export const achievements1: Achievement[] = [
+  {
+        "name": 'Air 5 in DD Robocon 2026',
+        "description": '',
+        "coverImage": "/achievements/Robocon2026/robocon2026.jpeg",
+        "abstract": "SRM Team Robocon has achieved an impressive 5th place in the DD Robocon 2026 competition! This remarkable accomplishment highlights our team's dedication, innovation, and hard work in the field of robotics. DD Robocon is an annual national robotics competition in India, organized by IIT Delhi which aims to promote technical skill development, innovation, and teamwork among engineering students. The winning team from DD Robocon gets the opportunity to represent India at the international ABU Robocon. This year, the theme for DD Robocon 2025 was 'KungFu Master,' reflecting the theme of the upcoming international competition in HongKong.",
+        "gallery": ["/achievements/Robocon2024/robocon1.jpeg", "/achievements/Robocon2024/robocon2.jpeg", "/achievements/Robocon2024/robocon3.jpeg", "/achievements/Robocon2024/robocon4.jpeg","/achievements/Robocon2024/robocon11.jpeg","/achievements/Robocon2024/robocon7.jpeg"],
+        dimensions1: {
+          'height': 220, 'width': 360
+        }
+      },
+    {
+        "name": 'Air 13 in DD Robocon 2025',
+        "description": '',
+        "coverImage": "/achievements/Robocon2025/robocon2025.png",
+        "abstract": "SRM Team Robocon has achieved an impressive 13th place in the DD Robocon 2025 competition! This remarkable accomplishment highlights our team's dedication, innovation, and hard work in the field of robotics. DD Robocon is an annual national robotics competition in India, organized by IIT Delhi which aims to promote technical skill development, innovation, and teamwork among engineering students. The winning team from DD Robocon gets the opportunity to represent India at the international ABU Robocon. This year, the theme for DD Robocon 2025 was 'Basketball,' reflecting the theme of the upcoming international competition in Vietnam.",
+        "gallery": ["/achievements/Robocon2024/robocon1.jpeg", "/achievements/Robocon2024/robocon2.jpeg", "/achievements/Robocon2024/robocon3.jpeg", "/achievements/Robocon2024/robocon4.jpeg","/achievements/Robocon2024/robocon11.jpeg","/achievements/Robocon2024/robocon7.jpeg"],
+        dimensions1: {
+          'height': 220, 'width': 360
+        }
+      },
     {
         "name": 'Air 9 in DD Robocon 2024',
         "description": '',

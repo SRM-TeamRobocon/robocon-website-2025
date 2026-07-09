@@ -141,7 +141,7 @@ export default function Team() {
           ) : (
           <>
             <div className="mb-6 px-4 md:px-0 pb-6">
-              <div className="flex gap-3 overflow-x-auto no-scrollbar py-3 px-1 md:px-0 snap-x justify-center flex-nowrap mx-auto">
+              <div className="flex gap-3 overflow-x-auto no-scrollbar py-3 px-1 md:px-0 snap-x justify-center flex-wrap mx-auto">
                 {domainOptions.map((domain) => {
                   const isSelected = domain === selectedDomain;
                   return (
