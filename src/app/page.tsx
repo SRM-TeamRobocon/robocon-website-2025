@@ -75,9 +75,10 @@ export default function Home() {
         <WorkshopSection />
       </section> */}
 
+{/* 
       <section className="">
         <JoselinSection />
-      </section>
+      </section> */}
 
       {/* Second section */}
       <section className="w-full h-full md:h-screen flex flex-col items-center justify-center mt-20 md:mt-0">
