@@ -44,14 +44,14 @@ export default function ParticlesCom() {
                 },
                 particles: {
                     color: {
-                        value: "#FFFFFF",
+                        value: "#D5D5D5",
                     },
                     links: {
-                        color: "#FFFFFF",
+                        color: "#D5D5D5",
                         distance: 500,
                         enable: true,
-                        opacity: 1,
-                        width: 1.2,
+                        opacity: 0.5,
+                        width: 1,
                     },
                     move: {
                         direction: "none",
@@ -66,13 +66,13 @@ export default function ParticlesCom() {
                     number: {
                         density: {
                             enable: true,
-                            area: 600,
+                            area: 800,
                         },
-                        value: 200,
-                        limit: 40
+                        value: 15,
+                        limit: 50,
                     },
                     opacity: {
-                        value: 0.8,
+                        value: 1,
                     },
                     shape: {
                         type: "circle",
