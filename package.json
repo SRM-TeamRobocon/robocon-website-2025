@@ -7,10 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:email": "tsx scripts/test-email.ts"
+    "test:email": "tsx scripts/test-email.ts",
+    "migrate:content": "tsx --env-file=.env.local scripts/migrate-content.ts"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.3.0",
     "@react-spring/web": "^9.7.5",
+    "@supabase/server": "^1.3.0",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.110.2",
     "@tsparticles/engine": "^3.5.0",
     "@tsparticles/react": "^3.0.0",
     "@types/node": "^22.12.0",
@@ -22,6 +27,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "aos": "^2.3.4",
     "autoprefixer": "10.4.20",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^8.57.1",
     "eslint-config-next": "^16.2.4",

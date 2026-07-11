@@ -1,0 +1,33 @@
+import Link from "next/link";
+import { contentResourceList } from "@/lib/content-resources";
+
+export default function AdminContentHome() {
+  const resources = contentResourceList();
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="text-sm font-bold uppercase tracking-wider text-red">Supabase CMS</p>
+        <h1 className="text-4xl font-black text-white">Website Content</h1>
+        <p className="mt-2 max-w-2xl text-sm text-gray-400">
+          Add and update public website content without editing source files.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {resources.map((resource) => (
+          <Link
+            key={resource.table}
+            href={`/admin/dashboard/content/${resource.table}`}
+            className="rounded-2xl border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
+          >
+            <h2 className="text-xl font-bold text-white">{resource.pluralLabel}</h2>
+            <p className="mt-2 text-sm text-gray-400">
+              {resource.readonly ? "Review and update status." : `Manage ${resource.pluralLabel.toLowerCase()}.`}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

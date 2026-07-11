@@ -10,7 +10,9 @@ export interface Event {
     height: number,
     width: number
   }
-  
+  eventDate?: string;
+  location?: string;
+  isUpcoming?: boolean;
 }
 
 export interface Project {
@@ -24,6 +26,9 @@ export interface Project {
     width: number
   }
   shortkey:string;
+  techStack?: string[];
+  year?: string;
+  competition?: string;
 }
 
 export interface Achievement {
@@ -36,4 +41,7 @@ export interface Achievement {
     height:number,
     width:number
   }
+  achievementDate?: string;
+  competition?: string;
+  rank?: string;
 }

@@ -1,0 +1,228 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      members: {
+        Row: {
+          id: string;
+          name: string;
+          role: string;
+          domain: string | null;
+          year: string | null;
+          photo_url: string | null;
+          linkedin_url: string | null;
+          instagram_url: string | null;
+          facebook_url: string | null;
+          is_active: boolean;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          role: string;
+          domain?: string | null;
+          year?: string | null;
+          photo_url?: string | null;
+          linkedin_url?: string | null;
+          instagram_url?: string | null;
+          facebook_url?: string | null;
+          is_active?: boolean;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["members"]["Insert"]>;
+        Relationships: [];
+      };
+      projects: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          abstract: string | null;
+          cover_image_url: string | null;
+          cover_width: number | null;
+          cover_height: number | null;
+          gallery_urls: string[] | null;
+          shortkey: string | null;
+          tech_stack: string[] | null;
+          year: string | null;
+          competition: string | null;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          abstract?: string | null;
+          cover_image_url?: string | null;
+          cover_width?: number | null;
+          cover_height?: number | null;
+          gallery_urls?: string[] | null;
+          shortkey?: string | null;
+          tech_stack?: string[] | null;
+          year?: string | null;
+          competition?: string | null;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["projects"]["Insert"]>;
+        Relationships: [];
+      };
+      achievements: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          abstract: string | null;
+          cover_image_url: string | null;
+          cover_width: number | null;
+          cover_height: number | null;
+          gallery_urls: string[] | null;
+          achievement_date: string | null;
+          competition: string | null;
+          rank: string | null;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          abstract?: string | null;
+          cover_image_url?: string | null;
+          cover_width?: number | null;
+          cover_height?: number | null;
+          gallery_urls?: string[] | null;
+          achievement_date?: string | null;
+          competition?: string | null;
+          rank?: string | null;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["achievements"]["Insert"]>;
+        Relationships: [];
+      };
+      events: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          abstract: string | null;
+          cover_image_url: string | null;
+          cover_width: number | null;
+          cover_height: number | null;
+          gallery_urls: string[] | null;
+          event_date: string | null;
+          location: string | null;
+          registration_link: string | null;
+          is_upcoming: boolean;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          abstract?: string | null;
+          cover_image_url?: string | null;
+          cover_width?: number | null;
+          cover_height?: number | null;
+          gallery_urls?: string[] | null;
+          event_date?: string | null;
+          location?: string | null;
+          registration_link?: string | null;
+          is_upcoming?: boolean;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["events"]["Insert"]>;
+        Relationships: [];
+      };
+      alumni: {
+        Row: {
+          id: string;
+          name: string;
+          domain: string | null;
+          designation: string | null;
+          about: string | null;
+          description: string | null;
+          profession: string | null;
+          batch: string | null;
+          photo_url: string | null;
+          linkedin_url: string | null;
+          instagram_url: string | null;
+          facebook_url: string | null;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          domain?: string | null;
+          designation?: string | null;
+          about?: string | null;
+          description?: string | null;
+          profession?: string | null;
+          batch?: string | null;
+          photo_url?: string | null;
+          linkedin_url?: string | null;
+          instagram_url?: string | null;
+          facebook_url?: string | null;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["alumni"]["Insert"]>;
+        Relationships: [];
+      };
+      gallery: {
+        Row: {
+          id: string;
+          image_url: string;
+          title: string | null;
+          category: string | null;
+          content: string | null;
+          display_order: number;
+          uploaded_at: string;
+        };
+        Insert: {
+          id?: string;
+          image_url: string;
+          title?: string | null;
+          category?: string | null;
+          content?: string | null;
+          display_order?: number;
+          uploaded_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["gallery"]["Insert"]>;
+        Relationships: [];
+      };
+      contact_submissions: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          message: string;
+          submitted_at: string;
+          is_read: boolean;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          email: string;
+          message: string;
+          submitted_at?: string;
+          is_read?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["contact_submissions"]["Insert"]>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};

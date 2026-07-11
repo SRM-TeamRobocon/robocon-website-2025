@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image"
 import FacebookBoxFillIcon from "remixicon-react/FacebookBoxFillIcon"
 import InstagramFillIcon from "remixicon-react/InstagramFillIcon"
