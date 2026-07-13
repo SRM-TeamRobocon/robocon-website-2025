@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 type Role = "lead" | "admin" | "member";
 
-export function useRequireRole(allowed: Role[], redirectTo = "/admin/dashboard") {
+export function useRequireRole(allowed: Role[], redirectTo = "/dashboard") {
     const router = useRouter();
     const [checked, setChecked] = useState(false);
 

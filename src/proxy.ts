@@ -5,18 +5,21 @@ import * as jose from 'jose';
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // Protect all /admin UI routes and /api/admin backend routes EXCEPT login paths
-    if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && !pathname.includes('/login')) {
+    const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/scanner');
+    const isProtectedApi = pathname.startsWith('/api/admin') && pathname !== '/api/admin/login';
+
+    // Protect /dashboard, /scanner (UI) and /api/admin (backend) routes — everything else is public
+    if (isProtectedPage || isProtectedApi) {
         const token = request.cookies.get('admin_token')?.value;
 
         if (!token) {
             // Return 401 JSON for API routes
-            if (pathname.startsWith('/api/admin')) {
+            if (isProtectedApi) {
                 return NextResponse.json({ success: false, error: "Unauthorized access" }, { status: 401 });
             }
 
             // Return Redirect for UI routes
-            return NextResponse.redirect(new URL('/admin/login', request.url));
+            return NextResponse.redirect(new URL('/login', request.url));
         }
 
         try {
@@ -27,11 +30,11 @@ export async function proxy(request: NextRequest) {
         } catch {
             // Invalid token
             // Return 401 JSON for API routes
-            if (pathname.startsWith('/api/admin')) {
+            if (isProtectedApi) {
                 return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
             }
 
-            return NextResponse.redirect(new URL('/admin/login', request.url));
+            return NextResponse.redirect(new URL('/login', request.url));
         }
     }
 
@@ -39,8 +42,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    // /member/* now only holds public pre-login flows (signup/verify) — no gating needed.
-    // /api/member/* routes check role themselves via src/lib/session.ts (they need role
-    // checks beyond "logged in" anyway, since login/dashboard now live under /admin/*).
-    matcher: ['/admin/:path*', '/api/admin/:path*'],
+    // /signup, /verify are public pre-login flows — no gating needed.
+    // /api/member/* routes check role themselves via src/lib/session.ts.
+    matcher: ['/dashboard/:path*', '/scanner/:path*', '/api/admin/:path*'],
 };

@@ -2,11 +2,20 @@
 
 import { useState } from "react";
 import type { ContentField } from "@/lib/content-resources";
+import {
+    IMAGE_URL_FIELDS,
+    IMAGE_ARRAY_FIELDS,
+    uploadTarget,
+    uploadImageFile,
+    SingleImageField,
+    MultiImageField,
+} from "@/components/ContentImageFields";
 
 type Row = Record<string, any>;
 
 function valueForInput(field: ContentField, row: Row) {
     const value = row[field.name];
+    if (IMAGE_ARRAY_FIELDS.has(field.name)) return Array.isArray(value) ? value : [];
     if (field.type === "tags") return Array.isArray(value) ? value.join(", ") : value ?? "";
     if (field.type === "datetime" && typeof value === "string") return value.slice(0, 16);
     return value ?? "";
@@ -17,15 +26,19 @@ interface ContentEditFormProps {
     initialValues?: Row;
     submitLabel?: string;
     submitting?: boolean;
+    /** Resource key (e.g. "gallery", "projects") — enables the upload button for image fields. */
+    resource?: string;
     onSubmit: (payload: Row) => void;
 }
 
-export default function ContentEditForm({ fields, initialValues = {}, submitLabel = "Submit", submitting, onSubmit }: ContentEditFormProps) {
+export default function ContentEditForm({ fields, initialValues = {}, submitLabel = "Submit", submitting, resource, onSubmit }: ContentEditFormProps) {
     const [values, setValues] = useState<Row>(() => {
         const initial: Row = {};
         for (const field of fields) initial[field.name] = valueForInput(field, initialValues);
         return initial;
     });
+    const [uploadingField, setUploadingField] = useState<string | null>(null);
+    const [uploadError, setUploadError] = useState("");
 
     const setField = (name: string, value: unknown) => setValues((prev) => ({ ...prev, [name]: value }));
 
@@ -33,6 +46,39 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
         e.preventDefault();
         onSubmit(values);
     };
+
+    async function uploadSingle(field: ContentField, file: File) {
+        const target = resource && uploadTarget(resource, field.name);
+        if (!target) return;
+
+        setUploadingField(field.name);
+        setUploadError("");
+        try {
+            const publicUrl = await uploadImageFile(file, target);
+            setField(field.name, publicUrl);
+        } catch (err) {
+            setUploadError(err instanceof Error ? err.message : "Upload failed");
+        } finally {
+            setUploadingField(null);
+        }
+    }
+
+    async function uploadMultiple(field: ContentField, files: FileList) {
+        const target = resource && uploadTarget(resource, field.name);
+        if (!target) return;
+
+        setUploadingField(field.name);
+        setUploadError("");
+        try {
+            const uploaded = await Promise.all(Array.from(files).map((file) => uploadImageFile(file, target)));
+            const current: string[] = Array.isArray(values[field.name]) ? values[field.name] : [];
+            setField(field.name, [...current, ...uploaded]);
+        } catch (err) {
+            setUploadError(err instanceof Error ? err.message : "Upload failed");
+        } finally {
+            setUploadingField(null);
+        }
+    }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -43,7 +89,23 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                         {field.required && <span className="text-red ml-1">*</span>}
                     </label>
 
-                    {field.type === "textarea" ? (
+                    {resource && IMAGE_URL_FIELDS.has(field.name) && uploadTarget(resource, field.name) ? (
+                        <SingleImageField
+                            field={field}
+                            value={values[field.name] ?? ""}
+                            onChange={(next) => setField(field.name, next)}
+                            onUpload={(file) => uploadSingle(field, file)}
+                            uploading={uploadingField === field.name}
+                        />
+                    ) : resource && IMAGE_ARRAY_FIELDS.has(field.name) && uploadTarget(resource, field.name) ? (
+                        <MultiImageField
+                            field={field}
+                            values={Array.isArray(values[field.name]) ? values[field.name] : []}
+                            onChange={(next) => setField(field.name, next)}
+                            onUploadFiles={(files) => uploadMultiple(field, files)}
+                            uploading={uploadingField === field.name}
+                        />
+                    ) : field.type === "textarea" ? (
                         <textarea
                             required={field.required}
                             value={values[field.name] ?? ""}
@@ -102,6 +164,10 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                     )}
                 </div>
             ))}
+
+            {uploadError && (
+                <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">{uploadError}</p>
+            )}
 
             <button
                 type="submit"

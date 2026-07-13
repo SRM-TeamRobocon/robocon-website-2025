@@ -6,11 +6,13 @@ import { FilePlus2, ArrowLeft } from "lucide-react";
 import ContentEditForm from "@/components/admin/ContentEditForm";
 import { CONTENT_RESOURCES, type ContentResource } from "@/lib/content-resources";
 import { useRequireRole } from "@/hooks/use-require-role";
+import { Thumb, findImageField } from "@/components/ContentImageFields";
 
 const PROPOSABLE: { key: ContentResource; label: string }[] = [
     { key: "projects", label: "Projects" },
     { key: "achievements", label: "Achievements" },
     { key: "events", label: "Events" },
+    { key: "gallery", label: "Gallery" },
 ];
 
 type Row = Record<string, any>;
@@ -33,6 +35,7 @@ export default function ProposeContentPage() {
     }, [resource]);
 
     const config = CONTENT_RESOURCES[resource];
+    const imageField = findImageField(config);
 
     const handleSubmit = async (payload: Row) => {
         setSubmitting(true);
@@ -81,6 +84,7 @@ export default function ProposeContentPage() {
                         initialValues={editing === "new" ? {} : editing}
                         submitLabel="Submit for Approval"
                         submitting={submitting}
+                        resource={resource}
                         onSubmit={handleSubmit}
                     />
                 </div>
@@ -96,8 +100,8 @@ export default function ProposeContentPage() {
                     Propose Content
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Suggest a new project/achievement/event, or edit an existing one. A lead reviews every proposal
-                    before it goes live.
+                    Suggest a new project, achievement, event, or gallery photo — or edit an existing one. A lead
+                    reviews every proposal before it goes live.
                 </p>
             </div>
 
@@ -130,11 +134,16 @@ export default function ProposeContentPage() {
                 ) : (
                     <ul className="divide-y divide-white/5">
                         {rows.map((row) => (
-                            <li key={row.id} className="flex items-center justify-between px-5 py-3">
-                                <span className="text-white text-sm font-medium">{row[config.primaryField]}</span>
+                            <li key={row.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    {imageField && <Thumb src={row[imageField.name]} alt={row[config.primaryField] || "preview"} />}
+                                    <span className="truncate text-white text-sm font-medium">
+                                        {row[config.primaryField] || row.category || "Untitled"}
+                                    </span>
+                                </div>
                                 <button
                                     onClick={() => setEditing(row)}
-                                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
+                                    className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
                                 >
                                     Propose Edit
                                 </button>

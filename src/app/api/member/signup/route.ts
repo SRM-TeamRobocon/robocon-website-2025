@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         }
 
         const origin = new URL(request.url).origin;
-        const verifyLink = `${origin}/member/verify?token=${verificationToken}`;
+        const verifyLink = `${origin}/verify?token=${verificationToken}`;
 
         const transporter = getTransporter();
         if (transporter) {

@@ -53,7 +53,7 @@ function VerifyContent() {
                                 in — you'll be able to sign in once that's done.
                             </p>
                             <Link
-                                href="/admin/login"
+                                href="/login"
                                 className="mt-6 inline-block rounded-xl px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
                             >
                                 Go to Login

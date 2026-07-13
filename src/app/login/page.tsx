@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function AdminLogin() {
     const router = useRouter();
@@ -27,7 +28,7 @@ export default function AdminLogin() {
 
             if (res.ok && data.success) {
                 // Redirect to dashboard on success
-                router.push("/admin/dashboard");
+                router.push("/dashboard");
             } else {
                 setError(data.error || "Login failed");
             }
@@ -84,7 +85,7 @@ export default function AdminLogin() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
-                                    placeholder="Admin username or member email"
+                                    placeholder="Staff username or member email"
                                 />
                             </div>
                         </div>
@@ -155,6 +156,13 @@ export default function AdminLogin() {
                                 )}
                             </button>
                         </div>
+
+                        <p className="text-center text-sm text-gray-400">
+                            No account yet?{" "}
+                            <Link href="/signup" className="text-blue-400 hover:text-blue-300">
+                                Create one
+                            </Link>
+                        </p>
                     </form>
                 </div>
             </div>

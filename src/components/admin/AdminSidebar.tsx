@@ -34,14 +34,14 @@ const STAFF_ROLES: NavRole[] = ["lead", "admin"];
 const ALL_ROLES: NavRole[] = ["lead", "admin", "member"];
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
-    { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard, exact: true, roles: ALL_ROLES },
-    { label: "Website Content", href: "/admin/dashboard/content", icon: Globe2, roles: STAFF_ROLES },
-    { label: "Workshops", href: "/admin/dashboard/workshops", icon: Wrench, roles: STAFF_ROLES },
-    { label: "Review & Approvals", href: "/admin/dashboard/approvals", icon: ClipboardCheck, roles: ["lead", "admin"] },
-    { label: "Recruitments", href: "/admin/dashboard/recruitments", icon: RecruitIcon, roles: STAFF_ROLES },
-    { label: "My Profile", href: "/admin/dashboard/profile", icon: UserCircle, roles: ALL_ROLES },
-    { label: "Propose Content", href: "/admin/dashboard/propose", icon: FilePlus2, roles: ["member"] },
-    { label: "My Submissions", href: "/admin/dashboard/my-submissions", icon: ListChecks, roles: ["member"] },
+    { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true, roles: ALL_ROLES },
+    { label: "Website Content", href: "/dashboard/content", icon: Globe2, roles: STAFF_ROLES },
+    { label: "Workshops", href: "/dashboard/workshops", icon: Wrench, roles: STAFF_ROLES },
+    { label: "Review & Approvals", href: "/dashboard/approvals", icon: ClipboardCheck, roles: ["lead", "admin"] },
+    { label: "Recruitments", href: "/dashboard/recruitments", icon: RecruitIcon, roles: STAFF_ROLES },
+    { label: "My Profile", href: "/dashboard/profile", icon: UserCircle, roles: ALL_ROLES },
+    { label: "Propose Content", href: "/dashboard/propose", icon: FilePlus2, roles: ["member"] },
+    { label: "My Submissions", href: "/dashboard/my-submissions", icon: ListChecks, roles: ["member"] },
 ];
 
 export function getNavItems(role: NavRole | null): NavItem[] {
@@ -91,7 +91,7 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
             >
                 {/* Brand row */}
                 <div className="flex items-center justify-between gap-2 px-4 h-16 border-b border-white/10 shrink-0">
-                    <Link href="/admin/dashboard" className="flex items-center gap-3 min-w-0" onClick={onCloseMobile}>
+                    <Link href="/dashboard" className="flex items-center gap-3 min-w-0" onClick={onCloseMobile}>
                         <Image src="/LOGO.png" alt="Logo" width={32} height={32} unoptimized className="rounded shrink-0" />
                         {!collapsed && (
                             <span className="text-white font-bold text-sm tracking-wide truncate">

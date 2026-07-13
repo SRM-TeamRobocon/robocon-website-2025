@@ -11,7 +11,7 @@ function pageTitleFor(pathname: string) {
         .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
     if (match) return match.label;
-    if (pathname.startsWith("/admin/dashboard/")) {
+    if (pathname.startsWith("/dashboard/")) {
         const segment = pathname.split("/").filter(Boolean).pop() || "";
         return segment.charAt(0).toUpperCase() + segment.slice(1);
     }
@@ -38,7 +38,7 @@ export default function AdminTopbar({ username, role, onOpenMobile }: AdminTopba
 
     const handleLogout = async () => {
         await fetch("/api/admin/logout", { method: "POST" });
-        router.push("/admin/login");
+        router.push("/login");
     };
 
     return (

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ClipboardCheck, UserCheck, Check, X } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
+import { getContentResource } from "@/lib/content-resources";
+import { Thumb, findImageField } from "@/components/ContentImageFields";
 
 interface PendingMember {
     id: string;
@@ -318,17 +320,25 @@ function ContentTab() {
                 <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
             ) : (
                 <ul className="divide-y divide-white/5">
-                    {rows.map((row) => (
+                    {rows.map((row) => {
+                        const config = getContentResource(row.resource);
+                        const imageField = config && findImageField(config);
+                        const imageUrl = imageField ? row.payload?.[imageField.name] : null;
+
+                        return (
                         <li key={row.id} className="px-5 py-4">
                             <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <p className="text-white font-medium capitalize">
-                                        {row.action} — {row.resource}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                        {row.member_accounts?.name} ({row.member_accounts?.email}) ·{" "}
-                                        {new Date(row.created_at).toLocaleString()}
-                                    </p>
+                                <div className="flex min-w-0 items-center gap-3">
+                                    {imageUrl && <Thumb src={imageUrl} alt={`${row.resource} preview`} />}
+                                    <div className="min-w-0">
+                                        <p className="text-white font-medium capitalize">
+                                            {row.action} — {row.resource}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            {row.member_accounts?.name} ({row.member_accounts?.email}) ·{" "}
+                                            {new Date(row.created_at).toLocaleString()}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <button
@@ -360,7 +370,8 @@ function ContentTab() {
                                 </pre>
                             )}
                         </li>
-                    ))}
+                        );
+                    })}
                 </ul>
             )}
         </div>

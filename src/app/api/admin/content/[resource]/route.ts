@@ -27,9 +27,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await (supabase.from(config.table) as any)
+  let query = (supabase.from(config.table) as any)
     .select("*")
     .order(config.orderBy, { ascending: config.ascending });
+
+  // Mentors are historical roster entries, not active members/leads — keep them out of the
+  // website content manager (they aren't meant to be edited or re-published from here).
+  if (config.table === "members") {
+    query = query.not("domain", "ilike", "MENTORS");
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

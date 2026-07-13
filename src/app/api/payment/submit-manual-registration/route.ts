@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
         );
 
         // WE NO LONGER SEND TICKETS IMMEDIATELY FOR MANUAL REGISTRATIONS
-        // The admin must verify the payment first via the /admin/dashboard, which will trigger the official ticket email.
+        // The admin must verify the payment first via the /dashboard, which will trigger the official ticket email.
         // await sendConfirmationEmails({
         //     formData,
         //     paymentId: `UTR-${transactionId.trim()}`,

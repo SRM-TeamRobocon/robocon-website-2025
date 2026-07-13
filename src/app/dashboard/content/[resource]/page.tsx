@@ -9,7 +9,7 @@ type PageProps = {
 
 export default async function AdminContentResourcePage({ params }: PageProps) {
   const session = await getSession();
-  if (!requireRole(session, ["lead", "admin"])) redirect("/admin/dashboard");
+  if (!requireRole(session, ["lead", "admin"])) redirect("/dashboard");
 
   const { resource } = await params;
   const config = getContentResource(resource);

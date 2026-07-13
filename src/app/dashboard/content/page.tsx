@@ -5,7 +5,7 @@ import { getSession, requireRole } from "@/lib/session";
 
 export default async function AdminContentHome() {
   const session = await getSession();
-  if (!requireRole(session, ["lead", "admin"])) redirect("/admin/dashboard");
+  if (!requireRole(session, ["lead", "admin"])) redirect("/dashboard");
 
   const resources = contentResourceList();
 
@@ -23,7 +23,7 @@ export default async function AdminContentHome() {
         {resources.map((resource) => (
           <Link
             key={resource.table}
-            href={`/admin/dashboard/content/${resource.table}`}
+            href={`/dashboard/content/${resource.table}`}
             className="rounded-2xl border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
           >
             <h2 className="text-xl font-bold text-white">{resource.pluralLabel}</h2>

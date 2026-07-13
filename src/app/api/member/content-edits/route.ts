@@ -6,7 +6,7 @@ import { getSession, requireRole } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 // "members" (profile) is not here — that's a direct-apply edit via /api/profile now, no approval needed.
-const EDITABLE_RESOURCES = new Set(["projects", "achievements", "events"]);
+const EDITABLE_RESOURCES = new Set(["projects", "achievements", "events", "gallery"]);
 
 export async function GET() {
     const session = await getSession();

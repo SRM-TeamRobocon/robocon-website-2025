@@ -136,6 +136,7 @@ export default function ProfilePage() {
                 {header}
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
                     <ContentEditForm
+                        resource="members"
                         fields={PROFILE_FIELDS}
                         initialValues={selected}
                         submitLabel="Save"
@@ -153,6 +154,7 @@ export default function ProfilePage() {
                 {header}
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
                     <ContentEditForm
+                        resource="members"
                         fields={PROFILE_FIELDS}
                         submitLabel="Create Profile"
                         submitting={submitting}
@@ -168,6 +170,7 @@ export default function ProfilePage() {
             {header}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
                 <ContentEditForm
+                    resource="members"
                     fields={PROFILE_FIELDS}
                     initialValues={profile ?? {}}
                     submitLabel="Save Changes"

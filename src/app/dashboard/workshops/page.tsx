@@ -88,7 +88,7 @@ export default function WorkshopsPage() {
                 })}
             </div>
 
-            <Link href="/admin/scanner" className="group block">
+            <Link href="/scanner" className="group block">
                 <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 border border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]">
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
                         <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />

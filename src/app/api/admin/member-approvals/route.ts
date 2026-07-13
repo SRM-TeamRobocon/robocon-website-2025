@@ -29,6 +29,7 @@ export async function GET() {
         .from("members")
         .select("id, name, role, domain")
         .is("member_account_id", null)
+        .not("domain", "ilike", "MENTORS")
         .order("name", { ascending: true });
 
     if (pendingError || approvedError || unlinkedError) {

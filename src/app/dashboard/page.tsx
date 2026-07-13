@@ -21,7 +21,7 @@ interface QuickAction {
 
 const STAFF_ACTIONS: QuickAction[] = [
     {
-        href: "/admin/dashboard/content",
+        href: "/dashboard/content",
         title: "Website Content",
         description: "Manage members, projects, achievements, events, alumni, gallery and messages.",
         icon: Globe2,
@@ -32,7 +32,7 @@ const STAFF_ACTIONS: QuickAction[] = [
         textClass: "group-hover:text-red",
     },
     {
-        href: "/admin/dashboard/workshops",
+        href: "/dashboard/workshops",
         title: "Workshops",
         description: "Registrations, payment verification, and check-in for workshop events.",
         icon: Wrench,
@@ -43,7 +43,7 @@ const STAFF_ACTIONS: QuickAction[] = [
         textClass: "group-hover:text-emerald-400",
     },
     {
-        href: "/admin/dashboard/recruitments",
+        href: "/dashboard/recruitments",
         title: "Recruitments",
         description: "Applications, orientation, exam, and interview tracking for new recruits.",
         icon: Sparkles,
@@ -57,7 +57,7 @@ const STAFF_ACTIONS: QuickAction[] = [
 ];
 
 const LEAD_ACTION: QuickAction = {
-    href: "/admin/dashboard/approvals",
+    href: "/dashboard/approvals",
     title: "Review & Approvals",
     description: "New member signups, role changes, and member-proposed content.",
     icon: ClipboardCheck,
@@ -155,13 +155,13 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-5">
-                    <Link href="/admin/dashboard/profile" className="group block">
+                    <Link href="/dashboard/profile" className="group block">
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 hover:border-red/50 transition-all">
                             <h3 className="text-xl font-bold text-white mb-1">My Profile</h3>
                             <p className="text-gray-400 text-sm">Update your photo, role, and socials on the team page.</p>
                         </div>
                     </Link>
-                    <Link href="/admin/dashboard/propose" className="group block">
+                    <Link href="/dashboard/propose" className="group block">
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 hover:border-red/50 transition-all">
                             <h3 className="text-xl font-bold text-white mb-1">Propose Content</h3>
                             <p className="text-gray-400 text-sm">Suggest a new or updated project, achievement, or event.</p>

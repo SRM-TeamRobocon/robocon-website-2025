@@ -43,6 +43,7 @@ export async function GET() {
         .from("members")
         .select("id, name, role, domain")
         .is("lead_username", null)
+        .not("domain", "ilike", "MENTORS")
         .order("name", { ascending: true });
 
     return NextResponse.json({ success: true, claimed: false, candidates: candidates ?? [] });
