@@ -57,6 +57,10 @@ export type Database = {
           approved_at: string | null;
           role: string;
           created_at: string;
+          password_enc: string | null;
+          reset_otp_hash: string | null;
+          reset_otp_expires: string | null;
+          reset_otp_attempts: number;
         };
         Insert: {
           id?: string;
@@ -75,6 +79,10 @@ export type Database = {
           approved_at?: string | null;
           role?: string;
           created_at?: string;
+          password_enc?: string | null;
+          reset_otp_hash?: string | null;
+          reset_otp_expires?: string | null;
+          reset_otp_attempts?: number;
         };
         Update: Partial<Database["public"]["Tables"]["member_accounts"]["Insert"]>;
         Relationships: [];
@@ -254,23 +262,39 @@ export type Database = {
       gallery: {
         Row: {
           id: string;
+          album_id: string;
           image_url: string;
           title: string | null;
-          category: string | null;
           content: string | null;
           display_order: number;
           uploaded_at: string;
         };
         Insert: {
           id?: string;
+          album_id: string;
           image_url: string;
           title?: string | null;
-          category?: string | null;
           content?: string | null;
           display_order?: number;
           uploaded_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["gallery"]["Insert"]>;
+        Relationships: [];
+      };
+      gallery_albums: {
+        Row: {
+          id: string;
+          title: string;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["gallery_albums"]["Insert"]>;
         Relationships: [];
       };
       contact_submissions: {

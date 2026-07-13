@@ -130,7 +130,7 @@ export default function AdminDashboard() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     {[
                         { label: "Pending", value: submissionCounts.pending, tone: "text-amber-400" },
                         { label: "Approved", value: submissionCounts.approved, tone: "text-emerald-400" },
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
                     ].map((card) => (
                         <div
                             key={card.label}
-                            className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 sm:p-5"
+                            className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-3 sm:p-5"
                         >
                             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-gray-500">
                                 {card.label}

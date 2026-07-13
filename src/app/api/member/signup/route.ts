@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTransporter, SMTP_EMAIL } from "@/lib/mailer";
 import { MEMBER_DOMAINS } from "@/constants/constants";
+import { encryptPassword } from "@/lib/password-enc";
 
 export const dynamic = "force-dynamic";
 
@@ -76,15 +77,25 @@ export async function POST(request: Request) {
 
         const { data: existing } = await supabase
             .from("member_accounts")
-            .select("id")
+            .select("id, email_verified")
             .eq("email", email)
             .maybeSingle();
 
         if (existing) {
-            return NextResponse.json({ success: false, error: "An account with this email already exists." }, { status: 409 });
+            if (existing.email_verified) {
+                return NextResponse.json({ success: false, error: "An account with this email already exists." }, { status: 409 });
+            }
+            // Never verified (mail may have failed to send, or link expired) — the email
+            // isn't "used" yet, so let this attempt replace the stale unverified row.
+            const { error: deleteError } = await supabase.from("member_accounts").delete().eq("id", existing.id);
+            if (deleteError) {
+                console.error("member signup stale-row delete error", deleteError);
+                return NextResponse.json({ success: false, error: "Could not create account." }, { status: 500 });
+            }
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
+        const passwordEnc = encryptPassword(password);
         const verificationToken = crypto.randomBytes(32).toString("hex");
         const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -97,6 +108,7 @@ export async function POST(request: Request) {
             course,
             phone,
             password_hash: passwordHash,
+            password_enc: passwordEnc,
             verification_token: verificationToken,
             verification_expires: verificationExpires,
         });

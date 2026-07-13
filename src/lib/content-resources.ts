@@ -141,14 +141,12 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
     label: "Gallery Image",
     pluralLabel: "Gallery",
     primaryField: "title",
-    orderBy: "uploaded_at",
-    ascending: false,
+    orderBy: "display_order",
+    ascending: true,
     fields: [
+      { name: "album_id", label: "Album", type: "text", required: true },
       { name: "image_url", label: "Image URL", type: "url", required: true },
-      { name: "title", label: "Title", type: "text" },
-      { name: "category", label: "Category", type: "text" },
-      { name: "content", label: "Content", type: "textarea" },
-      { name: "display_order", label: "Display Order", type: "number" },
+      { name: "title", label: "Caption", type: "text" },
     ],
   },
   contact_submissions: {

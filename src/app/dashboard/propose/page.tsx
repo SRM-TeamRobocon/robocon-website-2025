@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { FilePlus2, ArrowLeft } from "lucide-react";
 import ContentEditForm from "@/components/admin/ContentEditForm";
+import AdminGalleryManager from "@/components/admin/AdminGalleryManager";
 import { CONTENT_RESOURCES, type ContentResource } from "@/lib/content-resources";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { Thumb, findImageField } from "@/components/ContentImageFields";
@@ -26,6 +27,8 @@ export default function ProposeContentPage() {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
+        if (resource === "gallery") return;
+
         setLoading(true);
         setEditing(null);
         fetch(`/api/content/${resource}`)
@@ -66,6 +69,31 @@ export default function ProposeContentPage() {
 
     if (!ready) return null;
 
+    const tabs = (
+        <div className="flex flex-wrap gap-2">
+            {PROPOSABLE.map((r) => (
+                <button
+                    key={r.key}
+                    onClick={() => setResource(r.key)}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                        resource === r.key ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
+                    }`}
+                >
+                    {r.label}
+                </button>
+            ))}
+        </div>
+    );
+
+    if (resource === "gallery") {
+        return (
+            <div className="space-y-6">
+                {tabs}
+                <AdminGalleryManager role="member" />
+            </div>
+        );
+    }
+
     if (editing !== null) {
         return (
             <div className="space-y-6 max-w-xl">
@@ -105,19 +133,7 @@ export default function ProposeContentPage() {
                 </p>
             </div>
 
-            <div className="flex gap-2">
-                {PROPOSABLE.map((r) => (
-                    <button
-                        key={r.key}
-                        onClick={() => setResource(r.key)}
-                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                            resource === r.key ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
-                        }`}
-                    >
-                        {r.label}
-                    </button>
-                ))}
-            </div>
+            {tabs}
 
             <button
                 onClick={() => setEditing("new")}
@@ -138,7 +154,7 @@ export default function ProposeContentPage() {
                                 <div className="flex min-w-0 items-center gap-3">
                                     {imageField && <Thumb src={row[imageField.name]} alt={row[config.primaryField] || "preview"} />}
                                     <span className="truncate text-white text-sm font-medium">
-                                        {row[config.primaryField] || row.category || "Untitled"}
+                                        {row[config.primaryField] || "Untitled"}
                                     </span>
                                 </div>
                                 <button

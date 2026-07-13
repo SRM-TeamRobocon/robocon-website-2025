@@ -89,14 +89,14 @@ export default function MemberSignup() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        <Field label="Full Name" id="name" value={form.name} onChange={update("name")} placeholder="Jane Doe" />
+                        <Field label="Full Name" id="name" value={form.name} onChange={update("name")} placeholder="Christiano Ronaldo" />
                         <Field
                             label="Email"
                             id="email"
                             type="email"
                             value={form.email}
                             onChange={update("email")}
-                            placeholder="jane@srmist.edu.in"
+                            placeholder="cr0707@srmist.edu.in"
                         />
 
                         <div>
@@ -128,14 +128,14 @@ export default function MemberSignup() {
                             id="regNo"
                             value={form.regNo}
                             onChange={update("regNo")}
-                            placeholder="RA2531022010026"
+                            placeholder="RA1234567890000"
                         />
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="Department" id="department" value={form.department} onChange={update("department")} placeholder="CINTEL" />
                             <Field label="Course" id="course" value={form.course} onChange={update("course")} placeholder="B.Tech CSE" />
                         </div>
                         <Field
-                            label="Phone (optional)"
+                            label="Phone"
                             id="phone"
                             type="tel"
                             required={false}

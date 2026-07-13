@@ -39,12 +39,13 @@ export async function GET() {
         return NextResponse.json({ success: true, claimed: true, data: claimedRow });
     }
 
-    const { data: candidates } = await supabase
+    const { data: candidatesRaw } = await supabase
         .from("members")
         .select("id, name, role, domain")
         .is("lead_username", null)
-        .not("domain", "ilike", "MENTORS")
         .order("name", { ascending: true });
+
+    const candidates = candidatesRaw?.filter((row) => (row.domain || "").toUpperCase() !== "MENTORS");
 
     return NextResponse.json({ success: true, claimed: false, candidates: candidates ?? [] });
 }

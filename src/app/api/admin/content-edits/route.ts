@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getContentResource, normalizePayload } from "@/lib/content-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
+import { nextGalleryDisplayOrder } from "@/lib/gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,10 @@ export async function PATCH(request: Request) {
             const payload = normalizePayload(config, edit.payload as Record<string, unknown>);
 
             if (edit.action === "create") {
+                if (config.table === "gallery") {
+                    payload.display_order = await nextGalleryDisplayOrder(supabase);
+                }
+
                 const { error: applyError } = await (supabase.from(config.table) as any).insert(payload);
                 if (applyError) {
                     console.error("content-edits approve (create) error", applyError);

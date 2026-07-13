@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getContentResource, normalizePayload } from "@/lib/content-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
+import { nextGalleryDisplayOrder } from "@/lib/gallery";
 
 type RouteContext = {
   params: Promise<{ resource: string }>;
@@ -27,23 +28,22 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 
   const supabase = createSupabaseAdminClient();
-  let query = (supabase.from(config.table) as any)
+  const { data, error } = await (supabase.from(config.table) as any)
     .select("*")
     .order(config.orderBy, { ascending: config.ascending });
-
-  // Mentors are historical roster entries, not active members/leads — keep them out of the
-  // website content manager (they aren't meant to be edited or re-published from here).
-  if (config.table === "members") {
-    query = query.not("domain", "ilike", "MENTORS");
-  }
-
-  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data: data ?? [] });
+  // Mentors are historical roster entries, not active members/leads — keep them out of the
+  // website content manager (they aren't meant to be edited or re-published from here).
+  const rows =
+    config.table === "members"
+      ? (data ?? []).filter((row: any) => (row.domain || "").toUpperCase() !== "MENTORS")
+      : data ?? [];
+
+  return NextResponse.json({ data: rows });
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -68,6 +68,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const supabase = createSupabaseAdminClient();
+
+  if (config.table === "gallery") {
+    payload.display_order = await nextGalleryDisplayOrder(supabase);
+  }
+
   const { data, error } = await (supabase.from(config.table) as any)
     .insert(payload)
     .select("*")

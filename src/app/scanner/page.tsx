@@ -355,7 +355,7 @@ function ScannerComponent() {
             </div>
 
             {/* Live Analytics Row */}
-            <div className="grid grid-cols-3 gap-3 md:gap-6 mt-8 pb-20">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6 mt-8 pb-20">
                 <div className="bg-gray-900/80 border border-gray-800 p-4 md:p-6 rounded-2xl shadow-xl backdrop-blur-md">
                     <p className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">Total {eventName}</p>
                     <p className="text-2xl md:text-4xl font-black text-white">{analytics.total}</p>

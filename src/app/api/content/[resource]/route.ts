@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 
   const query = (supabase.from(config.table) as any)
-    .select("*")
+    .select(config.table === "gallery" ? "*, gallery_albums(id, title)" : "*")
     .order(config.orderBy, { ascending: config.ascending });
 
   const { data, error } = await query;

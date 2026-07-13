@@ -40,7 +40,7 @@ export default function AdminLogin() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
+        <div className="min-h-screen flex items-center justify-center relative z-10 p-5 overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[100px]" />
@@ -74,7 +74,7 @@ export default function AdminLogin() {
                                 htmlFor="username"
                                 className="block text-sm font-medium leading-6 text-gray-300"
                             >
-                                Username or Email
+                                Email
                             </label>
                             <div className="mt-2">
                                 <input
@@ -85,18 +85,23 @@ export default function AdminLogin() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
-                                    placeholder="Staff username or member email"
+                                    placeholder="Enter your SRM IST email"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label
-                                htmlFor="password"
-                                className="block text-sm font-medium leading-6 text-gray-300"
-                            >
-                                Password
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label
+                                    htmlFor="password"
+                                    className="block text-sm font-medium leading-6 text-gray-300"
+                                >
+                                    Password
+                                </label>
+                                <Link href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300">
+                                    Forgot password?
+                                </Link>
+                            </div>
                             <div className="mt-2">
                                 <input
                                     id="password"

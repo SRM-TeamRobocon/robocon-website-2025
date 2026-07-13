@@ -6,21 +6,13 @@ import type { GalleryPhoto } from "@/components/ui/expandable-gallery";
 import jsonData from "@/app/gallery/carousel-data.json";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
-interface SupabaseGalleryImage {
-  image_url: string;
-  title: string | null;
-  category: string | null;
-}
-
 interface FallbackGalleryItem {
   src: string;
   title: string;
   category: string;
 }
 
-function groupIntoAlbums(
-  rows: { src: string; title: string | null; category: string | null }[]
-): Album[] {
+function groupFallbackIntoAlbums(rows: FallbackGalleryItem[]): Album[] {
   const order: string[] = [];
   const byCategory = new Map<string, GalleryPhoto[]>();
 
@@ -45,23 +37,34 @@ function groupIntoAlbums(
 }
 
 async function getAlbums(): Promise<Album[]> {
-  const fallbackItems = jsonData as FallbackGalleryItem[];
-  const fallbackAlbums = groupIntoAlbums(fallbackItems);
+  const fallbackAlbums = groupFallbackIntoAlbums(jsonData as FallbackGalleryItem[]);
 
   const supabase = createPublicSupabaseClient();
   if (!supabase) return fallbackAlbums;
 
-  const { data, error } = await supabase
-    .from("gallery")
-    .select("image_url, title, category")
-    .order("display_order", { ascending: true });
+  const [{ data: albums, error: albumsError }, { data: photos, error: photosError }] = await Promise.all([
+    supabase.from("gallery_albums").select("id, title").order("display_order", { ascending: true }),
+    supabase
+      .from("gallery")
+      .select("album_id, image_url, title")
+      .order("display_order", { ascending: true }),
+  ]);
 
-  if (error || !data?.length) return fallbackAlbums;
+  if (albumsError || photosError || !albums?.length || !photos?.length) return fallbackAlbums;
 
-  const rows = data as SupabaseGalleryImage[];
-  return groupIntoAlbums(
-    rows.map((row) => ({ src: row.image_url, title: row.title, category: row.category }))
-  );
+  return albums
+    .map((album) => ({
+      id: album.id,
+      title: album.title,
+      photos: photos
+        .filter((photo) => photo.album_id === album.id)
+        .map((photo, index) => ({
+          id: `${album.id}-${index}`,
+          src: photo.image_url,
+          alt: photo.title || album.title,
+        })),
+    }))
+    .filter((album) => album.photos.length > 0);
 }
 
 export default async function GalleryPage() {
