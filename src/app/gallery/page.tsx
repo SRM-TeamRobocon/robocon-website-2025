@@ -66,6 +66,7 @@ async function getAlbums(): Promise<Album[]> {
 
 export default async function GalleryPage() {
   const albums = await getAlbums();
+  const totalPhotos = albums.reduce((sum, album) => sum + album.photos.length, 0);
 
   return (
     <div>
@@ -74,7 +75,9 @@ export default async function GalleryPage() {
       <section className="pt-28 md:pt-36 pb-10 text-center px-4">
         <h1 className="text-3xl md:text-5xl font-bold text-white">Our Gallery</h1>
         <p className="mt-4 text-white/60 max-w-xl mx-auto">
-          Pick an album to relive the moment.
+          {albums.length > 0
+            ? `Pick an album to relive the moment — ${totalPhotos} photo${totalPhotos === 1 ? "" : "s"} across ${albums.length} album${albums.length === 1 ? "" : "s"}.`
+            : "Pick an album to relive the moment."}
         </p>
       </section>
 
