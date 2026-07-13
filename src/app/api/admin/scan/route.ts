@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateSessionAttendance, getRegistrations, SESSION_COLUMN_MAP, AttendanceSession } from "@/utils/googleSheets";
+import { getSession, requireRole } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,11 @@ const VALID_SESSIONS = Object.keys(SESSION_COLUMN_MAP) as AttendanceSession[];
 
 export async function POST(request: Request) {
     try {
+        const authSession = await getSession();
+        if (!requireRole(authSession, ["lead", "admin"])) {
+            return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+        }
+
         const body = await request.json();
         const { ticketId, eventName, session } = body;
 

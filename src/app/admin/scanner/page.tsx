@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
 import toast from "react-hot-toast";
+import { useRequireRole } from "@/hooks/use-require-role";
 
 const SESSIONS = [
     { key: "day1Morning", label: "Day 1 — Morning" },
@@ -17,6 +18,7 @@ const SESSIONS = [
 type SessionKey = typeof SESSIONS[number]["key"];
 
 function ScannerComponent() {
+    const ready = useRequireRole(["lead", "admin"]);
     const searchParams = useSearchParams();
     const initialEvent = searchParams.get("event") || "Solidworks";
 
@@ -147,6 +149,8 @@ function ScannerComponent() {
     }, [handleScan]);
 
     const currentSessionLabel = SESSIONS.find(s => s.key === session)?.label ?? session;
+
+    if (!ready) return null;
 
     return (
         <div className="max-w-3xl mx-auto space-y-8 pt-4 md:pt-8 px-4">

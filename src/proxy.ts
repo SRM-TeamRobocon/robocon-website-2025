@@ -39,6 +39,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    // Matcher needs to cover both page routes and api routes
+    // /member/* now only holds public pre-login flows (signup/verify) — no gating needed.
+    // /api/member/* routes check role themselves via src/lib/session.ts (they need role
+    // checks beyond "logged in" anyway, since login/dashboard now live under /admin/*).
     matcher: ['/admin/:path*', '/api/admin/:path*'],
 };

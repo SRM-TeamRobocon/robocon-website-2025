@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContentResource, type ContentResourceConfig } from "@/lib/content-resources";
+import { getContentResource, normalizePayload } from "@/lib/content-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSession, requireRole } from "@/lib/session";
 
 type RouteContext = {
   params: Promise<{ resource: string }>;
@@ -8,59 +9,17 @@ type RouteContext = {
 
 export const dynamic = "force-dynamic";
 
-function cleanString(value: unknown) {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-}
-
-function normalizePayload(config: ContentResourceConfig, body: Record<string, unknown>) {
-  const payload: Record<string, unknown> = {};
-
-  for (const field of config.fields) {
-    if (field.readonly && field.name !== "is_read") continue;
-    if (!(field.name in body)) continue;
-
-    const value = body[field.name];
-
-    if (field.type === "number") {
-      payload[field.name] = value === "" || value === null || value === undefined ? 0 : Number(value);
-      continue;
-    }
-
-    if (field.type === "boolean") {
-      payload[field.name] = Boolean(value);
-      continue;
-    }
-
-    if (field.type === "tags") {
-      payload[field.name] = Array.isArray(value)
-        ? value.map((item) => String(item).trim()).filter(Boolean)
-        : String(value ?? "")
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean);
-      continue;
-    }
-
-    if (field.type === "datetime") {
-      const normalized = cleanString(value);
-      payload[field.name] = typeof normalized === "string" ? new Date(normalized).toISOString() : normalized;
-      continue;
-    }
-
-    payload[field.name] = cleanString(value);
-  }
-
-  return payload;
-}
-
 async function getConfig(context: RouteContext) {
   const { resource } = await context.params;
   return getContentResource(resource);
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
+  const session = await getSession();
+  if (!requireRole(session, ["lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const config = await getConfig(context);
 
   if (!config) {
@@ -80,6 +39,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
+  const session = await getSession();
+  if (!requireRole(session, ["lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const config = await getConfig(context);
 
   if (!config || config.readonly) {
@@ -109,6 +73,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
+  const session = await getSession();
+  if (!requireRole(session, ["lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const config = await getConfig(context);
 
   if (!config) {
@@ -138,6 +107,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
+  const session = await getSession();
+  if (!requireRole(session, ["lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const config = await getConfig(context);
 
   if (!config || config.readonly) {

@@ -180,3 +180,50 @@ export function getContentResource(resource: string): ContentResourceConfig | nu
 export function contentResourceList() {
   return Object.values(CONTENT_RESOURCES);
 }
+
+function cleanString(value: unknown) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+export function normalizePayload(config: ContentResourceConfig, body: Record<string, unknown>) {
+  const payload: Record<string, unknown> = {};
+
+  for (const field of config.fields) {
+    if (field.readonly && field.name !== "is_read") continue;
+    if (!(field.name in body)) continue;
+
+    const value = body[field.name];
+
+    if (field.type === "number") {
+      payload[field.name] = value === "" || value === null || value === undefined ? 0 : Number(value);
+      continue;
+    }
+
+    if (field.type === "boolean") {
+      payload[field.name] = Boolean(value);
+      continue;
+    }
+
+    if (field.type === "tags") {
+      payload[field.name] = Array.isArray(value)
+        ? value.map((item) => String(item).trim()).filter(Boolean)
+        : String(value ?? "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+      continue;
+    }
+
+    if (field.type === "datetime") {
+      const normalized = cleanString(value);
+      payload[field.name] = typeof normalized === "string" ? new Date(normalized).toISOString() : normalized;
+      continue;
+    }
+
+    payload[field.name] = cleanString(value);
+  }
+
+  return payload;
+}

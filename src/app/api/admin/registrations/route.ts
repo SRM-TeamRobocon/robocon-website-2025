@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { getRegistrations } from "@/utils/googleSheets";
+import { getSession, requireRole } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
     try {
+        const session = await getSession();
+        if (!requireRole(session, ["lead", "admin"])) {
+            return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const event = searchParams.get("event") || undefined;
-
-        // In a real app we would verify the JWT here too to ensure the API is protected 
-        // even outside the middleware, but middleware handles it at the route level.
 
         const registrations = await getRegistrations(event);
 

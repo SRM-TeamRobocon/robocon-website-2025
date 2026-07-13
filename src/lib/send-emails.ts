@@ -1,20 +1,6 @@
-import nodemailer from "nodemailer";
+import { SMTP_EMAIL, getTransporter } from "./mailer";
 
-const SMTP_EMAIL = process.env.SMTP_EMAIL;
-const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
 const ORGANIZER_EMAIL = process.env.ORGANIZER_EMAIL;
-
-function getTransporter() {
-    if (!SMTP_EMAIL || !SMTP_PASSWORD) return null;
-
-    return nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: SMTP_EMAIL,
-            pass: SMTP_PASSWORD,
-        },
-    });
-}
 
 interface RegistrationDetails {
     formData: Record<string, string>;
@@ -161,13 +147,6 @@ Timestamp:   ${timestamp}
 export async function sendConfirmationEmails(
     details: RegistrationDetails
 ): Promise<void> {
-    if (!SMTP_EMAIL || !SMTP_PASSWORD) {
-        console.warn(
-            "⚠️ SMTP credentials not configured — skipping confirmation emails"
-        );
-        return;
-    }
-
     const participantEmail =
         details.formData.OfficialSRMEmailID || details.formData.YourEmail;
     if (!participantEmail) {
@@ -178,7 +157,7 @@ export async function sendConfirmationEmails(
     const workshop = details.formData.Workshop || "Workshop";
     const transporter = getTransporter();
     if (!transporter) {
-        console.warn("⚠️ Mail transporter could not be initialized");
+        console.warn("⚠️ SMTP credentials not configured — skipping confirmation emails");
         return;
     }
 

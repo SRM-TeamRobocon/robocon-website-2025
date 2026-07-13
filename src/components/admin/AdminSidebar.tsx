@@ -8,31 +8,49 @@ import { motion } from "framer-motion";
 import {
     LayoutDashboard,
     Globe2,
-    Box,
-    Cpu,
-    QrCode,
+    Wrench,
+    ClipboardCheck,
+    Sparkles as RecruitIcon,
+    UserCircle,
+    FilePlus2,
+    ListChecks,
     ChevronsLeft,
     ChevronsRight,
     X,
     Sparkles,
 } from "lucide-react";
 
+export type NavRole = "lead" | "admin" | "member";
+
 export type NavItem = {
     label: string;
     href: string;
     icon: React.ElementType;
     exact?: boolean;
+    roles: NavRole[];
 };
 
+const STAFF_ROLES: NavRole[] = ["lead", "admin"];
+const ALL_ROLES: NavRole[] = ["lead", "admin", "member"];
+
 export const ADMIN_NAV_ITEMS: NavItem[] = [
-    { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard, exact: true },
-    { label: "Website Content", href: "/admin/dashboard/content", icon: Globe2 },
-    { label: "Solidworks", href: "/admin/dashboard/solidworks", icon: Box },
-    { label: "Altium", href: "/admin/dashboard/altium", icon: Cpu },
-    { label: "Scanner", href: "/admin/scanner", icon: QrCode },
+    { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard, exact: true, roles: ALL_ROLES },
+    { label: "Website Content", href: "/admin/dashboard/content", icon: Globe2, roles: STAFF_ROLES },
+    { label: "Workshops", href: "/admin/dashboard/workshops", icon: Wrench, roles: STAFF_ROLES },
+    { label: "Review & Approvals", href: "/admin/dashboard/approvals", icon: ClipboardCheck, roles: ["lead", "admin"] },
+    { label: "Recruitments", href: "/admin/dashboard/recruitments", icon: RecruitIcon, roles: STAFF_ROLES },
+    { label: "My Profile", href: "/admin/dashboard/profile", icon: UserCircle, roles: ALL_ROLES },
+    { label: "Propose Content", href: "/admin/dashboard/propose", icon: FilePlus2, roles: ["member"] },
+    { label: "My Submissions", href: "/admin/dashboard/my-submissions", icon: ListChecks, roles: ["member"] },
 ];
 
+export function getNavItems(role: NavRole | null): NavItem[] {
+    if (!role) return [];
+    return ADMIN_NAV_ITEMS.filter((item) => item.roles.includes(role));
+}
+
 interface AdminSidebarProps {
+    role: NavRole | null;
     collapsed: boolean;
     onToggleCollapse: () => void;
     mobileOpen: boolean;
@@ -44,8 +62,9 @@ function isActive(pathname: string, item: NavItem) {
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-export default function AdminSidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: AdminSidebarProps) {
+export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: AdminSidebarProps) {
     const pathname = usePathname();
+    const navItems = getNavItems(role);
 
     return (
         <>
@@ -91,7 +110,7 @@ export default function AdminSidebar({ collapsed, onToggleCollapse, mobileOpen, 
 
                 {/* Nav */}
                 <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-                    {ADMIN_NAV_ITEMS.map((item) => {
+                    {navItems.map((item) => {
                         const active = isActive(pathname, item);
                         const Icon = item.icon;
                         return (

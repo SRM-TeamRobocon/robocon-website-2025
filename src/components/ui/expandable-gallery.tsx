@@ -1,17 +1,119 @@
 "use client";
 
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import React, { useState, useId, useRef } from "react";
+import React, { useState, useId, useRef, useEffect, useCallback } from "react";
 import { useOutsideClick } from "@/hooks/use-outside-click";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface GalleryPhoto {
   id: string;
   src: string;
   alt: string;
+}
+
+function Lightbox({
+  photos,
+  index,
+  onNavigate,
+  onClose,
+}: {
+  photos: GalleryPhoto[];
+  index: number;
+  onNavigate: (index: number) => void;
+  onClose: () => void;
+}) {
+  const photo = photos[index];
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      } else if (event.key === "ArrowRight" && photos.length > 1) {
+        onNavigate((index + 1) % photos.length);
+      } else if (event.key === "ArrowLeft" && photos.length > 1) {
+        onNavigate((index - 1 + photos.length) % photos.length);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [index, photos.length, onNavigate, onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close photo viewer"
+        className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white transition hover:bg-red"
+      >
+        <X size={20} />
+      </button>
+
+      {photos.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => onNavigate((index - 1 + photos.length) % photos.length)}
+            aria-label="Previous photo"
+            className="absolute left-2 md:left-6 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-2 md:p-3 text-white transition hover:bg-white/20"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate((index + 1) % photos.length)}
+            aria-label="Next photo"
+            className="absolute right-2 md:right-6 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-2 md:p-3 text-white transition hover:bg-white/20"
+          >
+            <ArrowRight size={22} />
+          </button>
+        </>
+      )}
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={photo.id}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.15 }}
+          className="relative h-[78vh] w-full max-w-5xl"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Image
+            src={photo.src}
+            alt={photo.alt}
+            fill
+            sizes="100vw"
+            className="object-contain"
+            priority
+          />
+        </motion.div>
+      </AnimatePresence>
+
+      {photos.length > 1 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white/80">
+          {index + 1} / {photos.length}
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 const FAN_CONFIG = [
@@ -43,22 +145,32 @@ export function ExpandableGallery({
   onBack,
 }: ExpandableGalleryProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const layoutGroupId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const collapse = () => {
+  const collapse = useCallback(() => {
     if (onBack) {
       onBack();
     } else {
       setIsExpanded(false);
     }
-  };
+  }, [onBack]);
 
   useOutsideClick(containerRef, () => {
     if (isExpanded && !onBack) {
       setIsExpanded(false);
     }
   });
+
+  useEffect(() => {
+    if (!isExpanded || lightboxIndex !== null) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") collapse();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isExpanded, lightboxIndex, collapse]);
 
   return (
     <section className="relative w-full px-4 md:px-8 flex flex-col items-center justify-start min-h-[600px] overflow-hidden">
@@ -141,12 +253,24 @@ export function ExpandableGallery({
                         : { scale: 1.02 }
                     }
                     className={cn(
-                      "cursor-pointer overflow-hidden bg-white/5",
+                      "overflow-hidden bg-white/5",
                       isExpanded
-                        ? "relative aspect-square rounded-[2rem] md:rounded-[3rem] border-4 md:border-[6px] border-black shadow-lg"
-                        : "absolute w-44 h-44 md:w-60 md:h-60 rounded-[2.5rem] md:rounded-[3rem] border-[6px] border-black shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+                        ? "relative aspect-square rounded-[2rem] md:rounded-[3rem] border-4 md:border-[6px] border-black shadow-lg cursor-zoom-in"
+                        : "absolute w-44 h-44 md:w-60 md:h-60 rounded-[2.5rem] md:rounded-[3rem] border-[6px] border-black shadow-[0_20px_50px_rgba(0,0,0,0.6)] cursor-pointer"
                     )}
-                    onClick={() => !isExpanded && setIsExpanded(true)}
+                    onClick={() => {
+                      if (isExpanded) setLightboxIndex(index);
+                      else setIsExpanded(true);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={isExpanded ? `View ${photo.alt} full size` : "Expand album"}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      if (isExpanded) setLightboxIndex(index);
+                      else setIsExpanded(true);
+                    }}
                   >
                     <motion.div
                       layoutId={`image-inner-${photo.id}`}
@@ -208,6 +332,17 @@ export function ExpandableGallery({
           </motion.div>
         </div>
       </LayoutGroup>
+
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <Lightbox
+            photos={photos}
+            index={lightboxIndex}
+            onNavigate={setLightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }

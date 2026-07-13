@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
-import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminSidebar, { type NavRole } from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import { displayNameForUsername } from "@/lib/admin-users";
 
@@ -14,7 +14,7 @@ export default function AdminLayout({
 }) {
     const pathname = usePathname();
     const [displayName, setDisplayName] = useState("Member");
-    const [role, setRole] = useState<string | null>(null);
+    const [role, setRole] = useState<NavRole | null>(null);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -33,8 +33,8 @@ export default function AdminLayout({
                 const res = await fetch("/api/admin/me");
                 const data = await res.json();
                 if (data.success) {
-                    setDisplayName(displayNameForUsername(data.user));
-                    setRole(data.role || null);
+                    setDisplayName(data.name || displayNameForUsername(data.user));
+                    setRole((data.role as NavRole) || null);
                 }
             } catch (e) {
                 console.error("Failed to fetch user", e);
@@ -71,6 +71,7 @@ export default function AdminLayout({
             />
 
             <AdminSidebar
+                role={role}
                 collapsed={collapsed}
                 onToggleCollapse={toggleCollapse}
                 mobileOpen={mobileOpen}

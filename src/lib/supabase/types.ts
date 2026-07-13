@@ -16,6 +16,8 @@ export type Database = {
           facebook_url: string | null;
           is_active: boolean;
           display_order: number;
+          member_account_id: string | null;
+          lead_username: string | null;
           created_at: string;
         };
         Insert: {
@@ -30,9 +32,81 @@ export type Database = {
           facebook_url?: string | null;
           is_active?: boolean;
           display_order?: number;
+          member_account_id?: string | null;
+          lead_username?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["members"]["Insert"]>;
+        Relationships: [];
+      };
+      member_accounts: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          domain: string;
+          reg_no: string;
+          department: string;
+          course: string;
+          phone: string | null;
+          password_hash: string;
+          email_verified: boolean;
+          verification_token: string | null;
+          verification_expires: string | null;
+          is_approved: boolean;
+          approved_at: string | null;
+          role: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          email: string;
+          domain: string;
+          reg_no: string;
+          department: string;
+          course: string;
+          phone?: string | null;
+          password_hash: string;
+          email_verified?: boolean;
+          verification_token?: string | null;
+          verification_expires?: string | null;
+          is_approved?: boolean;
+          approved_at?: string | null;
+          role?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["member_accounts"]["Insert"]>;
+        Relationships: [];
+      };
+      content_edits: {
+        Row: {
+          id: string;
+          resource: string;
+          record_id: string | null;
+          action: string;
+          payload: Json;
+          submitted_by: string;
+          status: string;
+          review_note: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          resource: string;
+          record_id?: string | null;
+          action: string;
+          payload: Json;
+          submitted_by: string;
+          status?: string;
+          review_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["content_edits"]["Insert"]>;
         Relationships: [];
       };
       projects: {

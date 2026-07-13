@@ -1,7 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { contentResourceList } from "@/lib/content-resources";
+import { getSession, requireRole } from "@/lib/session";
 
-export default function AdminContentHome() {
+export default async function AdminContentHome() {
+  const session = await getSession();
+  if (!requireRole(session, ["lead", "admin"])) redirect("/admin/dashboard");
+
   const resources = contentResourceList();
 
   return (

@@ -19,7 +19,11 @@ export async function GET() {
         return NextResponse.json({
             success: true,
             user: payload.user || "Admin",
-            role: payload.role
+            role: payload.role,
+            name: payload.name,
+            domain: payload.domain,
+            rosterId: payload.rosterId,
+            memberAccountId: payload.memberAccountId,
         });
     } catch (error) {
         console.error("Error in /api/admin/me:", error);

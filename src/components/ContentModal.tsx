@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
 import { X } from "lucide-react";
@@ -9,6 +9,7 @@ import type { ContentCardItem } from "./ContentGrid";
 export default function ContentModal({ item, onClose }: { item: ContentCardItem | null; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
     if (!item) return;
@@ -19,7 +20,11 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        if (lightbox) {
+          setLightbox(null);
+        } else {
+          onClose();
+        }
         return;
       }
       if (event.key !== "Tab" || !panelRef.current) return;
@@ -46,7 +51,11 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
       document.body.style.overflow = "";
       previouslyFocused?.focus();
     };
-  }, [item, onClose]);
+  }, [item, onClose, lightbox]);
+
+  useEffect(() => {
+    if (!item) setLightbox(null);
+  }, [item]);
 
   if (!item) return null;
 
@@ -74,7 +83,12 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
           <X size={18} />
         </button>
 
-        <div className="relative aspect-video w-full bg-white/5">
+        <button
+          type="button"
+          onClick={() => setLightbox(item.coverImage)}
+          aria-label={`Enlarge ${item.name} image`}
+          className="relative aspect-video w-full cursor-zoom-in bg-white/5"
+        >
           <Image
             src={item.coverImage}
             alt={item.name}
@@ -84,7 +98,7 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
             sizes="(max-width: 768px) 100vw, 768px"
             className="object-cover"
           />
-        </div>
+        </button>
 
         <div className="space-y-4 p-6">
           <h2 id="content-modal-title" className="text-2xl font-bold text-white">
@@ -113,21 +127,56 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
             <ResponsiveMasonry columnsCountBreakPoints={{ 350: 1, 640: 2, 900: 3 }}>
               <Masonry gutter="8px">
                 {item.gallery.map((src, index) => (
-                  <Image
+                  <button
                     key={`${src}-${index}`}
-                    src={src}
-                    alt={`${item.name} gallery ${index + 1}`}
-                    width={800}
-                    height={800}
-                    unoptimized
-                    className="w-full rounded-lg"
-                  />
+                    type="button"
+                    onClick={() => setLightbox(src)}
+                    aria-label={`Enlarge ${item.name} gallery image ${index + 1}`}
+                    className="block w-full cursor-zoom-in"
+                  >
+                    <Image
+                      src={src}
+                      alt={`${item.name} gallery ${index + 1}`}
+                      width={800}
+                      height={800}
+                      unoptimized
+                      className="w-full rounded-lg transition duration-200 hover:opacity-80"
+                    />
+                  </button>
                 ))}
               </Masonry>
             </ResponsiveMasonry>
           )}
         </div>
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setLightbox(null);
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setLightbox(null)}
+            aria-label="Close enlarged image"
+            className="absolute right-4 top-4 z-10 rounded-full bg-black/60 p-2 text-white transition hover:bg-red"
+          >
+            <X size={18} />
+          </button>
+          <div className="relative h-[85vh] w-full max-w-5xl">
+            <Image
+              src={lightbox}
+              alt={`${item.name} enlarged`}
+              fill
+              unoptimized
+              sizes="100vw"
+              className="object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
