@@ -43,7 +43,7 @@ async function getAlbums(): Promise<Album[]> {
   if (!supabase) return fallbackAlbums;
 
   const [{ data: albums, error: albumsError }, { data: photos, error: photosError }] = await Promise.all([
-    supabase.from("gallery_albums").select("id, title").order("display_order", { ascending: true }),
+    supabase.from("gallery_albums").select("id, title").order("display_order", { ascending: false }),
     supabase
       .from("gallery")
       .select("album_id, image_url, title")

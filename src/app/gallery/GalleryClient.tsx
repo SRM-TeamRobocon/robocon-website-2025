@@ -58,10 +58,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
     setProgress(readProgress());
   }, []);
 
-  const heroAlbums = useMemo(
-    () => [...albums].sort((a, b) => b.photos.length - a.photos.length).slice(0, 4),
-    [albums]
-  );
+  const heroAlbums = useMemo(() => albums.slice(0, 5), [albums]);
 
   useEffect(() => {
     if (heroAlbums.length <= 1 || heroPaused) return;

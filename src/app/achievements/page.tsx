@@ -6,6 +6,11 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { formatDate } from "@/lib/utils";
 import type { Achievement } from "@/constants/types";
 
+// Set to `false` to make this page fully static (only updates on redeploy).
+// Set to a number of seconds (e.g. 60) to auto-refresh after that many seconds — Next.js requires
+// this to be a literal value here, it can't be imported from a shared config file.
+export const revalidate = 60;
+
 interface SupabaseAchievement {
   title: string;
   description: string | null;
