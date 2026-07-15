@@ -1,3 +1,6 @@
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+
 import { generateTicketId, generateQrCode, sendConfirmationEmail } from "../src/utils/ticket";
 
 async function run() {

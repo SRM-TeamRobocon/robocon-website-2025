@@ -123,7 +123,7 @@ export async function POST(request: Request) {
 
         const transporter = getTransporter();
         if (transporter) {
-            transporter
+            await transporter
                 .sendMail({
                     from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
                     to: email,
