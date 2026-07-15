@@ -57,11 +57,13 @@ export async function POST(request: Request) {
         const supabase = createSupabaseAdminClient();
         const { data: account } = await supabase
             .from("member_accounts")
-            .select("id, name, email")
+            .select("id, name, email, email_verified, is_approved")
             .eq("email", email)
             .maybeSingle();
 
-        if (account) {
+        // Only send a reset code to real, active account holders — unverified
+        // or not-yet-approved rows can't log in anyway, so don't let them reset.
+        if (account && account.email_verified && account.is_approved) {
             const otp = crypto.randomInt(100000, 1000000).toString();
             const otpHash = await bcrypt.hash(otp, 10);
             const expires = new Date(Date.now() + OTP_TTL_MS).toISOString();

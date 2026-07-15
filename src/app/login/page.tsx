@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,6 +11,27 @@ export default function AdminLogin() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch("/api/admin/me");
+                const data = await res.json();
+                if (!cancelled && data.success) {
+                    router.replace("/dashboard");
+                    return;
+                }
+            } catch {
+                // Not logged in — show the form.
+            }
+            if (!cancelled) setCheckingSession(false);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,6 +59,10 @@ export default function AdminLogin() {
             setLoading(false);
         }
     };
+
+    if (checkingSession) {
+        return <div className="min-h-screen" />;
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center relative z-10 p-5 overflow-hidden">
