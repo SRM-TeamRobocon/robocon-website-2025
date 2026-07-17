@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Search } from "lucide-react";
 import ContentModal from "./ContentModal";
@@ -13,14 +13,19 @@ export interface ContentCardItem {
   description: string;
   gallery: string[];
   badges?: string[];
+  modelUrl?: string;
+  /** Optional 3D-viewer hotspots; positions are bounding-box fractions (see BotHotspot in bots/BotViewer). */
+  hotspots?: { f: [number, number, number]; label: string; body?: string }[];
 }
 
 export default function ContentGrid({
   items,
   searchPlaceholder,
+  renderModal,
 }: {
   items: ContentCardItem[];
   searchPlaceholder: string;
+  renderModal?: (item: ContentCardItem, onClose: () => void) => ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<ContentCardItem | null>(null);
@@ -74,9 +79,14 @@ export default function ContentGrid({
               <div className="p-4">
                 <h3 className="line-clamp-1 font-bold text-white">{item.name}</h3>
                 <p className="mt-1 line-clamp-2 text-sm text-white/60">{item.abstract || item.description}</p>
-                {item.badges && item.badges.length > 0 && (
+                {(item.modelUrl || (item.badges && item.badges.length > 0)) && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {item.badges.slice(0, 4).map((badge) => (
+                    {item.modelUrl && (
+                      <span className="rounded-full bg-red/15 px-2.5 py-1 text-[11px] font-medium text-red">
+                        3D Model
+                      </span>
+                    )}
+                    {item.badges?.slice(0, 4).map((badge) => (
                       <span key={badge} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/70">
                         {badge}
                       </span>
@@ -89,7 +99,12 @@ export default function ContentGrid({
         </div>
       )}
 
-      <ContentModal item={active} onClose={() => setActive(null)} />
+      {active &&
+        (renderModal ? (
+          renderModal(active, () => setActive(null))
+        ) : (
+          <ContentModal item={active} onClose={() => setActive(null)} />
+        ))}
     </div>
   );
 }

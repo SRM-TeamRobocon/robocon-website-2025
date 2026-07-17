@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Globe2, Wrench, ClipboardCheck, Sparkles, ArrowUpRight } from "lucide-react";
+import { Globe2, Wrench, ClipboardCheck, Sparkles, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { displayNameForUsername } from "@/lib/admin-users";
 
 interface QuickAction {
     href: string;
     title: string;
     description: string;
-    icon: React.ElementType;
+    icon: LucideIcon;
     badge: string;
     accent: string;
     badgeClass: string;

@@ -18,6 +18,7 @@ import {
     ChevronsRight,
     X,
     Sparkles,
+    type LucideIcon,
 } from "lucide-react";
 
 export type NavRole = "lead" | "admin" | "member";
@@ -25,7 +26,7 @@ export type NavRole = "lead" | "admin" | "member";
 export type NavItem = {
     label: string;
     href: string;
-    icon: React.ElementType;
+    icon: LucideIcon;
     exact?: boolean;
     roles: NavRole[];
 };

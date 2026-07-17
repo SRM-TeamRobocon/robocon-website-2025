@@ -72,6 +72,12 @@ export default function Header() {
           </button>
           <button
             className="px-5 hover:text-red hover:scale-105"
+            onClick={() => router.push("/ddrobocon")}
+          >
+            DD Robocon
+          </button>
+          <button
+            className="px-5 hover:text-red hover:scale-105"
             onClick={() => router.push("/achievements")}
           >
             Achievements
@@ -100,12 +106,12 @@ export default function Header() {
           >
             Login
           </button>
-          <button
+          {/* <button
             className="px-5 hover:text-red hover:scale-105"
             onClick={scrollToBottom}
           >
             Contact Us
-          </button>
+          </button> */}
         </div>
 
         {/* Phone NavBar */}
@@ -160,6 +166,12 @@ export default function Header() {
             onClick={() => router.push("/projects")}
           >
             Projects
+          </button>
+          <button
+            className="px-8 hover:text-black hover:scale-105"
+            onClick={() => router.push("/ddrobocon")}
+          >
+            DD Robocon
           </button>
           <button
             className="px-8 hover:text-black hover:scale-105"
