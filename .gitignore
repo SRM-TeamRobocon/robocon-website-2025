@@ -35,6 +35,13 @@ yarn-error.log*
 .env.production.local
 .env*
 
+# local workspace and generated agent files
+.vscode/
+.agent.md
+build_output.txt
+.agents/
+.claude/
+
 # vercel
 .vercel
 

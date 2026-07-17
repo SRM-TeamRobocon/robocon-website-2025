@@ -96,6 +96,12 @@ export default function Header() {
           </button>
           <button
             className="px-5 hover:text-red hover:scale-105"
+            onClick={() => router.push("/login")}
+          >
+            Login
+          </button>
+          <button
+            className="px-5 hover:text-red hover:scale-105"
             onClick={scrollToBottom}
           >
             Contact Us

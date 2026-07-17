@@ -18,7 +18,7 @@ export async function POST(request: Request) {
         }
 
         const { payload } = await jose.jwtVerify(token, secret);
-        if (payload.role !== "lead") {
+        if (payload.role !== "lead" && payload.role !== "admin") {
             return NextResponse.json({ success: false, error: "Lead account required for verification" }, { status: 403 });
         }
 

@@ -1,43 +1,52 @@
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
+import bcrypt from "bcryptjs";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+
+interface SessionClaims {
+    user: string;
+    role: "lead" | "admin" | "member";
+    name?: string;
+    domain?: string;
+    memberAccountId?: string;
+    rosterId?: string | null;
+}
+
+async function signSession(claims: SessionClaims, expiresIn: string) {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_robocon_2026_!@#');
+    return new SignJWT({ ...claims })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime(expiresIn)
+        .sign(secret);
+}
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { username, password } = body;
 
-        // Hardcoded credentials as requested
-        let userRole: "lead" | "desk" | null = null;
+        // Hardcoded credentials as requested — env-based staff accounts are the top-tier "admin" role.
+        let userRole: "admin" | null = null;
 
         try {
             const leads = JSON.parse(process.env.LEAD_ACCOUNTS || '{}');
-            const desks = JSON.parse(process.env.DESK_ACCOUNTS || '{}');
 
             if (leads[username] === password) {
-                userRole = "lead";
-            } else if (desks[username] === password) {
-                userRole = "desk";
+                userRole = "admin";
             }
         } catch (e) {
-            console.error("Failed to parse account dictionaries from .env", e);
+            console.error("Failed to parse account dictionary from .env", e);
             // Fallback for immediate testing
-            if (username === "admin" && password === "admin") userRole = "lead";
+            if (username === "admin" && password === "admin") userRole = "admin";
         }
 
         if (userRole !== null) {
-            // Sign JWT
-            const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_robocon_2026_!@#');
-            const token = await new SignJWT({ user: username, role: userRole })
-                .setProtectedHeader({ alg: "HS256" })
-                .setIssuedAt()
-                .setExpirationTime("12h") // Session valid for 12 hours
-                .sign(secret);
+            const token = await signSession({ user: username, role: userRole }, "12h");
 
             const response = NextResponse.json({ success: true }, { status: 200 });
-
-            // Set HttpOnly cookie
             response.cookies.set({
                 name: "admin_token",
                 value: token,
@@ -49,6 +58,66 @@ export async function POST(request: Request) {
             });
 
             return response;
+        }
+
+        // Not a staff username — try it as a member email login.
+        if (typeof username === "string" && username.includes("@") && password) {
+            const supabase = createSupabaseAdminClient();
+
+            const { data: account } = await supabase
+                .from("member_accounts")
+                .select("id, name, email, domain, password_hash, email_verified, is_approved, role")
+                .eq("email", username.trim().toLowerCase())
+                .maybeSingle();
+
+            if (account) {
+                const passwordMatches = await bcrypt.compare(password, account.password_hash);
+
+                if (!passwordMatches) {
+                    return NextResponse.json({ success: false, error: "Invalid username or password" }, { status: 401 });
+                }
+                if (!account.email_verified) {
+                    return NextResponse.json({ success: false, error: "Verify your email before logging in." }, { status: 403 });
+                }
+                if (!account.is_approved) {
+                    return NextResponse.json({ success: false, error: "Your account is awaiting admin approval." }, { status: 403 });
+                }
+
+                const { data: roster } = await supabase
+                    .from("members")
+                    .select("id")
+                    .eq("member_account_id", account.id)
+                    .maybeSingle();
+
+                const accountRole = (account.role as "lead" | "admin" | "member") || "member";
+                const expiresIn = accountRole === "member" ? "7d" : "12h";
+                const maxAge = accountRole === "member" ? 60 * 60 * 24 * 7 : 60 * 60 * 12;
+
+                const token = await signSession(
+                    {
+                        user: account.email,
+                        role: accountRole,
+                        name: account.name,
+                        domain: account.domain,
+                        memberAccountId: account.id,
+                        rosterId: roster?.id ?? null,
+                    },
+                    expiresIn
+                );
+
+                const response = NextResponse.json({ success: true }, { status: 200 });
+                response.cookies.set({
+                    name: "admin_token",
+                    value: token,
+                    httpOnly: true,
+                    secure: false,
+                    sameSite: "lax",
+                    path: "/",
+                    maxAge,
+                });
+
+                return response;
+            }
         }
 
         return NextResponse.json(
