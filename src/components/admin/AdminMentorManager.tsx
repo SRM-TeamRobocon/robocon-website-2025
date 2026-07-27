@@ -1,53 +1,46 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ContentField, ContentResourceConfig } from "@/lib/content-resources";
-import { Search } from "lucide-react";
+import type { ContentField } from "@/lib/content-resources";
+import { GraduationCap, Search } from "lucide-react";
 import {
   IMAGE_URL_FIELDS,
-  IMAGE_ARRAY_FIELDS,
   uploadTarget,
-  findImageField,
   uploadImageFile,
   Thumb,
   SingleImageField,
-  MultiImageField,
 } from "@/components/ContentImageFields";
 
 type Row = Record<string, any>;
 
-const EMPTY_ROW: Row = {};
+const EMPTY_ROW: Row = { is_active: true };
+
+const MENTOR_FIELDS: ContentField[] = [
+  { name: "name", label: "Name", type: "text", required: true },
+  { name: "role", label: "Role / Designation", type: "text", required: true },
+  { name: "year", label: "Last Year in Robocon (e.g. 2024)", type: "text" },
+  { name: "photo_url", label: "Photo URL", type: "url" },
+  { name: "linkedin_url", label: "LinkedIn URL", type: "url" },
+  { name: "instagram_url", label: "Instagram URL", type: "url" },
+  { name: "facebook_url", label: "Facebook URL", type: "url" },
+  { name: "is_active", label: "Active", type: "boolean" },
+  { name: "display_order", label: "Display Order", type: "number" },
+];
 
 function valueForInput(field: ContentField, row: Row) {
-  const value = row[field.name];
-
-  if (field.type === "tags") {
-    return Array.isArray(value) ? value.join(", ") : value ?? "";
-  }
-
-  if (field.type === "datetime" && typeof value === "string") {
-    return value.slice(0, 16);
-  }
-
-  return value ?? "";
+  return row[field.name] ?? "";
 }
 
-export default function AdminContentManager({ config }: { config: ContentResourceConfig }) {
+export default function AdminMentorManager() {
   const [rows, setRows] = useState<Row[]>([]);
   const [activeRow, setActiveRow] = useState<Row>(EMPTY_ROW);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [promotingId, setPromotingId] = useState<string | null>(null);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
-
-  const editableFields = useMemo(
-    () => config.fields.filter((field) => !field.readonly || field.name === "is_read"),
-    [config.fields]
-  );
-
-  const rowImageField = useMemo(() => findImageField(config), [config]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -63,14 +56,14 @@ export default function AdminContentManager({ config }: { config: ContentResourc
     setError("");
 
     try {
-      const response = await fetch(`/api/admin/content/${config.table}`, { cache: "no-store" });
+      const response = await fetch("/api/admin/mentors", { cache: "no-store" });
       const json = await response.json();
 
-      if (!response.ok) throw new Error(json.error || "Failed to load content");
+      if (!response.ok) throw new Error(json.error || "Failed to load mentors");
 
       setRows(json.data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load content");
+      setError(err instanceof Error ? err.message : "Failed to load mentors");
     } finally {
       setLoading(false);
     }
@@ -78,17 +71,14 @@ export default function AdminContentManager({ config }: { config: ContentResourc
 
   useEffect(() => {
     loadRows();
-    setActiveRow(EMPTY_ROW);
-    setSearch("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.table]);
+  }, []);
 
   function setField(name: string, value: unknown) {
     setActiveRow((row) => ({ ...row, [name]: value }));
   }
 
   async function uploadSingle(field: ContentField, file: File) {
-    const target = uploadTarget(config.table, field.name);
+    const target = uploadTarget("mentors", field.name);
     if (!target) return;
 
     setUploadingField(field.name);
@@ -105,25 +95,6 @@ export default function AdminContentManager({ config }: { config: ContentResourc
     }
   }
 
-  async function uploadMultiple(field: ContentField, files: FileList) {
-    const target = uploadTarget(config.table, field.name);
-    if (!target) return;
-
-    setUploadingField(field.name);
-    setError("");
-
-    try {
-      const uploaded = await Promise.all(Array.from(files).map((file) => uploadImageFile(file, target)));
-      const current: string[] = Array.isArray(activeRow[field.name]) ? activeRow[field.name] : [];
-      setField(field.name, [...current, ...uploaded]);
-      setNotice("Upload complete. Save the form to keep these images.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploadingField(null);
-    }
-  }
-
   async function saveRow(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -131,7 +102,7 @@ export default function AdminContentManager({ config }: { config: ContentResourc
     setNotice("");
 
     try {
-      const response = await fetch(`/api/admin/content/${config.table}`, {
+      const response = await fetch("/api/admin/mentors", {
         method: activeRow.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(activeRow),
@@ -140,7 +111,7 @@ export default function AdminContentManager({ config }: { config: ContentResourc
 
       if (!response.ok) throw new Error(json.error || "Save failed");
 
-      setNotice(`${config.label} saved`);
+      setNotice("Mentor saved");
       setActiveRow(EMPTY_ROW);
       await loadRows();
     } catch (err) {
@@ -150,49 +121,20 @@ export default function AdminContentManager({ config }: { config: ContentResourc
     }
   }
 
-  async function makeMentor(row: Row) {
-    if (!row.id || !window.confirm(`Move "${row.name}" to Mentors? They'll drop off the Members list.`)) return;
-
-    setSaving(true);
-    setError("");
-    setNotice("");
-
-    try {
-      const response = await fetch(`/api/admin/content/${config.table}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: row.id, domain: "MENTORS" }),
-      });
-      const json = await response.json();
-
-      if (!response.ok) throw new Error(json.error || "Failed to move to Mentors");
-
-      setNotice(`${row.name} moved to Mentors`);
-      if (activeRow.id === row.id) setActiveRow(EMPTY_ROW);
-      await loadRows();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to move to Mentors");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function deleteRow(row: Row) {
-    if (!row.id || !window.confirm(`Delete this ${config.label.toLowerCase()}?`)) return;
+    if (!row.id || !window.confirm(`Delete mentor "${row.name}"? This cannot be undone.`)) return;
 
     setSaving(true);
     setError("");
     setNotice("");
 
     try {
-      const response = await fetch(`/api/admin/content/${config.table}?id=${encodeURIComponent(row.id)}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(`/api/admin/mentors?id=${encodeURIComponent(row.id)}`, { method: "DELETE" });
       const json = await response.json();
 
       if (!response.ok) throw new Error(json.error || "Delete failed");
 
-      setNotice(`${config.label} deleted`);
+      setNotice("Mentor deleted");
       if (activeRow.id === row.id) setActiveRow(EMPTY_ROW);
       await loadRows();
     } catch (err) {
@@ -202,14 +144,52 @@ export default function AdminContentManager({ config }: { config: ContentResourc
     }
   }
 
+  async function promoteRow(row: Row) {
+    if (!row.id) return;
+
+    if (!String(row.year || "").trim()) {
+      setError(`Set a Year on "${row.name}" before promoting to Alumni.`);
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Move "${row.name}" to Alumni with batch "${row.year}"? They will be removed from the Mentors list.`
+      )
+    ) {
+      return;
+    }
+
+    setPromotingId(row.id);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch(`/api/admin/mentors/${row.id}/promote`, { method: "POST" });
+      const json = await response.json();
+
+      if (!response.ok) throw new Error(json.error || "Promotion failed");
+
+      setNotice(`${row.name} moved to Alumni (batch ${row.year})`);
+      if (activeRow.id === row.id) setActiveRow(EMPTY_ROW);
+      await loadRows();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Promotion failed");
+    } finally {
+      setPromotingId(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-wider text-red">{config.pluralLabel}</p>
-          <h1 className="text-4xl font-black text-white">Content Manager</h1>
+          <p className="text-sm font-bold uppercase tracking-wider text-red">Mentors</p>
+          <h1 className="text-4xl font-black text-white">Mentor Manager</h1>
           <p className="mt-2 max-w-2xl text-sm text-gray-400">
-            Manage Supabase-backed content. Changes are saved through protected admin API routes.
+            4th-year members who have moved on to mentor status. When it&apos;s time for them to graduate off the
+            roster, use <span className="text-white">Make Alumni</span> to move them to the Alumni page under
+            their profile&apos;s Year as the batch.
           </p>
         </div>
         <button
@@ -217,7 +197,7 @@ export default function AdminContentManager({ config }: { config: ContentResourc
           onClick={() => setActiveRow(EMPTY_ROW)}
           className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
         >
-          New {config.label}
+          New Mentor
         </button>
       </div>
 
@@ -235,7 +215,7 @@ export default function AdminContentManager({ config }: { config: ContentResourc
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-gray-950/70">
           <div className="flex flex-col gap-3 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-bold text-white">
-              {config.pluralLabel} <span className="text-sm font-normal text-gray-500">({filteredRows.length})</span>
+              Mentors <span className="text-sm font-normal text-gray-500">({filteredRows.length})</span>
             </h2>
             <div className="relative">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -252,7 +232,7 @@ export default function AdminContentManager({ config }: { config: ContentResourc
             {loading ? (
               <div className="p-5 text-gray-400">Loading...</div>
             ) : filteredRows.length === 0 ? (
-              <div className="p-5 text-gray-400">{rows.length === 0 ? "No rows yet." : "No matches."}</div>
+              <div className="p-5 text-gray-400">{rows.length === 0 ? "No mentors yet." : "No matches."}</div>
             ) : (
               filteredRows.map((row) => {
                 const isActive = row.id && row.id === activeRow.id;
@@ -264,26 +244,26 @@ export default function AdminContentManager({ config }: { config: ContentResourc
                     }`}
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      {rowImageField && <Thumb src={row[rowImageField.name]} alt={row[config.primaryField] || "preview"} />}
+                      <Thumb src={row.photo_url} alt={row.name || "preview"} />
                       <div className="min-w-0">
-                        <h3 className="truncate font-bold text-white">
-                          {row[config.primaryField] || row.caption || row.email || "Untitled"}
-                        </h3>
+                        <h3 className="truncate font-bold text-white">{row.name || "Untitled"}</h3>
                         <p className="mt-1 line-clamp-2 text-sm text-gray-400">
-                          {row.description || row.message || row.role || row.company || row.location || row.category || row.id}
+                          {row.role}
+                          {row.year ? ` · ${row.year}` : ""}
                         </p>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      {config.table === "members" && (
-                        <button
-                          type="button"
-                          onClick={() => makeMentor(row)}
-                          className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
-                        >
-                          Make Mentor
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => promoteRow(row)}
+                        disabled={promotingId === row.id}
+                        title={row.year ? undefined : "Set a Year first"}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <GraduationCap size={14} />
+                        {promotingId === row.id ? "Moving..." : "Make Alumni"}
+                      </button>
                       <button
                         type="button"
                         onClick={() => setActiveRow(row)}
@@ -293,15 +273,13 @@ export default function AdminContentManager({ config }: { config: ContentResourc
                       >
                         Edit
                       </button>
-                      {!config.readonly && (
-                        <button
-                          type="button"
-                          onClick={() => deleteRow(row)}
-                          className="rounded-lg bg-red px-3 py-2 text-sm font-bold text-white transition hover:bg-red/80"
-                        >
-                          Delete
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => deleteRow(row)}
+                        className="rounded-lg bg-red px-3 py-2 text-sm font-bold text-white transition hover:bg-red/80"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </article>
                 );
@@ -311,10 +289,10 @@ export default function AdminContentManager({ config }: { config: ContentResourc
         </section>
 
         <form onSubmit={saveRow} className="h-fit rounded-2xl border border-white/10 bg-gray-950/70 p-5">
-          <h2 className="text-lg font-bold text-white">{activeRow.id ? `Edit ${config.label}` : `New ${config.label}`}</h2>
+          <h2 className="text-lg font-bold text-white">{activeRow.id ? "Edit Mentor" : "New Mentor"}</h2>
           <div className="mt-5 space-y-4">
-            {editableFields.map((field) => {
-              const upload = uploadTarget(config.table, field.name);
+            {MENTOR_FIELDS.map((field) => {
+              const upload = uploadTarget("mentors", field.name);
               const value = valueForInput(field, activeRow);
 
               if (field.type === "boolean") {
@@ -346,17 +324,19 @@ export default function AdminContentManager({ config }: { config: ContentResourc
                 );
               }
 
-              if (IMAGE_ARRAY_FIELDS.has(field.name) && upload) {
-                const values: string[] = Array.isArray(activeRow[field.name]) ? activeRow[field.name] : [];
+              if (field.name === "year") {
                 return (
                   <label key={field.name} className="block text-sm font-medium text-gray-300">
                     {field.label}
-                    <MultiImageField
-                      field={field}
-                      values={values}
-                      onChange={(next) => setField(field.name, next)}
-                      onUploadFiles={(files) => uploadMultiple(field, files)}
-                      uploading={uploadingField === field.name}
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{4}"
+                      maxLength={4}
+                      placeholder="2024"
+                      value={value}
+                      onChange={(event) => setField(field.name, event.target.value.replace(/\D/g, "").slice(0, 4))}
+                      className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
                     />
                   </label>
                 );
@@ -365,24 +345,13 @@ export default function AdminContentManager({ config }: { config: ContentResourc
               return (
                 <label key={field.name} className="block text-sm font-medium text-gray-300">
                   {field.label}
-                  {field.type === "textarea" ? (
-                    <textarea
-                      required={field.required}
-                      value={value}
-                      onChange={(event) => setField(field.name, event.target.value)}
-                      rows={4}
-                      className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
-                    />
-                  ) : (
-                    <input
-                      type={field.type === "datetime" ? "datetime-local" : field.type === "tags" ? "text" : field.type}
-                      required={field.required}
-                      value={value}
-                      onChange={(event) => setField(field.name, event.target.value)}
-                      placeholder={field.type === "tags" ? "Comma-separated values" : undefined}
-                      className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
-                    />
-                  )}
+                  <input
+                    type={field.type === "number" ? "number" : field.type}
+                    required={field.required}
+                    value={value}
+                    onChange={(event) => setField(field.name, event.target.value)}
+                    className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
+                  />
                 </label>
               );
             })}

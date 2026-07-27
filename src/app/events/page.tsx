@@ -50,7 +50,7 @@ async function getEvents(): Promise<Event[]> {
     .select(
       "title, description, abstract, cover_image_url, cover_width, cover_height, gallery_urls, event_date, location, is_upcoming"
     )
-    .order("display_order", { ascending: true });
+    .order("event_date", { ascending: false, nullsFirst: false });
 
   if (error || !data?.length) return events;
   return mapSupabaseEvents(data);

@@ -78,13 +78,15 @@ export default function AdminLayout({
                 onCloseMobile={() => setMobileOpen(false)}
             />
 
+            {/* No overflow-x-hidden here: it would make this a scroll container and
+                break the sticky topbar. Overflow is contained by min-w-0 + per-component wrapping. */}
             <div className="flex-1 flex flex-col min-w-0">
                 <AdminTopbar
                     username={displayName}
                     role={role}
                     onOpenMobile={() => setMobileOpen(true)}
                 />
-                <main className="flex-grow p-4 md:p-8 max-w-7xl w-full mx-auto">
+                <main className="flex-grow w-full max-w-7xl mx-auto min-w-0 p-4 md:p-8">
                     {children}
                 </main>
             </div>

@@ -317,6 +317,66 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["contact_submissions"]["Insert"]>;
         Relationships: [];
       };
+      blogs: {
+        Row: {
+          id: string;
+          title: string;
+          slug: string;
+          cover_image_url: string | null;
+          content: Json;
+          visibility: string;
+          status: string;
+          submitted_by: string | null;
+          author_username: string;
+          author_name: string;
+          review_note: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          published_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          slug: string;
+          cover_image_url?: string | null;
+          content?: Json;
+          visibility?: string;
+          status?: string;
+          submitted_by?: string | null;
+          author_username: string;
+          author_name: string;
+          review_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          published_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["blogs"]["Insert"]>;
+        Relationships: [];
+      };
+      timetables: {
+        Row: {
+          id: string;
+          owner_username: string;
+          owner_name: string;
+          domain: string | null;
+          schedule: Json;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_username: string;
+          owner_name: string;
+          domain?: string | null;
+          schedule?: Json;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["timetables"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

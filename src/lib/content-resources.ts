@@ -54,8 +54,8 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
     label: "Project",
     pluralLabel: "Projects",
     primaryField: "title",
-    orderBy: "display_order",
-    ascending: true,
+    orderBy: "year",
+    ascending: false,
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
@@ -68,7 +68,6 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "tech_stack", label: "Tech Stack", type: "tags" },
       { name: "year", label: "Year", type: "text" },
       { name: "competition", label: "Competition", type: "text" },
-      { name: "display_order", label: "Display Order", type: "number" },
     ],
   },
   achievements: {
@@ -76,8 +75,8 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
     label: "Achievement",
     pluralLabel: "Achievements",
     primaryField: "title",
-    orderBy: "display_order",
-    ascending: true,
+    orderBy: "achievement_date",
+    ascending: false,
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
@@ -89,7 +88,6 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "achievement_date", label: "Achievement Date", type: "date" },
       { name: "competition", label: "Competition", type: "text" },
       { name: "rank", label: "Rank", type: "text" },
-      { name: "display_order", label: "Display Order", type: "number" },
     ],
   },
   events: {
@@ -111,7 +109,6 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "location", label: "Location", type: "text" },
       { name: "registration_link", label: "Registration Link", type: "url" },
       { name: "is_upcoming", label: "Upcoming", type: "boolean" },
-      { name: "display_order", label: "Display Order", type: "number" },
     ],
   },
   alumni: {
@@ -119,8 +116,8 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
     label: "Alumnus",
     pluralLabel: "Alumni",
     primaryField: "name",
-    orderBy: "display_order",
-    ascending: true,
+    orderBy: "batch",
+    ascending: false,
     fields: [
       { name: "name", label: "Name", type: "text", required: true },
       { name: "domain", label: "Domain", type: "text" },
@@ -133,7 +130,6 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "linkedin_url", label: "LinkedIn URL", type: "url" },
       { name: "instagram_url", label: "Instagram URL", type: "url" },
       { name: "facebook_url", label: "Facebook URL", type: "url" },
-      { name: "display_order", label: "Display Order", type: "number" },
     ],
   },
   gallery: {

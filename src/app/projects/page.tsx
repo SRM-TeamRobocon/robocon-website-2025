@@ -51,7 +51,7 @@ async function getProjects(): Promise<Project[]> {
     .select(
       "title, description, abstract, cover_image_url, cover_width, cover_height, gallery_urls, shortkey, tech_stack, year, competition"
     )
-    .order("display_order", { ascending: true });
+    .order("year", { ascending: false, nullsFirst: false });
 
   if (error || !data?.length) return projects;
   return mapSupabaseProjects(data);

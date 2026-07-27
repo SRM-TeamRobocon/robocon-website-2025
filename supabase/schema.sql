@@ -177,3 +177,56 @@ alter table member_accounts add column if not exists role text not null default 
 -- Lets a legacy env-based lead/desk account (no member_accounts row, so no member_account_id)
 -- claim an existing public roster row by their env username instead.
 alter table members add column if not exists lead_username text unique;
+
+-- Blog posts: any dashboard role (member/lead/admin) can author a draft, held for
+-- lead/admin approval before it goes live. `visibility` decides where an approved
+-- post shows: 'public' on the marketing site, 'private' only inside the dashboard.
+-- `content` is an ordered array of blocks: {type:'heading'|'paragraph'|'image', ...}.
+-- author_username stores the session identity (email or env username) so authorship
+-- works even for env-based lead/admin accounts that have no member_accounts row.
+create table if not exists blogs (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  cover_image_url text,
+  content jsonb not null default '[]'::jsonb,
+  visibility text not null default 'public' check (visibility in ('public', 'private')),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  submitted_by uuid references member_accounts(id),
+  author_username text not null,
+  author_name text not null,
+  review_note text,
+  reviewed_by text,
+  reviewed_at timestamptz,
+  published_at timestamptz,
+  created_at timestamptz default now()
+);
+
+alter table blogs enable row level security;
+-- No public policies: service-role only, same pattern as content_edits. Every read
+-- path filters status/visibility server-side before returning rows:
+--   public site      -> src/app/blog/**            (status=approved AND visibility=public)
+--   dashboard feed   -> /api/dashboard/blogs       (status=approved, both visibilities)
+--   author's own     -> /api/member/blogs          (author_username = session user)
+--   moderation queue -> /api/admin/blogs           (lead/admin only)
+
+insert into storage.buckets (id, name, public)
+values ('blog-images', 'blog-images', true)
+on conflict (id) do update set public = excluded.public;
+
+-- Member class timetables: DO1-DO5 (as labeled in the source spreadsheet) x 10 fixed
+-- time slots. Self-edited, no approval step (personal schedule, not published content),
+-- visible to any logged-in dashboard user. owner_username (not a members FK) mirrors
+-- blogs.author_username since members/member_accounts aren't reliably 1:1.
+create table if not exists timetables (
+  id uuid primary key default gen_random_uuid(),
+  owner_username text not null unique,
+  owner_name text not null,
+  domain text,
+  schedule jsonb not null default '{}'::jsonb,
+  updated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+alter table timetables enable row level security;
+-- No public policies: service-role only via API routes, same pattern as blogs.

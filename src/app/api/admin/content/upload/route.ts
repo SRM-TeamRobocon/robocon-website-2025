@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSession, requireRole } from "@/lib/session";
 
-const ALLOWED_BUCKETS = new Set(["member-photos", "gallery", "event-posters", "project-covers", "achievement-images", "media"]);
+const ALLOWED_BUCKETS = new Set(["member-photos", "gallery", "event-posters", "project-covers", "achievement-images", "media", "blog-images"]);
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const session = await getSession();
+  if (!requireRole(session, ["member", "lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const formData = await request.formData();
   const file = formData.get("file");
   const bucket = String(formData.get("bucket") || "media");

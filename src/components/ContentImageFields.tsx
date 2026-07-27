@@ -9,6 +9,7 @@ export const IMAGE_ARRAY_FIELDS = new Set(["gallery_urls"]);
 
 export function uploadTarget(resource: string, field: string) {
   if (resource === "members" && field === "photo_url") return { bucket: "member-photos", folder: "members" };
+  if (resource === "mentors" && field === "photo_url") return { bucket: "member-photos", folder: "mentors" };
   if (resource === "alumni" && field === "photo_url") return { bucket: "member-photos", folder: "alumni" };
   if (resource === "projects" && field === "cover_image_url") return { bucket: "project-covers", folder: "projects" };
   if (resource === "projects" && field === "gallery_urls") return { bucket: "project-covers", folder: "projects/gallery" };

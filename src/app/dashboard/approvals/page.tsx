@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { ClipboardCheck, UserCheck, Check, X } from "lucide-react";
+import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2 } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { getContentResource } from "@/lib/content-resources";
 import { Thumb, findImageField } from "@/components/ContentImageFields";
+import type { BlogBlock, BlogVisibility } from "@/lib/blog";
 
 interface PendingMember {
     id: string;
@@ -378,9 +379,192 @@ function ContentTab() {
     );
 }
 
+interface BlogSubmission {
+    id: string;
+    title: string;
+    cover_image_url: string | null;
+    content: BlogBlock[];
+    visibility: BlogVisibility;
+    author_name: string;
+    author_username: string;
+    created_at: string;
+}
+
+function BlogsTab() {
+    const [rows, setRows] = useState<BlogSubmission[]>([]);
+    const [view, setView] = useState<"pending" | "approved">("pending");
+    const [loading, setLoading] = useState(true);
+    const [busyId, setBusyId] = useState<string | null>(null);
+    const [expanded, setExpanded] = useState<string | null>(null);
+
+    const load = useCallback(async (status: "pending" | "approved") => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/admin/blogs?status=${status}`);
+            const data = await res.json();
+            setRows(data.success ? data.data : []);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        load(view);
+    }, [load, view]);
+
+    const decide = async (id: string, decision: "approve" | "reject" | "unpublish") => {
+        setBusyId(id);
+        try {
+            const res = await fetch("/api/admin/blogs", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, decision }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setRows((prev) => prev.filter((r) => r.id !== id));
+                toast.success(
+                    decision === "approve" ? "Approved and published"
+                        : decision === "reject" ? "Rejected"
+                        : "Unpublished — back in the pending queue"
+                );
+            } else {
+                toast.error(data.error || "Could not record decision");
+            }
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const remove = async (row: BlogSubmission) => {
+        if (!confirm(`Permanently delete "${row.title}" by ${row.author_name}? This cannot be undone.`)) return;
+        setBusyId(row.id);
+        try {
+            const res = await fetch(`/api/admin/blogs?id=${row.id}`, { method: "DELETE" });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setRows((prev) => prev.filter((r) => r.id !== row.id));
+                toast.success("Blog deleted");
+            } else {
+                toast.error(data.error || "Could not delete blog");
+            }
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const tabs = (
+        <div className="mb-4 flex flex-wrap gap-2">
+            {(["pending", "approved"] as const).map((v) => (
+                <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                        view === v ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
+                    }`}
+                >
+                    {v === "pending" ? "Pending review" : "Live posts"}
+                </button>
+            ))}
+        </div>
+    );
+
+    return (
+        <div>
+            {tabs}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                {loading ? (
+                    <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
+                ) : rows.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 text-sm">
+                        {view === "pending" ? "Nothing pending." : "No live blogs."}
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-white/5">
+                        {rows.map((row) => (
+                            <li key={row.id} className="px-5 py-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        {row.cover_image_url && <Thumb src={row.cover_image_url} alt={row.title} />}
+                                        <div className="min-w-0">
+                                            <p className="break-words font-medium text-white">
+                                                {row.title}{" "}
+                                                <span className="text-xs font-normal capitalize text-gray-500">({row.visibility})</span>
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {row.author_name} ({row.author_username}) · {new Date(row.created_at).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                        <button
+                                            onClick={() => setExpanded(expanded === row.id ? null : row.id)}
+                                            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                                        >
+                                            {expanded === row.id ? "Hide" : "View"}
+                                        </button>
+
+                                        {view === "pending" ? (
+                                            <>
+                                                <button
+                                                    onClick={() => decide(row.id, "approve")}
+                                                    disabled={busyId === row.id}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                                >
+                                                    <Check className="h-3.5 w-3.5" /> Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => decide(row.id, "reject")}
+                                                    disabled={busyId === row.id}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                                                >
+                                                    <X className="h-3.5 w-3.5" /> Reject
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button
+                                                onClick={() => decide(row.id, "unpublish")}
+                                                disabled={busyId === row.id}
+                                                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
+                                            >
+                                                <EyeOff className="h-3.5 w-3.5" /> Unpublish
+                                            </button>
+                                        )}
+
+                                        <button
+                                            onClick={() => remove(row)}
+                                            disabled={busyId === row.id}
+                                            className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-50"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {expanded === row.id && (
+                                    <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-gray-300">
+                                        {row.content.map((block, i) => {
+                                            if (block.type === "heading") return <p key={i} className="font-bold text-white">{block.text}</p>;
+                                            if (block.type === "paragraph") return <p key={i} className="whitespace-pre-wrap break-words">{block.text}</p>;
+                                            if (block.type === "image")
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                return <img key={i} src={block.url} alt={block.caption || ""} className="max-h-64 rounded-lg border border-white/10 object-cover" />;
+                                            return null;
+                                        })}
+                                    </div>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function ApprovalsPage() {
     const ready = useRequireRole(["lead", "admin"]);
-    const [tab, setTab] = useState<"members" | "content">("members");
+    const [tab, setTab] = useState<"members" | "content" | "blogs">("members");
 
     if (!ready) return null;
 
@@ -392,7 +576,7 @@ export default function ApprovalsPage() {
                     Review &amp; Approvals
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    New member signups, role changes, and member-proposed content — all in one place.
+                    New member signups, role changes, proposed content, and blog posts — all in one place.
                 </p>
             </div>
 
@@ -413,9 +597,17 @@ export default function ApprovalsPage() {
                 >
                     <ClipboardCheck className="w-4 h-4" /> Content
                 </button>
+                <button
+                    onClick={() => setTab("blogs")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                        tab === "blogs" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
+                    }`}
+                >
+                    <Newspaper className="w-4 h-4" /> Blogs
+                </button>
             </div>
 
-            {tab === "members" ? <MembersTab /> : <ContentTab />}
+            {tab === "members" ? <MembersTab /> : tab === "content" ? <ContentTab /> : <BlogsTab />}
         </div>
     );
 }

@@ -50,7 +50,7 @@ async function getAchievements(): Promise<Achievement[]> {
     .select(
       "title, description, abstract, cover_image_url, cover_width, cover_height, gallery_urls, achievement_date, competition, rank"
     )
-    .order("display_order", { ascending: true });
+    .order("achievement_date", { ascending: false, nullsFirst: false });
 
   if (error || !data?.length) return achievements1;
   return mapSupabaseAchievements(data);

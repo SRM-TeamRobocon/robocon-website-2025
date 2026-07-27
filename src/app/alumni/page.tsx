@@ -62,7 +62,7 @@ async function getAlumni(): Promise<AlumniData> {
   const { data, error } = await supabase
     .from("alumni")
     .select("name, domain, designation, about, description, profession, batch, photo_url, linkedin_url, instagram_url, facebook_url")
-    .order("display_order", { ascending: true });
+    .order("batch", { ascending: false, nullsFirst: false });
 
   if (error || !data?.length) return alumniData as AlumniData;
   return groupSupabaseAlumni(data);

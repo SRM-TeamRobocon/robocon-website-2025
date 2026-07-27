@@ -49,68 +49,74 @@ export default function Header() {
 
         {/* Desktop NavBar */}
         <div
-          className="hidden md:flex items-center bg-white text-[#3B3B3B] nav-bar-clip font-semibold"
+          className="hidden xl:flex items-center bg-white text-[#3B3B3B] nav-bar-clip font-semibold"
           data-aos="slide-left"
         >
           <button
-            className="ml-16 px-5 hover:text-red hover:scale-105"
+            className="ml-12 px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/")}
           >
             Home
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/team")}
           >
             Team
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/projects")}
           >
             Projects
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/achievements")}
           >
             Achievements
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/gallery")}
           >
             Gallery
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/events")}
           >
             Events
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
+            onClick={() => router.push("/blog")}
+          >
+            Blog
+          </button>
+          <button
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/alumni")}
           >
             Alumni
           </button>
           <button
-            className="px-5 hover:text-red hover:scale-105"
+            className="px-3 hover:text-red hover:scale-105"
             onClick={() => router.push("/login")}
           >
             Login
           </button>
-          <button
-            className="px-5 hover:text-red hover:scale-105"
+          {/* <button
+            className="px-3 hover:text-red hover:scale-105"
             onClick={scrollToBottom}
           >
             Contact Us
-          </button>
+          </button> */}
         </div>
 
         {/* Phone NavBar */}
         <div
-          className={`bg-red nav-bar-clip pl-6 pr-4 flex justify-center items-center md:hidden z-20`}
+          className={`bg-red nav-bar-clip pl-6 pr-4 flex justify-center items-center xl:hidden z-20`}
           data-aos="slide-left"
           onClick={() => setMenuValue(!isMenuOpen)}
         >
@@ -123,7 +129,7 @@ export default function Header() {
       </div>
       <div
         className={`${isMenuOpen ? "flex" : "hidden"
-          } fixed top-0 w-screen h-full px-10 justify-center items-center z-[200] bg-black/20 backdrop-blur-sm md:hidden`}
+          } fixed top-0 w-screen h-full px-10 justify-center items-center z-[200] bg-black/20 backdrop-blur-sm xl:hidden`}
         onClick={() => setMenuValue(false)}
       >
         <div
@@ -181,9 +187,21 @@ export default function Header() {
           </button>
           <button
             className="px-8 hover:text-black hover:scale-105"
+            onClick={() => router.push("/blog")}
+          >
+            Blog
+          </button>
+          <button
+            className="px-8 hover:text-black hover:scale-105"
             onClick={() => router.push("/alumni")}
           >
             Alumni
+          </button>
+          <button
+            className="px-8 hover:text-black hover:scale-105"
+            onClick={() => router.push("/login")}
+          >
+            Login
           </button>
           <button
             className="px-8 hover:text-black hover:scale-105"
@@ -195,7 +213,7 @@ export default function Header() {
       </div>
 
       {/* svg below navbar */}
-      <div className="hidden md:flex justify-end mt-5" data-aos="fade-left">
+      <div className="hidden xl:flex justify-end mt-5" data-aos="fade-left">
         {/* EVENT alert section*/}
         {/* <div className="nav-bar-clip h-10 bg-red w-64">          
           <div className="px-12 py-2 flex">
