@@ -179,28 +179,35 @@ export async function PATCH(request: Request) {
             .eq("id", id)
             .maybeSingle();
 
-        const isPrivileged = requireRole(session, ["lead", "admin"]);
+        const isPrivileged = session.role === "lead" || session.role === "admin";
         if (!existing || (existing.author_username !== session.user && !isPrivileged)) {
             return NextResponse.json({ success: false, error: "Blog not found." }, { status: 404 });
         }
 
         const keepLive = isPrivileged && existing.status === "approved";
 
-        const updatePayload: Record<string, unknown> = {
+        const baseUpdate = {
             title,
             cover_image_url: coverImageUrl,
             content: content as unknown as Json,
             visibility,
         };
-        if (!keepLive) {
-            updatePayload.status = "pending";
-            updatePayload.review_note = null;
-            updatePayload.reviewed_by = null;
-            updatePayload.reviewed_at = null;
-            updatePayload.published_at = null;
-        }
 
-        const { error: updateError } = await supabase.from("blogs").update(updatePayload).eq("id", id);
+        const { error: updateError } = await supabase
+            .from("blogs")
+            .update(
+                keepLive
+                    ? baseUpdate
+                    : {
+                          ...baseUpdate,
+                          status: "pending",
+                          review_note: null,
+                          reviewed_by: null,
+                          reviewed_at: null,
+                          published_at: null,
+                      }
+            )
+            .eq("id", id);
 
         if (updateError) {
             console.error("member blogs PATCH error", updateError);
