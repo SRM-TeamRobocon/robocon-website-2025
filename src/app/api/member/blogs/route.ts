@@ -45,12 +45,13 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: false, error: "Not found." }, { status: 404 });
         }
 
-        const { data, error } = await supabase
-            .from("blogs")
-            .select("*")
-            .eq("id", id)
-            .eq("author_username", session.user)
-            .maybeSingle();
+        // A lead/admin can load any post by id (to edit it); everyone else only their own.
+        const isPrivileged = session.role === "lead" || session.role === "admin";
+        let query = supabase.from("blogs").select("*").eq("id", id);
+        if (!isPrivileged) {
+            query = query.eq("author_username", session.user);
+        }
+        const { data, error } = await query.maybeSingle();
 
         if (error) {
             console.error("member blog fetch error", error);
@@ -134,8 +135,11 @@ export async function POST(request: Request) {
     }
 }
 
-// Editing your own blog resubmits it for approval — content that already went
-// live shouldn't change without a lead re-reviewing it.
+// Editing your own blog resubmits it for approval — content that already went live
+// shouldn't change without a lead re-reviewing it. The exception is a lead/admin editing
+// a post (their own or someone else's) that's already approved: they already have
+// approval authority, so their edit keeps the post live instead of pulling it from the
+// feed pending re-review.
 export async function PATCH(request: Request) {
     try {
         const session = await getSession();
@@ -171,28 +175,32 @@ export async function PATCH(request: Request) {
 
         const { data: existing } = await supabase
             .from("blogs")
-            .select("id, author_username")
+            .select("id, author_username, status")
             .eq("id", id)
             .maybeSingle();
 
-        if (!existing || existing.author_username !== session.user) {
+        const isPrivileged = requireRole(session, ["lead", "admin"]);
+        if (!existing || (existing.author_username !== session.user && !isPrivileged)) {
             return NextResponse.json({ success: false, error: "Blog not found." }, { status: 404 });
         }
 
-        const { error: updateError } = await supabase
-            .from("blogs")
-            .update({
-                title,
-                cover_image_url: coverImageUrl,
-                content: content as unknown as Json,
-                visibility,
-                status: "pending",
-                review_note: null,
-                reviewed_by: null,
-                reviewed_at: null,
-                published_at: null,
-            })
-            .eq("id", id);
+        const keepLive = isPrivileged && existing.status === "approved";
+
+        const updatePayload: Record<string, unknown> = {
+            title,
+            cover_image_url: coverImageUrl,
+            content: content as unknown as Json,
+            visibility,
+        };
+        if (!keepLive) {
+            updatePayload.status = "pending";
+            updatePayload.review_note = null;
+            updatePayload.reviewed_by = null;
+            updatePayload.reviewed_at = null;
+            updatePayload.published_at = null;
+        }
+
+        const { error: updateError } = await supabase.from("blogs").update(updatePayload).eq("id", id);
 
         if (updateError) {
             console.error("member blogs PATCH error", updateError);

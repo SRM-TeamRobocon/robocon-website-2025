@@ -56,7 +56,11 @@ export default function BlogRenderer({ title, coverImageUrl, authorName, publish
                         return (
                             <figure key={index}>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={block.url} alt={block.caption || ""} className="w-full rounded-xl border border-white/10 object-cover" />
+                                <img
+                                    src={block.url}
+                                    alt={block.caption || ""}
+                                    className="mx-auto max-h-[32rem] w-full rounded-xl border border-white/10 bg-black/20 object-contain"
+                                />
                                 {block.caption && <figcaption className="mt-2 break-words text-center text-xs text-gray-500">{block.caption}</figcaption>}
                             </figure>
                         );

@@ -52,3 +52,112 @@ export function normalizeSchedule(input: unknown): TimetableSchedule {
 
     return schedule;
 }
+
+// Slot boundaries in minutes-from-midnight, index-aligned with TIME_SLOTS. Hand-computed
+// from the same strings so "who's free between X and Y" can be answered by comparing
+// numbers instead of re-parsing "8:00-8:50" style labels everywhere.
+export const TIME_SLOT_RANGES: { start: number; end: number }[] = [
+    { start: 480, end: 530 }, // 8:00-8:50
+    { start: 530, end: 580 }, // 8:50-9:40
+    { start: 585, end: 635 }, // 9:45-10:35
+    { start: 640, end: 690 }, // 10:40-11:30
+    { start: 695, end: 745 }, // 11:35-12:25
+    { start: 750, end: 800 }, // 12:30-1:20
+    { start: 805, end: 855 }, // 1:25-2:15
+    { start: 860, end: 910 }, // 2:20-3:10
+    { start: 910, end: 960 }, // 3:10-4:00
+    { start: 960, end: 1010 }, // 4:00-4:50
+];
+
+// Every distinct slot boundary, for populating "from"/"to" dropdowns — there's no point
+// offering times that don't line up with an actual slot edge.
+export const TIME_BOUNDARIES: number[] = Array.from(
+    new Set(TIME_SLOT_RANGES.flatMap((r) => [r.start, r.end]))
+).sort((a, b) => a - b);
+
+export function formatMinutes(totalMinutes: number): string {
+    const h24 = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const meridiem = h24 < 12 ? "AM" : "PM";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:${m.toString().padStart(2, "0")} ${meridiem}`;
+}
+
+// Snaps an arbitrary minute value to the nearest slot boundary — "down" for a range
+// start, "up" for a range end — so free-text times like "1pm" (not itself a boundary)
+// still land on a value the From/To dropdowns can actually display.
+export function snapToBoundary(min: number, direction: "down" | "up"): number {
+    if (direction === "down") {
+        let snapped = TIME_BOUNDARIES[0];
+        for (const b of TIME_BOUNDARIES) {
+            if (b > min) break;
+            snapped = b;
+        }
+        return snapped;
+    }
+    let snapped = TIME_BOUNDARIES[TIME_BOUNDARIES.length - 1];
+    for (let i = TIME_BOUNDARIES.length - 1; i >= 0; i -= 1) {
+        if (TIME_BOUNDARIES[i] < min) break;
+        snapped = TIME_BOUNDARIES[i];
+    }
+    return snapped;
+}
+
+// Indexes of TIME_SLOTS whose [start, end) overlaps the given [startMin, endMin) window.
+export function slotsInRange(startMin: number, endMin: number): number[] {
+    return TIME_SLOT_RANGES.reduce<number[]>((acc, range, i) => {
+        if (range.start < endMin && range.end > startMin) acc.push(i);
+        return acc;
+    }, []);
+}
+
+export interface ParsedFreeQuery {
+    dayIndex: number | null;
+    startMin: number | null;
+    endMin: number | null;
+}
+
+function parseTimeToken(token: string): { hour: number; minute: number; meridiem: "am" | "pm" | null } | null {
+    const match = token.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+    if (!match) return null;
+    const hour = parseInt(match[1], 10);
+    const minute = match[2] ? parseInt(match[2], 10) : 0;
+    if (hour > 23 || minute > 59) return null;
+    return { hour, minute, meridiem: match[3] ? (match[3].toLowerCase() as "am" | "pm") : null };
+}
+
+// The timetable only spans 8:00-4:50, so an hour of 1-4 with no am/pm suffix is
+// unambiguously PM in this context (and 8-11 unambiguously AM, 12 unambiguously PM).
+function resolveMinutes(token: { hour: number; minute: number; meridiem: "am" | "pm" | null }): number {
+    let hour = token.hour;
+    const meridiem = token.meridiem ?? (hour === 12 || hour <= 4 ? "pm" : "am");
+    if (meridiem === "pm" && hour !== 12) hour += 12;
+    if (meridiem === "am" && hour === 12) hour = 0;
+    return hour * 60 + token.minute;
+}
+
+// Best-effort parse of free-text queries like "on do1 who is free btw 1pm and 3pm".
+// Returns whatever it can find; callers fall back to the structured filters for the rest.
+export function parseFreeTextQuery(query: string): ParsedFreeQuery {
+    const lower = query.toLowerCase();
+
+    const dayMatch = lower.match(/\bdo\s*-?\s*([1-5])\b/);
+    const dayIndex = dayMatch ? parseInt(dayMatch[1], 10) - 1 : null;
+
+    const rangeMatch = lower.match(
+        /(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:-|to|and|btw|between|through|till|until)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/
+    );
+
+    let startMin: number | null = null;
+    let endMin: number | null = null;
+    if (rangeMatch) {
+        const startToken = parseTimeToken(rangeMatch[1]);
+        const endToken = parseTimeToken(rangeMatch[2]);
+        if (startToken && endToken) {
+            startMin = resolveMinutes(startToken);
+            endMin = resolveMinutes(endToken);
+        }
+    }
+
+    return { dayIndex, startMin, endMin };
+}

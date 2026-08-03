@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { PenSquare, ArrowLeft } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import BlogEditor, { type BlogDraft } from "@/components/blog/BlogEditor";
-import type { BlogBlock, BlogVisibility } from "@/lib/blog";
+import type { BlogBlock, BlogStatus, BlogVisibility } from "@/lib/blog";
 
 export default function EditBlogPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
@@ -15,22 +15,30 @@ export default function EditBlogPage() {
     const router = useRouter();
     const [draft, setDraft] = useState<BlogDraft | null>(null);
     const [authorName, setAuthorName] = useState("You");
+    const [authorUsername, setAuthorUsername] = useState<string | null>(null);
+    const [status, setStatus] = useState<BlogStatus | null>(null);
+    const [viewer, setViewer] = useState<{ user: string; role: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         if (!ready) return;
 
-        fetch(`/api/member/blogs?id=${params.id}`)
-            .then((res) => res.json())
-            .then((data) => {
-                if (!data.success) {
-                    toast.error(data.error || "Could not load that blog");
+        Promise.all([
+            fetch(`/api/member/blogs?id=${params.id}`).then((res) => res.json()),
+            fetch("/api/admin/me").then((res) => res.json()),
+        ])
+            .then(([blogData, meData]) => {
+                if (!blogData.success) {
+                    toast.error(blogData.error || "Could not load that blog");
                     router.replace("/dashboard/blogs?tab=mine");
                     return;
                 }
-                const row = data.data;
+                if (meData.success) setViewer({ user: meData.user, role: meData.role });
+                const row = blogData.data;
                 setAuthorName(row.author_name || "You");
+                setAuthorUsername(row.author_username);
+                setStatus(row.status);
                 setDraft({
                     title: row.title,
                     coverImageUrl: row.cover_image_url,
@@ -45,6 +53,13 @@ export default function EditBlogPage() {
             .finally(() => setLoading(false));
     }, [ready, params.id, router]);
 
+    // Defaults to "own post" (the common case) until the fetch resolves, so the page
+    // doesn't briefly flash admin-editing copy for a member editing their own blog.
+    const isOwnPost = viewer ? viewer.user === authorUsername : true;
+    const isPrivileged = viewer?.role === "lead" || viewer?.role === "admin";
+    const staysLive = isPrivileged && status === "approved";
+    const backHref = isOwnPost ? "/dashboard/blogs?tab=mine" : "/dashboard/blogs";
+
     const handleSubmit = async (next: BlogDraft) => {
         setSubmitting(true);
         try {
@@ -55,8 +70,8 @@ export default function EditBlogPage() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                toast.success("Updated — resubmitted for approval");
-                router.push("/dashboard/blogs?tab=mine");
+                toast.success(staysLive ? "Saved" : "Updated — resubmitted for approval");
+                router.push(backHref);
             } else {
                 toast.error(data.error || "Could not update blog");
             }
@@ -72,11 +87,8 @@ export default function EditBlogPage() {
 
     return (
         <div className="space-y-6">
-            <Link
-                href="/dashboard/blogs?tab=mine"
-                className="inline-flex items-center gap-1.5 text-sm text-gray-400 transition hover:text-white"
-            >
-                <ArrowLeft className="h-4 w-4" /> Back to My Blogs
+            <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-gray-400 transition hover:text-white">
+                <ArrowLeft className="h-4 w-4" /> Back to {isOwnPost ? "My Blogs" : "Blog"}
             </Link>
 
             <div>
@@ -85,14 +97,17 @@ export default function EditBlogPage() {
                     Edit Blog
                 </h1>
                 <p className="mt-2 max-w-xl text-sm text-gray-400">
-                    Saving changes sends this post back to a lead for approval, so it will leave the live feed until re-approved.
+                    {!isOwnPost && <>Editing {authorName}&apos;s post. </>}
+                    {staysLive
+                        ? "This post is already live — saving keeps it published immediately, no re-approval needed."
+                        : "Saving changes sends this post back to a lead for approval, so it will leave the live feed until re-approved."}
                 </p>
             </div>
 
             <BlogEditor
                 authorName={authorName}
                 submitting={submitting}
-                submitLabel="Save & Resubmit"
+                submitLabel={staysLive ? "Save" : "Save & Resubmit"}
                 initialDraft={draft}
                 onSubmit={handleSubmit}
             />

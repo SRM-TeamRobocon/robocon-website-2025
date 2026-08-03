@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import toast from "react-hot-toast";
-import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2 } from "lucide-react";
+import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2, Pencil } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { getContentResource } from "@/lib/content-resources";
 import { Thumb, findImageField } from "@/components/ContentImageFields";
@@ -503,6 +504,12 @@ function BlogsTab() {
                                         >
                                             {expanded === row.id ? "Hide" : "View"}
                                         </button>
+                                        <Link
+                                            href={`/dashboard/blogs/edit/${row.id}`}
+                                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" /> Edit
+                                        </Link>
 
                                         {view === "pending" ? (
                                             <>

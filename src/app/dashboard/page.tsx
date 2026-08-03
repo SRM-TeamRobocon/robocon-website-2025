@@ -265,13 +265,16 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [today, setToday] = useState("");
 
-    // Member-scoped counts
-    const [myProposals, setMyProposals] = useState({ pending: 0, approved: 0 });
-    const [myBlogs, setMyBlogs] = useState({ pending: 0, approved: 0 });
-
-    // Staff-scoped counts
-    const [staffQueue, setStaffQueue] = useState({ signups: 0, content: 0, blogs: 0 });
-    const [publishedBlogs, setPublishedBlogs] = useState(0);
+    // Stat cards temporarily disabled — the counts below drove 2-4 extra sequential
+    // API calls on every dashboard load, which is what made the page feel slow to
+    // paint. Re-enable by restoring this state + fetch block and the <StatGrid .../>
+    // calls in the JSX below (search "STAT CARDS DISABLED").
+    // // Member-scoped counts
+    // const [myProposals, setMyProposals] = useState({ pending: 0, approved: 0 });
+    // const [myBlogs, setMyBlogs] = useState({ pending: 0, approved: 0 });
+    // // Staff-scoped counts
+    // const [staffQueue, setStaffQueue] = useState({ signups: 0, content: 0, blogs: 0 });
+    // const [publishedBlogs, setPublishedBlogs] = useState(0);
 
     useEffect(() => {
         setToday(new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }));
@@ -285,40 +288,41 @@ export default function AdminDashboard() {
                 setDisplayName(userData.name || displayNameForUsername(userData.user));
                 setRole(userRole);
 
-                // Everyone can author blogs, so these two apply to every role.
-                const [ownBlogs, feed] = await Promise.all([
-                    fetchJson("/api/member/blogs"),
-                    fetchJson("/api/dashboard/blogs"),
-                ]);
-
-                if (ownBlogs) {
-                    setMyBlogs({
-                        pending: countByStatus(ownBlogs.data, "pending"),
-                        approved: countByStatus(ownBlogs.data, "approved"),
-                    });
-                }
-                if (feed) setPublishedBlogs((feed.data || []).length);
-
-                if (userRole === "member") {
-                    const proposals = await fetchJson("/api/member/content-edits");
-                    if (proposals) {
-                        setMyProposals({
-                            pending: countByStatus(proposals.data, "pending"),
-                            approved: countByStatus(proposals.data, "approved"),
-                        });
-                    }
-                } else if (userRole === "lead" || userRole === "admin") {
-                    const [signups, content, blogs] = await Promise.all([
-                        fetchJson("/api/admin/member-approvals"),
-                        fetchJson("/api/admin/content-edits?status=pending"),
-                        fetchJson("/api/admin/blogs?status=pending"),
-                    ]);
-                    setStaffQueue({
-                        signups: (signups?.pending || []).length,
-                        content: (content?.data || []).length,
-                        blogs: (blogs?.data || []).length,
-                    });
-                }
+                // STAT CARDS DISABLED — see comment above.
+                // // Everyone can author blogs, so these two apply to every role.
+                // const [ownBlogs, feed] = await Promise.all([
+                //     fetchJson("/api/member/blogs"),
+                //     fetchJson("/api/dashboard/blogs"),
+                // ]);
+                //
+                // if (ownBlogs) {
+                //     setMyBlogs({
+                //         pending: countByStatus(ownBlogs.data, "pending"),
+                //         approved: countByStatus(ownBlogs.data, "approved"),
+                //     });
+                // }
+                // if (feed) setPublishedBlogs((feed.data || []).length);
+                //
+                // if (userRole === "member") {
+                //     const proposals = await fetchJson("/api/member/content-edits");
+                //     if (proposals) {
+                //         setMyProposals({
+                //             pending: countByStatus(proposals.data, "pending"),
+                //             approved: countByStatus(proposals.data, "approved"),
+                //         });
+                //     }
+                // } else if (userRole === "lead" || userRole === "admin") {
+                //     const [signups, content, blogs] = await Promise.all([
+                //         fetchJson("/api/admin/member-approvals"),
+                //         fetchJson("/api/admin/content-edits?status=pending"),
+                //         fetchJson("/api/admin/blogs?status=pending"),
+                //     ]);
+                //     setStaffQueue({
+                //         signups: (signups?.pending || []).length,
+                //         content: (content?.data || []).length,
+                //         blogs: (blogs?.data || []).length,
+                //     });
+                // }
             } finally {
                 setLoading(false);
             }
@@ -371,28 +375,30 @@ export default function AdminDashboard() {
         );
     }
     if (role === "member") {
-        const cards: StatCard[] = [
-            { label: "Proposals Pending", value: myProposals.pending, tone: "text-amber-400", href: "/dashboard/my-submissions" },
-            { label: "Proposals Live", value: myProposals.approved, tone: "text-emerald-400", href: "/dashboard/my-submissions" },
-            { label: "Blogs Pending", value: myBlogs.pending, tone: "text-amber-400", href: "/dashboard/blogs?tab=mine" },
-            { label: "Blogs Live", value: myBlogs.approved, tone: "text-emerald-400", href: "/dashboard/blogs?tab=mine" },
-        ];
+        // STAT CARDS DISABLED — see comment near the effect above. Was:
+        // const cards: StatCard[] = [
+        //     { label: "Proposals Pending", value: myProposals.pending, tone: "text-amber-400", href: "/dashboard/my-submissions" },
+        //     { label: "Proposals Live", value: myProposals.approved, tone: "text-emerald-400", href: "/dashboard/my-submissions" },
+        //     { label: "Blogs Pending", value: myBlogs.pending, tone: "text-amber-400", href: "/dashboard/blogs?tab=mine" },
+        //     { label: "Blogs Live", value: myBlogs.approved, tone: "text-emerald-400", href: "/dashboard/blogs?tab=mine" },
+        // ];
 
         return (
             <div className="space-y-8">
                 {header}
-                <StatGrid cards={cards} loading={loading} />
+                {/* <StatGrid cards={cards} loading={loading} /> */}
                 <ActionGrid actions={[PROFILE_ACTION, PROPOSE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, SUBMISSIONS_ACTION, TIMETABLE_ACTION]} />
             </div>
         );
     }
 
-    const staffCards: StatCard[] = [
-        { label: "Pending Signups", value: staffQueue.signups, tone: "text-amber-400", href: "/dashboard/approvals" },
-        { label: "Pending Content", value: staffQueue.content, tone: "text-amber-400", href: "/dashboard/approvals" },
-        { label: "Pending Blogs", value: staffQueue.blogs, tone: "text-amber-400", href: "/dashboard/approvals" },
-        { label: "Published Blogs", value: publishedBlogs, tone: "text-emerald-400", href: "/dashboard/blogs" },
-    ];
+    // STAT CARDS DISABLED — see comment near the effect above. Was:
+    // const staffCards: StatCard[] = [
+    //     { label: "Pending Signups", value: staffQueue.signups, tone: "text-amber-400", href: "/dashboard/approvals" },
+    //     { label: "Pending Content", value: staffQueue.content, tone: "text-amber-400", href: "/dashboard/approvals" },
+    //     { label: "Pending Blogs", value: staffQueue.blogs, tone: "text-amber-400", href: "/dashboard/approvals" },
+    //     { label: "Published Blogs", value: publishedBlogs, tone: "text-emerald-400", href: "/dashboard/blogs" },
+    // ];
 
     const staffActions =
         role === "lead" || role === "admin"
@@ -402,7 +408,7 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-8">
             {header}
-            {(role === "lead" || role === "admin") && <StatGrid cards={staffCards} loading={loading} />}
+            {/* {(role === "lead" || role === "admin") && <StatGrid cards={staffCards} loading={loading} />} */}
             <ActionGrid actions={staffActions} />
         </div>
     );

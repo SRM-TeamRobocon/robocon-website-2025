@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarClock, PenSquare, Search, User } from "lucide-react";
+import { ArrowLeft, CalendarClock, PenSquare, Search, User, Users } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
+import WhoIsFreePanel from "@/components/timetable/WhoIsFreePanel";
 
 interface TimetableEntry {
     owner_username: string;
@@ -20,6 +21,7 @@ export default function TimetableDirectoryPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [domainTab, setDomainTab] = useState<(typeof DOMAIN_TABS)[number]>("All");
+    const [showFreePanel, setShowFreePanel] = useState(false);
 
     useEffect(() => {
         fetch("/api/dashboard/timetables")
@@ -58,13 +60,27 @@ export default function TimetableDirectoryPage() {
                         Everyone&apos;s class schedule, in one place. Browse a member&apos;s timetable or fill in your own.
                     </p>
                 </div>
-                <Link
-                    href="/dashboard/timetable/me"
-                    className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400"
-                >
-                    <PenSquare className="h-4 w-4" /> My Timetable
-                </Link>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                    <button
+                        onClick={() => setShowFreePanel((v) => !v)}
+                        className={`inline-flex w-fit items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                            showFreePanel
+                                ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-inset ring-cyan-500/40"
+                                : "bg-cyan-500/10 text-cyan-400 ring-1 ring-inset ring-cyan-500/30 hover:bg-cyan-500/20"
+                        }`}
+                    >
+                        <Users className="h-4 w-4" /> See who&apos;s free
+                    </button>
+                    <Link
+                        href="/dashboard/timetable/me"
+                        className="inline-flex w-fit items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400"
+                    >
+                        <PenSquare className="h-4 w-4" /> My Timetable
+                    </Link>
+                </div>
             </div>
+
+            {showFreePanel && <WhoIsFreePanel onClose={() => setShowFreePanel(false)} />}
 
             <div className="flex flex-wrap gap-2">
                 {DOMAIN_TABS.map((tab) => (

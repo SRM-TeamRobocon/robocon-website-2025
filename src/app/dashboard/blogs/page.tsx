@@ -39,9 +39,10 @@ const STATUS_STYLES: Record<BlogStatus, string> = {
     rejected: "bg-red-500/15 text-red-400 ring-red-500/30",
 };
 
-function FeedTab() {
+function FeedTab({ viewerRole }: { viewerRole: string | null }) {
     const [rows, setRows] = useState<FeedBlog[]>([]);
     const [loading, setLoading] = useState(true);
+    const canEditAny = viewerRole === "lead" || viewerRole === "admin";
 
     useEffect(() => {
         fetch("/api/dashboard/blogs")
@@ -90,6 +91,7 @@ function FeedTab() {
                     authorName={row.author_name}
                     publishedAt={row.published_at}
                     visibility={row.visibility}
+                    editHref={canEditAny ? `/dashboard/blogs/edit/${row.id}` : undefined}
                 />
             ))}
         </div>
@@ -211,6 +213,15 @@ function BlogsPageContent() {
     const ready = useRequireRole(["member", "lead", "admin"]);
     const searchParams = useSearchParams();
     const [tab, setTab] = useState<"feed" | "mine">(searchParams.get("tab") === "mine" ? "mine" : "feed");
+    const [viewerRole, setViewerRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!ready) return;
+        fetch("/api/admin/me")
+            .then((res) => res.json())
+            .then((data) => data.success && setViewerRole(data.role))
+            .catch(() => {});
+    }, [ready]);
 
     if (!ready) return null;
 
@@ -260,7 +271,7 @@ function BlogsPageContent() {
                 </button>
             </div>
 
-            {tab === "feed" ? <FeedTab /> : <MineTab />}
+            {tab === "feed" ? <FeedTab viewerRole={viewerRole} /> : <MineTab />}
         </div>
     );
 }

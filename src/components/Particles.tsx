@@ -1,11 +1,18 @@
 "use client";
 
 import React, { useCallback } from "react";
+import { usePathname } from "next/navigation";
 import Particles from "react-tsparticles";
 import type { Engine } from "tsparticles-engine";
 import { loadFull } from "tsparticles";
 
 export default function ParticlesCom() {
+    // The dashboard is a dense UI with lots of clicking/hovering over real controls —
+    // the particles' click-push/hover-repulse reacting to that is distracting there, so
+    // it's disabled for /dashboard and every subpage while staying on everywhere else.
+    const pathname = usePathname();
+    const interactive = !pathname?.startsWith("/dashboard");
+
     const particlesInit = useCallback(async (engine: Engine) => {
         // you can initialize the tsParticles instance (engine) here, adding custom shapes or presets
         // this loads the tsparticles package bundle, it's the easiest method for getting everything ready
@@ -23,11 +30,11 @@ export default function ParticlesCom() {
                 interactivity: {
                     events: {
                         onClick: {
-                            enable: true,
+                            enable: interactive,
                             mode: "push",
                         },
                         onHover: {
-                            enable: true,
+                            enable: interactive,
                             mode: "repulse",
                         },
                         resize: true,
