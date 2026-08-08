@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { ArrowLeft, CalendarClock, Save } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import TimetableGrid from "@/components/timetable/TimetableGrid";
-import { emptySchedule, type TimetableSchedule } from "@/lib/timetable";
+import { emptySchedule, isLocatedStatus, type TimetableSchedule } from "@/lib/timetable";
 
 export default function MyTimetablePage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
@@ -31,8 +31,20 @@ export default function MyTimetablePage() {
 
     const handleChange = (day: string, slotIndex: number, value: string) => {
         setSchedule((prev) => {
+            const prevCell = prev[day]?.[slotIndex] ?? { status: "", location: null };
             const next = { ...prev, [day]: [...(prev[day] || [])] };
-            next[day][slotIndex] = value;
+            // Only class/lab carry a location — dropping to free/online clears any
+            // previously chosen location instead of leaving it stranded on the cell.
+            next[day][slotIndex] = { status: value, location: isLocatedStatus(value) ? prevCell.location : null };
+            return next;
+        });
+    };
+
+    const handleLocationChange = (day: string, slotIndex: number, location: string) => {
+        setSchedule((prev) => {
+            const prevCell = prev[day]?.[slotIndex] ?? { status: "", location: null };
+            const next = { ...prev, [day]: [...(prev[day] || [])] };
+            next[day][slotIndex] = { ...prevCell, location: location || null };
             return next;
         });
     };
@@ -93,7 +105,7 @@ export default function MyTimetablePage() {
             {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : (
-                <TimetableGrid schedule={schedule} editable onChange={handleChange} />
+                <TimetableGrid schedule={schedule} editable onChange={handleChange} onLocationChange={handleLocationChange} />
             )}
         </div>
     );

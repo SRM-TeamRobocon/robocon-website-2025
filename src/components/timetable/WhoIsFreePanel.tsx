@@ -6,12 +6,15 @@ import {
     DAYS,
     TIME_SLOTS,
     TIME_BOUNDARIES,
+    LOCATION_OPTIONS,
     formatMinutes,
     slotsInRange,
     snapToBoundary,
     parseFreeTextQuery,
     type TimetableSchedule,
 } from "@/lib/timetable";
+
+const LOCATION_LABELS: Record<string, string> = Object.fromEntries(LOCATION_OPTIONS.map((o) => [o.value, o.label]));
 
 interface RosterMember {
     username: string;
@@ -94,7 +97,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
         return filteredMembers.filter((m) => {
             const schedule = schedules[m.username];
             if (!schedule) return false;
-            return overlappingSlots.every((slotIndex) => (schedule[day]?.[slotIndex] || "") === "");
+            return overlappingSlots.every((slotIndex) => (schedule[day]?.[slotIndex]?.status || "") === "");
         });
     }, [filteredMembers, schedules, overlappingSlots, day]);
 
@@ -232,12 +235,18 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Slot-by-slot breakdown</p>
 
                     {overlappingSlots.map((slotIndex) => {
-                        const groups: Record<string, RosterMember[]> = { "": [], class: [], lab: [], online: [] };
+                        const groups: Record<string, Array<RosterMember & { location: string | null }>> = {
+                            "": [],
+                            class: [],
+                            lab: [],
+                            online: [],
+                        };
                         filteredMembers.forEach((member) => {
                             const schedule = schedules[member.username];
                             if (!schedule) return;
-                            const value = schedule[day]?.[slotIndex] || "";
-                            (groups[value] ||= []).push(member);
+                            const cell = schedule[day]?.[slotIndex];
+                            const value = cell?.status || "";
+                            (groups[value] ||= []).push({ ...member, location: cell?.location ?? null });
                         });
 
                         return (
@@ -261,6 +270,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                                             className={`rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[statusKey]}`}
                                                         >
                                                             {m.name}
+                                                            {m.location ? ` · ${LOCATION_LABELS[m.location] ?? m.location}` : ""}
                                                         </span>
                                                     ))
                                                 )}

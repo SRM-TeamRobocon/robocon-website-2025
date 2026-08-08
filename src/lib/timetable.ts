@@ -23,14 +23,62 @@ export const CELL_OPTIONS = [
 
 const CELL_VALUES = new Set<string>(CELL_OPTIONS.map((o) => o.value));
 
-export type TimetableSchedule = Record<string, string[]>;
+// Only these statuses carry a physical location.
+const LOCATED_STATUSES = new Set<string>(["class", "lab"]);
+
+export function isLocatedStatus(status: string): boolean {
+    return LOCATED_STATUSES.has(status);
+}
+
+export const LOCATION_OPTIONS = [
+    { value: "tp1", label: "TP1" },
+    { value: "tp2", label: "TP2" },
+    { value: "ub", label: "UB" },
+    { value: "hitech", label: "Hi-Tech" },
+    { value: "biotech", label: "Biotech" },
+    { value: "bel", label: "BEL" },
+    { value: "fsh", label: "FSH" },
+    { value: "crc", label: "CRC" },
+] as const;
+
+const LOCATION_VALUES = new Set<string>(LOCATION_OPTIONS.map((o) => o.value));
+
+export interface TimetableCell {
+    status: string;
+    location: string | null;
+}
+
+export type TimetableSchedule = Record<string, TimetableCell[]>;
+
+function emptyCell(): TimetableCell {
+    return { status: "", location: null };
+}
 
 export function emptySchedule(): TimetableSchedule {
     const schedule: TimetableSchedule = {};
     for (const day of DAYS) {
-        schedule[day] = TIME_SLOTS.map(() => "");
+        schedule[day] = TIME_SLOTS.map(() => emptyCell());
     }
     return schedule;
+}
+
+// Accepts the current { status, location } cell shape as well as the legacy plain-string
+// cell shape saved before location tracking existed — old rows load with location: null
+// instead of erroring, and the member can fill it in later.
+function normalizeCell(raw: unknown): TimetableCell {
+    if (typeof raw === "string") {
+        return { status: CELL_VALUES.has(raw) ? raw : "", location: null };
+    }
+    if (raw && typeof raw === "object") {
+        const obj = raw as Record<string, unknown>;
+        const status = typeof obj.status === "string" && CELL_VALUES.has(obj.status) ? obj.status : "";
+        const location =
+            LOCATED_STATUSES.has(status) && typeof obj.location === "string" && LOCATION_VALUES.has(obj.location)
+                ? obj.location
+                : null;
+        return { status, location };
+    }
+    return emptyCell();
 }
 
 // Drops unknown days/values and pads/truncates rows to TIME_SLOTS.length so bad
@@ -41,11 +89,9 @@ export function normalizeSchedule(input: unknown): TimetableSchedule {
 
     for (const day of DAYS) {
         const row = Array.isArray(source[day]) ? (source[day] as unknown[]) : [];
-        const cells: string[] = [];
+        const cells: TimetableCell[] = [];
         for (let i = 0; i < TIME_SLOTS.length; i += 1) {
-            const raw = row[i];
-            const value = typeof raw === "string" && CELL_VALUES.has(raw) ? raw : "";
-            cells.push(value);
+            cells.push(normalizeCell(row[i]));
         }
         schedule[day] = cells;
     }
