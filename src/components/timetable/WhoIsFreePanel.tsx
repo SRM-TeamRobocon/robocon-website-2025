@@ -8,19 +8,43 @@ import {
     TIME_BOUNDARIES,
     LOCATION_OPTIONS,
     formatMinutes,
+    isLocatedStatus,
     slotsInRange,
     snapToBoundary,
     parseFreeTextQuery,
     type TimetableSchedule,
 } from "@/lib/timetable";
 
-const LOCATION_LABELS: Record<string, string> = Object.fromEntries(LOCATION_OPTIONS.map((o) => [o.value, o.label]));
-
 interface RosterMember {
     username: string;
     name: string;
     domain: string | null;
     role: string;
+}
+
+interface LocationBucket<T> {
+    key: string;
+    label: string;
+    items: T[];
+}
+
+// Buckets Class/Lab members by location, in LOCATION_OPTIONS order, with anyone whose
+// location isn't set (or, for the "whole window" view, varies slot-to-slot) trailing last.
+function groupByLocation<T extends { location: string | null }>(items: T[]): LocationBucket<T>[] {
+    const buckets: Record<string, T[]> = {};
+    items.forEach((item) => {
+        const key = item.location || "";
+        (buckets[key] ||= []).push(item);
+    });
+    const ordered: LocationBucket<T>[] = LOCATION_OPTIONS.filter((loc) => buckets[loc.value]?.length).map((loc) => ({
+        key: loc.value,
+        label: loc.label,
+        items: buckets[loc.value],
+    }));
+    if (buckets[""]?.length) {
+        ordered.push({ key: "", label: "No location set", items: buckets[""] });
+    }
+    return ordered;
 }
 
 const STATUS_KEYS = ["", "class", "lab", "online"] as const;
@@ -100,6 +124,28 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
             return overlappingSlots.every((slotIndex) => (schedule[day]?.[slotIndex]?.status || "") === "");
         });
     }, [filteredMembers, schedules, overlappingSlots, day]);
+
+    // In Class or Lab for the ENTIRE window (never free/online within it), grouped by
+    // location — only when that location is the same across every overlapping slot;
+    // otherwise they land in the trailing "No location set" bucket.
+    const fullyBusy = useMemo(() => {
+        if (overlappingSlots.length === 0) return [];
+        return filteredMembers.filter((m) => {
+            const schedule = schedules[m.username];
+            if (!schedule) return false;
+            return overlappingSlots.every((slotIndex) => isLocatedStatus(schedule[day]?.[slotIndex]?.status || ""));
+        });
+    }, [filteredMembers, schedules, overlappingSlots, day]);
+
+    const fullyBusyGroups = useMemo(() => {
+        const withLocation = fullyBusy.map((m) => {
+            const schedule = schedules[m.username]!;
+            const locations = new Set(overlappingSlots.map((slotIndex) => schedule[day]?.[slotIndex]?.location || ""));
+            const location = locations.size === 1 ? Array.from(locations)[0] || null : null;
+            return { ...m, location };
+        });
+        return groupByLocation(withLocation);
+    }, [fullyBusy, schedules, overlappingSlots, day]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
@@ -232,6 +278,35 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         </div>
                     </div>
 
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="mb-3 text-sm font-bold text-gray-200">
+                            In Class/Lab the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyBusy.length})
+                        </p>
+                        {fullyBusy.length === 0 ? (
+                            <span className="text-xs text-gray-500">Nobody&apos;s in Class/Lab for the whole window.</span>
+                        ) : (
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                {fullyBusyGroups.map((bucket) => (
+                                    <div key={bucket.key}>
+                                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            {bucket.label} ({bucket.items.length})
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {bucket.items.map((m) => (
+                                                <span
+                                                    key={m.username}
+                                                    className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-gray-200 ring-1 ring-inset ring-white/20"
+                                                >
+                                                    {m.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Slot-by-slot breakdown</p>
 
                     {overlappingSlots.map((slotIndex) => {
@@ -260,21 +335,40 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
                                                 {STATUS_LABELS[statusKey]} ({groups[statusKey].length})
                                             </p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {groups[statusKey].length === 0 ? (
-                                                    <span className="text-xs text-gray-600">—</span>
-                                                ) : (
-                                                    groups[statusKey].map((m) => (
+                                            {groups[statusKey].length === 0 ? (
+                                                <span className="text-xs text-gray-600">—</span>
+                                            ) : isLocatedStatus(statusKey) ? (
+                                                <div className="space-y-2">
+                                                    {groupByLocation(groups[statusKey]).map((bucket) => (
+                                                        <div key={bucket.key}>
+                                                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                                                                {bucket.label} ({bucket.items.length})
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {bucket.items.map((m) => (
+                                                                    <span
+                                                                        key={m.username}
+                                                                        className={`rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[statusKey]}`}
+                                                                    >
+                                                                        {m.name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {groups[statusKey].map((m) => (
                                                         <span
                                                             key={m.username}
                                                             className={`rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[statusKey]}`}
                                                         >
                                                             {m.name}
-                                                            {m.location ? ` · ${LOCATION_LABELS[m.location] ?? m.location}` : ""}
                                                         </span>
-                                                    ))
-                                                )}
-                                            </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
