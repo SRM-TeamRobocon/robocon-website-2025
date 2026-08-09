@@ -1,0 +1,81 @@
+.glass-surface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.26s ease-out;
+}
+
+.glass-surface__filter {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  z-index: -1;
+}
+
+.glass-surface__content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: inherit;
+  position: relative;
+  z-index: 1;
+}
+
+.glass-surface--svg {
+  background: hsl(0 0% 100% / var(--glass-frost, 0));
+  backdrop-filter: var(--filter-id) saturate(var(--glass-saturation, 1));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 82%) inset,
+    0 0 10px 4px color-mix(in oklch, white, transparent 92%) inset,
+    0px 8px 32px rgba(0, 0, 0, 0.35),
+    0px 2px 16px rgba(0, 0, 0, 0.2);
+}
+
+.glass-surface--fallback {
+  background: hsl(0 0% 100% / var(--glass-frost, 0));
+  backdrop-filter: blur(14px) saturate(1.6) brightness(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6) brightness(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.35),
+    0 2px 16px 0 rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Browsers with no backdrop-filter support at all can't render real glass — fall
+   back to a solid dark panel (not white) so the light text inside stays readable. */
+@supports not (backdrop-filter: blur(10px)) {
+  .glass-surface--fallback {
+    background: rgba(10, 10, 14, 0.85);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+}
+
+.glass-surface:focus-visible {
+  outline: 2px solid #c20000;
+  outline-offset: 2px;
+}
+
+/* Users who don't want translucent chrome get a near-solid dark surface instead
+   (not white — the content inside is light text designed for a dark surface). */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-surface--svg,
+  .glass-surface--fallback {
+    background: rgba(10, 10, 14, 0.92);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+}
