@@ -12,6 +12,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import JoselinSection from "@/components/JoselinSection";
+import ReqruitmentSection from "@/components/RecruitmentSection";
 export default function Home() {
   return (
     <div className="overflow-x-hidden">
@@ -75,10 +76,13 @@ export default function Home() {
         <WorkshopSection />
       </section> */}
 
-{/* 
+{/*
       <section className="">
         <JoselinSection />
       </section> */}
+      <section className="relative max-md:mt-20">
+        <ReqruitmentSection />
+      </section>
 
       {/* Second section */}
       <section className="w-full h-full md:h-screen flex flex-col items-center justify-center mt-20 md:mt-0">
