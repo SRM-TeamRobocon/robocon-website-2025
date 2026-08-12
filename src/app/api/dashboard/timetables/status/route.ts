@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
-import { normalizeSchedule } from "@/lib/timetable";
+import { normalizeCampus, normalizeSchedule } from "@/lib/timetable";
 import { ADMIN_USERNAME_MAP } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET() {
 
     const [{ data: accounts, error: accountsError }, { data: timetables, error: timetablesError }] = await Promise.all([
         supabase.from("member_accounts").select("email, name, domain, role").eq("is_approved", true),
-        supabase.from("timetables").select("owner_username, schedule"),
+        supabase.from("timetables").select("owner_username, schedule, campus"),
     ]);
 
     if (accountsError || timetablesError) {
@@ -44,9 +44,11 @@ export async function GET() {
     members.sort((a, b) => a.name.localeCompare(b.name));
 
     const schedules: Record<string, ReturnType<typeof normalizeSchedule>> = {};
+    const campuses: Record<string, string> = {};
     for (const row of timetables || []) {
         schedules[row.owner_username] = normalizeSchedule(row.schedule);
+        campuses[row.owner_username] = normalizeCampus(row.campus);
     }
 
-    return NextResponse.json({ success: true, members, schedules });
+    return NextResponse.json({ success: true, members, schedules, campuses });
 }

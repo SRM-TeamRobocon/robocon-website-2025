@@ -6,11 +6,12 @@ import toast from "react-hot-toast";
 import { ArrowLeft, CalendarClock, Save } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import TimetableGrid from "@/components/timetable/TimetableGrid";
-import { emptySchedule, isLocatedStatus, type TimetableSchedule } from "@/lib/timetable";
+import { DEFAULT_CAMPUS, emptySchedule, type TimetableSchedule } from "@/lib/timetable";
 
 export default function MyTimetablePage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
     const [schedule, setSchedule] = useState<TimetableSchedule>(emptySchedule());
+    const [campus, setCampus] = useState<string>(DEFAULT_CAMPUS);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -22,6 +23,7 @@ export default function MyTimetablePage() {
             .then((data) => {
                 if (data.success) {
                     setSchedule(data.schedule);
+                    setCampus(data.campus || DEFAULT_CAMPUS);
                     setUpdatedAt(data.updatedAt);
                 }
             })
@@ -31,20 +33,8 @@ export default function MyTimetablePage() {
 
     const handleChange = (day: string, slotIndex: number, value: string) => {
         setSchedule((prev) => {
-            const prevCell = prev[day]?.[slotIndex] ?? { status: "", location: null };
             const next = { ...prev, [day]: [...(prev[day] || [])] };
-            // Only class/lab carry a location — dropping to free/online clears any
-            // previously chosen location instead of leaving it stranded on the cell.
-            next[day][slotIndex] = { status: value, location: isLocatedStatus(value) ? prevCell.location : null };
-            return next;
-        });
-    };
-
-    const handleLocationChange = (day: string, slotIndex: number, location: string) => {
-        setSchedule((prev) => {
-            const prevCell = prev[day]?.[slotIndex] ?? { status: "", location: null };
-            const next = { ...prev, [day]: [...(prev[day] || [])] };
-            next[day][slotIndex] = { ...prevCell, location: location || null };
+            next[day][slotIndex] = value;
             return next;
         });
     };
@@ -55,7 +45,7 @@ export default function MyTimetablePage() {
             const res = await fetch("/api/member/timetable", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ schedule }),
+                body: JSON.stringify({ schedule, campus }),
             });
             const data = await res.json();
             if (res.ok && data.success) {
@@ -105,7 +95,7 @@ export default function MyTimetablePage() {
             {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : (
-                <TimetableGrid schedule={schedule} editable onChange={handleChange} onLocationChange={handleLocationChange} />
+                <TimetableGrid schedule={schedule} campus={campus} editable onChange={handleChange} onCampusChange={setCampus} />
             )}
         </div>
     );

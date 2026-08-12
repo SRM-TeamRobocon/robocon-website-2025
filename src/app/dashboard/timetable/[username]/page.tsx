@@ -13,6 +13,7 @@ interface TimetableDetail {
     owner_name: string;
     domain: string | null;
     schedule: TimetableSchedule;
+    campus: string;
     updated_at: string;
 }
 
@@ -94,7 +95,7 @@ export default function ViewTimetablePage() {
                         )}
                     </div>
 
-                    <TimetableGrid schedule={detail.schedule || emptySchedule()} />
+                    <TimetableGrid schedule={detail.schedule || emptySchedule()} campus={detail.campus} />
                 </>
             )}
         </div>

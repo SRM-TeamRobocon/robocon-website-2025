@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CELL_OPTIONS, DAYS, LOCATION_OPTIONS, TIME_SLOTS, isLocatedStatus, type TimetableSchedule } from "@/lib/timetable";
+import { CAMPUS_OPTIONS, CELL_OPTIONS, DAYS, DEFAULT_CAMPUS, TIME_SLOTS, type TimetableSchedule } from "@/lib/timetable";
 
 const CELL_LABELS: Record<string, string> = Object.fromEntries(CELL_OPTIONS.map((o) => [o.value, o.label]));
-const LOCATION_LABELS: Record<string, string> = Object.fromEntries(LOCATION_OPTIONS.map((o) => [o.value, o.label]));
 
 // Read-only badge styling (soft, tinted).
 const BADGE_STYLES: Record<string, string> = {
@@ -24,41 +23,69 @@ const ACTIVE_STYLES: Record<string, string> = {
 
 interface TimetableGridProps {
     schedule: TimetableSchedule;
+    campus?: string;
     editable?: boolean;
     onChange?: (day: string, slotIndex: number, value: string) => void;
-    onLocationChange?: (day: string, slotIndex: number, location: string) => void;
+    onCampusChange?: (campus: string) => void;
 }
 
 // Compact view: one day-order visible at a time (tabs) with a dense row-per-slot table,
 // instead of rendering all 5 days x 10 slots as ~50 separate cards at once.
-export default function TimetableGrid({ schedule, editable = false, onChange, onLocationChange }: TimetableGridProps) {
+export default function TimetableGrid({
+    schedule,
+    campus = DEFAULT_CAMPUS,
+    editable = false,
+    onChange,
+    onCampusChange,
+}: TimetableGridProps) {
     const [activeDay, setActiveDay] = useState<(typeof DAYS)[number]>(DAYS[0]);
     const row = schedule[activeDay] || [];
 
     return (
         <div>
-            <div className="mb-4 flex flex-wrap gap-2">
-                {DAYS.map((day) => (
-                    <button
-                        key={day}
-                        type="button"
-                        onClick={() => setActiveDay(day)}
-                        className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-                            activeDay === day
-                                ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
-                                : "text-gray-400 hover:bg-white/5"
-                        }`}
-                    >
-                        {day}
-                    </button>
-                ))}
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-2">
+                    {DAYS.map((day) => (
+                        <button
+                            key={day}
+                            type="button"
+                            onClick={() => setActiveDay(day)}
+                            className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+                                activeDay === day
+                                    ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
+                                    : "text-gray-400 hover:bg-white/5"
+                            }`}
+                        >
+                            {day}
+                        </button>
+                    ))}
+                </div>
+
+                {editable ? (
+                    <label className="flex items-center gap-2 sm:shrink-0">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Campus</span>
+                        <select
+                            value={campus}
+                            onChange={(e) => onCampusChange?.(e.target.value)}
+                            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-white outline-none transition focus:border-cyan-500"
+                        >
+                            {CAMPUS_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value} className="bg-gray-900">
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                ) : (
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
+                        {CAMPUS_OPTIONS.find((o) => o.value === campus)?.label ?? campus}
+                    </span>
+                )}
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-white/10">
                 {TIME_SLOTS.map((slot, slotIndex) => {
-                    const cell = row[slotIndex] || { status: "", location: null };
-                    const value = cell.status || "";
-                    const located = isLocatedStatus(value);
+                    const value = row[slotIndex] || "";
                     return (
                         <div
                             key={slot}
@@ -66,39 +93,21 @@ export default function TimetableGrid({ schedule, editable = false, onChange, on
                         >
                             <span className="text-sm font-semibold text-gray-400 sm:pt-1.5">{slot}</span>
                             {editable ? (
-                                <div className="flex flex-col gap-1.5 sm:w-auto sm:min-w-[280px]">
-                                    <div className="grid grid-cols-4 gap-1.5">
-                                        {CELL_OPTIONS.map((option) => (
-                                            <button
-                                                key={option.value}
-                                                type="button"
-                                                onClick={() => onChange?.(activeDay, slotIndex, option.value)}
-                                                className={`rounded-lg px-2 py-1.5 text-xs font-bold transition ${
-                                                    value === option.value
-                                                        ? ACTIVE_STYLES[option.value]
-                                                        : "bg-white/5 text-gray-400 hover:bg-white/10"
-                                                }`}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {located && (
-                                        <select
-                                            value={cell.location || ""}
-                                            onChange={(e) => onLocationChange?.(activeDay, slotIndex, e.target.value)}
-                                            className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-white outline-none transition focus:border-cyan-500"
+                                <div className="grid grid-cols-4 gap-1.5 sm:w-auto sm:min-w-[280px]">
+                                    {CELL_OPTIONS.map((option) => (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => onChange?.(activeDay, slotIndex, option.value)}
+                                            className={`rounded-lg px-2 py-1.5 text-xs font-bold transition ${
+                                                value === option.value
+                                                    ? ACTIVE_STYLES[option.value]
+                                                    : "bg-white/5 text-gray-400 hover:bg-white/10"
+                                            }`}
                                         >
-                                            <option value="" className="bg-gray-900">
-                                                Select location…
-                                            </option>
-                                            {LOCATION_OPTIONS.map((loc) => (
-                                                <option key={loc.value} value={loc.value} className="bg-gray-900">
-                                                    {loc.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
+                                            {option.label}
+                                        </button>
+                                    ))}
                                 </div>
                             ) : (
                                 <span
@@ -107,7 +116,6 @@ export default function TimetableGrid({ schedule, editable = false, onChange, on
                                     }`}
                                 >
                                     {value ? CELL_LABELS[value] ?? value : "Free"}
-                                    {located && cell.location ? ` · ${LOCATION_LABELS[cell.location] ?? cell.location}` : ""}
                                 </span>
                             )}
                         </div>

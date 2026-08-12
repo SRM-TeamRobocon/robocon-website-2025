@@ -23,62 +23,48 @@ export const CELL_OPTIONS = [
 
 const CELL_VALUES = new Set<string>(CELL_OPTIONS.map((o) => o.value));
 
-// Only these statuses carry a physical location.
+// Only these statuses count as "busy on campus" for grouping/filtering purposes.
 const LOCATED_STATUSES = new Set<string>(["class", "lab"]);
 
 export function isLocatedStatus(status: string): boolean {
     return LOCATED_STATUSES.has(status);
 }
 
-export const LOCATION_OPTIONS = [
-    { value: "tp1", label: "TP1" },
-    { value: "tp2", label: "TP2" },
-    { value: "ub", label: "UB" },
-    { value: "hitech", label: "Hi-Tech" },
-    { value: "biotech", label: "Biotech" },
-    { value: "bel", label: "BEL" },
-    { value: "fsh", label: "FSH" },
-    { value: "crc", label: "CRC" },
+// Which of the two campuses a member's whole week is on — set once per timetable,
+// not per slot, since a member doesn't switch campuses class-to-class.
+export const CAMPUS_OPTIONS = [
+    { value: "main", label: "Main Campus" },
+    { value: "annexure", label: "Annexure" },
 ] as const;
 
-const LOCATION_VALUES = new Set<string>(LOCATION_OPTIONS.map((o) => o.value));
+const CAMPUS_VALUES = new Set<string>(CAMPUS_OPTIONS.map((o) => o.value));
+export const DEFAULT_CAMPUS = "main";
 
-export interface TimetableCell {
-    status: string;
-    location: string | null;
+export function normalizeCampus(raw: unknown): string {
+    return typeof raw === "string" && CAMPUS_VALUES.has(raw) ? raw : DEFAULT_CAMPUS;
 }
 
-export type TimetableSchedule = Record<string, TimetableCell[]>;
-
-function emptyCell(): TimetableCell {
-    return { status: "", location: null };
-}
+export type TimetableSchedule = Record<string, string[]>;
 
 export function emptySchedule(): TimetableSchedule {
     const schedule: TimetableSchedule = {};
     for (const day of DAYS) {
-        schedule[day] = TIME_SLOTS.map(() => emptyCell());
+        schedule[day] = TIME_SLOTS.map(() => "");
     }
     return schedule;
 }
 
-// Accepts the current { status, location } cell shape as well as the legacy plain-string
-// cell shape saved before location tracking existed — old rows load with location: null
-// instead of erroring, and the member can fill it in later.
-function normalizeCell(raw: unknown): TimetableCell {
+// Accepts a plain status string as well as the legacy { status, location } object shape
+// saved before per-slot locations were removed — the location is simply dropped.
+function normalizeCell(raw: unknown): string {
     if (typeof raw === "string") {
-        return { status: CELL_VALUES.has(raw) ? raw : "", location: null };
+        return CELL_VALUES.has(raw) ? raw : "";
     }
     if (raw && typeof raw === "object") {
         const obj = raw as Record<string, unknown>;
-        const status = typeof obj.status === "string" && CELL_VALUES.has(obj.status) ? obj.status : "";
-        const location =
-            LOCATED_STATUSES.has(status) && typeof obj.location === "string" && LOCATION_VALUES.has(obj.location)
-                ? obj.location
-                : null;
-        return { status, location };
+        return typeof obj.status === "string" && CELL_VALUES.has(obj.status) ? obj.status : "";
     }
-    return emptyCell();
+    return "";
 }
 
 // Drops unknown days/values and pads/truncates rows to TIME_SLOTS.length so bad
@@ -89,7 +75,7 @@ export function normalizeSchedule(input: unknown): TimetableSchedule {
 
     for (const day of DAYS) {
         const row = Array.isArray(source[day]) ? (source[day] as unknown[]) : [];
-        const cells: TimetableCell[] = [];
+        const cells: string[] = [];
         for (let i = 0; i < TIME_SLOTS.length; i += 1) {
             cells.push(normalizeCell(row[i]));
         }

@@ -362,6 +362,7 @@ export type Database = {
           owner_name: string;
           domain: string | null;
           schedule: Json;
+          campus: string;
           updated_at: string;
           created_at: string;
         };
@@ -371,6 +372,7 @@ export type Database = {
           owner_name: string;
           domain?: string | null;
           schedule?: Json;
+          campus?: string;
           updated_at?: string;
           created_at?: string;
         };

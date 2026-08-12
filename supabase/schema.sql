@@ -224,9 +224,15 @@ create table if not exists timetables (
   owner_name text not null,
   domain text,
   schedule jsonb not null default '{}'::jsonb,
+  -- Which campus the member's whole week is on — one value per timetable, not per slot.
+  campus text not null default 'main' check (campus in ('main', 'annexure')),
   updated_at timestamptz default now(),
   created_at timestamptz default now()
 );
+
+alter table timetables add column if not exists campus text not null default 'main';
+alter table timetables drop constraint if exists timetables_campus_check;
+alter table timetables add constraint timetables_campus_check check (campus in ('main', 'annexure'));
 
 alter table timetables enable row level security;
 -- No public policies: service-role only via API routes, same pattern as blogs.

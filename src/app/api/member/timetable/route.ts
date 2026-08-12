@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
-import { emptySchedule, normalizeSchedule } from "@/lib/timetable";
+import { DEFAULT_CAMPUS, emptySchedule, normalizeCampus, normalizeSchedule } from "@/lib/timetable";
 import type { Json } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function GET() {
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
         .from("timetables")
-        .select("schedule, updated_at")
+        .select("schedule, campus, updated_at")
         .eq("owner_username", session.user)
         .maybeSingle();
 
@@ -27,13 +27,20 @@ export async function GET() {
     }
 
     if (!data) {
-        return NextResponse.json({ success: true, hasSaved: false, schedule: emptySchedule(), updatedAt: null });
+        return NextResponse.json({
+            success: true,
+            hasSaved: false,
+            schedule: emptySchedule(),
+            campus: DEFAULT_CAMPUS,
+            updatedAt: null,
+        });
     }
 
     return NextResponse.json({
         success: true,
         hasSaved: true,
         schedule: normalizeSchedule(data.schedule),
+        campus: normalizeCampus(data.campus),
         updatedAt: data.updated_at,
     });
 }
@@ -47,6 +54,7 @@ export async function PUT(request: Request) {
 
         const body = await request.json();
         const schedule = normalizeSchedule(body.schedule);
+        const campus = normalizeCampus(body.campus);
 
         const supabase = createSupabaseAdminClient();
         const { error } = await supabase.from("timetables").upsert(
@@ -55,6 +63,7 @@ export async function PUT(request: Request) {
                 owner_name: session.name || session.user,
                 domain: session.domain || null,
                 schedule: schedule as unknown as Json,
+                campus,
                 updated_at: new Date().toISOString(),
             },
             { onConflict: "owner_username" }

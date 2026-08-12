@@ -6,7 +6,7 @@ import {
     DAYS,
     TIME_SLOTS,
     TIME_BOUNDARIES,
-    LOCATION_OPTIONS,
+    CAMPUS_OPTIONS,
     formatMinutes,
     isLocatedStatus,
     slotsInRange,
@@ -28,21 +28,21 @@ interface LocationBucket<T> {
     items: T[];
 }
 
-// Buckets Class/Lab members by location, in LOCATION_OPTIONS order, with anyone whose
-// location isn't set (or, for the "whole window" view, varies slot-to-slot) trailing last.
-function groupByLocation<T extends { location: string | null }>(items: T[]): LocationBucket<T>[] {
+// Buckets Class/Lab members by campus, in CAMPUS_OPTIONS order, with anyone whose
+// campus isn't set trailing last.
+function groupByCampus<T extends { campus: string | null }>(items: T[]): LocationBucket<T>[] {
     const buckets: Record<string, T[]> = {};
     items.forEach((item) => {
-        const key = item.location || "";
+        const key = item.campus || "";
         (buckets[key] ||= []).push(item);
     });
-    const ordered: LocationBucket<T>[] = LOCATION_OPTIONS.filter((loc) => buckets[loc.value]?.length).map((loc) => ({
-        key: loc.value,
-        label: loc.label,
-        items: buckets[loc.value],
+    const ordered: LocationBucket<T>[] = CAMPUS_OPTIONS.filter((c) => buckets[c.value]?.length).map((c) => ({
+        key: c.value,
+        label: c.label,
+        items: buckets[c.value],
     }));
     if (buckets[""]?.length) {
-        ordered.push({ key: "", label: "No location set", items: buckets[""] });
+        ordered.push({ key: "", label: "No campus set", items: buckets[""] });
     }
     return ordered;
 }
@@ -60,11 +60,13 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState<RosterMember[]>([]);
     const [schedules, setSchedules] = useState<Record<string, TimetableSchedule>>({});
+    const [campuses, setCampuses] = useState<Record<string, string>>({});
 
     const [dayIndex, setDayIndex] = useState(0);
     const [startMin, setStartMin] = useState(TIME_BOUNDARIES[0]);
     const [endMin, setEndMin] = useState(TIME_BOUNDARIES[TIME_BOUNDARIES.length - 1]);
     const [domain, setDomain] = useState("All");
+    const [campusFilter, setCampusFilter] = useState("All");
     const [query, setQuery] = useState("");
     const [queryError, setQueryError] = useState("");
 
@@ -75,6 +77,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                 if (json.success) {
                     setMembers(json.members || []);
                     setSchedules(json.schedules || {});
+                    setCampuses(json.campuses || {});
                 }
             })
             .catch(() => {})
@@ -107,8 +110,13 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
     const day = DAYS[dayIndex];
     const overlappingSlots = useMemo(() => slotsInRange(startMin, endMin), [startMin, endMin]);
     const filteredMembers = useMemo(
-        () => members.filter((m) => domain === "All" || m.domain === domain),
-        [members, domain]
+        () =>
+            members.filter(
+                (m) =>
+                    (domain === "All" || m.domain === domain) &&
+                    (campusFilter === "All" || (campuses[m.username] || "") === campusFilter)
+            ),
+        [members, domain, campusFilter, campuses]
     );
     const noData = useMemo(
         () => filteredMembers.filter((m) => !schedules[m.username]),
@@ -121,31 +129,30 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
         return filteredMembers.filter((m) => {
             const schedule = schedules[m.username];
             if (!schedule) return false;
-            return overlappingSlots.every((slotIndex) => (schedule[day]?.[slotIndex]?.status || "") === "");
+            return overlappingSlots.every((slotIndex) => (schedule[day]?.[slotIndex] || "") === "");
         });
     }, [filteredMembers, schedules, overlappingSlots, day]);
 
+    const fullyFreeGroups = useMemo(() => {
+        const withCampus = fullyFree.map((m) => ({ ...m, campus: campuses[m.username] || null }));
+        return groupByCampus(withCampus);
+    }, [fullyFree, campuses]);
+
     // In Class or Lab for the ENTIRE window (never free/online within it), grouped by
-    // location — only when that location is the same across every overlapping slot;
-    // otherwise they land in the trailing "No location set" bucket.
+    // campus (set once per member's whole timetable, not per slot).
     const fullyBusy = useMemo(() => {
         if (overlappingSlots.length === 0) return [];
         return filteredMembers.filter((m) => {
             const schedule = schedules[m.username];
             if (!schedule) return false;
-            return overlappingSlots.every((slotIndex) => isLocatedStatus(schedule[day]?.[slotIndex]?.status || ""));
+            return overlappingSlots.every((slotIndex) => isLocatedStatus(schedule[day]?.[slotIndex] || ""));
         });
     }, [filteredMembers, schedules, overlappingSlots, day]);
 
     const fullyBusyGroups = useMemo(() => {
-        const withLocation = fullyBusy.map((m) => {
-            const schedule = schedules[m.username]!;
-            const locations = new Set(overlappingSlots.map((slotIndex) => schedule[day]?.[slotIndex]?.location || ""));
-            const location = locations.size === 1 ? Array.from(locations)[0] || null : null;
-            return { ...m, location };
-        });
-        return groupByLocation(withLocation);
-    }, [fullyBusy, schedules, overlappingSlots, day]);
+        const withCampus = fullyBusy.map((m) => ({ ...m, campus: campuses[m.username] || null }));
+        return groupByCampus(withCampus);
+    }, [fullyBusy, campuses]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
@@ -155,7 +162,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         <Users className="h-5 w-5 text-cyan-400" /> Who&apos;s Free
                     </h2>
                     <p className="mt-1 text-sm text-gray-400">
-                        Pick a day order and time window to see who&apos;s free, in class, in lab, or online.
+                        Pick a day order, time window, and campus to see who&apos;s free, in class, in lab, or online.
                     </p>
                 </div>
                 <button
@@ -191,7 +198,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                 <p className="mb-4 mt-2 text-xs text-gray-600">Or set the filters directly:</p>
             )}
 
-            <div className="mb-5 grid gap-3 sm:grid-cols-4">
+            <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <label className="block">
                     <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Day Order</span>
                     <select
@@ -248,6 +255,23 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         ))}
                     </select>
                 </label>
+                <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Campus</span>
+                    <select
+                        value={campusFilter}
+                        onChange={(e) => setCampusFilter(e.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                    >
+                        <option value="All" className="bg-gray-900">
+                            All
+                        </option>
+                        {CAMPUS_OPTIONS.map((c) => (
+                            <option key={c.value} value={c.value} className="bg-gray-900">
+                                {c.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
             </div>
 
             {loading ? (
@@ -262,20 +286,29 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         <p className="mb-3 text-sm font-bold text-emerald-300">
                             Free the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyFree.length})
                         </p>
-                        <div className="flex flex-wrap gap-1.5">
-                            {fullyFree.length === 0 ? (
-                                <span className="text-xs text-gray-500">Nobody&apos;s free for the whole window — see the slot-by-slot breakdown below.</span>
-                            ) : (
-                                fullyFree.map((m) => (
-                                    <span
-                                        key={m.username}
-                                        className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/30"
-                                    >
-                                        {m.name}
-                                    </span>
-                                ))
-                            )}
-                        </div>
+                        {fullyFree.length === 0 ? (
+                            <span className="text-xs text-gray-500">Nobody&apos;s free for the whole window — see the slot-by-slot breakdown below.</span>
+                        ) : (
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                {fullyFreeGroups.map((bucket) => (
+                                    <div key={bucket.key}>
+                                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-400/70">
+                                            {bucket.label} ({bucket.items.length})
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {bucket.items.map((m) => (
+                                                <span
+                                                    key={m.username}
+                                                    className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/30"
+                                                >
+                                                    {m.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -310,7 +343,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Slot-by-slot breakdown</p>
 
                     {overlappingSlots.map((slotIndex) => {
-                        const groups: Record<string, Array<RosterMember & { location: string | null }>> = {
+                        const groups: Record<string, Array<RosterMember & { campus: string | null }>> = {
                             "": [],
                             class: [],
                             lab: [],
@@ -319,9 +352,8 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         filteredMembers.forEach((member) => {
                             const schedule = schedules[member.username];
                             if (!schedule) return;
-                            const cell = schedule[day]?.[slotIndex];
-                            const value = cell?.status || "";
-                            (groups[value] ||= []).push({ ...member, location: cell?.location ?? null });
+                            const value = schedule[day]?.[slotIndex] || "";
+                            (groups[value] ||= []).push({ ...member, campus: campuses[member.username] || null });
                         });
 
                         return (
@@ -337,9 +369,9 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                             </p>
                                             {groups[statusKey].length === 0 ? (
                                                 <span className="text-xs text-gray-600">—</span>
-                                            ) : isLocatedStatus(statusKey) ? (
+                                            ) : (
                                                 <div className="space-y-2">
-                                                    {groupByLocation(groups[statusKey]).map((bucket) => (
+                                                    {groupByCampus(groups[statusKey]).map((bucket) => (
                                                         <div key={bucket.key}>
                                                             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
                                                                 {bucket.label} ({bucket.items.length})
@@ -355,17 +387,6 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                                                 ))}
                                                             </div>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {groups[statusKey].map((m) => (
-                                                        <span
-                                                            key={m.username}
-                                                            className={`rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[statusKey]}`}
-                                                        >
-                                                            {m.name}
-                                                        </span>
                                                     ))}
                                                 </div>
                                             )}
