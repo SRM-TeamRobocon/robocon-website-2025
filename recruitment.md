@@ -935,7 +935,6 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 | PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/no-show` | Mark a `called` token as `no_show` |
 | GET | `/api/admin/recruitment/interview-results` | List logged results for active cycle, newest first |
 | POST | `/api/admin/recruitment/interview-results` | Log **or correct** a result. Body: `{ recruit_id, sub_domain, result, notes?, panel_id? }`. Upsert; recomputes `is_selected` |
-| POST | `/api/admin/recruitment/interview-auto-noshow` | Cron-only (`CRON_SECRET` bearer, not the staff cookie). Flips `called` tokens older than 15 min to `no_show`. **Not scheduled yet** |
 
 #### Admin — Training
 
@@ -1618,15 +1617,13 @@ Route: `PATCH /api/admin/recruitment/panels/tokens/:tokenId/no-show`
 - Does NOT create an `interview_results` row (they didn't interview)
 - Panel dashboard then allows calling the next `waiting` token
 
-#### Auto no-show (cron)
+#### Auto no-show (self-healed inline, not a cron)
 
-Only one token per panel can be `called` at a time, so a volunteer who calls someone and then forgets to resolve them blocks that panel's Call Next indefinitely.
+Only one token per panel can be `called` at a time, so a volunteer who calls someone and then forgets to resolve them would otherwise block that panel's Call Next indefinitely.
 
-`POST /api/admin/recruitment/interview-auto-noshow` flips any `called` token older than `NO_SHOW_TIMEOUT_MINUTES` (15) to `no_show`, scoped to the active cycle.
+There used to be a `POST /api/admin/recruitment/interview-auto-noshow` cron (`CRON_SECRET` bearer auth, scheduled every 5 minutes in `vercel.json`) that swept stale `called` tokens. That schedule exceeds Vercel Hobby's once-per-day cron cap and would fail to deploy on a free plan, so it was replaced: `findCalled()` in `src/app/api/admin/recruitment/panels/[id]/call-next/route.ts` now checks the existing `called` token's age itself, and if it's older than `NO_SHOW_TIMEOUT_MINUTES` (15), flips it to `no_show` (CAS-guarded) before falling through to call the next waiting token. No standalone route, no cron, no `src/proxy.ts` carve-out needed.
 
-- Auth is a **`CRON_SECRET` bearer token**, not the staff `admin_token` cookie — mirroring `src/app/api/attendance/auto-checkout/route.ts`.
-- This required a carve-out in `src/proxy.ts`: `/api/admin/:path*` normally demands the staff cookie, which a cron caller doesn't have. The route enforces `CRON_SECRET` itself, so this moves the enforcement layer rather than weakening it.
-- **⚠️ Nothing calls this on a schedule yet.** It needs a Vercel Cron / GitHub Actions job hitting it every few minutes during a real interview day. Until that exists, resolving stuck tokens is manual.
+Tradeoff: a stuck token only clears the next time someone hits Call Next on that panel, not proactively in the background. Nothing depends on it clearing sooner than that.
 
 ### Concurrent Panels
 

@@ -6,14 +6,11 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/scanner') || pathname.startsWith('/recruit-scanner');
-    // /api/admin/login and /api/admin/recruitment/interview-auto-noshow are both carved out
-    // of the admin_token cookie gate: login is the entry point that issues that cookie, and
-    // interview-auto-noshow is a cron-triggered endpoint authenticated by its own CRON_SECRET
-    // bearer token (see that route) rather than a logged-in staff session.
+    // /api/admin/login is carved out of the admin_token cookie gate since it's the entry
+    // point that issues that cookie.
     const isProtectedApi =
         pathname.startsWith('/api/admin') &&
-        pathname !== '/api/admin/login' &&
-        pathname !== '/api/admin/recruitment/interview-auto-noshow';
+        pathname !== '/api/admin/login';
 
     // Protect /dashboard, /scanner, /recruit-scanner (UI) and /api/admin (backend) routes — everything else is public
     if (isProtectedPage || isProtectedApi) {

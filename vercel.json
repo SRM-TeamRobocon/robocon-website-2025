@@ -1,6 +1,5 @@
 {
   "crons": [
-    { "path": "/api/attendance/auto-checkout", "schedule": "30 18 * * *" },
-    { "path": "/api/admin/recruitment/interview-auto-noshow", "schedule": "*/5 * * * *" }
+    { "path": "/api/attendance/auto-checkout", "schedule": "30 18 * * *" }
   ]
 }

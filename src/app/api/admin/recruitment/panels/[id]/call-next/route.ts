@@ -12,6 +12,11 @@ const TOKEN_COLUMNS = "id, token_number, status, checked_in_at, called_at, recru
 // Bounded so a pathological race (or a stale read) can never spin.
 const MAX_ATTEMPTS = 5;
 
+// A `called` token nobody resolved would otherwise block this panel's Call Next
+// forever (only one `called` token per panel is allowed at a time). Self-healed
+// inline in findCalled() below rather than via a periodic cron sweep.
+const NO_SHOW_TIMEOUT_MINUTES = 15;
+
 const EMPTY_PROFILE = (recruitId: string) => ({
   id: recruitId,
   name: "Unknown",
@@ -85,7 +90,26 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    return (data as TokenRow | null) ?? null;
+    const called = data as TokenRow | null;
+    if (!called) return null;
+
+    const isStale =
+      called.called_at !== null &&
+      Date.now() - new Date(called.called_at).getTime() > NO_SHOW_TIMEOUT_MINUTES * 60_000;
+
+    if (isStale) {
+      // Flip it out of the way (CAS-guarded in case someone resolves it concurrently)
+      // and treat it as if nothing were called, so the caller falls through to the
+      // waiting-token loop below.
+      await supabase
+        .from("recruit_interview_tokens")
+        .update({ status: "no_show" })
+        .eq("id", called.id)
+        .eq("status", "called");
+      return null;
+    }
+
+    return called;
   };
 
   try {
