@@ -4,6 +4,9 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MEMBER_DOMAINS } from "@/constants/constants";
+import PasswordToggle from "@/components/PasswordToggle";
+import AuthNav from "@/components/AuthNav";
+import Select from "@/components/ui/select";
 
 export default function MemberSignup() {
     const [form, setForm] = useState({
@@ -58,11 +61,15 @@ export default function MemberSignup() {
         return (
             <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
                 <div className="w-full max-w-md relative z-10">
+                    <AuthNav />
                     <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl text-center">
                         <h2 className="text-2xl font-bold text-white mb-3">Check your inbox</h2>
                         <p className="text-sm text-gray-400">
                             We sent a verification link to <span className="text-white">{form.email}</span>. Click it to
                             confirm your email, then wait for an admin to approve your account before logging in.
+                        </p>
+                        <p className="text-xs text-gray-500 mt-3">
+                            Don&apos;t see it? Check your spam/junk folder too.
                         </p>
                     </div>
                 </div>
@@ -78,6 +85,7 @@ export default function MemberSignup() {
             </div>
 
             <div className="w-full max-w-lg relative z-10">
+                <AuthNav />
                 <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl">
                     <div className="flex justify-center mb-6">
                         <Image src="/LOGO.png" alt="Robocon Logo" width={120} height={120} className="object-contain" unoptimized />
@@ -104,22 +112,15 @@ export default function MemberSignup() {
                                 Domain
                             </label>
                             <div className="mt-2">
-                                <select
+                                <Select
                                     id="domain"
-                                    required
+                                    accent="blue"
                                     value={form.domain}
-                                    onChange={update("domain")}
-                                    className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
-                                >
-                                    <option value="" disabled className="bg-gray-900">
-                                        Select your domain
-                                    </option>
-                                    {MEMBER_DOMAINS.map((d) => (
-                                        <option key={d} value={d} className="bg-gray-900">
-                                            {d}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(v) => setForm((prev) => ({ ...prev, domain: v }))}
+                                    placeholder="Select your domain"
+                                    options={MEMBER_DOMAINS.map((d) => ({ value: d, label: d }))}
+                                    className="bg-white/5 ring-white/10"
+                                />
                             </div>
                         </div>
 
@@ -208,22 +209,29 @@ function Field({
     placeholder?: string;
     required?: boolean;
 }) {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPassword = type === "password";
     return (
         <div>
             <label htmlFor={id} className="block text-sm font-medium leading-6 text-gray-300">
                 {label}
             </label>
-            <div className="mt-2">
+            <div className="mt-2 relative">
                 <input
                     id={id}
                     name={id}
-                    type={type}
+                    type={isPassword && showPassword ? "text" : type}
                     required={required}
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
+                    className={`block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all ${
+                        isPassword ? "pr-11" : ""
+                    }`}
                 />
+                {isPassword && (
+                    <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
+                )}
             </div>
         </div>
     );

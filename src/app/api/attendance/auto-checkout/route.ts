@@ -6,6 +6,9 @@ import { google } from "googleapis";
 
 export const dynamic = "force-dynamic";
 
+// Vercel Cron only ever sends GET, and injects `Authorization: Bearer $CRON_SECRET`
+// automatically when the env var is named exactly CRON_SECRET — see vercel.json.
+// Neither branch reads a request body, so aliasing GET straight to POST is safe.
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
@@ -146,3 +149,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export const GET = POST;

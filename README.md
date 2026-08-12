@@ -68,6 +68,13 @@ Existing admin auth:
 - `LEAD_ACCOUNTS`
 - `DESK_ACCOUNTS`
 
+Recruitment module (see `recruitment.md`; separate `recruit_token` auth, untouched by the above):
+
+- `QR_SECRET` — HMAC key for recruit QR signing
+- `RECRUIT_JWT_SECRET` — signs the `recruit_token` cookie
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth for recruit sign-in
+- `RECRUIT_OTP_FROM_EMAIL` — can reuse `SMTP_EMAIL`
+
 ## Supabase Backend
 
 Run `supabase/schema.sql` in the Supabase SQL editor (or via the Supabase MCP `apply_migration` tool). It creates:

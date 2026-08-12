@@ -1,0 +1,231 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { SlidersHorizontal, Save, Play } from "lucide-react";
+import { useRequireRole } from "@/hooks/use-require-role";
+import { RECRUIT_SUBDOMAINS, RECRUIT_SUBDOMAIN_KEYS, subDomainLabel, type RecruitSubDomain } from "@/lib/recruit-domains";
+
+type ExamDomain = RecruitSubDomain;
+
+interface CutoffRow {
+  sub_domain: ExamDomain;
+  cutoff_marks: number | null;
+  set_by: string | null;
+  set_at: string | null;
+}
+
+interface ComputeStats {
+  shortlisted_count: number;
+  not_shortlisted_count: number;
+  pending_count: number;
+}
+
+export default function RecruitmentCutoffsPage() {
+  const ready = useRequireRole(["lead", "admin"]);
+  const [rows, setRows] = useState<CutoffRow[]>([]);
+  const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [computing, setComputing] = useState(false);
+  const [stats, setStats] = useState<ComputeStats | null>(null);
+  const [skippedDomains, setSkippedDomains] = useState<string[]>([]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/recruitment/cutoffs");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRows(data.data);
+        const nextInputs: Record<string, string> = {};
+        for (const row of data.data as CutoffRow[]) {
+          nextInputs[row.sub_domain] = row.cutoff_marks === null ? "" : String(row.cutoff_marks);
+        }
+        setInputs(nextInputs);
+      } else {
+        toast.error(data.error || "Could not load cutoffs");
+      }
+    } catch {
+      toast.error("Could not load cutoffs");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!ready) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  const saveCutoffs = async () => {
+    const payload: Array<{ sub_domain: ExamDomain; cutoff_marks: number }> = [];
+    for (const domain of RECRUIT_SUBDOMAIN_KEYS) {
+      const raw = inputs[domain] ?? "";
+      if (raw.trim() === "") continue;
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value < 0 || value > 100) {
+        toast.error(`${subDomainLabel(domain)} cutoff must be an integer between 0 and 100`);
+        return;
+      }
+      payload.push({ sub_domain: domain, cutoff_marks: value });
+    }
+
+    if (payload.length === 0) {
+      toast.error("Enter at least one cutoff value");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/recruitment/cutoffs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success("Cutoffs saved");
+        load();
+      } else {
+        toast.error(data.error || "Could not save cutoffs");
+      }
+    } catch {
+      toast.error("Could not save cutoffs");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const runShortlist = async () => {
+    setComputing(true);
+    setStats(null);
+    setSkippedDomains([]);
+    try {
+      const res = await fetch("/api/admin/recruitment/shortlist/compute", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.computed) {
+        setStats(data.stats);
+        setSkippedDomains(data.skipped_domains || []);
+        toast.success("Shortlist engine ran successfully");
+      } else {
+        toast.error(data.error || "Could not run shortlist engine");
+      }
+    } catch {
+      toast.error("Could not run shortlist engine");
+    } finally {
+      setComputing(false);
+    }
+  };
+
+  if (!ready) return null;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+          <SlidersHorizontal className="w-7 h-7 text-red" />
+          Cutoffs &amp; Shortlist Engine
+        </h1>
+        <p className="mt-2 text-gray-400 text-sm max-w-xl">
+          Set a pass mark per domain, then run the shortlist engine to auto-compute status
+          for every recruit who selected that domain.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
+                  <th className="px-5 py-3">Domain</th>
+                  <th className="px-5 py-3">Cutoff Marks (0–100)</th>
+                  <th className="px-5 py-3">Last Set</th>
+                </tr>
+              </thead>
+              <tbody>
+                {RECRUIT_SUBDOMAINS.map((d) => {
+                  const domain = d.key;
+                  const row = rows.find((r) => r.sub_domain === domain);
+                  return (
+                    <tr key={domain} className="border-b border-white/5 last:border-0">
+                      <td className="px-5 py-3 text-white font-medium">
+                        {d.label} <span className="text-xs font-normal text-gray-500">{d.subsystem}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={inputs[domain] ?? ""}
+                          onChange={(e) =>
+                            setInputs((prev) => ({ ...prev, [domain]: e.target.value }))
+                          }
+                          placeholder="Not set"
+                          className="w-24 rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-5 py-3 text-gray-500 text-xs">
+                        {row?.set_by && row?.set_at
+                          ? `${row.set_by} · ${new Date(row.set_at).toLocaleString()}`
+                          : "Never set"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={saveCutoffs}
+          disabled={saving}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-500/15 text-blue-400 ring-1 ring-inset ring-blue-500/30 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500/25 disabled:opacity-50 transition"
+        >
+          <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Cutoffs"}
+        </button>
+        <button
+          onClick={runShortlist}
+          disabled={computing}
+          className="inline-flex items-center gap-2 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-4 py-2.5 text-sm font-semibold hover:bg-red/25 disabled:opacity-50 transition"
+        >
+          <Play className="w-4 h-4" /> {computing ? "Running..." : "Run Shortlist"}
+        </button>
+      </div>
+
+      {stats && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">
+            Shortlist Engine Results
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30 p-4">
+              <p className="text-2xl font-black text-emerald-400">{stats.shortlisted_count}</p>
+              <p className="text-xs text-gray-400 mt-1">Shortlisted</p>
+            </div>
+            <div className="rounded-xl bg-red-500/10 ring-1 ring-inset ring-red-500/30 p-4">
+              <p className="text-2xl font-black text-red-400">{stats.not_shortlisted_count}</p>
+              <p className="text-xs text-gray-400 mt-1">Not Shortlisted</p>
+            </div>
+            <div className="rounded-xl bg-amber-500/10 ring-1 ring-inset ring-amber-500/30 p-4">
+              <p className="text-2xl font-black text-amber-400">{stats.pending_count}</p>
+              <p className="text-xs text-gray-400 mt-1">Pending (no marks yet)</p>
+            </div>
+          </div>
+          {skippedDomains.length > 0 && (
+            <p className="mt-4 text-xs text-amber-400">
+              Skipped (no cutoff set): {skippedDomains.map((d) => subDomainLabel(d)).join(", ")}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

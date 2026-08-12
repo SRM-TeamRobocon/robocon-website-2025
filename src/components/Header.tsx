@@ -7,7 +7,6 @@ import Menu3FillIcon from "remixicon-react/Menu3FillIcon";
 import AOS from "aos";
 import { useRouter } from "next/navigation";
 import { useMenuContext } from "@/context/MenuContext";
-import ParticlesCom from "./Particles";
 
 export default function Header() {
   const { isMenuOpen, setMenuValue } = useMenuContext();
@@ -50,7 +49,6 @@ export default function Header() {
         {/* Desktop NavBar */}
         <div
           className="hidden xl:flex items-center bg-white text-[#3B3B3B] nav-bar-clip font-semibold"
-          data-aos="slide-left"
         >
           <button
             className="ml-12 px-3 hover:text-red hover:scale-105"
@@ -117,7 +115,6 @@ export default function Header() {
         {/* Phone NavBar */}
         <div
           className={`bg-red nav-bar-clip pl-6 pr-4 flex justify-center items-center xl:hidden z-20`}
-          data-aos="slide-left"
           onClick={() => setMenuValue(!isMenuOpen)}
         >
           {isMenuOpen ? (
@@ -213,7 +210,7 @@ export default function Header() {
       </div>
 
       {/* svg below navbar */}
-      <div className="hidden xl:flex justify-end mt-5" data-aos="fade-left">
+      <div className="hidden xl:flex justify-end mt-5">
         {/* EVENT alert section*/}
         {/* <div className="nav-bar-clip h-10 bg-red w-64">          
           <div className="px-12 py-2 flex">

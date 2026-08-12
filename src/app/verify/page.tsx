@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import AuthNav from "@/components/AuthNav";
 
 type Status = "loading" | "success" | "already" | "error";
 
@@ -42,6 +43,7 @@ function VerifyContent() {
     return (
         <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
             <div className="w-full max-w-md relative z-10">
+                <AuthNav />
                 <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl text-center">
                     {status === "loading" && <p className="text-gray-300">Verifying your email...</p>}
 

@@ -1,0 +1,202 @@
+import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
+import { getSession, requireRole } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+export type RecruitProfile = {
+  id: string;
+  name: string;
+  first_name: string;
+  reg_no: string;
+  year: string;
+  department: string;
+  domains: string[];
+  exam_marks: { sub_domain: string; marks: number }[];
+  portfolio_url?: string;
+  shortlisted_for: string[];
+};
+
+export type QueueToken = {
+  token_id: string;
+  token_number: number;
+  status: string;
+  recruit: RecruitProfile;
+  checked_in_at: string;
+  called_at?: string;
+};
+
+// What role "member" receives. Deliberately minimal: the only member-facing consumers are
+// the TV/projector queue display (token number + first name) and the scanner, neither of
+// which needs reg_no, department, portfolio_url, exam marks or shortlist state.
+export type PublicQueueToken = {
+  token_id: string;
+  token_number: number;
+  status: string;
+  recruit: { first_name: string };
+};
+
+// "Arjun Sharma" -> "Arjun S." — enough to identify yourself on a projector without
+// putting a full roster of shortlisted candidates on a public screen.
+export function displayFirstName(fullName: string): string {
+  const trimmed = (fullName ?? "").trim();
+  if (!trimmed) return "";
+  const [first, ...rest] = trimmed.split(/\s+/);
+  const lastInitial = rest.length > 0 && rest[rest.length - 1][0] ? ` ${rest[rest.length - 1][0]}.` : "";
+  return `${first}${lastInitial}`;
+}
+
+const EMPTY_PROFILE = (recruitId: string): RecruitProfile => ({
+  id: recruitId,
+  name: "Unknown",
+  first_name: "Unknown",
+  reg_no: "",
+  year: "",
+  department: "",
+  domains: [],
+  exam_marks: [],
+  shortlisted_for: [],
+});
+
+// Shared by this route and ../call-next/route.ts so both return the identical recruit
+// profile shape documented in 07-INTERVIEW-MODULE.md's "Fetch Queue" section. Joins
+// recruit_accounts -> recruit_domain_selections -> recruit_marks -> recruit_shortlist_status
+// (recruit_interview_tokens is client-side/caller-side, not joined here).
+//
+// Every child query is ordered by sub_domain so `domains`, `exam_marks` and especially
+// `shortlisted_for` come back in a stable, reproducible order. Unordered Postgres output
+// previously made `shortlisted_for[0]` — which the panel dashboard used as its default
+// "log result for" domain — effectively arbitrary between requests.
+export async function buildRecruitProfiles(
+  supabase: SupabaseClient,
+  recruitIds: string[]
+): Promise<Map<string, RecruitProfile>> {
+  const map = new Map<string, RecruitProfile>();
+  if (recruitIds.length === 0) return map;
+
+  const [{ data: recruits }, { data: selections }, { data: marks }, { data: shortlist }] = await Promise.all([
+    supabase.from("recruit_accounts").select("id, name, reg_no, year, department, portfolio_url").in("id", recruitIds),
+    supabase
+      .from("recruit_domain_selections")
+      .select("recruit_id, sub_domain")
+      .in("recruit_id", recruitIds)
+      .order("sub_domain", { ascending: true }),
+    supabase
+      .from("recruit_marks")
+      .select("recruit_id, sub_domain, marks")
+      .in("recruit_id", recruitIds)
+      .order("sub_domain", { ascending: true }),
+    supabase
+      .from("recruit_shortlist_status")
+      .select("recruit_id, sub_domain")
+      .eq("status", "shortlisted")
+      .in("recruit_id", recruitIds)
+      .order("sub_domain", { ascending: true }),
+  ]);
+
+  for (const r of recruits ?? []) {
+    map.set(r.id, {
+      id: r.id,
+      name: r.name,
+      first_name: displayFirstName(r.name),
+      reg_no: r.reg_no,
+      year: r.year,
+      department: r.department,
+      domains: [],
+      exam_marks: [],
+      portfolio_url: r.portfolio_url ?? undefined,
+      shortlisted_for: [],
+    });
+  }
+  for (const s of selections ?? []) {
+    map.get(s.recruit_id)?.domains.push(s.sub_domain);
+  }
+  for (const m of marks ?? []) {
+    map.get(m.recruit_id)?.exam_marks.push({ sub_domain: m.sub_domain, marks: m.marks });
+  }
+  for (const s of shortlist ?? []) {
+    map.get(s.recruit_id)?.shortlisted_for.push(s.sub_domain);
+  }
+
+  return map;
+}
+
+export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string): Promise<QueueToken[]> {
+  const { data: tokens, error } = await supabase
+    .from("recruit_interview_tokens")
+    .select("id, token_number, status, checked_in_at, called_at, recruit_id")
+    .eq("panel_id", panelId)
+    .order("token_number", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  if (!tokens || tokens.length === 0) return [];
+
+  const recruitIds = Array.from(new Set(tokens.map((t: any) => t.recruit_id as string)));
+  const profiles = await buildRecruitProfiles(supabase, recruitIds);
+
+  return tokens.map((t: any) => ({
+    token_id: t.id,
+    token_number: t.token_number,
+    status: t.status,
+    recruit: profiles.get(t.recruit_id) ?? EMPTY_PROFILE(t.recruit_id),
+    checked_in_at: t.checked_in_at,
+    called_at: t.called_at ?? undefined,
+  }));
+}
+
+// Member-facing path. Skips the domain/marks/shortlist joins entirely rather than fetching
+// them and stripping afterwards — the confidential data never leaves Postgres.
+async function fetchPublicPanelQueue(supabase: SupabaseClient, panelId: string): Promise<PublicQueueToken[]> {
+  const { data: tokens, error } = await supabase
+    .from("recruit_interview_tokens")
+    .select("id, token_number, status, recruit_id")
+    .eq("panel_id", panelId)
+    .order("token_number", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  if (!tokens || tokens.length === 0) return [];
+
+  const recruitIds = Array.from(new Set(tokens.map((t: any) => t.recruit_id as string)));
+  const { data: recruits } = await supabase.from("recruit_accounts").select("id, name").in("id", recruitIds);
+
+  const names = new Map<string, string>();
+  for (const r of recruits ?? []) names.set(r.id as string, displayFirstName(r.name as string));
+
+  return tokens.map((t: any) => ({
+    token_id: t.id,
+    token_number: t.token_number,
+    status: t.status,
+    recruit: { first_name: names.get(t.recruit_id) ?? "" },
+  }));
+}
+
+// GET /api/admin/recruitment/panels/:id/queue
+//
+// Read access stays broad (member/lead/admin) because the live queue display page
+// (/dashboard/recruitment/interview/panel/[panelId]) is meant to be cast to a TV by whoever
+// is on duty, and the scanner runs as role "member". The PAYLOAD, however, is branched:
+// lead/admin get the full interviewer profile (reg_no, department, portfolio, exam marks,
+// shortlist state); "member" gets only token number, status and a first name. The full shape
+// is pre-publication evaluation data — previously any logged-in member could curl a panel's
+// queue and read every shortlisted candidate's marks.
+export async function GET(_request: NextRequest, context: RouteContext) {
+  const session = await getSession();
+  if (!requireRole(session, ["member", "lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const isStaff = session.role === "lead" || session.role === "admin";
+  const { id } = await context.params;
+  const supabase = createRecruitSupabaseAdminClient();
+
+  try {
+    const data = isStaff ? await fetchPanelQueue(supabase, id) : await fetchPublicPanelQueue(supabase, id);
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error("recruitment panel queue GET error", error);
+    return NextResponse.json({ error: "Could not load queue" }, { status: 500 });
+  }
+}

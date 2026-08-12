@@ -43,7 +43,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Mentors", href: "/dashboard/mentors", icon: GraduationCap, roles: STAFF_ROLES },
     { label: "Workshops", href: "/dashboard/workshops", icon: Wrench, roles: STAFF_ROLES },
     { label: "Review & Approvals", href: "/dashboard/approvals", icon: ClipboardCheck, roles: ["lead", "admin"] },
-    { label: "Recruitments", href: "/dashboard/recruitments", icon: RecruitIcon, roles: STAFF_ROLES },
+    { label: "Recruitments", href: "/dashboard/recruitment", icon: RecruitIcon, roles: STAFF_ROLES },
     { label: "Blog", href: "/dashboard/blogs", icon: Newspaper, roles: ALL_ROLES },
     { label: "Write Blog", href: "/dashboard/blogs/new", icon: PenSquare, roles: ALL_ROLES },
     { label: "Timetable", href: "/dashboard/timetable", icon: CalendarClock, roles: ALL_ROLES },

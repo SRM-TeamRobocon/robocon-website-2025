@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import PasswordToggle from "@/components/PasswordToggle";
+import AuthNav from "@/components/AuthNav";
 
 type Step = "request" | "reset" | "done";
 
@@ -80,6 +82,8 @@ export default function ForgotPassword() {
             </div>
 
             <div className="w-full max-w-md relative z-10">
+                {/* On the reset step, Back returns to the email form rather than leaving the flow. */}
+                <AuthNav onBack={step === "reset" ? () => setStep("request") : undefined} />
                 <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl">
                     <div className="flex justify-center mb-6">
                         <Image src="/LOGO.png" alt="Robocon Logo" width={120} height={120} className="object-contain" unoptimized />
@@ -112,6 +116,7 @@ export default function ForgotPassword() {
                             <div className="text-center mb-8">
                                 <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Enter Reset Code</h2>
                                 <p className="mt-2 text-sm text-gray-400">{info}</p>
+                                <p className="mt-1 text-xs text-gray-500">Don&apos;t see it? Check your spam/junk folder too.</p>
                             </div>
                             <form onSubmit={handleResetPassword} className="space-y-5">
                                 <Field
@@ -216,22 +221,29 @@ function Field({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
 }) {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPassword = type === "password";
     return (
         <div>
             <label htmlFor={id} className="block text-sm font-medium leading-6 text-gray-300">
                 {label}
             </label>
-            <div className="mt-2">
+            <div className="mt-2 relative">
                 <input
                     id={id}
                     name={id}
-                    type={type}
+                    type={isPassword && showPassword ? "text" : type}
                     required
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
+                    className={`block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all ${
+                        isPassword ? "pr-11" : ""
+                    }`}
                 />
+                {isPassword && (
+                    <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
+                )}
             </div>
         </div>
     );

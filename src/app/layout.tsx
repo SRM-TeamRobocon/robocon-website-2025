@@ -1,12 +1,15 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Aldrich } from "next/font/google";
+import { Aldrich, Geist } from "next/font/google";
 const aldrich = Aldrich({ weight: "400", subsets: ["latin"] });
 import "aos/dist/aos.css";
 import MenuContextProvider from "@/context/MenuContextProvider";
 import ParticlesCom from "@/components/Particles";
 import { Analytics } from "@vercel/analytics/react";
 import Script from "next/script";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "srmteamrobocon",
@@ -19,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="!scroll-smooth bg-black">
+    <html lang="en" className={cn("!scroll-smooth bg-black", "font-sans", geist.variable)}>
       <body className={aldrich.className}>
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"

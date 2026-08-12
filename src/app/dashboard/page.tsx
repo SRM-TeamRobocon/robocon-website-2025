@@ -64,16 +64,15 @@ const TIMETABLE_ACTION: QuickAction = {
 };
 
 const RECRUITMENTS_ACTION: QuickAction = {
-    href: "/dashboard/recruitments",
+    href: "/dashboard/recruitment",
     title: "Recruitments",
-    description: "Applications, orientation, exam, and interview tracking for new recruits.",
+    description: "Applications, orientation, exam, shortlisting, interviews, and training for new recruits.",
     icon: Sparkles,
-    badge: "Coming Soon",
-    accent: "from-gray-800/40 via-gray-900 to-black border-white/10",
-    badgeClass: "bg-white/10 text-gray-300 ring-white/20",
-    iconClass: "text-gray-500",
-    textClass: "",
-    disabled: true,
+    badge: "Live",
+    accent: "from-gray-700/30 via-gray-900 to-black border-white/10 hover:border-red/50 hover:shadow-[0_0_30px_rgba(220,38,38,0.18)]",
+    badgeClass: "bg-red/20 text-red ring-red/30",
+    iconClass: "text-red",
+    textClass: "group-hover:text-red",
 };
 
 const APPROVALS_ACTION: QuickAction = {
