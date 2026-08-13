@@ -89,7 +89,7 @@ The existing `admin_token` JWT roles (`lead`, `admin`, `member`) govern access. 
 3. **QR is static per recruit per cycle** — one QR generated at registration, used across orientation, exam, interview check-in, and training. Payload is HMAC-signed with `QR_SECRET` env var.
 4. **Scanner is a new page `/recruit-scanner`** — separate from existing `/scanner` which handles workshop attendance via Google Sheets. They do not share logic.
 5. **Shortlisting is cutoff-driven for all six domains.** Leads can still override any individual decision (`method = 'manual_override'`), and the compute engine never touches an overridden row.
-6. **Interview panels are ephemeral, created on the day** — lead types a domain name into a text field, panel appears with a live queue. No pre-configuration needed.
+6. **Interview panels ("tables") are ephemeral, created on the day** — lead picks a domain from a dropdown (table_number is auto-allocated per domain) and can edit a pre-filled name ("SPACED-Coding-") before creating; table appears with a live queue. QR check-in auto-routes each recruit to whichever open table for their domain has the shortest line — no manual table selection. See [Interview Module](#7-interview-module) (rewritten 2026-08-13).
 7. **After training, recruits self-onboard** — they use the existing `/signup` flow with their verified SRM email and go through the normal lead-approval process.
 
 ### What NOT to Touch
@@ -553,38 +553,58 @@ alter table recruit_shortlist_status enable row level security;
 
 ### Table: `recruit_interview_panels`
 
-Created on interview day by admin. Each panel = one domain queue. `domain_label` is free text typed by the lead (e.g. "Coding", "SIESED"). Not enforced to match a specific sub_domain key — flexibility for leads to name it how they want.
+Created on interview day by admin — a "table" in the UI's language, one per domain queue (a domain can have several open at once). As of migration 004 (2026-08-13), creation picks a `sub_domain` from the fixed enum and `table_number` is auto-allocated per `(cycle_id, sub_domain)`; `domain_label` is the display string — either auto-generated (`"<Domain> — Table N"`) or a name the creator typed themselves (pre-filled with `"<Subsystem>-<Domain>-"`, must be unique per domain, case-insensitive).
 
 ```sql
 create table if not exists recruit_interview_panels (
   id           uuid primary key default gen_random_uuid(),
   cycle_id     uuid not null references recruitment_cycles(id),
-  domain_label text not null,             -- free-text, typed by lead
+  domain_label text not null,             -- display name; auto-generated or creator-typed
+  sub_domain   recruit_subdomain,         -- nullable for legacy pre-migration-003 rows only;
+                                           -- required by the API for every new panel
+  table_number integer,                   -- auto-allocated per (cycle_id, sub_domain); null
+                                           -- only on legacy rows with no sub_domain
   is_active    boolean not null default true,
   created_at   timestamptz default now(),
   created_by   text not null              -- admin_token username
 );
 
 alter table recruit_interview_panels enable row level security;
+
+-- migration 004: partial unique index, sub_domain/table_number both required to collide
+create unique index recruit_interview_panels_domain_table_key
+  on recruit_interview_panels (cycle_id, sub_domain, table_number)
+  where sub_domain is not null and table_number is not null;
 ```
 
 ### Table: `recruit_interview_tokens`
 
-One row per (recruit, panel). Created when recruit scans QR at interview check-in.
+One row per (recruit, panel). Created when recruit scans QR at interview check-in — as of migration 004, check-in is by `sub_domain` (auto-routed to the least-loaded open table), not a manually-picked `panel_id`.
 
 ```sql
-create type interview_token_status as enum ('waiting', 'called', 'done', 'no_show');
+create type interview_token_status as enum ('waiting', 'called', 'done', 'no_show', 'deferred');
+-- 'deferred' added by migration 005 (2026-08-13) — see "Close for the Day" below.
 
 create table if not exists recruit_interview_tokens (
-  id           uuid primary key default gen_random_uuid(),
-  cycle_id     uuid not null references recruitment_cycles(id),
-  recruit_id   uuid not null references recruit_accounts(id) on delete cascade,
-  panel_id     uuid not null references recruit_interview_panels(id),
-  token_number integer not null,          -- auto-incremented per panel (see note below)
-  status       interview_token_status not null default 'waiting',
+  id            uuid primary key default gen_random_uuid(),
+  cycle_id      uuid not null references recruitment_cycles(id),
+  recruit_id    uuid not null references recruit_accounts(id) on delete cascade,
+  panel_id      uuid not null references recruit_interview_panels(id),
+  sub_domain    recruit_subdomain,        -- migration 004: denormalized copy of the panel's
+                                           -- sub_domain at check-in time — lets "does this
+                                           -- recruit already hold a token for domain X"
+                                           -- checks skip a join through the panel
+  token_number  integer not null,         -- permanent per-recruit display number, auto-
+                                           -- incremented per panel (see note below);
+                                           -- reordering NEVER changes this
+  queue_position double precision not null, -- migration 004: the actual "who's next" order,
+                                           -- independently drag-reorderable in the dashboard
+                                           -- and mutated by redistribution — see below
+  status        interview_token_status not null default 'waiting',
   checked_in_at timestamptz default now(),
-  called_at    timestamptz,
-  unique (recruit_id, panel_id)           -- one token per recruit per panel
+  called_at     timestamptz,
+  unique (recruit_id, panel_id),          -- one token per recruit per panel
+  unique (panel_id, token_number)         -- migration 003 backstop against the allocation race
 );
 
 alter table recruit_interview_tokens enable row level security;
@@ -594,7 +614,9 @@ alter table recruit_interview_tokens enable row level security;
 ```sql
 SELECT COALESCE(MAX(token_number), 0) + 1 FROM recruit_interview_tokens WHERE panel_id = $1
 ```
-in the same transaction as the insert. Do this in the API route, not a DB trigger.
+in the same transaction as the insert. Do this in the API route, not a DB trigger. `queue_position` is allocated the same way (`MAX(queue_position) + 1000`) so a fresh check-in always lands at the back of the line.
+
+**Reordering (`queue_position`, not `token_number`):** All queue ordering — the dashboard's drag-and-drop "Up Next" list, `call-next`'s pick of who's up, the recruit's own "N ahead of you" count — sorts by `queue_position`, a float. A drag-reorder only ever touches the ONE moved row, setting its `queue_position` to the midpoint between its new neighbours (`PATCH /api/admin/recruitment/panels/:id/tokens/:tokenId/reorder`, body `{ after_token_id: string | null }`) — no renumbering cascade, and `token_number` (the number shown to the recruit as "#12") never changes.
 
 ### Table: `recruit_interview_results`
 
@@ -820,33 +842,27 @@ Actions per row:
 
 #### `/dashboard/recruitment/interview`
 
-**What:** Interview day management. The most important page on interview day.
+**What:** Interview day management. The most important page on interview day. As of 2026-08-13 this is a full rewrite — see [Interview Module](#7-interview-module) for the complete design; summary below.
 
 Layout — two panes:
-1. **Left: Panel Manager** — shows all active panels for this cycle
-   - "Add Panel" button → text input: "Panel name (e.g. Coding, SIESED)" → `POST /api/admin/recruitment/panels`
-   - Each panel card shows: name, number of waiting / called / done tokens, "Close Panel" button
-   - "Open Queue Display" link → opens `/dashboard/recruitment/interview/panel/[panelId]` in a new tab (the TV screen)
+1. **Left: Table Manager** — shows all tables (panels) for this cycle
+   - "Add Table" → domain dropdown + an editable name input pre-filled `"<Subsystem>-<Domain>-"` → `POST /api/admin/recruitment/panels`
+   - Each table card shows: name, waiting/called/done/no-show counts, **Pause** (reversible — old `close`/`reopen`), **Close for the Day** (redistributes/defers waiting recruits, not reversible), **Delete** (redistributes/reattaches, then drops the row)
+   - No more "Open Queue Display" link — the live-queue TV screen is now the public `/recruit/tables` kiosk (below), not a per-table admin page
 
-2. **Right: Panel Dashboard** — click on a panel to expand it:
-   - Current queue (list of tokens: token number, recruit name, status)
-   - "Call Next" button → `POST /api/admin/recruitment/panels/:panelId/call-next` → moves oldest `waiting` token to `called`, returns recruit profile + marks
+2. **Right: Table Dashboard** — click a table to expand it:
+   - "Call Next" → `POST /api/admin/recruitment/panels/:panelId/call-next` → moves the front of the queue (by `queue_position`) to `called`, returns recruit profile + marks
    - Recruit profile card: Name, Reg No, Year, Dept, Domain(s), Exam marks, LinkedIn URL, domains they cleared
-   - Result buttons: Selected / Rejected / Waitlisted → `POST /api/admin/recruitment/interview-results`, plus a domain picker ("Pick which domain this result is for")
-   - Optional notes textarea
+   - Result buttons: Selected / Rejected / Waitlisted → `POST /api/admin/recruitment/interview-results`, plus a domain picker
+   - **"Up Next"** — the waiting queue as a drag-and-drop reorderable list (`@dnd-kit`); dragging a row calls `PATCH .../tokens/:tokenId/reorder`
+   - **"History"** — called/done/no_show/deferred tokens, read-only table
    - **Interview Results list** below, newest first, each row with a "Correct" button that re-posts to the same route to fix a mis-logged result
 
-#### `/dashboard/recruitment/interview/panel/[panelId]`
+#### `/recruit/tables` (new, 2026-08-13)
 
-**What:** Live queue display for a single panel. Designed to be shown on a TV or shared screen.
+**What:** Public kiosk screen — every open table across all 4 subsystems, all on one non-scrolling page (phones fall back to normal scroll). No login: meant for a lobby TV or a recruit's own phone. See [Interview Module](#7-interview-module) for the full design.
 
-Shows:
-- Panel name in large text
-- "NOW SERVING: #X — [Name]" 
-- Queue below: upcoming tokens (number + first name only)
-- Auto-refreshes every 5 seconds (Supabase Realtime subscription OR polling — use Supabase Realtime `recruit_interview_tokens` channel for instant updates)
-
-**Access:** Public — no auth required (it's a display screen, not sensitive). OR you can gate it behind `admin_token` if preferred.
+Shows, per table: its display name, "now serving" (red background), the full waiting line (red border per person), auto-refreshing every 4s. Backed by `GET /api/recruit/tables` — a dedicated public route, explicitly carved out of the `recruit_token` gate in `src/proxy.ts` (`pathname !== '/api/recruit/tables'`).
 
 #### `/dashboard/recruitment/training`
 
@@ -890,6 +906,12 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 | GET | `/api/recruit/me` | Returns session recruit's profile + domain selections + pipeline status per domain |
 | GET | `/api/recruit/qr` | Returns QR code as PNG data URL |
 
+#### Recruit-facing (public, no cookie — 2026-08-13)
+
+| Method | Route | What |
+|--------|-------|------|
+| GET | `/api/recruit/tables` | Every open interview table for the active cycle (display name, now-serving, full waiting line — first names only). Backs the `/recruit/tables` kiosk screen. Explicitly carved out of `src/proxy.ts`'s `recruit_token` gate. |
+
 #### Admin — Cycles (requires `admin_token`, role `lead` or `admin`)
 
 | Method | Route | What |
@@ -926,12 +948,15 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 
 | Method | Route | What |
 |--------|-------|------|
-| GET | `/api/admin/recruitment/panels` | List panels for active cycle |
-| POST | `/api/admin/recruitment/panels` | Create a panel. Body: `{ domain_label: string }` |
-| PATCH | `/api/admin/recruitment/panels/:id/close` | Close a panel |
-| PATCH | `/api/admin/recruitment/panels/:id/reopen` | Reopen a panel closed by mistake |
-| GET | `/api/admin/recruitment/panels/:id/queue` | Get token queue for a panel |
-| POST | `/api/admin/recruitment/panels/:id/call-next` | Mark oldest `waiting` token as `called`, return recruit profile. Compare-and-swap guarded |
+| GET | `/api/admin/recruitment/panels` | List panels ("tables") for active cycle, with `sub_domain`/`table_number` and live waiting/called/done/no_show counts |
+| POST | `/api/admin/recruitment/panels` | Create a table. Body: `{ sub_domain: string, name?: string }` — `sub_domain` required; `table_number` always auto-allocated; `name` becomes `domain_label` verbatim if given (must be unique per domain, case-insensitive, 409 otherwise) else auto-generated |
+| DELETE | `/api/admin/recruitment/panels/:id` | Permanently delete a table. Redistributes `waiting` tokens like Close for the Day, then reattaches any other tokens (called/done/no_show/deferred) to another still-existing panel so the FK allows the delete — 409 if this is the only panel that has ever existed for the domain |
+| PATCH | `/api/admin/recruitment/panels/:id/close` | Reversible pause — `is_active = false`, waiting tokens untouched, `reopen` brings them back |
+| PATCH | `/api/admin/recruitment/panels/:id/reopen` | Reverses `close` |
+| PATCH | `/api/admin/recruitment/panels/:id/close-for-day` | **Non-reversible.** Deactivates the table AND redistributes every `waiting` token to the least-loaded other open table for the same domain (landing at the position matching their original check-in time), or flips them to `deferred` if no other table for that domain is open. Returns `{ closed_for_day: true, moved, deferred }` |
+| GET | `/api/admin/recruitment/panels/:id/queue` | Get token queue for a table, ordered by `queue_position` (not `token_number`) |
+| POST | `/api/admin/recruitment/panels/:id/call-next` | Mark the front of the `queue_position` order as `called`, return recruit profile. Compare-and-swap guarded |
+| PATCH | `/api/admin/recruitment/panels/:id/tokens/:tokenId/reorder` | Drag-and-drop reorder. Body: `{ after_token_id: string \| null }` (`null` = move to front) — recomputes only the moved token's `queue_position` as the midpoint of its new neighbours |
 | PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/no-show` | Mark a `called` token as `no_show` |
 | GET | `/api/admin/recruitment/interview-results` | List logged results for active cycle, newest first |
 | POST | `/api/admin/recruitment/interview-results` | Log **or correct** a result. Body: `{ recruit_id, sub_domain, result, notes?, panel_id? }`. Upsert; recomputes `is_selected` |
@@ -949,7 +974,7 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 
 | Method | Route | What |
 |--------|-------|------|
-| POST | `/api/admin/recruitment/scan` | Process a QR scan. Body: `{ payload: string, mode: ScanMode, panel_id?: string }` — see [QR & Scanning](#5-qr--scanning) |
+| POST | `/api/admin/recruitment/scan` | Process a QR scan. Body: `{ payload: string, mode: ScanMode, sub_domain?: string }` — interview mode takes `sub_domain` (not `panel_id`, since 2026-08-13) and auto-routes to the least-loaded open table; see [QR & Scanning](#5-qr--scanning) |
 
 #### Admin — Analytics
 
@@ -1047,17 +1072,16 @@ Select scan mode:
 ○ Orientation
 ○ Exam — Day 1        (shows "Which exam?" domain dropdown)
 ○ Exam — Day 2        (shows "Which exam?" domain dropdown)
-○ Interview Check-In  (shows panel dropdown)
-○ Training            (shows session dropdown)
+○ Interview Check-In  (shows "Which domain?" dropdown — same as exam)
+○ Training            (shows domain dropdown)
 
 [Start Scanning]      ← disabled until the mode's extra selection is made
 ```
 
-- **Exam modes** show a dropdown of all six sub-domains (grouped `SUBSYSTEM — Label`). Required, because attendance is recorded per exam.
-- **Interview Check-In** shows active panels from `GET /api/admin/recruitment/panels?active=true`.
+- **Exam and Interview Check-In modes** (2026-08-13: unified) both show a dropdown of all six sub-domains (grouped `SUBSYSTEM — Label`). For interview mode the volunteer no longer picks a specific table — the server auto-routes each scanned recruit to whichever open table for that domain currently has the shortest waiting line (see [Interview Module](#7-interview-module)).
 - **Training** shows sessions from `GET /api/admin/recruitment/training-sessions`, scoped to the active cycle.
 
-Panels and training sessions are created *on the day*, often after a volunteer already has the page open, so both dropdowns re-fetch on mode switch and have a manual refresh button. Otherwise "No active panels found" would be a permanently stale answer.
+Training sessions are created *on the day*, often after a volunteer already has the page open, so that dropdown re-fetches on mode switch and has a manual refresh button.
 
 **State 2 — Scanning Active**
 
@@ -1065,7 +1089,7 @@ Uses `html5-qrcode` npm package in the browser. Camera opens, decodes QR continu
 
 On successful scan:
 1. Client-side: decode QR payload from camera using `html5-qrcode`
-2. Send to server: `POST /api/admin/recruitment/scan` with body `{ payload, mode, panel_id? }`
+2. Send to server: `POST /api/admin/recruitment/scan` with body `{ payload, mode, sub_domain? }`
 3. Show result card: success (name + message) or error (already scanned / invalid QR / not in cycle)
 4. Scanner stays active for next scan — no page reload
 5. Show a short beep/visual flash on scan (use `AudioContext` API for beep, CSS flash for visual)
@@ -1091,8 +1115,8 @@ Requires `admin_token` cookie.
 {
   payload: string        // base64url QR payload from scanner
   mode: ScanMode
-  sub_domain?: string    // REQUIRED if mode is exam_day_1 / exam_day_2
-  panel_id?: string      // required only if mode === 'interview'
+  sub_domain?: string    // REQUIRED if mode is exam_day_1 / exam_day_2 / interview (2026-08-13:
+                          // interview now takes a domain, not a panel_id — see below)
   session_id?: string    // required only if mode === 'training'
 }
 
@@ -1128,14 +1152,18 @@ type ScanMode =
        who was scanned on day 1 for the same domain correctly reports day 1.
      - Else → insert → 200 { status: 'ok', name, message: '<Domain> exam — Day X attendance marked' }
 
-   interview:
-     - panel_id required → validate it belongs to active cycle and is_active = true
-     - Check existing row in recruit_interview_tokens (rid, panel_id)
+   interview (rewritten 2026-08-13 — see Interview Module for full detail):
+     - sub_domain required → must pass isRecruitSubDomain()
+     - Check recruit is shortlisted for THIS sub_domain specifically → if not → 400
+     - Check existing row in recruit_interview_tokens (rid, cid, sub_domain) — the
+       denormalized sub_domain column means this checks every table for the domain,
+       not one panel_id
      - If exists → 200 { status: 'already_checked_in', name, token_number }
-     - Check recruit is shortlisted for at least one domain → if not → 400 'Not shortlisted'
-     - Allocate token_number in a bounded (5-attempt) retry loop, NOT a plain
-       read-max-then-insert. Two unique constraints can raise 23505 here and they
-       mean different things — see the Interview Module section.
+     - Find every active panel for (cycle_id, sub_domain); 400 if none are open
+     - Pick the one with the fewest `waiting` tokens (ties → lowest table_number)
+     - Allocate token_number AND queue_position in a bounded (5-attempt) retry loop,
+       NOT a plain read-max-then-insert. Two unique constraints can raise 23505 here
+       and they mean different things — see the Interview Module section.
      - Return 200 { status: 'ok', name, token_number, panel_label }
 
    training:
@@ -1407,33 +1435,34 @@ Recruitment Module — Interview Module. Covers walk-in interview flow, panel cr
 Interviews are walk-in — no time slots, no pre-booking. On interview day:
 
 1. Lead opens `/dashboard/recruitment/interview`
-2. Clicks "Add Panel", types a domain name (e.g. "Coding") → panel is live instantly
-3. Recruits walk in, volunteer scans their QR in "Interview Check-In" mode
-4. System adds recruit to the correct panel queue, gives them a token number
-5. Panel interviewer clicks "Call Next" → sees recruit's full profile
+2. Clicks "Add Table", picks a domain, edits the pre-filled name if they want → table is live instantly, numbered automatically
+3. Recruits walk in, volunteer scans their QR in "Interview Check-In" mode, having picked the DOMAIN (not a specific table)
+4. System auto-routes the recruit to the least-loaded open table for that domain, gives them a token number
+5. Table interviewer clicks "Call Next" → sees recruit's full profile
 6. Logs result → next recruit
 
-The system is intentionally flexible — panel names are free text typed on the day, not pre-configured. Multiple panels can run simultaneously.
+Multiple tables per domain can run simultaneously; the system balances load between them so volunteers never have to eyeball queue lengths and redirect people by hand (this is a change from the original design, which had no load balancing — see [Known Gaps / History](#8-known-gaps--history)).
 
-### Panel Creation
+### Table Creation
 
 #### UI (`/dashboard/recruitment/interview` — left pane)
 
 ```
-[+ Add Panel]
+[+ Add Table]
 
 When clicked:
-  Input: "Panel name (e.g. Coding, SIESED, Web Dev)"
+  Dropdown:  "Domain"           → SPACED — Coding, SPACED — Web Dev, SIESED, ...
+  Input:     "Table name"       → pre-filled "SPACED-Coding-" on domain pick, editable
   [Create]
 
-Active Panels:
+Tables:
   ┌─────────────────────────────────────────────────────┐
-  │ Coding      ●  Waiting: 3   Called: 1   Done: 7     │
-  │ [Open Queue Display ↗]  [Close Panel]               │
+  │ SPACED-Coding-1  ●  Waiting: 3  Called: 1  Done: 7  │
+  │ [Pause]  [Close for the Day]           [Delete]     │
   └─────────────────────────────────────────────────────┘
   ┌─────────────────────────────────────────────────────┐
-  │ SIESED      ●  Waiting: 5   Called: 0   Done: 4     │
-  │ [Open Queue Display ↗]  [Close Panel]               │
+  │ SIESED-1         ●  Waiting: 5  Called: 0  Done: 4  │
+  │ [Pause]  [Close for the Day]           [Delete]     │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -1441,40 +1470,88 @@ Active Panels:
 
 ```ts
 // Request
-{ domain_label: string }   // free text, 1–50 chars
+{ sub_domain: string, name?: string }   // sub_domain required; name optional, 1–50 chars
 
 // Server
 // 1. Require admin_token (lead or admin)
 // 2. Get active cycle_id
-// 3. Insert recruit_interview_panels { cycle_id, domain_label, is_active: true, created_by: session.username }
-// 4. Return { panel_id, domain_label, created_at }
+// 3. If name given: reject with 409 if another table for this domain already has it
+//    (case-insensitive exact match)
+// 4. Allocate table_number = MAX(table_number) + 1 for (cycle_id, sub_domain), retrying
+//    on 23505 against the migration-004 unique index (same pattern as token_number below)
+// 5. domain_label = name || "<Domain> — Table <table_number>"
+// 6. Insert recruit_interview_panels { cycle_id, domain_label, sub_domain, table_number,
+//    is_active: true, created_by: session.username }
+// 7. Return { panel_id, domain_label, sub_domain, table_number, created_at }
 ```
 
-#### API: `PATCH /api/admin/recruitment/panels/:id/close`
+table_number is always allocated server-side regardless of what the creator names the table — routing and the kiosk screen's grouping key off `sub_domain` + `table_number`, never off `domain_label`.
 
-Sets `is_active = false` on the panel. Any remaining `waiting` tokens are left as-is (admin can see them but no more recruits can be added). Returns `{ closed: true }`.
+#### API: `PATCH /api/admin/recruitment/panels/:id/close` (Pause — reversible)
 
-`PATCH /api/admin/recruitment/panels/:id/reopen` reverses it, for a panel closed by mistake.
+Sets `is_active = false` on the table. Any remaining `waiting` tokens are left as-is (admin can see them but no more recruits can be added). Returns `{ closed: true }`.
 
-### Interview Check-In (QR Scan)
+`PATCH /api/admin/recruitment/panels/:id/reopen` reverses it, for a table paused by mistake.
 
-When volunteer scans in "Interview Check-In" mode, they first select which panel from the active panels dropdown, then start scanning.
+#### API: `PATCH /api/admin/recruitment/panels/:id/close-for-day` (non-reversible)
+
+For when a table is genuinely done for the day, not just paused. Deactivates it AND redistributes every `waiting` token:
+
+1. Find every OTHER active table for the same `sub_domain` in this cycle
+2. If none exist → every waiting token flips to `deferred` (see below)
+3. If some exist → each displaced recruit (processed oldest-check-in-first) goes to whichever
+   target table currently has the fewest waiting people (recomputed after each move, so it
+   stays balanced), landing at the `queue_position` matching their ORIGINAL check-in time
+   relative to who's already on that table — not shoved to the back just because they moved.
+   They get a NEW `token_number` on the target table (their old one doesn't carry over —
+   token numbers are per-table).
+
+Returns `{ closed_for_day: true, moved: number, deferred: number }`. Shared implementation:
+`src/lib/recruit-interview-redistribution.ts` (`redistributeWaitingTokens`) — also used by
+panel deletion, below.
+
+#### API: `DELETE /api/admin/recruitment/panels/:id`
+
+Permanently drops the table row. `recruit_interview_tokens.panel_id` is `not null references
+... (no ON DELETE CASCADE)`, so every token still pointing at this panel must be dealt with
+first:
+
+1. `redistributeWaitingTokens` (same as Close for the Day) — moves `waiting` tokens away or defers them
+2. `reattachHistoricalTokens` — every OTHER token still on this panel (called/done/no_show/deferred) gets reassigned to some other still-existing panel (same domain preferred, any panel as fallback). These don't need a *correct* table, just a *valid* one — none of those statuses render via panel affiliation anywhere.
+3. If literally no other panel has ever existed for this cycle (step 2 has nowhere to attach to) → 409, explaining to use Close for the Day instead. This is the only case a delete can be refused.
+4. Delete remaining tokens (should be 0 after steps 1–2), then delete the panel row.
+
+Returns `{ deleted: true, domain_label, moved, deferred }`.
+
+### `deferred` status — "come back another day"
+
+Added by migration 005. A `waiting` token becomes `deferred` when its table closes (via Close for the Day or Delete) and no other open table exists for that domain. It is deliberately NOT `no_show` (the recruit didn't fail to show up — there was nowhere left to send them) and NOT left `waiting` forever on a table that will never call anyone again.
+
+- **Recruit's own dashboard** (`GET /api/recruit/me` → `interview.status === "deferred"`): shows "Table closed for the day — you'll be interviewed on another day", labelled by domain (not by whatever table the token happens to still be attached to, which may be a reattached placeholder after a delete).
+- **Lead's table dashboard**: deferred tokens show up in the read-only "History" table alongside done/no_show, never in "Up Next".
+- **Kiosk screen**: deferred tokens don't appear anywhere (they're not in any table's active `waiting`/`called` set).
+
+### Interview Check-In (QR Scan, auto-routed since 2026-08-13)
+
+When volunteer scans in "Interview Check-In" mode, they select the DOMAIN (same dropdown UX as exam mode), not a specific table — the server decides which table.
 
 On each scan, the server-side scan handler (see [QR & Scanning](#5-qr--scanning)) does:
 
 1. Verify QR HMAC
 2. Look up recruit in `recruit_accounts`
-3. Verify recruit is shortlisted (`recruit_shortlist_status.status = 'shortlisted'`) for at least one domain
-4. Check if recruit already has a token for this panel → if yes, return token number (idempotent)
-5. Get next token number for this panel
-6. Insert `recruit_interview_tokens` row
+3. Verify recruit is shortlisted for THIS specific `sub_domain` (not "any domain" — a recruit shortlisted for coding but not webdev can't check into a webdev table)
+4. Check if recruit already has a token for this `sub_domain`, across ALL tables (via the denormalized `sub_domain` column on the token) → if yes, return token number (idempotent)
+5. Find every active table for this domain; 400 "No open table for X yet" if none
+6. Pick the table with the fewest `waiting` tokens (ties broken by lowest `table_number`)
+7. Get next token_number AND queue_position for that table
+8. Insert `recruit_interview_tokens` row (with `sub_domain` denormalized onto it)
 
-**Token allocation is a retry loop, not a plain read-max-then-insert.** There are two unique constraints on the table: `(recruit_id, panel_id)` — a genuine duplicate check-in — and `(panel_id, token_number)`, added by migration 003 as a backstop for the allocation race. A naive handler that assumes any `23505` is the first constraint will silently report "already checked in" to the *second* of two recruits scanned into the same panel at nearly the same instant, dropping their check-in. The handler distinguishes the two causes and retries (bounded, 5 attempts) only on a real token collision.
+**Token allocation is a retry loop, not a plain read-max-then-insert.** There are two unique constraints on the table: `(recruit_id, panel_id)` — a genuine duplicate check-in — and `(panel_id, token_number)`, added by migration 003 as a backstop for the allocation race. A naive handler that assumes any `23505` is the first constraint will silently report "already checked in" to the *second* of two recruits scanned into the same table at nearly the same instant, dropping their check-in. The handler distinguishes the two causes and retries (bounded, 5 attempts) only on a real token collision.
 
-⚠️ This has been verified by reading the constraint logic, **not** by hitting it with real concurrent traffic. Until it's load-tested, run one check-in device per panel.
+⚠️ This has been verified by reading the constraint logic, **not** by hitting it with real concurrent traffic. Until it's load-tested, treat the auto-balancing as best-effort under heavy concurrent scanning.
 
-**If a recruit is shortlisted for 2 domains, do they get tokens for both panels?**
-The scanner adds them to ONE panel per scan (whichever panel the volunteer selected). If the recruit wants to be in both panels, the volunteer scans them twice, selecting a different panel each time. This is intentional — the recruit physically goes to one interview at a time.
+**If a recruit is shortlisted for 2 domains, do they get tokens for both?**
+Yes — the scanner check-in is per domain (one scan per domain, same as before), and each domain independently auto-routes to its own least-loaded table. The recruit physically goes to one interview at a time; nothing about auto-routing changes that.
 
 ### Panel Dashboard (right pane of interview page)
 
@@ -1484,14 +1561,15 @@ Click on a panel card in the left pane to expand its dashboard on the right.
 
 `GET /api/admin/recruitment/panels/:panelId/queue`
 
-Returns all tokens for this panel, ordered by `token_number ASC`. Every child query is itself ordered by `sub_domain`, so `domains`, `exam_marks` and `shortlisted_for` come back in a stable order — the panel dashboard uses `shortlisted_for[0]` as its default domain selection and unordered Postgres output made that flap between reloads.
+Returns all tokens for this panel, ordered by `queue_position ASC` (2026-08-13: was `token_number ASC` — see the reordering note in [Schema](#3-schema)). Every child query is itself ordered by `sub_domain`, so `domains`, `exam_marks` and `shortlisted_for` come back in a stable order — the panel dashboard uses `shortlisted_for[0]` as its default domain selection and unordered Postgres output made that flap between reloads.
 
 ```ts
 [
   {
     token_id: string
     token_number: number
-    status: 'waiting' | 'called' | 'done' | 'no_show'
+    queue_position: number     // 2026-08-13: the actual ordering key; drag-reorderable
+    status: 'waiting' | 'called' | 'done' | 'no_show' | 'deferred'
     recruit: {
       id: string
       name: string
@@ -1509,13 +1587,16 @@ Returns all tokens for this panel, ordered by `token_number ASC`. Every child qu
 ]
 ```
 
+The dashboard renders `waiting` tokens as a `@dnd-kit` drag-and-drop list ("Up Next"); dragging one calls `PATCH .../tokens/:tokenId/reorder` (see [Schema](#3-schema)). `called`/`done`/`no_show`/`deferred` tokens render in a separate read-only "History" table below it.
+
 #### Call Next
 
 `POST /api/admin/recruitment/panels/:panelId/call-next`
 
 ```ts
 // Server logic:
-// 1. Find oldest token where status = 'waiting', ordered by token_number ASC
+// 1. Find the front of the queue_position order where status = 'waiting'
+//    (2026-08-13: was token_number ASC — the manually-reorderable order now wins)
 // 2. If none → 200 { status: 'queue_empty' }
 // 3. Set status = 'called', called_at = now()
 // 4. Return the full token + recruit profile (same shape as queue item above)
@@ -1555,58 +1636,40 @@ The interviewer now sees the full recruit profile on screen.
 
 Note that `recruit_accounts.is_selected` means "this person joined the team", **not** "this person passed every domain they applied to". The recruit's own dashboard deliberately does not consult it when deciding per-domain status — only an interview result logged against *that* `sub_domain` counts — otherwise a recruit rejected in one domain would see `DEPLOYED` against it.
 
-### Live Queue Display (`/dashboard/recruitment/interview/panel/[panelId]`)
+### Public Kiosk Screen (`/recruit/tables`, replaces the old per-panel TV display, 2026-08-13)
 
-This is the TV/projector screen for the waiting area.
+The original design had a separate admin-gated `/dashboard/recruitment/interview/panel/[panelId]` TV page per table. That page is gone (deleted, along with its route) — a single public page now shows every open table for every domain at once: `/recruit/tables`, backed by `GET /api/recruit/tables`.
 
-#### What it shows
+#### Layout
+
+Bright/light theme (deliberately not the dark glass look elsewhere on the recruit site — meant to be legible from across a room), one column per subsystem (4 columns: SPACED, SIESED, MCSOCD, SAMBED), one card per open table within that column:
 
 ```
-┌────────────────────────────────────────────────┐
-│                  CODING PANEL                  │
-│                                                │
-│           NOW SERVING                          │
-│               #12 — Arjun S.                  │
-│                                                │
-│  NEXT UP:                                      │
-│  #13  #14  #15  #16  #17                      │
-└────────────────────────────────────────────────┘
+┌──────────── SPACED ────────────┐  ┌──────────── SIESED ────────────┐
+│ SPACED-Coding-1                │  │ SIESED-1                        │
+│ ┌─────────────┐ ┌────┐ ┌────┐  │  │ ┌─────────────┐ ┌────┐          │
+│ │ #12 Arjun S.│ │ #13│ │ #14│  │  │ │ #4 Priya N. │ │ #5 │          │
+│ └─────────────┘ └────┘ └────┘  │  │ └─────────────┘ └────┘          │
+│  (red bg = called) (red border=waiting)                             │
+└─────────────────────────────────┘  └──────────────────────────────┘
 ```
 
-- "NOW SERVING" = the `called` token (there should be only one per panel at a time)
-- "NEXT UP" = next 5 `waiting` tokens by number
-- If no `called` token: show "Waiting for next call..."
+- Called = red background chip. Waiting = red-border chip, entire line shown (not capped) — the whole point is a student can find their own number without asking a volunteer.
+- Table name shown per card so a student knows exactly which physical table to walk to — never a bare domain name that two tables could share.
+- Whole page is sized to fit one viewport with no scrolling on tablet/desktop (the actual kiosk case); phones fall back to normal page scroll rather than clipping content.
+- Polls `GET /api/recruit/tables` every 4s.
 
-#### Real-Time Updates
+#### `GET /api/recruit/tables`
 
-**As built: 3-second polling** — `setInterval(fetchQueue, 3000)`. The Supabase Realtime approach below was specced but not implemented; it remains a valid upgrade if polling ever becomes a problem, and would need Realtime toggled on for `recruit_interview_tokens` in the Supabase dashboard.
+Fully public — no `admin_token`, no `recruit_token`, explicitly carved out of both gates in `src/proxy.ts`. Returns, per open table: `domain_label`, `sub_domain`, `table_number`, `now_serving` (token_number + first name, or null), `waiting` (full array of token_number + first name, ordered by `queue_position`). Same "safe" first-name-only shape role `member` gets from the admin queue route — never reg_no, department, marks, or shortlist state.
 
-```ts
-const channel = supabase
-  .channel(`panel-queue-${panelId}`)
-  .on(
-    'postgres_changes',
-    { event: '*', schema: 'public', table: 'recruit_interview_tokens', filter: `panel_id=eq.${panelId}` },
-    (payload) => {
-      // Re-fetch queue on any change
-      fetchQueue()
-    }
-  )
-  .subscribe()
-```
+#### Recruit-Facing Queue Position (unchanged mechanism, `deferred` added)
 
-Since `recruit_interview_tokens` uses service-role for writes (no public policy), you need to enable Realtime on the table in Supabase dashboard: Table Editor → `recruit_interview_tokens` → Realtime toggle ON. The channel subscription here uses the anon key (just listening, not writing) which is fine for display purposes — no sensitive data is exposed (only token number + first name + called status).
+A recruit with an active (`waiting`/`called`/`deferred`) token also sees their own position on `/recruit/dashboard`. `GET /api/recruit/me` returns an `interview: { panel_label, token_number, status, waiting_ahead }` field, with `waiting_ahead` computed as a `count`-only query (by `queue_position`, not `token_number`) so no other recruit's identity is ever exposed.
 
-#### Recruit-Facing Queue Position
-
-A recruit with an active (`waiting`/`called`) token also sees their own position on `/recruit/dashboard`. `GET /api/recruit/me` returns an `interview: { panel_label, token_number, status, waiting_ahead }` field, with `waiting_ahead` computed as a `count`-only query so no other recruit's identity is ever exposed.
-
-- The dashboard card polls every 10s, but **only while a token is active** — it stops once the token resolves.
-- If a recruit holds tokens on two panels at once, a `called` token is shown in preference to a merely `waiting` one.
-
-#### Access
-
-No `admin_token` required — this page is meant to be cast to a TV. Make it public. The data shown (token numbers + first names) is not sensitive.
+- The dashboard card polls every 10s, but **only while status is `waiting`/`called`** — it stops once the token resolves (and does not restart for a `deferred` terminal state).
+- Priority order if a recruit holds tokens on multiple domains at once: `called` > `waiting` > `deferred`.
+- For a `deferred` token, `panel_label` shows the DOMAIN's full label, not whatever table the token happens to still be attached to (which may be a reattached placeholder after that table was deleted) — showing the original/reassigned table name would be actively misleading here.
 
 ### No-Show Handling
 
@@ -1625,19 +1688,20 @@ There used to be a `POST /api/admin/recruitment/interview-auto-noshow` cron (`CR
 
 Tradeoff: a stuck token only clears the next time someone hits Call Next on that panel, not proactively in the background. Nothing depends on it clearing sooner than that.
 
-### Concurrent Panels
+### Concurrent Tables
 
-Multiple panels run in parallel — each has its own independent queue and token number sequence. The scanner lets the volunteer choose which panel before scanning. The panel dashboard on `/dashboard/recruitment/interview` shows all panels side by side (or tab-switched on smaller screens).
+Multiple tables run in parallel — each has its own independent queue and token number sequence. The panel dashboard on `/dashboard/recruitment/interview` shows all tables side by side (or tab-switched on smaller screens).
 
-**There is no load balancing across panels.** The volunteer manually picks the panel, so two panels running the same domain can drift badly out of balance. Auto-routing to the shortest queue was discussed and deliberately deferred — it would change the manual-selection flow volunteers rely on, so it needs a design pass rather than a quick patch. In the meantime, watch queue lengths and redirect the line by hand.
+**Auto-balanced since 2026-08-13** (this was the deferred item in the original design — see [Known Gaps / History](#8-known-gaps--history)). The scanner no longer lets a volunteer pick a specific table; the scan handler routes each recruit to whichever open table for their domain currently has the fewest people waiting, recomputed on every scan. Two tables for the same domain can still drift slightly out of balance between scans (no cross-scan locking), but there's no more "watch queue lengths and redirect by hand" — the system does it automatically.
 
 `POST .../call-next` uses a compare-and-swap guard so two interviewers clicking Call Next simultaneously can't both be handed the same recruit. Like the token-allocation retry, this has not been load-tested against real concurrent traffic.
 
 ### End of Interview Day
 
-1. Lead closes all panels (`PATCH .../close`)
+1. Lead uses **Close for the Day** on each table (`PATCH .../close-for-day`) rather than plain Pause — this redistributes any stragglers to another open table for the domain, or defers them, instead of leaving them stranded `waiting` on a table nobody will call from again
 2. View full results in the Interview Results list on `/dashboard/recruitment/interview` — every recruit with their result per domain, newest decision first, each with a Correct button
 3. Nothing to do for `is_selected` — the interview-results route recomputes it on every write
+4. Any `deferred` recruits are visible per-table in that table's History list, and each affected recruit sees "come back another day" on their own dashboard — there is currently no admin-wide "all deferred recruits" roster; check each table's History or query `recruit_interview_tokens where status = 'deferred'` directly if you need one
 
 After interview day, selected recruits' dashboards show `DEPLOYED` status. Training sessions can then be created at `/dashboard/recruitment/training`.
 
@@ -1702,11 +1766,27 @@ Three changes, built in parallel by background agents and independently verified
 
    **Also required a `src/proxy.ts` change**: `/api/admin/:path*` normally requires the `admin_token` staff cookie, which a cron caller sending only the `CRON_SECRET` bearer header doesn't have. Added a one-line carve-out (mirroring the existing `/api/admin/login` exception, which needs the same treatment since it's the route that *issues* that cookie) so this specific path skips the cookie gate — the route still has its own `CRON_SECRET` check, so this doesn't weaken auth, it just moves which layer enforces it. Verified end-to-end against the live dev server: no `Authorization` header → 401 from the route (not middleware's generic message, confirming the carve-out reaches the handler); correct bearer token → 200.
 
-**Not built** (discussed but deliberately deferred, needs a UX decision, not a quick patch): load-balancing recruits across multiple panels for the same domain. Right now a volunteer manually picks which panel to scan a recruit into; auto-routing to the panel with the shortest queue would need to change that manual-selection flow, which volunteers currently rely on — worth a deliberate design pass before touching it, not a "finish it fast" addition.
+**Update 2026-08-13 — this WAS built.** Load-balancing recruits across multiple panels for the same domain (noted below as deliberately deferred) shipped as part of the interview-table redesign — see the new [Interview Module](#7-interview-module) and the 2026-08-13 entry further down this section. The paragraph below is kept for history.
+
+~~**Not built** (discussed but deliberately deferred, needs a UX decision, not a quick patch): load-balancing recruits across multiple panels for the same domain. Right now a volunteer manually picks which panel to scan a recruit into; auto-routing to the panel with the shortest queue would need to change that manual-selection flow, which volunteers currently rely on — worth a deliberate design pass before touching it, not a "finish it fast" addition.~~
+
+### Interview table redesign (2026-08-13)
+
+A full rewrite of the interview module — see [Interview Module](#7-interview-module) for the complete current design. Summary of what changed and why:
+
+- **Tables are now domain-first, not free-text.** Creating a table picks a `sub_domain` from the fixed enum; `table_number` is auto-allocated per `(cycle_id, sub_domain)` (migration 004: `recruit_interview_panels.table_number` + a partial unique index). The name shown (`domain_label`) is still creator-editable — pre-filled `"<Subsystem>-<Domain>-"`, must be unique per domain (case-insensitive) — but routing/grouping never depends on it, only on `sub_domain` + `table_number`.
+- **QR check-in auto-routes to the least-loaded table.** The volunteer now picks a domain on the scanner (identical UX to exam mode), not a specific table. The scan handler finds every open table for that domain and sends the recruit to whichever has the fewest people waiting — this is the load-balancing feature the 2026-08-09 notes above explicitly deferred.
+- **Queue order is independently drag-reorderable.** `recruit_interview_tokens.queue_position` (migration 004, a `double precision`) is now the real ordering key everywhere (`call-next`, the fetch-queue route, the recruit's own "N ahead of you" count) — `token_number` (the permanent number shown to the recruit, e.g. "#12") is never touched by a reorder. Dragging a row in the dashboard's new "Up Next" list (`@dnd-kit/core` + `@dnd-kit/sortable`, newly added dependencies) calls `PATCH .../tokens/:tokenId/reorder`, which recomputes only the moved token's position as the midpoint of its new neighbours.
+- **Closing/deleting a table redistributes people, doesn't strand them.** "Close for the Day" (new, non-reversible, alongside the existing reversible "Pause" = old `close`/`reopen`) and table deletion both move every `waiting` recruit to another open table for the same domain (landing at the position matching their original check-in time, not the back of the line) or flip them to a new `deferred` status (migration 005: adds `'deferred'` to the `interview_token_status` enum) if no other table for that domain is open. Shared logic lives in `src/lib/recruit-interview-redistribution.ts` (`redistributeWaitingTokens`, `reattachHistoricalTokens`) so both call sites stay consistent. Deletion additionally has to reattach any non-`waiting` tokens (called/done/no_show/deferred) to another still-existing panel before the row can go, since `panel_id` is a `not null` FK with no cascade — refuses with 409 only if this is the only panel that has ever existed for the domain.
+- **`deferred` status surfaces on the recruit's own dashboard** ("Table closed for the day — you'll be interviewed on another day"), labelled by domain rather than by table (a deferred token's `panel_id` may point at a reattached placeholder, not the recruit's real table).
+- **New public kiosk screen, `/recruit/tables`** (+ `GET /api/recruit/tables`, explicitly carved out of the `recruit_token` gate in `src/proxy.ts`) replaces the old per-table admin-gated TV display page (`/dashboard/recruitment/interview/panel/[panelId]`, deleted along with the "Open Queue Display" button that linked to it). One page, 4 columns (one per subsystem), every open table's full queue visible at once, bright/light theme, sized to avoid page-level scrolling on tablet/desktop.
+
+This was built directly in response to iterative user requests within one session (not a scoped upfront spec like the rest of this module) — several design decisions were confirmed via clarifying questions rather than pre-written into a spec doc: least-loaded auto-routing (vs. oldest-table-first or one-table-per-domain), redistribution ordering by original check-in time (vs. simple back-of-line), a new `deferred` status (vs. reusing `no_show`), and a separate non-reversible "Close for the Day" action (vs. changing the existing reversible `close` button's behavior). If a future session needs to revisit any of these, that's genuinely a design choice, not a bug to "fix back."
 
 ### Known remaining gaps (not fixed yet)
 
-- **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) — but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel.
+- **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) — but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel. The 2026-08-13 auto-routing/redistribution logic inherits the same caveat — verified by reading the code and by manual testing against seeded data (via Supabase MCP + a Playwright screenshot of the kiosk screen), not load-tested.
+- **No admin-wide "deferred recruits" roster** (2026-08-13) — a deferred recruit is visible on their own dashboard and in their original table's History list, but there's no single admin view listing everyone currently deferred across all domains. Query `recruit_interview_tokens where status = 'deferred'` directly if you need one before it's built.
 - **No automated tests** — this whole module was built and verified via `tsc --noEmit`, `npm run build`, and manual Playwright browser smoke tests (screenshots, not a persisted test suite). If you want CI coverage, there is none yet.
 - Haven't independently re-verified every fix three background agents reported mid-flight after a session-limit kill (see "Recovery notes" below) — they self-reported completion but a fresh pass wouldn't hurt.
 
@@ -1724,13 +1804,14 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 
 ### File map
 
-- `supabase/recruit-schema.sql` — full current schema (already reflects all 3 pending migrations — it's the target state, not what's live)
-- `supabase/recruit-migration-00{1,2,3}-*.sql` — the pending migrations, apply in order
+- `supabase/recruit-schema.sql` — full current schema (already reflects all pending migrations — it's the target state, not what's live)
+- `supabase/recruit-migration-00{1..5}-*.sql` — the pending migrations, apply in order. 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value
 - `src/lib/recruit-domains.ts` — domain/subsystem source of truth
+- `src/lib/recruit-interview-redistribution.ts` (2026-08-13) — shared `redistributeWaitingTokens`/`reattachHistoricalTokens`, used by Close for the Day and table deletion
 - `src/lib/recruit-session.ts`, `recruit-qr.ts`, `recruit-validation.ts` — shared recruit-auth/QR/validation helpers
 - `src/lib/supabase/recruit-admin.ts` — untyped service-role client for `recruit_*` tables (the generated `Database` type doesn't know about them)
-- `src/app/api/recruit/**` — student-facing API (auth, me, qr)
-- `src/app/api/admin/recruitment/**` — staff-facing API (~21 routes)
-- `src/app/recruit/**`, `src/app/recruit-scanner/**` — student pages + scanner
-- `src/app/dashboard/recruitment/**` — admin pages
-- `scripts/seed-recruitment.ts` — seed data generator
+- `src/app/api/recruit/**` — student-facing API (auth, me, qr) **and** the public kiosk API (`tables/route.ts`, 2026-08-13 — the one exception carved out of the `recruit_token` gate)
+- `src/app/api/admin/recruitment/**` — staff-facing API (~24 routes as of 2026-08-13: +close-for-day, +reorder; the old panel-scoped queue-display page's route is gone, it never had its own API)
+- `src/app/recruit/**` (incl. `tables/page.tsx`, 2026-08-13 — the public kiosk page), `src/app/recruit-scanner/**` — student/public pages + scanner
+- `src/app/dashboard/recruitment/**` — admin pages (`interview/panel/[panelId]` removed 2026-08-13 — superseded by `/recruit/tables`)
+- `scripts/seed-recruitment.ts` — seed data generator (seeds panels via the old free-text `domain_label` shape — check it still inserts a valid `sub_domain`/`table_number` before relying on seeded interview data post-2026-08-13)
