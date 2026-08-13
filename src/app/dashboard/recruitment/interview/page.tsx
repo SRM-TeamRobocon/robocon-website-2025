@@ -10,7 +10,6 @@ import {
     CheckCircle2,
     XCircle,
     Clock3,
-    ExternalLink,
     UserX,
     Award,
     Star,
@@ -20,7 +19,18 @@ import {
     ClipboardList,
     Pencil,
     X,
+    GripVertical,
 } from "lucide-react";
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useRequireRole } from "@/hooks/use-require-role";
 
 type TokenStatus = "waiting" | "called" | "done" | "no_show";
@@ -35,6 +45,8 @@ interface PanelCounts {
 interface Panel {
     id: string;
     domain_label: string;
+    sub_domain: string | null;
+    table_number: number | null;
     is_active: boolean;
     created_at: string;
     created_by: string;
@@ -51,29 +63,46 @@ interface RecruitProfile {
     exam_marks: { sub_domain: string; marks: number }[];
     portfolio_url?: string;
     shortlisted_for: string[];
+    is_hosteller: boolean;
+    hostel_block: string | null;
 }
 
 interface QueueToken {
     token_id: string;
     token_number: number;
+    queue_position: number;
     status: TokenStatus;
     recruit: RecruitProfile;
     checked_in_at: string;
     called_at?: string;
 }
 
-import { subDomainLabel, subDomainFullLabel, subDomainSubsystem } from "@/lib/recruit-domains";
+import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 import Select from "@/components/ui/select";
 
 function AddPanelForm({ onCreated }: { onCreated: () => void }) {
     const [open, setOpen] = useState(false);
-    const [label, setLabel] = useState("");
+    const [subDomain, setSubDomain] = useState("");
+    const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
 
+    // Prefills the name with "<Subsystem>-<Domain>-" every time the domain changes —
+    // table_number (routing/kiosk grouping) is still auto-allocated server-side
+    // regardless of what the creator does with this text from here.
+    const handleDomainChange = (value: string) => {
+        setSubDomain(value);
+        const meta = RECRUIT_SUBDOMAINS.find((d) => d.key === value);
+        setName(meta ? `${meta.subsystem}-${meta.label}-` : "");
+    };
+
     const submit = async () => {
-        const domain_label = label.trim();
-        if (!domain_label) {
-            toast.error("Enter a panel name first");
+        if (!subDomain) {
+            toast.error("Pick a domain first");
+            return;
+        }
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+            toast.error("Enter a table name");
             return;
         }
         setBusy(true);
@@ -81,16 +110,17 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
             const res = await fetch("/api/admin/recruitment/panels", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ domain_label }),
+                body: JSON.stringify({ sub_domain: subDomain, name: trimmedName }),
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success(`Panel "${domain_label}" is live`);
-                setLabel("");
+                toast.success(`${data.domain_label} is live`);
+                setSubDomain("");
+                setName("");
                 setOpen(false);
                 onCreated();
             } else {
-                toast.error(data.error || "Could not create panel");
+                toast.error(data.error || "Could not create table");
             }
         } finally {
             setBusy(false);
@@ -103,25 +133,37 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
                 onClick={() => setOpen(true)}
                 className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-red/15 px-4 py-2.5 text-sm font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25"
             >
-                <Plus className="h-4 w-4" /> Add Panel
+                <Plus className="h-4 w-4" /> Add Table
             </button>
         );
     }
 
     return (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-widest text-gray-500">
-                Panel name (e.g. Coding, SIESED, Web Dev)
-            </label>
-            <input
-                autoFocus
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
-                maxLength={50}
-                placeholder="Coding"
-                className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-            />
+            <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-gray-500">Domain</label>
+                <Select
+                    value={subDomain}
+                    onChange={handleDomainChange}
+                    placeholder="Select a domain..."
+                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` }))}
+                />
+            </div>
+            <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-gray-500">Table name</label>
+                <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && submit()}
+                    maxLength={50}
+                    disabled={!subDomain}
+                    placeholder="Pick a domain first"
+                    className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                />
+                <p className="mt-1.5 text-xs text-gray-500">
+                    Edit it however you like — just has to be unique among this domain&apos;s tables.
+                </p>
+            </div>
             <div className="flex gap-2">
                 <button
                     onClick={submit}
@@ -133,7 +175,8 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
                 <button
                     onClick={() => {
                         setOpen(false);
-                        setLabel("");
+                        setSubDomain("");
+                        setName("");
                     }}
                     disabled={busy}
                     className="rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
@@ -160,38 +203,75 @@ function PanelCard({
 }) {
     const [busy, setBusy] = useState(false);
 
+    // Reversible pause — Reopen brings back any stranded `waiting` tokens exactly as they
+    // were. Nobody is moved anywhere.
     const closePanel = async () => {
-        if (!confirm(`Close "${panel.domain_label}"? Remaining waiting tokens are left as-is.`)) return;
+        if (!confirm(`Pause "${panel.domain_label}"? Remaining waiting tokens are left as-is — Reopen brings them back.`)) return;
         setBusy(true);
         try {
             const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/close`, { method: "PATCH" });
             const data = await res.json();
             if (res.ok && data.closed) {
-                toast.success("Panel closed");
+                toast.success("Table paused");
                 onClosed();
             } else {
-                toast.error(data.error || "Could not close panel");
+                toast.error(data.error || "Could not close table");
             }
         } finally {
             setBusy(false);
         }
     };
 
-    // Hard delete — drops the panel and every token issued against it. Interview results
-    // already logged are keyed on recruit+domain, not panel, so they are unaffected.
+    // Non-reversible: closes the table for good AND redistributes anyone still waiting to
+    // another open table for the same domain, or defers them if none is open.
+    const closeForDay = async () => {
+        if (
+            !confirm(
+                `Close "${panel.domain_label}" for the day? Anyone still waiting will be moved to another open table for the same domain, or told to come back another day if none is open. This is not reversible.`
+            )
+        )
+            return;
+        setBusy(true);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/close-for-day`, { method: "PATCH" });
+            const data = await res.json();
+            if (res.ok && data.closed_for_day) {
+                const parts = [];
+                if (data.moved > 0) parts.push(`${data.moved} moved to another table`);
+                if (data.deferred > 0) parts.push(`${data.deferred} deferred to another day`);
+                toast.success(parts.length > 0 ? `Table closed — ${parts.join(", ")}` : "Table closed for the day");
+                onClosed();
+            } else {
+                toast.error(data.error || "Could not close this table");
+            }
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    // Hard delete — drops the panel row entirely. Waiting recruits are redistributed just
+    // like Close for the Day, and any historical tokens (called/done/no_show/deferred) are
+    // silently reattached to another table so the row can go. Interview results already
+    // logged are keyed on recruit+domain, not panel, so they are unaffected either way.
     const deletePanel = async () => {
         const queued = panel.counts.waiting + panel.counts.called;
-        const warning = queued > 0 ? `\n\n${queued} recruit(s) are still queued on this panel — their tokens will be discarded.` : "";
-        if (!confirm(`Permanently delete the "${panel.domain_label}" panel?${warning}\n\nThis cannot be undone.`)) return;
+        const warning =
+            queued > 0
+                ? `\n\n${queued} recruit(s) are still queued on this table — they'll be redistributed to another open table for the same domain, or deferred to another day if none is open.`
+                : "";
+        if (!confirm(`Permanently delete the "${panel.domain_label}" table?${warning}\n\nThis cannot be undone.`)) return;
         setBusy(true);
         try {
             const res = await fetch(`/api/admin/recruitment/panels/${panel.id}`, { method: "DELETE" });
             const data = await res.json();
             if (res.ok && data.deleted) {
-                toast.success(`Deleted panel "${panel.domain_label}"`);
+                const parts = [];
+                if (data.moved > 0) parts.push(`${data.moved} moved`);
+                if (data.deferred > 0) parts.push(`${data.deferred} deferred`);
+                toast.success(`Deleted "${panel.domain_label}"${parts.length > 0 ? ` — ${parts.join(", ")}` : ""}`);
                 onDeleted();
             } else {
-                toast.error(data.error || "Could not delete panel");
+                toast.error(data.error || "Could not delete table");
             }
         } finally {
             setBusy(false);
@@ -238,28 +318,29 @@ function PanelCard({
                 )}
             </div>
 
-            <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
-                <a
-                    href={`/dashboard/recruitment/interview/panel/${panel.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
-                >
-                    Open Queue Display <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+            <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                 {panel.is_active && (
-                    <button
-                        onClick={closePanel}
-                        disabled={busy}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
-                    >
-                        Close Panel
-                    </button>
+                    <>
+                        <button
+                            onClick={closePanel}
+                            disabled={busy}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                        >
+                            Pause
+                        </button>
+                        <button
+                            onClick={closeForDay}
+                            disabled={busy}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                        >
+                            Close for the Day
+                        </button>
+                    </>
                 )}
                 <button
                     onClick={deletePanel}
                     disabled={busy}
-                    title={`Delete ${panel.domain_label} panel`}
+                    title={`Delete ${panel.domain_label} table`}
                     className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                 >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -280,6 +361,9 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                     </p>
                     <p className="text-sm text-gray-400">
                         {r.reg_no} · Year {r.year} · {r.department}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-400">
+                        {r.is_hosteller ? `Hosteller${r.hostel_block ? ` · ${r.hostel_block}` : ""}` : "Day Scholar"}
                     </p>
                 </div>
                 {r.portfolio_url && (
@@ -338,7 +422,6 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [notes, setNotes] = useState("");
-    const [selectedSubDomain, setSelectedSubDomain] = useState("");
 
     const loadQueue = useCallback(async () => {
         try {
@@ -359,15 +442,48 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
 
     const called = queue.find((t) => t.status === "called") ?? null;
     const waiting = queue.filter((t) => t.status === "waiting");
-    const resultOptions = called ? (called.recruit.shortlisted_for.length > 0 ? called.recruit.shortlisted_for : called.recruit.domains) : [];
+    const history = queue.filter((t) => t.status !== "waiting" && t.status !== "called");
+
+    const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    // Optimistically reorders the local waiting list, then persists just the moved
+    // token's new position — see the reorder route for why only one row is touched.
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = waiting.findIndex((t) => t.token_id === active.id);
+        const newIndex = waiting.findIndex((t) => t.token_id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reordered = arrayMove(waiting, oldIndex, newIndex);
+        setQueue((prev) => [...reordered, ...prev.filter((t) => t.status !== "waiting")]);
+
+        const movedToken = reordered[newIndex];
+        const afterToken = newIndex > 0 ? reordered[newIndex - 1] : null;
+
+        try {
+            const res = await fetch(
+                `/api/admin/recruitment/panels/${panel.id}/tokens/${movedToken.token_id}/reorder`,
+                {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ after_token_id: afterToken ? afterToken.token_id : null }),
+                }
+            );
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || "Could not reorder queue");
+            }
+        } catch {
+            toast.error("Network error while reordering");
+        } finally {
+            loadQueue();
+        }
+    };
 
     useEffect(() => {
-        if (called) {
-            setSelectedSubDomain((prev) => (resultOptions.includes(prev) ? prev : resultOptions[0] ?? ""));
-        } else {
-            setSelectedSubDomain("");
-            setNotes("");
-        }
+        if (!called) setNotes("");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [called?.token_id]);
 
@@ -392,8 +508,8 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
 
     const logResult = async (result: "selected" | "rejected" | "waitlisted") => {
         if (!called) return;
-        if (!selectedSubDomain) {
-            toast.error("Pick which domain this result is for");
+        if (!panel.sub_domain) {
+            toast.error("This panel has no domain set — cannot log a result");
             return;
         }
         setBusy(true);
@@ -403,7 +519,7 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     recruit_id: called.recruit.id,
-                    sub_domain: selectedSubDomain,
+                    sub_domain: panel.sub_domain,
                     result,
                     notes: notes.trim() || undefined,
                     panel_id: panel.id,
@@ -448,7 +564,7 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
         <div className="space-y-5">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <h2 className="text-xl font-black text-white">{panel.domain_label} — Panel Dashboard</h2>
+                    <h2 className="text-xl font-black text-white">{panel.domain_label}</h2>
                     <button
                         onClick={callNext}
                         disabled={busy || !panel.is_active || Boolean(called) || waiting.length === 0}
@@ -459,7 +575,7 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                 </div>
                 {!panel.is_active && (
                     <p className="mt-2 text-xs text-amber-400">
-                        This panel is closed — remaining tokens are visible but no new recruits can check in.
+                        This table is closed — remaining tokens are visible but no new recruits can check in.
                     </p>
                 )}
             </div>
@@ -472,27 +588,6 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                     <RecruitProfileCard token={called} />
 
                     <div className="space-y-3">
-                        <div>
-                            <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
-                                Log result for domain
-                            </label>
-                            {resultOptions.length > 0 ? (
-                                <div className="max-w-xs">
-                                    <Select
-                                        accent="blue"
-                                        value={selectedSubDomain}
-                                        onChange={setSelectedSubDomain}
-                                        className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
-                                        options={resultOptions.map((d) => ({ value: d, label: subDomainFullLabel(d) }))}
-                                    />
-                                </div>
-                            ) : (
-                                <p className="text-xs text-amber-400">
-                                    No shortlisted or applied domain found for this recruit — result cannot be logged.
-                                </p>
-                            )}
-                        </div>
-
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
@@ -504,21 +599,21 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => logResult("selected")}
-                                disabled={busy || resultOptions.length === 0}
+                                disabled={busy || !panel.sub_domain}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
                             >
                                 <Award className="h-4 w-4" /> Selected
                             </button>
                             <button
                                 onClick={() => logResult("rejected")}
-                                disabled={busy || resultOptions.length === 0}
+                                disabled={busy || !panel.sub_domain}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                             >
                                 <Ban className="h-4 w-4" /> Rejected
                             </button>
                             <button
                                 onClick={() => logResult("waitlisted")}
-                                disabled={busy || resultOptions.length === 0}
+                                disabled={busy || !panel.sub_domain}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
                             >
                                 <Hourglass className="h-4 w-4" /> Waitlisted
@@ -542,14 +637,32 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/10">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" /> Queue ({queue.length})
+                        <Users className="h-4 w-4 text-gray-400" /> Up Next ({waiting.length})
                     </h3>
+                    <p className="mt-0.5 text-xs text-gray-500">Drag to reorder who comes next.</p>
                 </div>
                 {loading ? (
                     <div className="p-6 text-center text-gray-500 text-sm">Loading...</div>
-                ) : queue.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500 text-sm">No one has checked in yet.</div>
+                ) : waiting.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500 text-sm">Nobody is waiting.</div>
                 ) : (
+                    <div className="p-3 space-y-1.5">
+                        <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={waiting.map((t) => t.token_id)} strategy={verticalListSortingStrategy}>
+                                {waiting.map((t) => (
+                                    <SortableWaitingRow key={t.token_id} token={t} />
+                                ))}
+                            </SortableContext>
+                        </DndContext>
+                    </div>
+                )}
+            </div>
+
+            {history.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                    <div className="px-5 py-3 border-b border-white/10">
+                        <h3 className="text-sm font-bold text-white">History ({history.length})</h3>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
@@ -561,7 +674,7 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                                 </tr>
                             </thead>
                             <tbody>
-                                {queue.map((t) => (
+                                {history.map((t) => (
                                     <tr key={t.token_id} className="border-b border-white/5 last:border-0">
                                         <td className="px-5 py-2.5 font-mono text-gray-300">{t.token_number}</td>
                                         <td className="px-5 py-2.5 text-white font-medium">{t.recruit.name}</td>
@@ -569,13 +682,9 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                                         <td className="px-5 py-2.5">
                                             <span
                                                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                                    t.status === "waiting"
-                                                        ? "bg-amber-500/10 text-amber-400"
-                                                        : t.status === "called"
-                                                          ? "bg-blue-500/10 text-blue-400"
-                                                          : t.status === "done"
-                                                            ? "bg-emerald-500/10 text-emerald-400"
-                                                            : "bg-white/5 text-gray-500"
+                                                    t.status === "done"
+                                                        ? "bg-emerald-500/10 text-emerald-400"
+                                                        : "bg-white/5 text-gray-500"
                                                 }`}
                                             >
                                                 {t.status.replace("_", " ")}
@@ -586,8 +695,40 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                             </tbody>
                         </table>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SortableWaitingRow({ token }: { token: QueueToken }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: token.token_id,
+    });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"
+        >
+            <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                className="shrink-0 cursor-grab touch-none text-gray-500 transition hover:text-white active:cursor-grabbing"
+                aria-label="Drag to reorder"
+            >
+                <GripVertical className="h-4 w-4" />
+            </button>
+            <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{token.token_number}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
+            <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
         </div>
     );
 }
@@ -827,7 +968,7 @@ export default function InterviewManagementPage() {
                     Interview Day
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Open panels, call recruits in, and log results — walk-in, no time slots. Add a panel per
+                    Open tables, call recruits in, and log results — walk-in, no time slots. Add a table per
                     domain running today.
                 </p>
             </div>
