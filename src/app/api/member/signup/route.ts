@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         const name = String(body.name || "").trim();
         const email = String(body.email || "").trim().toLowerCase();
         const domain = String(body.domain || "").trim().toUpperCase();
-        const regNo = String(body.regNo || "").trim();
+        const regNo = String(body.regNo || "").trim().toUpperCase();
         const department = String(body.department || "").trim();
         const course = String(body.course || "").trim();
         const phone = body.phone ? String(body.phone).trim() : null;
