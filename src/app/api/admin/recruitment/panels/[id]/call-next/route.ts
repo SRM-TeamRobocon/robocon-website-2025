@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const TOKEN_COLUMNS = "id, token_number, status, checked_in_at, called_at, recruit_id";
+const TOKEN_COLUMNS = "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id";
 
 // Bounded so a pathological race (or a stale read) can never spin.
 const MAX_ATTEMPTS = 5;
@@ -27,11 +27,14 @@ const EMPTY_PROFILE = (recruitId: string) => ({
   domains: [] as string[],
   exam_marks: [] as { sub_domain: string; marks: number }[],
   shortlisted_for: [] as string[],
+  is_hosteller: false,
+  hostel_block: null as string | null,
 });
 
 type TokenRow = {
   id: string;
   token_number: number;
+  queue_position: number;
   status: string;
   checked_in_at: string;
   called_at: string | null;
@@ -85,7 +88,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       .select(TOKEN_COLUMNS)
       .eq("panel_id", id)
       .eq("status", "called")
-      .order("token_number", { ascending: true })
+      .order("queue_position", { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -118,20 +121,34 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       return await respond(existingCalled, true);
     }
 
-    // Walk forward through waiting tokens by number rather than re-reading the same one:
-    // if we lost the race for #12, the next candidate is the first waiting token above #12.
-    let afterNumber = -1;
+    // Walk forward through waiting tokens ordered by queue_position (the
+    // manually-reorderable "who's next" order, not the recruit's fixed token_number),
+    // excluding ids already tried this request rather than re-reading the same one.
+    //
+    // Deliberately NOT `.gt("queue_position", afterPosition)`: Postgres's NULL > x is
+    // NULL (never true), so that filter silently drops any row whose queue_position is
+    // null from EVERY attempt, including the first — a panel with real waiting tokens
+    // reports `queue_empty` forever. It happened live: a batch of tokens ended up with
+    // null queue_position (a migration backfill that never ran against this DB) and
+    // every affected panel's Call Next was permanently stuck despite a visibly nonempty
+    // queue. Excluding by id sidesteps the comparison entirely, so this class of bug
+    // can't recur even if some future row is ever null again.
+    const triedIds: string[] = [];
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const { data: candidate, error: fetchError } = await supabase
+      let query = supabase
         .from("recruit_interview_tokens")
         .select(TOKEN_COLUMNS)
         .eq("panel_id", id)
         .eq("status", "waiting")
-        .gt("token_number", afterNumber)
-        .order("token_number", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .order("queue_position", { ascending: true, nullsFirst: true })
+        .limit(1);
+
+      if (triedIds.length > 0) {
+        query = query.not("id", "in", `(${triedIds.join(",")})`);
+      }
+
+      const { data: candidate, error: fetchError } = await query.maybeSingle();
 
       if (fetchError) throw new Error(fetchError.message);
       if (!candidate) {
@@ -161,7 +178,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       if (raced) {
         return await respond(raced, true);
       }
-      afterNumber = next.token_number;
+      triedIds.push(next.id);
     }
 
     // Every attempt lost its race and nothing is `called` — extremely unlikely, and safe to
