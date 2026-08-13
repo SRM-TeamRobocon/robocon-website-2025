@@ -18,11 +18,14 @@ export type RecruitProfile = {
   exam_marks: { sub_domain: string; marks: number }[];
   portfolio_url?: string;
   shortlisted_for: string[];
+  is_hosteller: boolean;
+  hostel_block: string | null;
 };
 
 export type QueueToken = {
   token_id: string;
   token_number: number;
+  queue_position: number;
   status: string;
   recruit: RecruitProfile;
   checked_in_at: string;
@@ -59,6 +62,8 @@ const EMPTY_PROFILE = (recruitId: string): RecruitProfile => ({
   domains: [],
   exam_marks: [],
   shortlisted_for: [],
+  is_hosteller: false,
+  hostel_block: null,
 });
 
 // Shared by this route and ../call-next/route.ts so both return the identical recruit
@@ -78,7 +83,10 @@ export async function buildRecruitProfiles(
   if (recruitIds.length === 0) return map;
 
   const [{ data: recruits }, { data: selections }, { data: marks }, { data: shortlist }] = await Promise.all([
-    supabase.from("recruit_accounts").select("id, name, reg_no, year, department, portfolio_url").in("id", recruitIds),
+    supabase
+      .from("recruit_accounts")
+      .select("id, name, reg_no, year, department, portfolio_url, is_hosteller, hostel_block")
+      .in("id", recruitIds),
     supabase
       .from("recruit_domain_selections")
       .select("recruit_id, sub_domain")
@@ -109,6 +117,8 @@ export async function buildRecruitProfiles(
       exam_marks: [],
       portfolio_url: r.portfolio_url ?? undefined,
       shortlisted_for: [],
+      is_hosteller: r.is_hosteller ?? false,
+      hostel_block: r.hostel_block ?? null,
     });
   }
   for (const s of selections ?? []) {
@@ -124,12 +134,14 @@ export async function buildRecruitProfiles(
   return map;
 }
 
+// Ordered by queue_position (manually reorderable — "who comes next"), NOT
+// token_number (the recruit's permanent, never-renumbered check-in number).
 export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string): Promise<QueueToken[]> {
   const { data: tokens, error } = await supabase
     .from("recruit_interview_tokens")
-    .select("id, token_number, status, checked_in_at, called_at, recruit_id")
+    .select("id, token_number, queue_position, status, checked_in_at, called_at, recruit_id")
     .eq("panel_id", panelId)
-    .order("token_number", { ascending: true });
+    .order("queue_position", { ascending: true });
 
   if (error) throw new Error(error.message);
   if (!tokens || tokens.length === 0) return [];
@@ -140,6 +152,7 @@ export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string)
   return tokens.map((t: any) => ({
     token_id: t.id,
     token_number: t.token_number,
+    queue_position: t.queue_position,
     status: t.status,
     recruit: profiles.get(t.recruit_id) ?? EMPTY_PROFILE(t.recruit_id),
     checked_in_at: t.checked_in_at,
@@ -154,7 +167,7 @@ async function fetchPublicPanelQueue(supabase: SupabaseClient, panelId: string):
     .from("recruit_interview_tokens")
     .select("id, token_number, status, recruit_id")
     .eq("panel_id", panelId)
-    .order("token_number", { ascending: true });
+    .order("queue_position", { ascending: true });
 
   if (error) throw new Error(error.message);
   if (!tokens || tokens.length === 0) return [];
@@ -175,13 +188,14 @@ async function fetchPublicPanelQueue(supabase: SupabaseClient, panelId: string):
 
 // GET /api/admin/recruitment/panels/:id/queue
 //
-// Read access stays broad (member/lead/admin) because the live queue display page
-// (/dashboard/recruitment/interview/panel/[panelId]) is meant to be cast to a TV by whoever
-// is on duty, and the scanner runs as role "member". The PAYLOAD, however, is branched:
-// lead/admin get the full interviewer profile (reg_no, department, portfolio, exam marks,
-// shortlist state); "member" gets only token number, status and a first name. The full shape
-// is pre-publication evaluation data — previously any logged-in member could curl a panel's
-// queue and read every shortlisted candidate's marks.
+// Read access stays broad (member/lead/admin) because the scanner and the interview
+// dashboard's own polling both run as role "member" for volunteers on duty. The PAYLOAD,
+// however, is branched: lead/admin get the full interviewer profile (reg_no, department,
+// portfolio, exam marks, shortlist state); "member" gets only token number, status and a
+// first name. The full shape is pre-publication evaluation data — previously any logged-in
+// member could curl a panel's queue and read every shortlisted candidate's marks. The public
+// kiosk screen (/recruit/tables, no login at all) uses a separate route entirely —
+// src/app/api/recruit/tables/route.ts — not this one.
 export async function GET(_request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
