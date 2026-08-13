@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { RefreshCw, Undo2 } from "lucide-react";
+import { Undo2 } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
 import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
@@ -22,8 +22,6 @@ const MODE_OPTIONS: { value: Mode; label: string }[] = [
     { value: "interview", label: "Interview Check-In" },
     { value: "training", label: "Training" },
 ];
-
-type Panel = { id: string; domain_label: string; is_active?: boolean };
 
 type ScanResult = {
     status: "ok" | "already_scanned" | "already_checked_in" | "error";
@@ -57,21 +55,6 @@ type RecentScan = {
 };
 
 const MAX_RECENT = 10;
-
-// Other agents' routes may not exist yet — fetch tolerantly and just show an empty
-// dropdown rather than blowing up the page if they 404 or return an unexpected shape.
-async function safeFetchList<T>(url: string): Promise<T[]> {
-    try {
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) return [];
-        const json = await res.json();
-        if (Array.isArray(json?.data)) return json.data as T[];
-        if (Array.isArray(json)) return json as T[];
-        return [];
-    } catch {
-        return [];
-    }
-}
 
 // The QR payload is base64url JSON of { rid, cid, sig }. The signature can only be
 // checked server-side (QR_SECRET never reaches the browser), but reading `rid` here is
@@ -110,11 +93,8 @@ function clockTime(ts: number) {
 export default function RecruitScannerPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
 
-    const [panels, setPanels] = useState<Panel[]>([]);
-    const [panelsLoading, setPanelsLoading] = useState(false);
-
     const [selectedMode, setSelectedMode] = useState<Mode>("orientation");
-    const [panelId, setPanelId] = useState<string>("");
+    const [interviewSubDomain, setInterviewSubDomain] = useState<string>("");
     const [examSubDomain, setExamSubDomain] = useState<string>("");
     const [trainingSubDomain, setTrainingSubDomain] = useState<string>("");
 
@@ -126,7 +106,7 @@ export default function RecruitScannerPage() {
     // Refs so the html5-qrcode onScan callback (registered once when scanning starts) always
     // reads current mode/selection state instead of a stale closure.
     const modeRef = useRef(selectedMode);
-    const panelIdRef = useRef(panelId);
+    const interviewSubDomainRef = useRef(interviewSubDomain);
     const examSubDomainRef = useRef(examSubDomain);
     const trainingSubDomainRef = useRef(trainingSubDomain);
     const scanLockRef = useRef(false);
@@ -135,8 +115,8 @@ export default function RecruitScannerPage() {
         modeRef.current = selectedMode;
     }, [selectedMode]);
     useEffect(() => {
-        panelIdRef.current = panelId;
-    }, [panelId]);
+        interviewSubDomainRef.current = interviewSubDomain;
+    }, [interviewSubDomain]);
     useEffect(() => {
         examSubDomainRef.current = examSubDomain;
     }, [examSubDomain]);
@@ -144,36 +124,12 @@ export default function RecruitScannerPage() {
         trainingSubDomainRef.current = trainingSubDomain;
     }, [trainingSubDomain]);
 
-    const refreshPanels = useCallback(async () => {
-        setPanelsLoading(true);
-        try {
-            const list = await safeFetchList<Panel>("/api/admin/recruitment/panels?active=true");
-            setPanels(list);
-            // Drop a selection that no longer exists (panel closed since it was picked).
-            setPanelId((current) => (current && !list.some((p) => p.id === current) ? "" : current));
-        } finally {
-            setPanelsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        refreshPanels();
-    }, [refreshPanels]);
-
-    // Panels are opened ON the day, often after a volunteer has already opened this page.
-    // Re-fetch when switching into interview mode so "No active panels found" can't be a
-    // permanently stale answer. Training needs no such fetch any more — the volunteer
-    // picks a domain from a static list and the session is created by the first scan.
-    useEffect(() => {
-        if (selectedMode === "interview") refreshPanels();
-    }, [selectedMode, refreshPanels]);
-
     const isExamMode = selectedMode === "exam_day_1" || selectedMode === "exam_day_2";
 
     const canStart = isExamMode
         ? Boolean(examSubDomain)
         : selectedMode === "interview"
-            ? Boolean(panelId)
+            ? Boolean(interviewSubDomain)
             : selectedMode === "training"
                 ? Boolean(trainingSubDomain)
                 : true;
@@ -197,7 +153,7 @@ export default function RecruitScannerPage() {
             // Without it there's nothing to undo against, hence the null fallback.
             undo = result.session_id ? { type: "training", session_id: result.session_id } : null;
         } else {
-            what = "Interview check-in";
+            what = `Interview check-in — ${subDomainFullLabel(interviewSubDomainRef.current)}`;
             undo = null;
         }
 
@@ -224,11 +180,11 @@ export default function RecruitScannerPage() {
 
         const mode = modeRef.current;
         const payload = decodedText.trim();
-        const body: { payload: string; mode: Mode; panel_id?: string; sub_domain?: string } = {
+        const body: { payload: string; mode: Mode; sub_domain?: string } = {
             payload,
             mode,
         };
-        if (mode === "interview") body.panel_id = panelIdRef.current;
+        if (mode === "interview") body.sub_domain = interviewSubDomainRef.current;
         if (mode === "training") body.sub_domain = trainingSubDomainRef.current;
         if (mode === "exam_day_1" || mode === "exam_day_2") body.sub_domain = examSubDomainRef.current;
 
@@ -315,21 +271,8 @@ export default function RecruitScannerPage() {
 
     if (!ready) return null;
 
-    const activePanelLabel = panels.find((p) => p.id === panelId)?.domain_label;
+    const activeInterviewLabel = interviewSubDomain ? subDomainFullLabel(interviewSubDomain) : "";
     const activeTrainingLabel = trainingSubDomain ? subDomainFullLabel(trainingSubDomain) : "";
-
-    const refreshButton = (onClick: () => void, loading: boolean, label: string) => (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={loading}
-            title={label}
-            aria-label={label}
-            className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-3 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-50 transition-colors"
-        >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
-    );
 
     return (
         <div className="min-h-screen relative z-10 px-4 py-8 md:py-12">
@@ -387,27 +330,17 @@ export default function RecruitScannerPage() {
                         {selectedMode === "interview" && (
                             <div>
                                 <label className="block text-xs uppercase tracking-widest font-bold text-white/40 mb-2">
-                                    Panel
+                                    Which domain?
                                 </label>
-                                <div className="flex gap-2">
-                                    <div className="flex-1 min-w-0">
-                                        <Select
-                                            value={panelId}
-                                            onChange={setPanelId}
-                                            placeholder={
-                                                panelsLoading
-                                                    ? "Loading panels..."
-                                                    : panels.length === 0
-                                                        ? "No active panels found"
-                                                        : "Select a panel..."
-                                            }
-                                            options={panels.map((p) => ({ value: p.id, label: p.domain_label }))}
-                                        />
-                                    </div>
-                                    {refreshButton(refreshPanels, panelsLoading, "Refresh panels")}
-                                </div>
+                                <Select
+                                    value={interviewSubDomain}
+                                    onChange={setInterviewSubDomain}
+                                    placeholder="Select the interview domain..."
+                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` }))}
+                                />
                                 <p className="mt-2 text-xs text-white/40">
-                                    Panels are opened on the day — hit refresh if the one you need isn&apos;t listed yet.
+                                    Each scan is sent to whichever open table for this domain has the shortest line —
+                                    no need to pick a specific table.
                                 </p>
                             </div>
                         )}
@@ -447,7 +380,7 @@ export default function RecruitScannerPage() {
                                 <span className="font-bold text-white">
                                     {MODE_OPTIONS.find((m) => m.value === selectedMode)?.label}
                                     {isExamMode && examSubDomain ? ` · ${subDomainFullLabel(examSubDomain)}` : ""}
-                                    {selectedMode === "interview" && activePanelLabel ? ` · ${activePanelLabel}` : ""}
+                                    {selectedMode === "interview" && activeInterviewLabel ? ` · ${activeInterviewLabel}` : ""}
                                     {selectedMode === "training" && activeTrainingLabel ? ` · ${activeTrainingLabel}` : ""}
                                 </span>
                             </div>
