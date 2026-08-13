@@ -189,7 +189,7 @@ function RecruitRegisterInner() {
     );
 
     const updateProfile = (field: keyof ProfileForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-        setProfile((prev) => ({ ...prev, [field]: e.target.value }));
+        setProfile((prev) => ({ ...prev, [field]: field === "regNo" ? e.target.value.toUpperCase() : e.target.value }));
 
     const toggleDomain = (value: string) => {
         setDomains((prev) => {
