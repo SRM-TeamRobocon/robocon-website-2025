@@ -25,7 +25,7 @@ export default function MemberSignup() {
     const [submitted, setSubmitted] = useState(false);
 
     const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+        setForm((prev) => ({ ...prev, [field]: field === "regNo" ? e.target.value.toUpperCase() : e.target.value }));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
