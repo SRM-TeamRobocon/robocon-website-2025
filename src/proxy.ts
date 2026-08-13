@@ -45,7 +45,12 @@ export async function proxy(request: NextRequest) {
     // Protect /recruit/dashboard and /api/recruit/* (except auth routes) with the
     // separate recruit_token cookie — completely independent from admin_token above.
     const isProtectedRecruitPage = pathname.startsWith('/recruit/dashboard');
-    const isProtectedRecruitApi = pathname.startsWith('/api/recruit/') && !pathname.startsWith('/api/recruit/auth/');
+    // /api/recruit/tables is a deliberate public exception: it backs the /recruit/tables
+    // kiosk screen, meant to run on a lobby TV or a recruit's own phone with no login.
+    const isProtectedRecruitApi =
+        pathname.startsWith('/api/recruit/') &&
+        !pathname.startsWith('/api/recruit/auth/') &&
+        pathname !== '/api/recruit/tables';
 
     if (isProtectedRecruitPage || isProtectedRecruitApi) {
         const token = request.cookies.get('recruit_token')?.value;
