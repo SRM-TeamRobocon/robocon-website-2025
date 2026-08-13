@@ -39,11 +39,14 @@ type TrainingInfo = {
 type InterviewInfo = {
     panel_label: string;
     token_number: number;
-    status: "waiting" | "called";
+    status: "waiting" | "called" | "deferred";
     waiting_ahead: number;
 };
 
 import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
+
+// Hidden for now — flip back on when attendance is ready to be shown to recruits.
+const SHOW_TRAINING_ATTENDANCE = false;
 
 // Light chip variants — these badges sit on the fully transparent dark glass cards,
 // so they need enough weight/saturation against the dark backdrop, not the darker
@@ -278,7 +281,7 @@ export default function RecruitDashboardPage() {
                         ))}
                     </div>
 
-                    {training?.started && (
+                    {SHOW_TRAINING_ATTENDANCE && training?.started && (
                         <div className="mt-6 pt-6 border-t border-white/10">
                             <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-2">
                                 Training Attendance
@@ -313,6 +316,13 @@ export default function RecruitDashboardPage() {
                                     You&apos;re being called now
                                 </span>
                                 <span className="text-sm text-white/60">Head to the panel!</span>
+                            </div>
+                        ) : interview.status === "deferred" ? (
+                            <div className="flex items-center gap-3">
+                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-500 bg-amber-500/15 text-amber-300 rounded-lg px-3 py-1">
+                                    Table closed for the day
+                                </span>
+                                <span className="text-sm text-white/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">
