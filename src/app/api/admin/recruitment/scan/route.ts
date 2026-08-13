@@ -26,7 +26,9 @@ function scanResponse(
 
 // POST /api/admin/recruitment/scan
 // Requires admin_token (any of member/lead/admin — all volunteers have at least member).
-// Body: { payload, mode, panel_id?, sub_domain? } — see 05-QR-AND-SCANNING.md.
+// Body: { payload, mode, sub_domain? } — see 05-QR-AND-SCANNING.md. Interview mode takes
+// a sub_domain, not a panel_id — the server auto-routes to the least-loaded open table
+// for that domain, same UX as exam mode's domain picker.
 // Training mode takes a sub_domain (not a session_id): the day's session row is created
 // on demand by the first scan, so no lead has to set one up in advance.
 export async function POST(request: NextRequest) {
@@ -35,14 +37,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: "error", name: "", message: "Forbidden" }, { status: 403 });
     }
 
-    let body: { payload?: string; mode?: string; panel_id?: string; sub_domain?: string };
+    let body: { payload?: string; mode?: string; sub_domain?: string };
     try {
         body = await request.json();
     } catch {
         return scanResponse("error", "", "Invalid request body", undefined, 400);
     }
 
-    const { payload, panel_id, sub_domain } = body;
+    const { payload, sub_domain } = body;
     const mode = body.mode as ScanMode | undefined;
 
     if (!payload || typeof payload !== "string") {
@@ -191,76 +193,131 @@ export async function POST(request: NextRequest) {
             }
 
             case "interview": {
-                if (!panel_id) {
-                    return scanResponse("error", recruit.name, "panel_id is required for interview mode", undefined, 400);
+                // Auto-routed by domain, not a manually-picked panel_id: the volunteer
+                // selects which domain they're checking recruits in for (same UX as exam
+                // mode), and the server sends the recruit to whichever open table for that
+                // domain currently has the shortest waiting line.
+                if (!isRecruitSubDomain(sub_domain)) {
+                    return scanResponse("error", recruit.name, "Select which domain you are checking in for", undefined, 400);
                 }
 
-                const { data: panel } = await supabase
-                    .from("recruit_interview_panels")
-                    .select("id, domain_label, is_active, cycle_id")
-                    .eq("id", panel_id)
-                    .maybeSingle();
+                const domainLabel = subDomainFullLabel(sub_domain);
 
-                if (!panel || panel.cycle_id !== cid) {
-                    return scanResponse("error", recruit.name, "Panel not found for the active cycle", undefined, 404);
-                }
-                if (!panel.is_active) {
-                    return scanResponse("error", recruit.name, "This panel is closed", undefined, 400);
-                }
+                const [{ data: shortlisted }, { data: existingToken }] = await Promise.all([
+                    supabase
+                        .from("recruit_shortlist_status")
+                        .select("id")
+                        .eq("recruit_id", rid)
+                        .eq("cycle_id", cid)
+                        .eq("sub_domain", sub_domain)
+                        .eq("status", "shortlisted")
+                        .maybeSingle(),
+                    // Denormalized sub_domain on the token means this checks every table
+                    // for this domain, not just one panel_id.
+                    supabase
+                        .from("recruit_interview_tokens")
+                        .select("token_number, panel_id")
+                        .eq("recruit_id", rid)
+                        .eq("cycle_id", cid)
+                        .eq("sub_domain", sub_domain)
+                        .maybeSingle(),
+                ]);
 
-                const { data: existingToken } = await supabase
-                    .from("recruit_interview_tokens")
-                    .select("token_number")
-                    .eq("recruit_id", rid)
-                    .eq("panel_id", panel_id)
-                    .maybeSingle();
+                if (!shortlisted) {
+                    return scanResponse("error", recruit.name, `${recruit.name} is not shortlisted for ${domainLabel}`, undefined, 400);
+                }
 
                 if (existingToken) {
+                    const { data: existingPanel } = await supabase
+                        .from("recruit_interview_panels")
+                        .select("domain_label")
+                        .eq("id", existingToken.panel_id)
+                        .maybeSingle();
                     return scanResponse(
                         "already_checked_in",
                         recruit.name,
-                        `${recruit.name} already checked in for ${panel.domain_label}`,
-                        { token_number: existingToken.token_number, panel_label: panel.domain_label }
+                        `${recruit.name} already checked in for ${existingPanel?.domain_label ?? domainLabel}`,
+                        { token_number: existingToken.token_number, panel_label: existingPanel?.domain_label ?? domainLabel }
                     );
                 }
 
-                const { data: shortlisted } = await supabase
-                    .from("recruit_shortlist_status")
-                    .select("id")
-                    .eq("recruit_id", rid)
+                const { data: openPanels } = await supabase
+                    .from("recruit_interview_panels")
+                    .select("id, domain_label, table_number")
                     .eq("cycle_id", cid)
-                    .eq("status", "shortlisted");
+                    .eq("sub_domain", sub_domain)
+                    .eq("is_active", true)
+                    .order("table_number", { ascending: true });
 
-                if (!shortlisted || shortlisted.length === 0) {
-                    return scanResponse("error", recruit.name, "Not shortlisted", undefined, 400);
+                if (!openPanels || openPanels.length === 0) {
+                    return scanResponse("error", recruit.name, `No open table for ${domainLabel} yet — ask a lead to open one`, undefined, 400);
                 }
 
-                // Allocating token_number is a read-then-write race (max() then insert),
-                // so retry a bounded number of times: on a unique_violation, first check
-                // whether it's the (recruit_id, panel_id) constraint (this recruit truly
-                // is already checked in) vs. the (panel_id, token_number) constraint (a
-                // concurrent scan of a DIFFERENT recruit grabbed the same token number —
-                // in which case we recompute the max and retry, rather than incorrectly
-                // reporting this recruit as already checked in).
+                const { data: waitingTokens } = await supabase
+                    .from("recruit_interview_tokens")
+                    .select("panel_id")
+                    .in(
+                        "panel_id",
+                        openPanels.map((p) => p.id)
+                    )
+                    .eq("status", "waiting");
+
+                const waitingCounts = new Map<string, number>();
+                for (const p of openPanels) waitingCounts.set(p.id, 0);
+                for (const t of waitingTokens ?? []) {
+                    waitingCounts.set(t.panel_id, (waitingCounts.get(t.panel_id) ?? 0) + 1);
+                }
+
+                // Least-loaded table for this domain; ties broken by table_number (openPanels
+                // is already ordered that way, so the first minimum found wins).
+                let targetPanel = openPanels[0];
+                let targetLoad = waitingCounts.get(targetPanel.id) ?? 0;
+                for (const p of openPanels.slice(1)) {
+                    const load = waitingCounts.get(p.id) ?? 0;
+                    if (load < targetLoad) {
+                        targetPanel = p;
+                        targetLoad = load;
+                    }
+                }
+
+                // Allocating token_number and queue_position is a read-then-write race (max()
+                // then insert), so retry a bounded number of times: on a unique_violation,
+                // first check whether it's the (recruit_id, cycle_id, sub_domain) constraint
+                // (this recruit truly is already checked in for this domain) vs. the
+                // (panel_id, token_number) constraint (a concurrent scan of a DIFFERENT
+                // recruit grabbed the same token number on the same table — recompute and
+                // retry rather than incorrectly reporting this recruit as already checked in).
                 const MAX_TOKEN_ALLOCATION_ATTEMPTS = 5;
                 for (let attempt = 0; attempt < MAX_TOKEN_ALLOCATION_ATTEMPTS; attempt++) {
-                    const { data: maxRow } = await supabase
-                        .from("recruit_interview_tokens")
-                        .select("token_number")
-                        .eq("panel_id", panel_id)
-                        .order("token_number", { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
+                    const [{ data: maxTokenRow }, { data: maxPositionRow }] = await Promise.all([
+                        supabase
+                            .from("recruit_interview_tokens")
+                            .select("token_number")
+                            .eq("panel_id", targetPanel.id)
+                            .order("token_number", { ascending: false })
+                            .limit(1)
+                            .maybeSingle(),
+                        supabase
+                            .from("recruit_interview_tokens")
+                            .select("queue_position")
+                            .eq("panel_id", targetPanel.id)
+                            .order("queue_position", { ascending: false })
+                            .limit(1)
+                            .maybeSingle(),
+                    ]);
 
-                    const nextTokenNumber = (maxRow?.token_number ?? 0) + 1;
+                    const nextTokenNumber = (maxTokenRow?.token_number ?? 0) + 1;
+                    const nextQueuePosition = (maxPositionRow?.queue_position ?? 0) + 1000;
 
                     const { data: inserted, error: insertError } = await supabase
                         .from("recruit_interview_tokens")
                         .insert({
                             cycle_id: cid,
                             recruit_id: rid,
-                            panel_id,
+                            panel_id: targetPanel.id,
+                            sub_domain,
                             token_number: nextTokenNumber,
+                            queue_position: nextQueuePosition,
                             status: "waiting",
                         })
                         .select("token_number")
@@ -270,8 +327,8 @@ export async function POST(request: NextRequest) {
                         return scanResponse(
                             "ok",
                             recruit.name,
-                            `Checked in for ${panel.domain_label} — token #${inserted.token_number}`,
-                            { token_number: inserted.token_number, panel_label: panel.domain_label }
+                            `Checked in for ${targetPanel.domain_label} — token #${inserted.token_number}`,
+                            { token_number: inserted.token_number, panel_label: targetPanel.domain_label }
                         );
                     }
 
@@ -281,23 +338,24 @@ export async function POST(request: NextRequest) {
 
                     const { data: raceToken } = await supabase
                         .from("recruit_interview_tokens")
-                        .select("token_number")
+                        .select("token_number, panel_id")
                         .eq("recruit_id", rid)
-                        .eq("panel_id", panel_id)
+                        .eq("cycle_id", cid)
+                        .eq("sub_domain", sub_domain)
                         .maybeSingle();
 
                     if (raceToken) {
                         return scanResponse(
                             "already_checked_in",
                             recruit.name,
-                            `${recruit.name} already checked in for ${panel.domain_label}`,
-                            { token_number: raceToken.token_number, panel_label: panel.domain_label }
+                            `${recruit.name} already checked in for ${domainLabel}`,
+                            { token_number: raceToken.token_number, panel_label: domainLabel }
                         );
                     }
 
-                    // No row for this recruit on this panel, so the 23505 must have been
-                    // a (panel_id, token_number) collision from a concurrent scan of a
-                    // different recruit — loop around and recompute the max token.
+                    // No row for this recruit on this domain, so the 23505 must have been a
+                    // (panel_id, token_number) collision from a concurrent scan of a different
+                    // recruit onto the same table — loop around and recompute the max token.
                 }
 
                 return scanResponse(
