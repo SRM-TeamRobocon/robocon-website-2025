@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getRecruitSession } from "@/lib/recruit-session";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { todayInIST } from "@/lib/recruit-dates";
+import { subDomainFullLabel } from "@/lib/recruit-domains";
 
 export const dynamic = "force-dynamic";
 
@@ -148,7 +149,7 @@ export async function GET() {
             // `hasInterviewToken` above, so this is recruit-level, not per-domain.
             supabase
                 .from("recruit_interview_tokens")
-                .select("id, panel_id, token_number, status, checked_in_at, called_at")
+                .select("id, panel_id, sub_domain, token_number, queue_position, status, checked_in_at, called_at")
                 .eq("recruit_id", recruit_id)
                 .eq("cycle_id", cycle_id),
         ]);
@@ -215,37 +216,59 @@ export async function GET() {
         let interview: {
             panel_label: string;
             token_number: number;
-            status: "waiting" | "called";
+            status: "waiting" | "called" | "deferred";
             waiting_ahead: number;
         } | null = null;
 
-        // A recruit shortlisted for 2 domains can legitimately be checked into 2 panels at
-        // once. Prefer a 'called' token over a merely 'waiting' one — "you're being called
-        // right now" is strictly more urgent/actionable than a queue position elsewhere —
-        // rather than picking whichever row Postgres happens to return first (unordered,
-        // so it could otherwise flip between page loads).
+        // A recruit shortlisted for 2 domains can legitimately hold tokens on 2 tables (or a
+        // table + a deferral) at once. Prefer 'called' over 'waiting' over 'deferred' — "you're
+        // being called right now" is strictly more urgent than a queue position, which is more
+        // actionable than "come back another day" — rather than picking whichever row Postgres
+        // happens to return first (unordered, so it could otherwise flip between page loads).
         const ownActiveTokens = (
             (ownInterviewTokenRows as
-                | { id: string; panel_id: string; token_number: number; status: string }[]
+                | {
+                      id: string;
+                      panel_id: string;
+                      sub_domain: string | null;
+                      token_number: number;
+                      queue_position: number;
+                      status: string;
+                  }[]
                 | null) ?? []
-        ).filter((row) => row.status === "waiting" || row.status === "called");
+        ).filter((row) => row.status === "waiting" || row.status === "called" || row.status === "deferred");
         const activeToken =
-            ownActiveTokens.find((row) => row.status === "called") ?? ownActiveTokens[0];
+            ownActiveTokens.find((row) => row.status === "called") ??
+            ownActiveTokens.find((row) => row.status === "waiting") ??
+            ownActiveTokens[0];
 
-        if (activeToken) {
+        if (activeToken?.status === "deferred") {
+            // Whatever table this token is still attached to (its original one, or a
+            // reassigned placeholder if that table was since deleted) isn't meaningful here —
+            // the recruit needs to know the DOMAIN they're deferred for, not a table name.
+            interview = {
+                panel_label: activeToken.sub_domain ? subDomainFullLabel(activeToken.sub_domain) : "Interview",
+                token_number: activeToken.token_number,
+                status: "deferred",
+                waiting_ahead: 0,
+            };
+        } else if (activeToken) {
             const [{ data: panel }, waitingAheadResult] = await Promise.all([
                 supabase
                     .from("recruit_interview_panels")
                     .select("domain_label")
                     .eq("id", activeToken.panel_id)
                     .maybeSingle(),
+                // Ahead-of-me count follows queue_position (the manually-reorderable "who's
+                // next" order), not token_number — a drag-reorder on the dashboard should be
+                // reflected here immediately.
                 activeToken.status === "waiting"
                     ? supabase
                           .from("recruit_interview_tokens")
                           .select("id", { count: "exact", head: true })
                           .eq("panel_id", activeToken.panel_id)
                           .eq("status", "waiting")
-                          .lt("token_number", activeToken.token_number)
+                          .lt("queue_position", activeToken.queue_position)
                     : Promise.resolve({ count: 0 }),
             ]);
 
