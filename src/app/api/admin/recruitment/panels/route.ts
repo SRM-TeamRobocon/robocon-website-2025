@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
-import { isRecruitSubDomain } from "@/lib/recruit-domains";
+import { isRecruitSubDomain, subDomainFullLabel } from "@/lib/recruit-domains";
+import { FIELD_LIMITS, boundedText } from "@/lib/recruit-validation";
 
 export const dynamic = "force-dynamic";
 
 // Explicit column list — never `select("*")`. New columns added to
 // recruit_interview_panels should be opted into here deliberately rather than
 // leaking to every caller (including role "member") the moment they're created.
-const PANEL_COLUMNS = "id, cycle_id, domain_label, sub_domain, is_active, created_at, created_by";
+const PANEL_COLUMNS = "id, cycle_id, domain_label, sub_domain, table_number, is_active, created_at, created_by";
+
+// Postgres unique_violation.
+const UNIQUE_VIOLATION = "23505";
+const MAX_TABLE_NUMBER_ATTEMPTS = 5;
 
 async function getActiveCycleId(supabase: SupabaseClient): Promise<string | null> {
   const { data } = await supabase.from("recruitment_cycles").select("id").eq("is_active", true).maybeSingle();
@@ -80,6 +85,7 @@ export async function GET(request: NextRequest) {
       id: p.id,
       domain_label: p.domain_label,
       sub_domain: p.sub_domain ?? null,
+      table_number: p.table_number ?? null,
       is_active: p.is_active,
       created_at: p.created_at,
       counts: counts[p.id] ?? { waiting: 0, called: 0, done: 0, no_show: 0 },
@@ -91,14 +97,21 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/admin/recruitment/panels
-// Body: { domain_label: string, sub_domain?: string | null }
+// Body: { sub_domain: string, name?: string }
 //
-// `domain_label` stays free text (1-50 chars) for display — panels are typed on the day
-// ("Coding Panel 2", "Overflow Room"). `sub_domain`, when supplied, must be one of the six
-// recruit_subdomain enum values (validated via the shared @/lib/recruit-domains config) and
-// is what the panel dashboard uses to pre-select the domain a result gets logged against.
-// Leaving it null is legal — the dashboard then forces the interviewer to pick explicitly
-// rather than silently defaulting to an arbitrary domain.
+// Domain is required — table_number (used by auto-routing and the kiosk screen's
+// grouping/sorting) is always allocated server-side regardless of what's typed, so
+// routing never depends on the human-editable name.
+//
+// `name`, when given, becomes domain_label verbatim (must be unique, case-insensitive,
+// among this cycle's tables for the same domain — see the pre-insert check below). When
+// omitted, domain_label falls back to the old auto-generated "<Domain> — Table N" — the
+// UI always sends a prefilled default ("SPACED-Coding-" style) so this fallback is really
+// just a safety net for direct API callers, not the normal path.
+//
+// table_number is allocated read-then-insert (SELECT max() then INSERT), same race as
+// token_number in ../scan/route.ts, guarded by the same retry-on-23505 pattern against
+// the (cycle_id, sub_domain, table_number) unique index from migration 004.
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -106,17 +119,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const domain_label = typeof body.domain_label === "string" ? body.domain_label.trim() : "";
-  const rawSubDomain = typeof body.sub_domain === "string" ? body.sub_domain.trim() : "";
+  const sub_domain = typeof body.sub_domain === "string" ? body.sub_domain.trim() : "";
+  const customName = boundedText(body.name, FIELD_LIMITS.domain_label);
 
-  if (!domain_label || domain_label.length > 50) {
-    return NextResponse.json({ error: "domain_label must be 1-50 characters" }, { status: 400 });
+  if (!isRecruitSubDomain(sub_domain)) {
+    return NextResponse.json({ error: "Pick a valid recruitment domain" }, { status: 400 });
   }
-
-  if (rawSubDomain && !isRecruitSubDomain(rawSubDomain)) {
-    return NextResponse.json({ error: "sub_domain is not a recognised recruitment domain" }, { status: 400 });
-  }
-  const sub_domain = rawSubDomain || null;
 
   const supabase = createRecruitSupabaseAdminClient();
   const cycleId = await getActiveCycleId(supabase);
@@ -124,31 +132,73 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No active recruitment cycle" }, { status: 503 });
   }
 
-  const { data, error } = await supabase
-    .from("recruit_interview_panels")
-    .insert({
-      cycle_id: cycleId,
-      domain_label,
-      sub_domain,
-      is_active: true,
-      created_by: session.user,
-    })
-    .select(PANEL_COLUMNS)
-    .single();
+  if (customName) {
+    const { data: duplicate } = await supabase
+      .from("recruit_interview_panels")
+      .select("id")
+      .eq("cycle_id", cycleId)
+      .eq("sub_domain", sub_domain)
+      .ilike("domain_label", customName)
+      .maybeSingle();
 
-  if (error) {
-    console.error("recruitment panels POST error", error);
-    return NextResponse.json({ error: "Could not create panel" }, { status: 500 });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: `A table named "${customName}" already exists for this domain` },
+        { status: 409 }
+      );
+    }
+  }
+
+  for (let attempt = 0; attempt < MAX_TABLE_NUMBER_ATTEMPTS; attempt++) {
+    const { data: maxRow } = await supabase
+      .from("recruit_interview_panels")
+      .select("table_number")
+      .eq("cycle_id", cycleId)
+      .eq("sub_domain", sub_domain)
+      .order("table_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const table_number = (maxRow?.table_number ?? 0) + 1;
+    const domain_label = customName || `${subDomainFullLabel(sub_domain)} — Table ${table_number}`;
+
+    const { data, error } = await supabase
+      .from("recruit_interview_panels")
+      .insert({
+        cycle_id: cycleId,
+        domain_label,
+        sub_domain,
+        table_number,
+        is_active: true,
+        created_by: session.user,
+      })
+      .select(PANEL_COLUMNS)
+      .single();
+
+    if (!error) {
+      return NextResponse.json(
+        {
+          panel_id: data.id,
+          domain_label: data.domain_label,
+          sub_domain: data.sub_domain ?? null,
+          table_number: data.table_number ?? null,
+          created_at: data.created_at,
+          data,
+        },
+        { status: 201 }
+      );
+    }
+
+    if (error.code !== UNIQUE_VIOLATION) {
+      console.error("recruitment panels POST error", error);
+      return NextResponse.json({ error: "Could not create panel" }, { status: 500 });
+    }
+    // Another table for this domain was created concurrently and took this number —
+    // loop around and recompute the max.
   }
 
   return NextResponse.json(
-    {
-      panel_id: data.id,
-      domain_label: data.domain_label,
-      sub_domain: data.sub_domain ?? null,
-      created_at: data.created_at,
-      data,
-    },
-    { status: 201 }
+    { error: "Could not allocate a table number — please try again" },
+    { status: 409 }
   );
 }
