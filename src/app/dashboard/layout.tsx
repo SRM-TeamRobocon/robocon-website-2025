@@ -15,6 +15,7 @@ export default function AdminLayout({
     const pathname = usePathname();
     const [displayName, setDisplayName] = useState("Member");
     const [role, setRole] = useState<NavRole | null>(null);
+    const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -41,6 +42,19 @@ export default function AdminLayout({
             }
         };
         fetchUser();
+
+        const fetchPhoto = async () => {
+            try {
+                const res = await fetch("/api/profile");
+                const data = await res.json();
+                if (data.success && data.claimed && data.data?.photo_url) {
+                    setPhotoUrl(data.data.photo_url);
+                }
+            } catch (e) {
+                console.error("Failed to fetch profile photo", e);
+            }
+        };
+        fetchPhoto();
     }, []);
 
     const toggleCollapse = () => {
@@ -84,6 +98,7 @@ export default function AdminLayout({
                 <AdminTopbar
                     username={displayName}
                     role={role}
+                    photoUrl={photoUrl}
                     onOpenMobile={() => setMobileOpen(true)}
                 />
                 <main className="flex-grow w-full max-w-7xl mx-auto min-w-0 p-4 md:p-8">

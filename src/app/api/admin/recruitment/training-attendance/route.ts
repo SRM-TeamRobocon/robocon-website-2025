@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { fetchAllRows } from "@/lib/supabase/query-helpers";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +146,7 @@ export async function GET(request: NextRequest) {
     }
 
     const attendanceMap = new Map(attendance.map((row) => [row.recruit_id, row]));
+    const markedByNames = await resolveDisplayNames(supabase, attendance.map((row) => row.marked_by));
 
     const eligibleRecruits = recruitList.filter((recruit) => isEligible(recruit.id, sessionRow.sub_domain));
 
@@ -156,7 +158,7 @@ export async function GET(request: NextRequest) {
         reg_no: recruit.reg_no,
         attended: Boolean(marked),
         method: marked?.method ?? null,
-        marked_by: marked?.marked_by ?? null,
+        marked_by: marked ? markedByNames.get(marked.marked_by) ?? marked.marked_by : null,
         scanned_at: marked?.scanned_at ?? null,
       };
     });

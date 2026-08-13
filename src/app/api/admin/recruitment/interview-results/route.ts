@@ -4,6 +4,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { isRecruitSubDomain, subDomainFullLabel } from "@/lib/recruit-domains";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,8 @@ export async function GET(_request: NextRequest) {
     }
   }
 
+  const interviewerNames = await resolveDisplayNames(supabase, rows.map((r) => r.interviewer_username));
+
   const data = rows.map((r) => ({
     id: r.id,
     recruit_id: r.recruit_id,
@@ -116,7 +119,7 @@ export async function GET(_request: NextRequest) {
     sub_domain: r.sub_domain,
     result: r.result,
     notes: r.notes,
-    interviewer_username: r.interviewer_username,
+    interviewer_username: interviewerNames.get(r.interviewer_username) ?? r.interviewer_username,
     decided_at: r.decided_at,
   }));
 

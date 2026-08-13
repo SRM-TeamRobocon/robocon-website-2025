@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS, isRecruitSubDomain, type RecruitSubDomain } from "@/lib/recruit-domains";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
@@ -43,19 +44,21 @@ export async function GET(request: NextRequest) {
   }
 
   const bySubDomain = new Map((data ?? []).map((row: any) => [row.sub_domain, row]));
+  const setByNames = await resolveDisplayNames(supabase, (data ?? []).map((row: any) => row.set_by));
 
   const result = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const existing = bySubDomain.get(domain) as
       | { sub_domain: string; cutoff_marks: number; set_by: string; set_at: string }
       | undefined;
-    return (
-      existing ?? {
+    if (!existing) {
+      return {
         sub_domain: domain,
         cutoff_marks: null,
         set_by: null,
         set_at: null,
-      }
-    );
+      };
+    }
+    return { ...existing, set_by: setByNames.get(existing.set_by) ?? existing.set_by };
   });
 
   return NextResponse.json({ success: true, data: result, cycle_id: cycleId });

@@ -336,10 +336,18 @@ create table if not exists recruit_shortlist_status (
   overridden_by    text,
   overridden_at    timestamptz,
   computed_at      timestamptz,
+  -- Phone-call confirmation (originally migration 007): a lead/admin ticks this on the
+  -- Shortlist dashboard once someone has actually called the recruit. Set once, never
+  -- cleared or reassigned — "called by X" is a fixed record, not a toggle.
+  called_by        text,
+  called_at        timestamptz,
   unique (recruit_id, sub_domain, cycle_id)
 );
 
 alter table recruit_shortlist_status enable row level security;
+
+alter table recruit_shortlist_status add column if not exists called_by text;
+alter table recruit_shortlist_status add column if not exists called_at timestamptz;
 
 ---------------------------------------------------------------------------
 -- recruit_interview_panels

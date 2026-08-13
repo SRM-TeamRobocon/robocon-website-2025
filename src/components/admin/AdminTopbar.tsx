@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, UserCircle } from "lucide-react";
 import { ADMIN_NAV_ITEMS } from "./AdminSidebar";
 
 function pageTitleFor(pathname: string) {
@@ -21,10 +23,11 @@ function pageTitleFor(pathname: string) {
 interface AdminTopbarProps {
     username: string;
     role: string | null;
+    photoUrl: string | null;
     onOpenMobile: () => void;
 }
 
-export default function AdminTopbar({ username, role, onOpenMobile }: AdminTopbarProps) {
+export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: AdminTopbarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const title = pageTitleFor(pathname);
@@ -35,6 +38,24 @@ export default function AdminTopbar({ username, role, onOpenMobile }: AdminTopba
         .map((part) => part[0])
         .join("")
         .toUpperCase();
+
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [menuOpen]);
+
+    useEffect(() => {
+        setMenuOpen(false);
+    }, [pathname]);
 
     const handleLogout = async () => {
         await fetch("/api/admin/logout", { method: "POST" });
@@ -62,13 +83,48 @@ export default function AdminTopbar({ username, role, onOpenMobile }: AdminTopba
                         </span>
                     )}
 
-                    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 pl-1 pr-3 py-1">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-red to-red-800 text-[11px] font-bold text-white">
-                            {initials || "AD"}
-                        </span>
-                        <span className="hidden sm:block text-xs font-semibold text-gray-200 truncate max-w-[140px]">
-                            {username}
-                        </span>
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            onClick={() => setMenuOpen((v) => !v)}
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 pl-1 pr-3 py-1 transition-colors"
+                        >
+                            {photoUrl ? (
+                                <Image
+                                    src={photoUrl}
+                                    alt={username}
+                                    width={28}
+                                    height={28}
+                                    unoptimized
+                                    className="h-7 w-7 rounded-full object-cover shrink-0"
+                                />
+                            ) : (
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-red to-red-800 text-[11px] font-bold text-white shrink-0">
+                                    {initials || "AD"}
+                                </span>
+                            )}
+                            <span className="hidden sm:block text-xs font-semibold text-gray-200 truncate max-w-[140px]">
+                                {username}
+                            </span>
+                        </button>
+
+                        {menuOpen && (
+                            <div
+                                role="menu"
+                                className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/10 bg-black/95 backdrop-blur-xl shadow-xl overflow-hidden"
+                            >
+                                <Link
+                                    href="/dashboard/profile"
+                                    role="menuitem"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-200 hover:bg-white/5 hover:text-white transition-colors"
+                                >
+                                    <UserCircle className="w-4 h-4" />
+                                    My Profile
+                                </Link>
+                            </div>
+                        )}
                     </div>
 
                     <button

@@ -25,6 +25,8 @@ interface ShortlistRow {
   overridden_by: string | null;
   overridden_at: string | null;
   computed_at: string | null;
+  called_by: string | null;
+  called_at: string | null;
   marks: number | null;
   recruit: {
     id: string;
@@ -68,6 +70,38 @@ function StatusBadge({ status }: { status: ShortlistRow["status"] }) {
     <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${styles}`}>
       {label}
     </span>
+  );
+}
+
+function CalledCheckbox({
+  row,
+  busy,
+  onCall,
+}: {
+  row: ShortlistRow;
+  busy: boolean;
+  onCall: (id: string) => void;
+}) {
+  if (row.called_by) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-emerald-500/20 text-emerald-400 ring-1 ring-inset ring-emerald-500/40">
+          <Check className="w-3 h-3" />
+        </span>
+        <span className="text-xs text-gray-400 whitespace-nowrap">called by {row.called_by}</span>
+      </div>
+    );
+  }
+
+  return (
+    <input
+      type="checkbox"
+      checked={false}
+      disabled={busy}
+      onChange={() => onCall(row.id)}
+      aria-label="Mark as called"
+      className="h-4 w-4 rounded border-0 bg-white/10 text-blue-500 ring-1 ring-inset ring-white/20 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 cursor-pointer"
+    />
   );
 }
 
@@ -117,6 +151,7 @@ function ExamDomainsTab() {
   const [rows, setRows] = useState<ShortlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [callBusyId, setCallBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState<ShortlistSortKey>>(null);
   const [interviewDates, setInterviewDates] = useState<Record<string, string>>({});
@@ -208,6 +243,30 @@ function ExamDomainsTab() {
     }
   };
 
+  const markCalled = async (id: string) => {
+    setCallBusyId(id);
+    try {
+      const res = await fetch(`/api/admin/recruitment/shortlist/${id}/call`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRows((prev) =>
+          prev.map((row) =>
+            row.id === id ? { ...row, called_by: data.data.called_by, called_at: data.data.called_at } : row
+          )
+        );
+      } else if (res.status === 409) {
+        toast.error("Already marked as called — refreshing");
+        load();
+      } else {
+        toast.error(data.error || "Could not mark as called");
+      }
+    } catch {
+      toast.error("Could not mark as called");
+    } finally {
+      setCallBusyId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
@@ -216,7 +275,7 @@ function ExamDomainsTab() {
             accent="blue"
             value={domain}
             onChange={(v) => setDomain(v as ExamDomain | "all")}
-            className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
+            className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
             options={[
               { value: "all", label: "All Domains" },
               ...RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` })),
@@ -228,7 +287,7 @@ function ExamDomainsTab() {
             accent="blue"
             value={status}
             onChange={(v) => setStatus(v as (typeof STATUS_OPTIONS)[number])}
-            className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
+            className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
             options={STATUS_OPTIONS.map((s) => ({
               value: s,
               label: s === "all" ? "All Statuses" : s === "not_shortlisted" ? "Not Shortlisted" : s[0].toUpperCase() + s.slice(1),
@@ -242,7 +301,7 @@ function ExamDomainsTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or reg no..."
-            className="rounded-lg border-0 bg-white/5 py-2 pl-8 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+            className="h-10 rounded-lg border-0 bg-white/5 pl-8 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -261,6 +320,7 @@ function ExamDomainsTab() {
                   <SortableTh label="Reg No" sortKey="reg_no" sort={sort} onSort={handleSort} />
                   <SortableTh label="Domain" sortKey="domain" sort={sort} onSort={handleSort} />
                   <SortableTh label="Status" sortKey="status" sort={sort} onSort={handleSort} />
+                  <th className="px-5 py-3">Called</th>
                   <th className="px-5 py-3 text-right">Override</th>
                 </tr>
               </thead>
@@ -283,11 +343,14 @@ function ExamDomainsTab() {
                           <StatusBadge status={row.status} />
                         </td>
                         <td className="px-5 py-3">
+                          <CalledCheckbox row={row} busy={callBusyId === row.id} onCall={markCalled} />
+                        </td>
+                        <td className="px-5 py-3">
                           <OverrideControls row={row} busy={busyId === row.id} onDecide={decide} />
                         </td>
                       </tr>
                       {expanded && (
-                        <DetailRow colSpan={5}>
+                        <DetailRow colSpan={6}>
                           <DetailField label="Marks" value={row.marks ?? "—"} />
                           <DetailField
                             label="Method"

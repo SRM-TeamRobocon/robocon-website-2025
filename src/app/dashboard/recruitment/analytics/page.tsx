@@ -6,6 +6,12 @@ import { useRequireRole } from "@/hooks/use-require-role";
 
 import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 
+interface OutcomeCounts {
+    selected: number;
+    rejected: number;
+    waitlisted: number;
+}
+
 interface FunnelCounts {
     registered: number;
     orientation: number;
@@ -13,6 +19,7 @@ interface FunnelCounts {
     shortlisted: number;
     interviewed: number;
     selected: number;
+    interview_outcomes: OutcomeCounts;
 }
 
 const FUNNEL_STAGES: { key: keyof FunnelCounts; label: string }[] = [
@@ -50,19 +57,49 @@ interface AnalyticsData {
     };
 }
 
-function FunnelBar({ label, value, max }: { label: string; value: number; max: number }) {
+function FunnelBar({
+    label,
+    value,
+    max,
+    prevValue,
+    prevLabel,
+}: {
+    label: string;
+    value: number;
+    max: number;
+    prevValue?: number;
+    prevLabel?: string;
+}) {
     const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+    const stepPct = prevValue !== undefined && prevValue > 0 ? Math.round((value / prevValue) * 100) : null;
     return (
         <div>
             <div className="flex items-center justify-between text-xs mb-1">
                 <span className="text-gray-400 font-semibold">{label}</span>
                 <span className="text-white font-bold">
-                    {value} <span className="text-gray-500 font-normal">({pct}%)</span>
+                    {value}{" "}
+                    <span className="text-gray-500 font-normal">
+                        ({pct}% of registered
+                        {stepPct !== null ? ` · ${stepPct}% of ${prevLabel}` : ""})
+                    </span>
                 </span>
             </div>
             <div className="h-2 rounded-full bg-white/5 overflow-hidden">
                 <div className="h-full rounded-full bg-red transition-all" style={{ width: `${pct}%` }} />
             </div>
+        </div>
+    );
+}
+
+function OutcomeTile({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+    const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{label}</p>
+            <p className="text-2xl font-black text-white">{value}</p>
+            <p className="text-xs mt-0.5" style={{ color }}>
+                {pct}% of interviewed
+            </p>
         </div>
     );
 }
@@ -120,14 +157,40 @@ export default function RecruitmentAnalyticsPage() {
                     <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
                         <h2 className="text-lg font-bold text-white">Overall Funnel</h2>
                         <div className="space-y-3">
-                            {FUNNEL_STAGES.map((stage) => (
+                            {FUNNEL_STAGES.map((stage, i) => (
                                 <FunnelBar
                                     key={stage.key}
                                     label={stage.label}
-                                    value={data.overall[stage.key]}
+                                    value={data.overall[stage.key] as number}
                                     max={data.overall.registered}
+                                    prevValue={i > 0 ? (data.overall[FUNNEL_STAGES[i - 1].key] as number) : undefined}
+                                    prevLabel={i > 0 ? FUNNEL_STAGES[i - 1].label : undefined}
                                 />
                             ))}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                        <h2 className="text-lg font-bold text-white">Interview Outcomes</h2>
+                        <div className="grid grid-cols-3 gap-3">
+                            <OutcomeTile
+                                label="Selected"
+                                value={data.overall.interview_outcomes.selected}
+                                total={data.overall.interviewed}
+                                color="#34d399"
+                            />
+                            <OutcomeTile
+                                label="Waitlisted"
+                                value={data.overall.interview_outcomes.waitlisted}
+                                total={data.overall.interviewed}
+                                color="#fbbf24"
+                            />
+                            <OutcomeTile
+                                label="Rejected"
+                                value={data.overall.interview_outcomes.rejected}
+                                total={data.overall.interviewed}
+                                color="#f87171"
+                            />
                         </div>
                     </div>
 
@@ -146,6 +209,8 @@ export default function RecruitmentAnalyticsPage() {
                                         <th className="px-5 py-3">Shortlisted</th>
                                         <th className="px-5 py-3">Interviewed</th>
                                         <th className="px-5 py-3">Selected</th>
+                                        <th className="px-5 py-3">Waitlisted</th>
+                                        <th className="px-5 py-3">Rejected</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -163,10 +228,45 @@ export default function RecruitmentAnalyticsPage() {
                                             <td className="px-5 py-3 text-gray-300">{row.shortlisted}</td>
                                             <td className="px-5 py-3 text-gray-300">{row.interviewed}</td>
                                             <td className="px-5 py-3 text-gray-300">{row.selected}</td>
+                                            <td className="px-5 py-3 text-gray-300">{row.interview_outcomes.waitlisted}</td>
+                                            <td className="px-5 py-3 text-gray-300">{row.interview_outcomes.rejected}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                        <h2 className="text-lg font-bold text-white">Registration Share by Domain</h2>
+                        <div className="space-y-3">
+                            {[...data.by_domain]
+                                .sort((a, b) => b.registered - a.registered)
+                                .map((row) => (
+                                    <FunnelBar
+                                        key={row.sub_domain}
+                                        label={`${subDomainLabel(row.sub_domain)} (${subDomainSubsystem(row.sub_domain)})`}
+                                        value={row.registered}
+                                        max={data.overall.registered}
+                                    />
+                                ))}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                        <h2 className="text-lg font-bold text-white">Selection Yield by Domain</h2>
+                        <p className="text-xs text-gray-500 -mt-2">Share of each domain&apos;s registrants who were ultimately selected.</p>
+                        <div className="space-y-3">
+                            {[...data.by_domain]
+                                .sort((a, b) => (b.registered > 0 ? b.selected / b.registered : 0) - (a.registered > 0 ? a.selected / a.registered : 0))
+                                .map((row) => (
+                                    <FunnelBar
+                                        key={row.sub_domain}
+                                        label={`${subDomainLabel(row.sub_domain)} (${subDomainSubsystem(row.sub_domain)})`}
+                                        value={row.selected}
+                                        max={row.registered}
+                                    />
+                                ))}
                         </div>
                     </div>
 

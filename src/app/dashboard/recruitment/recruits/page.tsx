@@ -194,14 +194,14 @@ export default function RecruitsPage() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name or reg no..."
-                        className="w-full rounded-lg border-0 bg-white/5 py-2 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
+                        className="h-10 w-full rounded-lg border-0 bg-white/5 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                     />
                 </div>
                 <div className="w-48">
                     <Select
                         value={domain}
                         onChange={setDomain}
-                        className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
                         options={[
                             { value: "", label: "All domains" },
                             ...DOMAIN_GROUPS.flatMap((group) => group.domains.map((d) => ({ value: d.key, label: d.label }))),
@@ -217,7 +217,7 @@ export default function RecruitsPage() {
                     <Select
                         value={year}
                         onChange={setYear}
-                        className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
                         options={[
                             { value: "", label: "All years" },
                             { value: "1", label: "Year 1" },

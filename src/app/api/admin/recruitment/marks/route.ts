@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { isRecruitSubDomain } from "@/lib/recruit-domains";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,11 @@ export async function GET(request: NextRequest) {
     attendanceMap.set(a.recruit_id, entry);
   }
 
+  const evaluatorNames = await resolveDisplayNames(
+    supabase,
+    (marksRows ?? []).map((m: any) => m.evaluator_username)
+  );
+
   const data = rows
     .map((r) => ({ r, acc: accountOf(r) }))
     .filter((x): x is { r: SelectionRow; acc: NonNullable<ReturnType<typeof accountOf>> } => x.acc !== null)
@@ -125,7 +131,7 @@ export async function GET(request: NextRequest) {
         day1: attendance.day1,
         day2: attendance.day2,
         marks: marks?.marks ?? null,
-        evaluator_username: marks?.evaluator_username ?? null,
+        evaluator_username: marks?.evaluator_username ? evaluatorNames.get(marks.evaluator_username) ?? marks.evaluator_username : null,
         updated_at: marks?.updated_at ?? marks?.entered_at ?? null,
       };
     });

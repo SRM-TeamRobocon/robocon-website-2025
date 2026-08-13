@@ -5,8 +5,10 @@
 // CSS — on a dark page it shows up as a plain white popup with no way to theme it, which
 // reads as broken. This renders its own listbox instead, so it always matches the page.
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface SelectOption {
     value: string;
@@ -56,13 +58,48 @@ export default function Select({
 }) {
     const colors = ACCENTS[accent];
     const [open, setOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const listboxRef = useRef<HTMLUListElement>(null);
     const listboxId = useId();
+
+    useEffect(() => setMounted(true), []);
+
+    // Dropdown is portaled to <body> (see render below) so it always paints above
+    // every ancestor's stacking context — a card, sidebar, or table wrapper with its
+    // own z-index/overflow would otherwise trap a merely-child-positioned dropdown
+    // and clip or bury it, no matter how high its own z-index is set.
+    useLayoutEffect(() => {
+        if (!open) return;
+        function updateRect() {
+            const el = buttonRef.current;
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            setRect({ top: r.bottom, left: r.left, width: r.width });
+        }
+        updateRect();
+        window.addEventListener("scroll", updateRect, true);
+        window.addEventListener("resize", updateRect);
+        return () => {
+            window.removeEventListener("scroll", updateRect, true);
+            window.removeEventListener("resize", updateRect);
+        };
+    }, [open]);
 
     useEffect(() => {
         if (!open) return;
         function onPointerDown(e: MouseEvent) {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+            const target = e.target as Node;
+            if (
+                rootRef.current &&
+                !rootRef.current.contains(target) &&
+                listboxRef.current &&
+                !listboxRef.current.contains(target)
+            ) {
+                setOpen(false);
+            }
         }
         function onKeyDown(e: KeyboardEvent) {
             if (e.key === "Escape") setOpen(false);
@@ -106,6 +143,7 @@ export default function Select({
     return (
         <div ref={rootRef} className="relative">
             <button
+                ref={buttonRef}
                 type="button"
                 id={id}
                 disabled={disabled}
@@ -113,7 +151,10 @@ export default function Select({
                 aria-expanded={open}
                 aria-controls={listboxId}
                 onClick={() => setOpen((o) => !o)}
-                className={`flex w-full items-center justify-between gap-2 rounded-xl border-0 bg-white/10 py-3 px-4 text-left text-white shadow-sm ring-1 ring-inset ring-white/15 outline-none transition-all focus:ring-2 focus:ring-inset ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6 ${className}`}
+                className={cn(
+                    `flex w-full items-center justify-between gap-2 rounded-xl border-0 bg-white/10 py-3 px-4 text-left text-white shadow-sm ring-1 ring-inset ring-white/15 outline-none transition-all focus:ring-2 focus:ring-inset ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`,
+                    className
+                )}
             >
                 <span className={`truncate ${selected ? "" : "text-white/40"}`}>
                     {selected ? selected.label : placeholder}
@@ -121,33 +162,39 @@ export default function Select({
                 <ChevronDown className={`h-4 w-4 shrink-0 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
 
-            {open && (
-                <ul
-                    role="listbox"
-                    id={listboxId}
-                    className="absolute z-50 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-white/10 bg-[#141418] py-1 shadow-2xl ring-1 ring-white/10"
-                >
-                    {options.length === 0 ? (
-                        <li className="px-4 py-2.5 text-sm text-white/40">No options</li>
-                    ) : groups ? (
-                        <>
-                            {leadingOptions?.map(renderOption)}
-                            {groups.map((group) => (
-                                <li key={group.label} role="presentation">
-                                    <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-widest text-white/30">
-                                        {group.label}
-                                    </p>
-                                    <ul role="group" aria-label={group.label}>
-                                        {group.options.map(renderOption)}
-                                    </ul>
-                                </li>
-                            ))}
-                        </>
-                    ) : (
-                        options.map(renderOption)
-                    )}
-                </ul>
-            )}
+            {open &&
+                mounted &&
+                rect &&
+                createPortal(
+                    <ul
+                        ref={listboxRef}
+                        role="listbox"
+                        id={listboxId}
+                        style={{ top: rect.top + 8, left: rect.left, width: rect.width }}
+                        className="fixed z-[1000] max-h-64 overflow-auto rounded-xl border border-white/10 bg-[#141418] py-1 shadow-2xl ring-1 ring-white/10"
+                    >
+                        {options.length === 0 ? (
+                            <li className="px-4 py-2.5 text-sm text-white/40">No options</li>
+                        ) : groups ? (
+                            <>
+                                {leadingOptions?.map(renderOption)}
+                                {groups.map((group) => (
+                                    <li key={group.label} role="presentation">
+                                        <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-widest text-white/30">
+                                            {group.label}
+                                        </p>
+                                        <ul role="group" aria-label={group.label}>
+                                            {group.options.map(renderOption)}
+                                        </ul>
+                                    </li>
+                                ))}
+                            </>
+                        ) : (
+                            options.map(renderOption)
+                        )}
+                    </ul>,
+                    document.body
+                )}
         </div>
     );
 }

@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { isRecruitSubDomain } from "@/lib/recruit-domains";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_shortlist_status")
       .select(
-        "id, recruit_id, sub_domain, status, method, override_reason, overridden_by, overridden_at, computed_at, recruit_accounts(id, name, reg_no, year, department, course, portfolio_url, phone)"
+        "id, recruit_id, sub_domain, status, method, override_reason, overridden_by, overridden_at, computed_at, called_by, called_at, recruit_accounts(id, name, reg_no, year, department, course, portfolio_url, phone)"
       )
       .eq("cycle_id", cycleId)
       .order("sub_domain", { ascending: true });
@@ -91,6 +92,8 @@ export async function GET(request: NextRequest) {
   // is many-to-one. Normalize defensively either way.
   const accountOf = (row: any): any => (Array.isArray(row.recruit_accounts) ? row.recruit_accounts[0] : row.recruit_accounts);
 
+  const calledByNames = await resolveDisplayNames(supabase, rows.map((r) => r.called_by));
+
   const result = rows
     .map((r) => ({ r, acc: accountOf(r) }))
     .filter(({ acc }) => acc)
@@ -104,6 +107,8 @@ export async function GET(request: NextRequest) {
       overridden_by: r.overridden_by,
       overridden_at: r.overridden_at,
       computed_at: r.computed_at,
+      called_by: r.called_by ? calledByNames.get(r.called_by) ?? r.called_by : null,
+      called_at: r.called_at,
       marks: marksMap.get(`${r.recruit_id}:${r.sub_domain}`) ?? null,
       recruit: {
         id: acc.id,

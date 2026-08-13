@@ -17,6 +17,7 @@ import {
     ArrowUpRight,
 } from "lucide-react";
 import { useRoleGate } from "@/hooks/use-require-role";
+import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 
 interface FunnelCounts {
     registered: number;
@@ -27,9 +28,14 @@ interface FunnelCounts {
     selected: number;
 }
 
+interface DomainStats extends FunnelCounts {
+    sub_domain: string;
+}
+
 interface AnalyticsData {
     cycle: { id: string; name: string; year: string };
     overall: FunnelCounts;
+    by_domain: DomainStats[];
 }
 
 // `leadOnly` marks the sections whose own pages redirect anyone below lead. Members do
@@ -126,6 +132,46 @@ export default function RecruitmentOverviewPage() {
                                 <p className="text-2xl font-black text-white">{data.overall[stat.key]}</p>
                             </div>
                         ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Domain-wise Registration</p>
+                            <Link
+                                href="/dashboard/recruitment/analytics"
+                                className="text-xs font-semibold text-red hover:text-red/80 inline-flex items-center gap-1"
+                            >
+                                Full breakdown <ArrowUpRight className="w-3 h-3" />
+                            </Link>
+                        </div>
+                        <div className="space-y-3">
+                            {[...data.by_domain]
+                                .sort((a, b) => b.registered - a.registered)
+                                .map((row) => {
+                                    const pct =
+                                        data.overall.registered > 0
+                                            ? Math.round((row.registered / data.overall.registered) * 100)
+                                            : 0;
+                                    return (
+                                        <div key={row.sub_domain}>
+                                            <div className="flex items-center justify-between text-xs mb-1">
+                                                <span className="text-gray-300 font-semibold">
+                                                    {subDomainLabel(row.sub_domain)}
+                                                    <span className="ml-1.5 text-gray-500 font-normal">
+                                                        {subDomainSubsystem(row.sub_domain)}
+                                                    </span>
+                                                </span>
+                                                <span className="text-white font-bold">
+                                                    {row.registered} <span className="text-gray-500 font-normal">({pct}%)</span>
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                                <div className="h-full rounded-full bg-red transition-all" style={{ width: `${pct}%` }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
                     </div>
                 </>
             )}

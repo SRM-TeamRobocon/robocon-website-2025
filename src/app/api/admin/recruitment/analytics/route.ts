@@ -144,6 +144,21 @@ export async function GET() {
     selected: selectedIds.size,
   };
 
+  // Interview results carry three outcomes, not just "selected" — rejected/waitlisted were
+  // being discarded even though the same `interviews` rows already have them, so this is a
+  // client-side tabulation of data already in memory, not a new query.
+  const outcomeCounts = (rows: { result: string }[]) => {
+    const counts = { selected: 0, rejected: 0, waitlisted: 0 };
+    for (const row of rows) {
+      if (row.result === "selected") counts.selected += 1;
+      else if (row.result === "rejected") counts.rejected += 1;
+      else if (row.result === "waitlisted") counts.waitlisted += 1;
+    }
+    return counts;
+  };
+
+  const overallOutcomes = outcomeCounts(interviews as any[]);
+
   const byDomain = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const domainRecruitIds = new Set(
       domainSelections.filter((row: any) => row.sub_domain === domain).map((row: any) => row.recruit_id)
@@ -160,10 +175,8 @@ export async function GET() {
     const shortlistedCount = shortlist.filter(
       (row: any) => row.sub_domain === domain && row.status === "shortlisted"
     ).length;
-    const interviewedCount = interviews.filter((row: any) => row.sub_domain === domain).length;
-    const selectedCount = interviews.filter(
-      (row: any) => row.sub_domain === domain && row.result === "selected"
-    ).length;
+    const domainInterviews = interviews.filter((row: any) => row.sub_domain === domain) as any[];
+    const selectedCount = domainInterviews.filter((row) => row.result === "selected").length;
 
     return {
       sub_domain: domain,
@@ -171,8 +184,9 @@ export async function GET() {
       orientation,
       exam_attended: examAttended,
       shortlisted: shortlistedCount,
-      interviewed: interviewedCount,
+      interviewed: domainInterviews.length,
       selected: selectedCount,
+      interview_outcomes: outcomeCounts(domainInterviews),
     };
   });
 
@@ -218,7 +232,7 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     cycle,
-    overall,
+    overall: { ...overall, interview_outcomes: overallOutcomes },
     by_domain: byDomain,
     training: {
       total_trainees: totalTrainees,
