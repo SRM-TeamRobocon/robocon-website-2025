@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "next lint",
     "test:email": "tsx scripts/test-email.ts",
-    "migrate:content": "tsx --env-file=.env.local scripts/migrate-content.ts",
     "seed:recruitment": "tsx --env-file=.env.local scripts/seed-recruitment.ts"
   },
   "dependencies": {

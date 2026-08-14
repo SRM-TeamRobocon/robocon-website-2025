@@ -109,9 +109,11 @@ Admin UI:
 
 `team`, `achievements`, `alumni`, `events`, `projects`, and `gallery` all fetch from `/api/content/:resource` on mount and fall back to their original hardcoded data (`constants.ts` arrays / JSON files in `public/`) if the fetch fails or returns no rows — so the site never breaks if Supabase is briefly unreachable. Edit content via the admin CMS; changes appear on the public pages immediately (no rebuild needed).
 
+As of the 2026-08-14 repo cleanup, the local fallback **images** for `achievements` and `alumni` were removed (Supabase is fully populated for both — 14/14 and 50/50 rows respectively — so the fallback path is unused in practice); the fallback text/data still exists, it just has no local photo to point to if that path is ever hit. `events`, `projects`, `gallery`, and `team`'s fallback assets that are still actively referenced were left untouched.
+
 ### One-time content migration
 
-`scripts/migrate-content.ts` (run via `npm run migrate:content`) was used to seed the live Supabase project from the original hardcoded sources — including pulling team members from their live Google Sheets feed (`fetchDataUrl` in the old `team/page.tsx`, more current than the static `public/team/data.json`) — and re-uploading every referenced photo into Supabase Storage. It's idempotent-unsafe (plain inserts, no dedupe), so don't rerun it against a populated database without clearing the tables first. Kept for reference/re-seeding a fresh project.
+`scripts/migrate-content.ts` (previously run via `npm run migrate:content`) seeded the live Supabase project from the original hardcoded sources and re-uploaded every referenced photo into Supabase Storage. It was removed in the 2026-08-14 cleanup along with the local photo directories it depended on (`public/team/photos11`, `public/alumni/photos`, `public/gallery/photos`) — Supabase is already fully seeded and this script can't run again without those source files. A backup zip of everything removed in that cleanup exists outside the repo if a fresh re-seed is ever needed.
 
 ## MCPs That Help Codex Work Well
 
