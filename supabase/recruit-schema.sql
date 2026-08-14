@@ -111,6 +111,16 @@ create table if not exists recruit_accounts (
   is_hosteller        boolean not null default false,
   hostel_block        text,
   hostel_room         text,
+  -- Day-scholar-only counterparts to hostel_block/hostel_room (originally migration 012).
+  -- `day_scholar_area` is free text (no fixed list — day scholars live all over the city,
+  -- unlike the closed set of on-campus hostel blocks). `travel_method` is a checked text
+  -- column rather than an enum, same reasoning as `year` below: a fixed 2-value set today
+  -- ('own_vehicle' | 'college_bus') that might grow a third option later without an ALTER
+  -- TYPE migration. Both are required for new day-scholar registrations at the application
+  -- layer (complete-registration route) but NOT enforced NOT NULL here — see the
+  -- residence-consistency constraint below for why.
+  day_scholar_area    text,
+  travel_method       text,
   portfolio_url       text,
   password_hash       text not null,
   is_selected         boolean not null default false,
@@ -122,13 +132,45 @@ create table if not exists recruit_accounts (
   -- redundancy costs one extra index write per registration, which is nothing at this
   -- volume.
   unique (srm_email, cycle_id),
-  constraint recruit_accounts_hostel_block_consistent check (
-    (is_hosteller and hostel_block is not null)
+  -- Day scholars are (false, null, null, ?, ?); hostellers are (true, block, ?, null, null).
+  -- Deliberately NOT requiring day_scholar_area/travel_method NOT NULL on the day-scholar
+  -- branch — existing rows registered before migration 012 have neither, and a stricter
+  -- constraint here would reject any future UPDATE to those rows. The DB only enforces the
+  -- half that's safe unconditionally (a hosteller must never carry day-scholar fields);
+  -- requiredness for new registrations is enforced in application code instead.
+  constraint recruit_accounts_residence_consistent check (
+    (is_hosteller and hostel_block is not null and day_scholar_area is null and travel_method is null)
     or (not is_hosteller and hostel_block is null and hostel_room is null)
+  ),
+  constraint recruit_accounts_travel_method_valid check (
+    travel_method is null or travel_method in ('own_vehicle', 'college_bus')
   )
 );
 
 alter table recruit_accounts enable row level security;
+
+-- Brings an already-existing recruit_accounts table (the CREATE TABLE above is a no-op
+-- against it) up to the day-scholar-details shape added by migration 012. No-op on a
+-- fresh database, where these columns/constraints already came from the CREATE TABLE.
+alter table recruit_accounts add column if not exists day_scholar_area text;
+alter table recruit_accounts add column if not exists travel_method text;
+
+do $$ begin
+  alter table recruit_accounts
+    add constraint recruit_accounts_travel_method_valid
+    check (travel_method is null or travel_method in ('own_vehicle', 'college_bus'));
+exception when duplicate_object then null; end $$;
+
+alter table recruit_accounts drop constraint if exists recruit_accounts_hostel_block_consistent;
+
+do $$ begin
+  alter table recruit_accounts
+    add constraint recruit_accounts_residence_consistent
+    check (
+      (is_hosteller and hostel_block is not null and day_scholar_area is null and travel_method is null)
+      or (not is_hosteller and hostel_block is null and hostel_room is null)
+    );
+exception when duplicate_object then null; end $$;
 
 -- `reg_no` had no uniqueness of any kind, so the same student could register twice (or
 -- two students could claim one registration number) with nothing stopping it. Scoped to
@@ -388,10 +430,16 @@ create table if not exists recruit_interview_tokens (
   status        interview_token_status not null default 'waiting',
   checked_in_at timestamptz default now(),
   called_at     timestamptz,
+  -- Set true when the check-in scan bypassed the "shortlisted for this domain" gate
+  -- (originally migration 008) — a recruit who never sat the exam, or sat it and missed
+  -- cutoff, but showed up on interview day and was let through as a walk-in.
+  is_walkin     boolean not null default false,
   unique (recruit_id, panel_id)
 );
 
 alter table recruit_interview_tokens enable row level security;
+
+alter table recruit_interview_tokens add column if not exists is_walkin boolean not null default false;
 
 -- One-time data migration: token numbers are allocated read-then-insert (SELECT
 -- max(token_number) then INSERT, tens of ms apart) in
@@ -460,12 +508,18 @@ create table if not exists recruit_interview_results (
   sub_domain            recruit_subdomain not null,
   result                interview_result not null,
   notes                 text,
+  -- Copied from recruit_interview_tokens.is_walkin when the result is first logged, so this
+  -- list never needs to join back to the token table to show "not shortlisted, let in as a
+  -- walk-in" (originally migration 008).
+  is_walkin             boolean not null default false,
   interviewer_username  text not null,
   decided_at            timestamptz default now(),
   unique (recruit_id, sub_domain, cycle_id)
 );
 
 alter table recruit_interview_results enable row level security;
+
+alter table recruit_interview_results add column if not exists is_walkin boolean not null default false;
 
 -- The interview-results screen lists an entire cycle's results, and every result write
 -- re-derives recruit_accounts.is_selected from (recruit_id, cycle_id).

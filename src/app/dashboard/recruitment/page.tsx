@@ -15,6 +15,8 @@ import {
     AlertTriangle,
     QrCode,
     ArrowUpRight,
+    Ticket,
+    BookOpen,
 } from "lucide-react";
 import { useRoleGate } from "@/hooks/use-require-role";
 import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
@@ -50,6 +52,8 @@ const SECTIONS = [
     { label: "Interview", href: "/dashboard/recruitment/interview", icon: Mic2, desc: "Panels, live queue, and results", leadOnly: false },
     { label: "Training", href: "/dashboard/recruitment/training", icon: GraduationCap, desc: "Sessions and attendance", leadOnly: false },
     { label: "Analytics", href: "/dashboard/recruitment/analytics", icon: BarChart3, desc: "Full funnel breakdown", leadOnly: false },
+    { label: "Tickets", href: "/dashboard/recruitment/tickets", icon: Ticket, desc: "Domain change and general requests from recruits", leadOnly: false },
+    { label: "Knowledge Base", href: "/dashboard/recruitment/knowledge-base", icon: BookOpen, desc: "Upload .txt files for the recruit chatbot", leadOnly: true },
 ];
 
 const STAT_CARDS: { key: keyof FunnelCounts; label: string }[] = [

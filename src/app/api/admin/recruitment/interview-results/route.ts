@@ -74,12 +74,13 @@ export async function GET(_request: NextRequest) {
     sub_domain: string;
     result: string;
     notes: string | null;
+    is_walkin: boolean;
     interviewer_username: string;
     decided_at: string | null;
   }>((from, to) =>
     supabase
       .from("recruit_interview_results")
-      .select("id, recruit_id, sub_domain, result, notes, interviewer_username, decided_at")
+      .select("id, recruit_id, sub_domain, result, notes, is_walkin, interviewer_username, decided_at")
       .eq("cycle_id", cycleId)
       .order("decided_at", { ascending: false })
       .range(from, to)
@@ -119,6 +120,7 @@ export async function GET(_request: NextRequest) {
     sub_domain: r.sub_domain,
     result: r.result,
     notes: r.notes,
+    is_walkin: Boolean(r.is_walkin),
     interviewer_username: interviewerNames.get(r.interviewer_username) ?? r.interviewer_username,
     decided_at: r.decided_at,
   }));
@@ -198,18 +200,38 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error: upsertError } = await supabase.from("recruit_interview_results").upsert(
-    {
-      cycle_id: cycleId,
-      recruit_id,
-      sub_domain,
-      result,
-      notes,
-      interviewer_username: session.user,
-      decided_at: new Date().toISOString(),
-    },
-    { onConflict: "recruit_id,sub_domain,cycle_id" }
-  );
+  // is_walkin is copied from the token, not client-supplied — only known at the moment a
+  // panel_id is given (the initial log path). The edit path (results list "Fix" button)
+  // omits panel_id, so is_walkin is left out of the payload entirely and the existing
+  // value on the row survives the upsert untouched, same reasoning as the token-status
+  // update below.
+  let isWalkin: boolean | null = null;
+  if (panel_id) {
+    const { data: tokenRow } = await supabase
+      .from("recruit_interview_tokens")
+      .select("is_walkin")
+      .eq("recruit_id", recruit_id)
+      .eq("panel_id", panel_id)
+      .maybeSingle();
+    isWalkin = tokenRow ? Boolean(tokenRow.is_walkin) : null;
+  }
+
+  const upsertPayload: Record<string, unknown> = {
+    cycle_id: cycleId,
+    recruit_id,
+    sub_domain,
+    result,
+    notes,
+    interviewer_username: session.user,
+    decided_at: new Date().toISOString(),
+  };
+  if (isWalkin !== null) {
+    upsertPayload.is_walkin = isWalkin;
+  }
+
+  const { error: upsertError } = await supabase.from("recruit_interview_results").upsert(upsertPayload, {
+    onConflict: "recruit_id,sub_domain,cycle_id",
+  });
 
   if (upsertError) {
     console.error("interview-results: upsert error", upsertError);

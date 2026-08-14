@@ -24,7 +24,7 @@ const MODE_OPTIONS: { value: Mode; label: string }[] = [
 ];
 
 type ScanResult = {
-    status: "ok" | "already_scanned" | "already_checked_in" | "error";
+    status: "ok" | "already_scanned" | "already_checked_in" | "not_shortlisted" | "error";
     name: string;
     message: string;
     token_number?: number;
@@ -32,6 +32,16 @@ type ScanResult = {
     // Training only: the id of the auto-created (day, domain) session the scan landed in.
     // The scanner never picks a session any more, so this is the only way Undo can name one.
     session_id?: string;
+};
+
+// Held while a "not shortlisted" interview check-in is waiting on a human decision — the
+// scan endpoint deliberately doesn't check anyone in until the volunteer/lead confirms a
+// walk-in, so this is what the confirm button re-sends with `force: true`.
+type PendingWalkin = {
+    payload: string;
+    mode: Mode;
+    sub_domain?: string;
+    name: string;
 };
 
 // What a recorded scan can be undone as. Interview check-ins have no undo here —
@@ -134,7 +144,7 @@ export default function RecruitScannerPage() {
                 ? Boolean(trainingSubDomain)
                 : true;
 
-    const recordScan = useCallback((decodedText: string, mode: Mode, result: ScanResult) => {
+    const recordScan = useCallback((decodedText: string, mode: Mode, result: ScanResult, isWalkin = false) => {
         const recruitId = recruitIdFromPayload(decodedText);
 
         let what: string;
@@ -153,7 +163,7 @@ export default function RecruitScannerPage() {
             // Without it there's nothing to undo against, hence the null fallback.
             undo = result.session_id ? { type: "training", session_id: result.session_id } : null;
         } else {
-            what = `Interview check-in — ${subDomainFullLabel(interviewSubDomainRef.current)}`;
+            what = `Interview check-in — ${subDomainFullLabel(interviewSubDomainRef.current)}${isWalkin ? " (walk-in)" : ""}`;
             undo = null;
         }
 
@@ -174,50 +184,105 @@ export default function RecruitScannerPage() {
         );
     }, []);
 
-    const handleScan = useCallback(async (decodedText: string) => {
-        if (scanLockRef.current) return;
-        scanLockRef.current = true;
+    const [pendingWalkin, setPendingWalkin] = useState<PendingWalkin | null>(null);
 
-        const mode = modeRef.current;
-        const payload = decodedText.trim();
-        const body: { payload: string; mode: Mode; sub_domain?: string } = {
-            payload,
-            mode,
-        };
-        if (mode === "interview") body.sub_domain = interviewSubDomainRef.current;
-        if (mode === "training") body.sub_domain = trainingSubDomainRef.current;
-        if (mode === "exam_day_1" || mode === "exam_day_2") body.sub_domain = examSubDomainRef.current;
+    // Releases the scan lock and clears the overlay after a delay — shared by every path
+    // EXCEPT "not shortlisted", which instead waits on a human decision (see below). A clean
+    // "ok" is confirmed by the beep + green flash alone, so it doesn't need as long on screen
+    // as a warning/error the volunteer actually has to read before scanning the next person —
+    // holding every outcome to the same 2.5s was the single biggest thing making back-to-back
+    // scanning feel slow.
+    const scheduleReset = useCallback((ms: number) => {
+        setTimeout(() => {
+            scanLockRef.current = false;
+            setResult(null);
+            setFlash(null);
+        }, ms);
+    }, []);
 
-        try {
-            const res = await fetch("/api/admin/recruitment/scan", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            const json: ScanResult = await res.json();
+    // Shared by both the initial scan and the forced walk-in retry — `force: true` on the
+    // body is what tells the server to bypass the "not shortlisted" gate for mode 'interview'.
+    const runScan = useCallback(
+        async (body: { payload: string; mode: Mode; sub_domain?: string; force?: boolean }) => {
+            try {
+                const res = await fetch("/api/admin/recruitment/scan", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+                const json: ScanResult = await res.json();
 
-            setResult(json);
-            if (json.status === "ok") {
-                setFlash("success");
-                beep();
-                recordScan(payload, mode, json);
-            } else if (json.status === "already_scanned" || json.status === "already_checked_in") {
-                setFlash("warn");
-                beep();
-            } else {
+                setResult(json);
+
+                if (json.status === "not_shortlisted") {
+                    // Hold the lock and the overlay open — nothing is checked in yet, and
+                    // scanning again while this is up would be confusing. The decision
+                    // buttons below (confirmWalkin/cancelWalkin) resolve it.
+                    setPendingWalkin({ payload: body.payload, mode: body.mode, sub_domain: body.sub_domain, name: json.name });
+                    setFlash("warn");
+                    beep();
+                    return;
+                }
+
+                if (json.status === "ok") {
+                    setFlash("success");
+                    beep();
+                    recordScan(body.payload, body.mode, json, body.force === true);
+                    scheduleReset(900);
+                } else if (json.status === "already_scanned" || json.status === "already_checked_in") {
+                    setFlash("warn");
+                    beep();
+                    scheduleReset(2500);
+                } else {
+                    setFlash("error");
+                    scheduleReset(2500);
+                }
+            } catch {
+                setResult({ status: "error", name: "", message: "Network error while scanning." });
                 setFlash("error");
+                scheduleReset(2500);
             }
-        } catch {
-            setResult({ status: "error", name: "", message: "Network error while scanning." });
-            setFlash("error");
-        } finally {
-            setTimeout(() => {
-                scanLockRef.current = false;
-                setResult(null);
-                setFlash(null);
-            }, 2500);
-        }
-    }, [recordScan]);
+        },
+        [recordScan, scheduleReset]
+    );
+
+    const handleScan = useCallback(
+        async (decodedText: string) => {
+            if (scanLockRef.current) return;
+            scanLockRef.current = true;
+
+            const mode = modeRef.current;
+            const payload = decodedText.trim();
+            const body: { payload: string; mode: Mode; sub_domain?: string } = {
+                payload,
+                mode,
+            };
+            if (mode === "interview") body.sub_domain = interviewSubDomainRef.current;
+            if (mode === "training") body.sub_domain = trainingSubDomainRef.current;
+            if (mode === "exam_day_1" || mode === "exam_day_2") body.sub_domain = examSubDomainRef.current;
+
+            await runScan(body);
+        },
+        [runScan]
+    );
+
+    // Volunteer/lead confirms a walk-in: re-scan the same payload with force: true so the
+    // server bypasses the shortlist gate this one time and checks the recruit in.
+    const confirmWalkin = useCallback(async () => {
+        if (!pendingWalkin) return;
+        const { payload, mode, sub_domain } = pendingWalkin;
+        setPendingWalkin(null);
+        await runScan({ payload, mode, sub_domain, force: true });
+    }, [pendingWalkin, runScan]);
+
+    // Volunteer/lead declines — nothing was ever checked in, so there's nothing to undo,
+    // just release the lock so the next QR can be scanned.
+    const cancelWalkin = useCallback(() => {
+        setPendingWalkin(null);
+        setResult(null);
+        setFlash(null);
+        scanLockRef.current = false;
+    }, []);
 
     const undoScan = useCallback(async (entry: RecentScan) => {
         if (!entry.undo || !entry.recruitId) return;
@@ -409,7 +474,33 @@ export default function RecruitScannerPage() {
                                         : ""
                                 }`}
                         >
-                            {result && (
+                            {result && result.status === "not_shortlisted" && pendingWalkin ? (
+                                <div className="absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md" style={{ backgroundColor: "rgba(3, 7, 18, 0.95)" }}>
+                                    <div className="text-center max-w-sm w-full">
+                                        <h2 className="text-2xl font-black mb-2" style={{ color: "#fbbf24" }}>
+                                            Not Shortlisted
+                                        </h2>
+                                        {result.name && <p className="text-white font-bold text-lg">{result.name}</p>}
+                                        <p className="text-gray-300 text-sm mt-1">{result.message}</p>
+                                        <div className="mt-5 flex items-center justify-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={cancelWalkin}
+                                                className="rounded-xl border border-white/20 px-4 py-2.5 text-sm font-bold text-white/70 hover:border-white/40 hover:text-white transition-colors"
+                                            >
+                                                Turn Away
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={confirmWalkin}
+                                                className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-400 transition-colors"
+                                            >
+                                                Allow Walk-in
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : result ? (
                                 <div className="absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md" style={{ backgroundColor: "rgba(3, 7, 18, 0.95)" }}>
                                     <div className="text-center max-w-sm w-full">
                                         <h2
@@ -441,7 +532,7 @@ export default function RecruitScannerPage() {
                                         )}
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             <Html5QrcodeScanner onScan={handleScan} />
                         </GlassCard>

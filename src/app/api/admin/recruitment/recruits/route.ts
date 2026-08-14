@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_accounts")
       .select(
-        "id, name, reg_no, year, department, course, srm_email, phone, is_hosteller, hostel_block, hostel_room, is_selected, created_at"
+        "id, name, reg_no, year, department, course, srm_email, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, is_selected, created_at"
       )
       .eq("cycle_id", cycleId)
       .order("created_at", { ascending: false });

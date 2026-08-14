@@ -95,6 +95,15 @@ create table if not exists contact_submissions (
   is_read boolean default false
 );
 
+create table if not exists faq (
+  id uuid primary key default gen_random_uuid(),
+  question text not null,
+  answer text not null,
+  display_order integer default 0,
+  is_published boolean not null default true,
+  created_at timestamptz default now()
+);
+
 alter table members enable row level security;
 alter table projects enable row level security;
 alter table achievements enable row level security;
@@ -102,6 +111,7 @@ alter table events enable row level security;
 alter table alumni enable row level security;
 alter table gallery enable row level security;
 alter table contact_submissions enable row level security;
+alter table faq enable row level security;
 
 drop policy if exists public_read_members on members;
 drop policy if exists public_read_projects on projects;
@@ -109,6 +119,7 @@ drop policy if exists public_read_achievements on achievements;
 drop policy if exists public_read_events on events;
 drop policy if exists public_read_alumni on alumni;
 drop policy if exists public_read_gallery on gallery;
+drop policy if exists public_read_faq on faq;
 
 create policy public_read_members on members for select using (true);
 create policy public_read_projects on projects for select using (true);
@@ -116,6 +127,7 @@ create policy public_read_achievements on achievements for select using (true);
 create policy public_read_events on events for select using (true);
 create policy public_read_alumni on alumni for select using (true);
 create policy public_read_gallery on gallery for select using (true);
+create policy public_read_faq on faq for select using (true);
 
 insert into storage.buckets (id, name, public)
 values

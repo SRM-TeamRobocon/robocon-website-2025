@@ -20,6 +20,8 @@ export type RecruitProfile = {
   shortlisted_for: string[];
   is_hosteller: boolean;
   hostel_block: string | null;
+  day_scholar_area: string | null;
+  travel_method: string | null;
 };
 
 export type QueueToken = {
@@ -30,6 +32,9 @@ export type QueueToken = {
   recruit: RecruitProfile;
   checked_in_at: string;
   called_at?: string;
+  // Set when this check-in bypassed the "shortlisted for this domain" gate — the recruit
+  // never sat the exam, or sat it and missed cutoff, but was let through as a walk-in.
+  is_walkin: boolean;
 };
 
 // What role "member" receives. Deliberately minimal: the only member-facing consumers are
@@ -64,6 +69,8 @@ const EMPTY_PROFILE = (recruitId: string): RecruitProfile => ({
   shortlisted_for: [],
   is_hosteller: false,
   hostel_block: null,
+  day_scholar_area: null,
+  travel_method: null,
 });
 
 // Shared by this route and ../call-next/route.ts so both return the identical recruit
@@ -85,7 +92,7 @@ export async function buildRecruitProfiles(
   const [{ data: recruits }, { data: selections }, { data: marks }, { data: shortlist }] = await Promise.all([
     supabase
       .from("recruit_accounts")
-      .select("id, name, reg_no, year, department, portfolio_url, is_hosteller, hostel_block")
+      .select("id, name, reg_no, year, department, portfolio_url, is_hosteller, hostel_block, day_scholar_area, travel_method")
       .in("id", recruitIds),
     supabase
       .from("recruit_domain_selections")
@@ -119,6 +126,8 @@ export async function buildRecruitProfiles(
       shortlisted_for: [],
       is_hosteller: r.is_hosteller ?? false,
       hostel_block: r.hostel_block ?? null,
+      day_scholar_area: r.day_scholar_area ?? null,
+      travel_method: r.travel_method ?? null,
     });
   }
   for (const s of selections ?? []) {
@@ -139,7 +148,7 @@ export async function buildRecruitProfiles(
 export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string): Promise<QueueToken[]> {
   const { data: tokens, error } = await supabase
     .from("recruit_interview_tokens")
-    .select("id, token_number, queue_position, status, checked_in_at, called_at, recruit_id")
+    .select("id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin")
     .eq("panel_id", panelId)
     .order("queue_position", { ascending: true });
 
@@ -157,6 +166,7 @@ export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string)
     recruit: profiles.get(t.recruit_id) ?? EMPTY_PROFILE(t.recruit_id),
     checked_in_at: t.checked_in_at,
     called_at: t.called_at ?? undefined,
+    is_walkin: Boolean(t.is_walkin),
   }));
 }
 

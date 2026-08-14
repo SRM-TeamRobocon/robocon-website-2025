@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
+import { Html5QrcodeScanner, Html5QrcodeScanType, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import toast from "react-hot-toast";
 import { useRequireRole } from "@/hooks/use-require-role";
 
@@ -123,9 +123,15 @@ function ScannerComponent() {
             scannerRef.current = new Html5QrcodeScanner(
                 "qr-reader",
                 {
-                    fps: 10,
+                    fps: 15,
                     qrbox: { width: 250, height: 250 },
-                    supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+                    supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                    // See src/components/recruit/Html5QrcodeScanner.tsx for why each of
+                    // these speeds up decoding — same reasoning applies to this scanner.
+                    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+                    useBarCodeDetectorIfSupported: true,
+                    disableFlip: true,
+                    videoConstraints: { facingMode: "environment" },
                 },
                 false
             );

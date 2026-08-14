@@ -12,6 +12,7 @@ import {
 } from "@/lib/recruit-session";
 import { isRecruitSubDomain, subDomainFullLabel } from "@/lib/recruit-domains";
 import { isHostelBlock } from "@/lib/hostel-blocks";
+import { isTravelMethod } from "@/lib/travel-method";
 import { safeHttpUrl, boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
 import { signQR } from "@/lib/recruit-qr";
 import { getTransporter, SMTP_EMAIL, logoAttachment } from "@/lib/mailer";
@@ -64,6 +65,10 @@ export async function POST(request: Request) {
         // migration 004 rejects a block/room on a non-hosteller outright.
         const hostelBlock = isHosteller ? boundedText(body.hostel_block, FIELD_LIMITS.hostel_block) : null;
         const hostelRoom = isHosteller ? boundedText(body.hostel_room, FIELD_LIMITS.hostel_room) : null;
+        // Day-scholar-only counterparts, same (isHosteller ? ... : null) shape as above so a
+        // hosteller can never land with these set — the DB check constraint backstops this.
+        const dayScholarArea = !isHosteller ? boundedText(body.day_scholar_area, FIELD_LIMITS.day_scholar_area) : null;
+        const travelMethod = !isHosteller && isTravelMethod(body.travel_method) ? body.travel_method : null;
         const domains: string[] = Array.isArray(body.domains) ? body.domains.map((d: unknown) => String(d)) : [];
 
         // Only http(s) URLs. This value is rendered as a clickable link in the admin
@@ -108,6 +113,12 @@ export async function POST(request: Request) {
         }
         if (isHosteller && !hostelRoom) {
             return NextResponse.json({ success: false, error: "Enter your hostel room number." }, { status: 400 });
+        }
+        if (!isHosteller && !dayScholarArea) {
+            return NextResponse.json({ success: false, error: "Enter the area you live in." }, { status: 400 });
+        }
+        if (!isHosteller && !travelMethod) {
+            return NextResponse.json({ success: false, error: "Select how you travel to college." }, { status: 400 });
         }
         if (password.length < 8) {
             return NextResponse.json({ success: false, error: "Password must be at least 8 characters." }, { status: 400 });
@@ -181,6 +192,8 @@ export async function POST(request: Request) {
                 is_hosteller: isHosteller,
                 hostel_block: hostelBlock,
                 hostel_room: hostelRoom,
+                day_scholar_area: dayScholarArea,
+                travel_method: travelMethod,
                 portfolio_url: portfolioUrl,
                 password_hash: passwordHash,
             })

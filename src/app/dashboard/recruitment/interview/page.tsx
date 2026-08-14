@@ -20,6 +20,8 @@ import {
     Pencil,
     X,
     GripVertical,
+    Footprints,
+    ChevronDown,
 } from "lucide-react";
 import {
     DndContext,
@@ -65,6 +67,8 @@ interface RecruitProfile {
     shortlisted_for: string[];
     is_hosteller: boolean;
     hostel_block: string | null;
+    day_scholar_area: string | null;
+    travel_method: string | null;
 }
 
 interface QueueToken {
@@ -75,9 +79,11 @@ interface QueueToken {
     recruit: RecruitProfile;
     checked_in_at: string;
     called_at?: string;
+    is_walkin: boolean;
 }
 
 import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem } from "@/lib/recruit-domains";
+import { travelMethodLabel } from "@/lib/travel-method";
 import Select from "@/components/ui/select";
 
 function AddPanelForm({ onCreated }: { onCreated: () => void }) {
@@ -356,15 +362,29 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
         <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="text-lg font-black text-white">
-                        #{token.token_number} — {r.name}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-black text-white">
+                            #{token.token_number} — {r.name}
+                        </p>
+                        {token.is_walkin && (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30">
+                                <Footprints className="h-3 w-3" /> Walk-in
+                            </span>
+                        )}
+                    </div>
                     <p className="text-sm text-gray-400">
                         {r.reg_no} · Year {r.year} · {r.department}
                     </p>
                     <p className="mt-1 text-sm text-gray-400">
-                        {r.is_hosteller ? `Hosteller${r.hostel_block ? ` · ${r.hostel_block}` : ""}` : "Day Scholar"}
+                        {r.is_hosteller
+                            ? `Hosteller${r.hostel_block ? ` · ${r.hostel_block}` : ""}`
+                            : ["Day Scholar", r.day_scholar_area, travelMethodLabel(r.travel_method)].filter(Boolean).join(" · ")}
                     </p>
+                    {token.is_walkin && (
+                        <p className="mt-1 text-xs text-amber-400/80">
+                            Not shortlisted for this domain — let in as a walk-in on interview day.
+                        </p>
+                    )}
                 </div>
                 {r.portfolio_url && (
                     <a
@@ -728,6 +748,14 @@ function SortableWaitingRow({ token }: { token: QueueToken }) {
             </button>
             <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{token.token_number}</span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
+            {token.is_walkin && (
+                <span
+                    title="Not shortlisted — walk-in"
+                    className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+                >
+                    <Footprints className="h-3 w-3" /> Walk-in
+                </span>
+            )}
             <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
         </div>
     );
@@ -741,6 +769,7 @@ interface InterviewResultRow {
     sub_domain: string;
     result: "selected" | "rejected" | "waitlisted";
     notes: string | null;
+    is_walkin: boolean;
     interviewer_username: string;
     decided_at: string | null;
 }
@@ -750,6 +779,31 @@ const RESULT_STYLES: Record<InterviewResultRow["result"], string> = {
     rejected: "bg-red-500/10 text-red-400 ring-red-500/30",
     waitlisted: "bg-amber-500/10 text-amber-400 ring-amber-500/30",
 };
+
+// Groups results by domain, RECRUIT_SUBDOMAINS order first (so sections always appear in
+// the same place regardless of interview order), any unrecognised domain appended after —
+// defensive only, the DB enum should never produce one.
+function groupResultsByDomain(rows: InterviewResultRow[]): { sub_domain: string; rows: InterviewResultRow[] }[] {
+    const bySub = new Map<string, InterviewResultRow[]>();
+    for (const row of rows) {
+        const bucket = bySub.get(row.sub_domain);
+        if (bucket) bucket.push(row);
+        else bySub.set(row.sub_domain, [row]);
+    }
+
+    const ordered: { sub_domain: string; rows: InterviewResultRow[] }[] = [];
+    for (const d of RECRUIT_SUBDOMAINS) {
+        const bucket = bySub.get(d.key);
+        if (bucket && bucket.length > 0) {
+            ordered.push({ sub_domain: d.key, rows: bucket });
+            bySub.delete(d.key);
+        }
+    }
+    for (const [sub_domain, bucket] of Array.from(bySub.entries())) {
+        ordered.push({ sub_domain, rows: bucket });
+    }
+    return ordered;
+}
 
 // Editing a past decision re-POSTs to the same upsert endpoint the panel dashboard
 // uses, WITHOUT a panel_id — per the route's documented judgment call, omitting it
@@ -833,6 +887,125 @@ function EditResultRow({ row, onSaved, onCancel }: { row: InterviewResultRow; on
     );
 }
 
+// One collapsible section per domain — counts in the header so a lead can see at a glance
+// how a domain's interviews went without opening it, and the table itself carries the
+// existing Fix/edit flow unchanged (see EditResultRow above).
+function DomainResultsSection({
+    subDomain,
+    rows,
+    editingId,
+    onEdit,
+    onCancelEdit,
+    onSaved,
+}: {
+    subDomain: string;
+    rows: InterviewResultRow[];
+    editingId: string | null;
+    onEdit: (id: string) => void;
+    onCancelEdit: () => void;
+    onSaved: () => void;
+}) {
+    const [collapsed, setCollapsed] = useState(false);
+    const counts = { selected: 0, rejected: 0, waitlisted: 0 };
+    for (const r of rows) counts[r.result]++;
+
+    return (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setCollapsed((c) => !c)}
+                className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/[0.02]"
+            >
+                <div className="flex min-w-0 items-center gap-2.5">
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+                    <h3 className="truncate text-sm font-bold text-white">{subDomainLabel(subDomain)}</h3>
+                    <span className="shrink-0 text-xs font-medium text-gray-500">{subDomainSubsystem(subDomain)}</span>
+                    <span className="shrink-0 text-xs text-gray-600">· {rows.length} interviewed</span>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs">
+                    {counts.selected > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                            <Award className="h-3 w-3" /> {counts.selected}
+                        </span>
+                    )}
+                    {counts.rejected > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-red-500/10 px-2 py-0.5 font-semibold text-red-400 ring-1 ring-inset ring-red-500/20">
+                            <Ban className="h-3 w-3" /> {counts.rejected}
+                        </span>
+                    )}
+                    {counts.waitlisted > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                            <Hourglass className="h-3 w-3" /> {counts.waitlisted}
+                        </span>
+                    )}
+                </div>
+            </button>
+            {!collapsed && (
+                <div className="overflow-x-auto border-t border-white/10">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
+                                <th className="px-5 py-2.5">Name</th>
+                                <th className="px-5 py-2.5">Result</th>
+                                <th className="px-5 py-2.5">Notes</th>
+                                <th className="px-5 py-2.5">Interviewer</th>
+                                <th className="px-5 py-2.5">Decided</th>
+                                <th className="px-5 py-2.5 text-right">Correct</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) =>
+                                editingId === row.id ? (
+                                    <EditResultRow key={row.id} row={row} onCancel={onCancelEdit} onSaved={onSaved} />
+                                ) : (
+                                    <tr key={row.id} className="border-b border-white/5 last:border-0">
+                                        <td className="px-5 py-2.5">
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                <span className="font-medium text-white">{row.name}</span>
+                                                {row.is_walkin && (
+                                                    <span
+                                                        title="Not shortlisted — let in as a walk-in"
+                                                        className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+                                                    >
+                                                        <Footprints className="h-3 w-3" /> Walk-in
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs text-gray-500">{row.reg_no}</div>
+                                        </td>
+                                        <td className="px-5 py-2.5">
+                                            <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize ${RESULT_STYLES[row.result]}`}>
+                                                {row.result}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-2.5 max-w-[240px]">
+                                            <span className="block truncate text-xs text-gray-400" title={row.notes ?? undefined}>
+                                                {row.notes || "—"}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-2.5 text-gray-400 text-xs">{row.interviewer_username}</td>
+                                        <td className="px-5 py-2.5 text-gray-400 text-xs">
+                                            {row.decided_at ? new Date(row.decided_at).toLocaleString() : "—"}
+                                        </td>
+                                        <td className="px-5 py-2.5 text-right">
+                                            <button
+                                                onClick={() => onEdit(row.id)}
+                                                className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 hover:bg-white/10"
+                                            >
+                                                <Pencil className="h-3 w-3" /> Fix
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function InterviewResultsList() {
     const [rows, setRows] = useState<InterviewResultRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -852,73 +1025,39 @@ function InterviewResultsList() {
         load();
     }, [load]);
 
+    const groups = groupResultsByDomain(rows);
+
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
+        <div className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
                 <ClipboardList className="h-4 w-4 text-gray-400" />
-                <h2 className="text-sm font-bold text-white">Interview Results</h2>
-                <span className="text-xs text-gray-500">({rows.length})</span>
+                <h2 className="text-base font-bold text-white">Interview Results — by Domain</h2>
+                <span className="text-xs text-gray-500">({rows.length} total)</span>
             </div>
             {loading ? (
-                <div className="p-6 text-center text-gray-500 text-sm">Loading...</div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500">
+                    Loading...
+                </div>
             ) : rows.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 text-sm">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500">
                     No results logged yet — they&apos;ll show up here as panels call recruits in.
                 </div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
-                                <th className="px-5 py-2.5">Name</th>
-                                <th className="px-5 py-2.5">Domain</th>
-                                <th className="px-5 py-2.5">Result</th>
-                                <th className="px-5 py-2.5">Interviewer</th>
-                                <th className="px-5 py-2.5">Decided</th>
-                                <th className="px-5 py-2.5 text-right">Correct</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows.map((row) =>
-                                editingId === row.id ? (
-                                    <EditResultRow
-                                        key={row.id}
-                                        row={row}
-                                        onCancel={() => setEditingId(null)}
-                                        onSaved={() => {
-                                            setEditingId(null);
-                                            load();
-                                        }}
-                                    />
-                                ) : (
-                                    <tr key={row.id} className="border-b border-white/5 last:border-0">
-                                        <td className="px-5 py-2.5 text-white font-medium">{row.name}</td>
-                                        <td className="px-5 py-2.5 text-gray-300">
-                                            {subDomainLabel(row.sub_domain)}{" "}
-                                            <span className="text-xs text-gray-500">{subDomainSubsystem(row.sub_domain)}</span>
-                                        </td>
-                                        <td className="px-5 py-2.5">
-                                            <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize ${RESULT_STYLES[row.result]}`}>
-                                                {row.result}
-                                            </span>
-                                        </td>
-                                        <td className="px-5 py-2.5 text-gray-400 text-xs">{row.interviewer_username}</td>
-                                        <td className="px-5 py-2.5 text-gray-400 text-xs">
-                                            {row.decided_at ? new Date(row.decided_at).toLocaleString() : "—"}
-                                        </td>
-                                        <td className="px-5 py-2.5 text-right">
-                                            <button
-                                                onClick={() => setEditingId(row.id)}
-                                                className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 hover:bg-white/10"
-                                            >
-                                                <Pencil className="h-3 w-3" /> Fix
-                                            </button>
-                                        </td>
-                                    </tr>
-                                )
-                            )}
-                        </tbody>
-                    </table>
+                <div className="space-y-3">
+                    {groups.map((group) => (
+                        <DomainResultsSection
+                            key={group.sub_domain}
+                            subDomain={group.sub_domain}
+                            rows={group.rows}
+                            editingId={editingId}
+                            onEdit={setEditingId}
+                            onCancelEdit={() => setEditingId(null)}
+                            onSaved={() => {
+                                setEditingId(null);
+                                load();
+                            }}
+                        />
+                    ))}
                 </div>
             )}
         </div>
@@ -960,17 +1099,46 @@ export default function InterviewManagementPage() {
 
     const selectedPanel = panels.find((p) => p.id === selectedId) ?? null;
 
+    const totals = panels.reduce(
+        (acc, p) => ({
+            open: acc.open + (p.is_active ? 1 : 0),
+            waiting: acc.waiting + p.counts.waiting,
+            called: acc.called + p.counts.called,
+            done: acc.done + p.counts.done,
+        }),
+        { open: 0, waiting: 0, called: 0, done: 0 }
+    );
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                    <Radio className="w-7 h-7 text-red" />
-                    Interview Day
-                </h1>
-                <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Open tables, call recruits in, and log results — walk-in, no time slots. Add a table per
-                    domain running today.
-                </p>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                        <Radio className="w-7 h-7 text-red" />
+                        Interview Day
+                    </h1>
+                    <p className="mt-2 text-gray-400 text-sm max-w-xl">
+                        Open tables, call recruits in, and log results — walk-in, no time slots. Add a table per
+                        domain running today.
+                    </p>
+                </div>
+
+                {!noCycle && !loading && panels.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
+                            {totals.open} of {panels.length} tables open
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                            <Clock3 className="h-3.5 w-3.5" /> {totals.waiting} waiting
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-1.5 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
+                            <PhoneCall className="h-3.5 w-3.5" /> {totals.called} in progress
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {totals.done} done
+                        </span>
+                    </div>
+                )}
             </div>
 
             {noCycle ? (
@@ -989,7 +1157,7 @@ export default function InterviewManagementPage() {
                                 No panels yet. Add one to get started.
                             </div>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 -mr-1">
                                 {panels.map((p) => (
                                     <PanelCard
                                         key={p.id}

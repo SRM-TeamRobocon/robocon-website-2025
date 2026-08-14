@@ -7,6 +7,7 @@ import { useRoleGate } from "@/hooks/use-require-role";
 import { groupBySubsystem, subDomainLabel } from "@/lib/recruit-domains";
 import { SortableTh, compareBy, nextSortState, type SortState } from "@/components/recruit/SortableTh";
 import { HOSTEL_BLOCKS } from "@/lib/hostel-blocks";
+import { TRAVEL_METHODS, travelMethodLabel } from "@/lib/travel-method";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
 import Select from "@/components/ui/select";
 
@@ -26,6 +27,8 @@ interface Recruit {
     is_hosteller: boolean;
     hostel_block: string | null;
     hostel_room: string | null;
+    day_scholar_area: string | null;
+    travel_method: string | null;
     domains: string[];
     orientation: boolean;
     // One row per exam actually sat. Exam attendance is keyed (recruit, cycle, sub_domain),
@@ -302,7 +305,14 @@ export default function RecruitsPage() {
                                                                     )}
                                                                 </>
                                                             ) : (
-                                                                <span className="text-gray-500">Day Scholar</span>
+                                                                <>
+                                                                    <span className="text-gray-500">
+                                                                        Day Scholar{r.day_scholar_area ? ` · ${r.day_scholar_area}` : ""}
+                                                                    </span>
+                                                                    {r.travel_method && (
+                                                                        <span className="text-gray-500"> · {travelMethodLabel(r.travel_method)}</span>
+                                                                    )}
+                                                                </>
                                                             )
                                                         }
                                                     />
@@ -336,7 +346,18 @@ export default function RecruitsPage() {
 // subset of Recruit — srm_email/domains aren't editable here (see the route's own comment).
 type EditableFields = Pick<
     Recruit,
-    "id" | "name" | "reg_no" | "year" | "department" | "course" | "phone" | "is_hosteller" | "hostel_block" | "hostel_room"
+    | "id"
+    | "name"
+    | "reg_no"
+    | "year"
+    | "department"
+    | "course"
+    | "phone"
+    | "is_hosteller"
+    | "hostel_block"
+    | "hostel_room"
+    | "day_scholar_area"
+    | "travel_method"
 >;
 
 function EditRecruitModal({
@@ -357,6 +378,8 @@ function EditRecruitModal({
     const [isHosteller, setIsHosteller] = useState(recruit.is_hosteller);
     const [hostelBlock, setHostelBlock] = useState(recruit.hostel_block || "");
     const [hostelRoom, setHostelRoom] = useState(recruit.hostel_room || "");
+    const [dayScholarArea, setDayScholarArea] = useState(recruit.day_scholar_area || "");
+    const [travelMethod, setTravelMethod] = useState(recruit.travel_method || "");
     const [saving, setSaving] = useState(false);
 
     const save = async () => {
@@ -375,9 +398,12 @@ function EditRecruitModal({
                     is_hosteller: isHosteller,
                     // Mirrors the server's own rule: a non-hosteller is always sent as
                     // (false, null, null) rather than trusting stale block/room state left
-                    // over from before the checkbox was toggled off.
+                    // over from before the checkbox was toggled off — and the reverse for
+                    // day_scholar_area/travel_method when toggled to hosteller.
                     hostel_block: isHosteller ? hostelBlock : null,
                     hostel_room: isHosteller ? hostelRoom : null,
+                    day_scholar_area: isHosteller ? null : dayScholarArea,
+                    travel_method: isHosteller ? null : travelMethod,
                 }),
             });
             const data = await res.json();
@@ -488,6 +514,30 @@ function EditRecruitModal({
                                     value={hostelRoom}
                                     onChange={(e) => setHostelRoom(e.target.value)}
                                     className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {!isHosteller && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Area</label>
+                                <input
+                                    value={dayScholarArea}
+                                    onChange={(e) => setDayScholarArea(e.target.value)}
+                                    placeholder="e.g. Tambaram"
+                                    className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Travel Method</label>
+                                <Select
+                                    value={travelMethod}
+                                    onChange={setTravelMethod}
+                                    placeholder="Select"
+                                    className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
+                                    options={TRAVEL_METHODS.map((m) => ({ value: m.key, label: m.label }))}
                                 />
                             </div>
                         </div>

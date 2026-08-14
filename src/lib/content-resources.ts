@@ -5,7 +5,8 @@ export type ContentResource =
   | "events"
   | "alumni"
   | "gallery"
-  | "contact_submissions";
+  | "contact_submissions"
+  | "faq";
 
 export type ContentFieldType = "text" | "textarea" | "url" | "number" | "date" | "datetime" | "boolean" | "tags";
 
@@ -159,6 +160,20 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "message", label: "Message", type: "textarea", readonly: true },
       { name: "submitted_at", label: "Submitted At", type: "datetime", readonly: true },
       { name: "is_read", label: "Read", type: "boolean" },
+    ],
+  },
+  faq: {
+    table: "faq",
+    label: "FAQ",
+    pluralLabel: "FAQs",
+    primaryField: "question",
+    orderBy: "display_order",
+    ascending: true,
+    fields: [
+      { name: "question", label: "Question", type: "text", required: true },
+      { name: "answer", label: "Answer", type: "textarea", required: true },
+      { name: "display_order", label: "Display Order", type: "number" },
+      { name: "is_published", label: "Published", type: "boolean" },
     ],
   },
 };

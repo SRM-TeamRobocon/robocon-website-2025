@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { groupBySubsystem } from "@/lib/recruit-domains";
 import { HOSTEL_BLOCKS } from "@/lib/hostel-blocks";
+import { TRAVEL_METHODS } from "@/lib/travel-method";
 import PasswordToggle from "@/components/PasswordToggle";
 import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
 import GlassCard from "@/components/recruit/GlassCard";
@@ -24,6 +25,8 @@ type ProfileForm = {
     isHosteller: boolean;
     hostelBlock: string;
     hostelRoom: string;
+    dayScholarArea: string;
+    travelMethod: "" | "own_vehicle" | "college_bus";
     password: string;
     confirmPassword: string;
     portfolioUrl: string;
@@ -169,6 +172,8 @@ function RecruitRegisterInner() {
         isHosteller: false,
         hostelBlock: "",
         hostelRoom: "",
+        dayScholarArea: "",
+        travelMethod: "",
         password: "",
         confirmPassword: "",
         portfolioUrl: "",
@@ -273,6 +278,14 @@ function RecruitRegisterInner() {
             setError("Enter your hostel room number.");
             return;
         }
+        if (!profile.isHosteller && !profile.dayScholarArea.trim()) {
+            setError("Enter the area you live in.");
+            return;
+        }
+        if (!profile.isHosteller && !profile.travelMethod) {
+            setError("Select how you travel to college.");
+            return;
+        }
 
         setSubmitLoading(true);
         try {
@@ -289,6 +302,8 @@ function RecruitRegisterInner() {
                     is_hosteller: profile.isHosteller,
                     hostel_block: profile.isHosteller ? profile.hostelBlock : null,
                     hostel_room: profile.isHosteller ? profile.hostelRoom : null,
+                    day_scholar_area: !profile.isHosteller ? profile.dayScholarArea : null,
+                    travel_method: !profile.isHosteller ? profile.travelMethod : null,
                     password: profile.password,
                     domains,
                     portfolio_url: profile.portfolioUrl || undefined,
@@ -537,11 +552,15 @@ function RecruitRegisterInner() {
                                             setProfile((prev) => ({
                                                 ...prev,
                                                 isHosteller: opt.value,
-                                                // Clear block/room when switching to day scholar so a
-                                                // half-filled hostel address can't be submitted (the DB
-                                                // check constraint rejects that pairing anyway).
+                                                // Clear block/room when switching to day scholar, and
+                                                // clear area/travel method when switching to hosteller —
+                                                // in both directions this stops a half-filled residence
+                                                // pairing from being submitted (the DB check constraint
+                                                // rejects a hosteller carrying day-scholar fields anyway).
                                                 hostelBlock: opt.value ? prev.hostelBlock : "",
                                                 hostelRoom: opt.value ? prev.hostelRoom : "",
+                                                dayScholarArea: opt.value ? "" : prev.dayScholarArea,
+                                                travelMethod: opt.value ? "" : prev.travelMethod,
                                             }))
                                         }
                                         className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
@@ -580,6 +599,44 @@ function RecruitRegisterInner() {
                                 onChange={updateProfile("hostelRoom")}
                                 placeholder="e.g. 312"
                             />
+                        </div>
+                    )}
+
+                    {!profile.isHosteller && (
+                        <div className="space-y-4">
+                            <Field
+                                label="Which area do you live in?"
+                                id="dayScholarArea"
+                                value={profile.dayScholarArea}
+                                onChange={updateProfile("dayScholarArea")}
+                                placeholder="e.g. Tambaram"
+                            />
+                            <div>
+                                <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
+                                    How do you travel to college?
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {TRAVEL_METHODS.map((opt) => {
+                                        const checked = profile.travelMethod === opt.key;
+                                        return (
+                                            <button
+                                                key={opt.key}
+                                                type="button"
+                                                onClick={() =>
+                                                    setProfile((prev) => ({ ...prev, travelMethod: opt.key }))
+                                                }
+                                                className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                                    checked
+                                                        ? "bg-red/15 border-red/50 text-white"
+                                                        : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     )}
 

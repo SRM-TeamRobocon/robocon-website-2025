@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS, subDomainFullLabel } from "@/lib/recruit-domains";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
+import { travelMethodLabel } from "@/lib/travel-method";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ const HEADER = [
   "Hostel",
   "Block",
   "Room",
+  "Area",
+  "Travel Method",
   "Domain(s)",
   "Orientation",
   "Exam Day 1",
@@ -102,7 +105,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_accounts")
       .select(
-        "id, name, reg_no, year, department, course, srm_email, is_hosteller, hostel_block, hostel_room, created_at"
+        "id, name, reg_no, year, department, course, srm_email, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, created_at"
       )
       .eq("cycle_id", cycleId)
       .order("created_at", { ascending: false });
@@ -159,6 +162,8 @@ export async function GET(request: NextRequest) {
     r.is_hosteller ? "Hosteller" : "Day Scholar",
     r.hostel_block || "",
     r.hostel_room || "",
+    r.day_scholar_area || "",
+    travelMethodLabel(r.travel_method),
     (domainsByRecruit.get(r.id) || []).map(subDomainFullLabel).join(" | "),
     orientationSet.has(r.id) ? "Yes" : "No",
     examDaySet.has(`${r.id}:1`) ? "Yes" : "No",

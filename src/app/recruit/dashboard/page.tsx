@@ -9,6 +9,10 @@ import { generateBadgeImage } from "@/components/recruit/generateBadgeImage";
 import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
 import GlassCard from "@/components/recruit/GlassCard";
 import AuthNav from "@/components/AuthNav";
+import FaqSection from "@/components/recruit/FaqSection";
+import TicketsSection from "@/components/recruit/TicketsSection";
+import ChatWidget from "@/components/recruit/ChatWidget";
+import { travelMethodLabel } from "@/lib/travel-method";
 
 const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), { ssr: false });
 
@@ -25,6 +29,8 @@ type RecruitProfile = {
     is_hosteller?: boolean;
     hostel_block?: string | null;
     hostel_room?: string | null;
+    day_scholar_area?: string | null;
+    travel_method?: string | null;
     portfolio_url?: string | null;
     is_selected: boolean;
 };
@@ -235,7 +241,9 @@ export default function RecruitDashboardPage() {
                                 <p className="text-white/80">
                                     {profile.is_hosteller
                                         ? [profile.hostel_block, profile.hostel_room].filter(Boolean).join(" · ")
-                                        : "Day Scholar"}
+                                        : ["Day Scholar", profile.day_scholar_area, travelMethodLabel(profile.travel_method)]
+                                              .filter(Boolean)
+                                              .join(" · ")}
                                 </p>
                             </div>
                             {profile.portfolio_url && (
@@ -341,6 +349,10 @@ export default function RecruitDashboardPage() {
                     </GlassCard>
                 )}
 
+                <FaqSection />
+                <TicketsSection currentDomains={domains.map((d) => d.sub_domain)} />
+               
+
                 {badgeImage && (
                     <div className="p-6 md:p-8 w-full flex flex-col items-center justify-center">
                         <LanyardBadge badgeImage={badgeImage} />
@@ -356,6 +368,8 @@ export default function RecruitDashboardPage() {
                     </div>
                 )}
             </div>
+             
+            <ChatWidget />
         </div>
     );
 }

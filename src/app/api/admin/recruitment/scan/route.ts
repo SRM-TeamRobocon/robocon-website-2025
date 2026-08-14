@@ -15,7 +15,7 @@ const VALID_MODES: ScanMode[] = ["orientation", "exam_day_1", "exam_day_2", "int
 const UNIQUE_VIOLATION = "23505";
 
 function scanResponse(
-    status: "ok" | "already_scanned" | "already_checked_in" | "error",
+    status: "ok" | "already_scanned" | "already_checked_in" | "not_shortlisted" | "error",
     name: string,
     message: string,
     extra?: { token_number?: number; panel_label?: string; session_id?: string },
@@ -37,14 +37,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: "error", name: "", message: "Forbidden" }, { status: 403 });
     }
 
-    let body: { payload?: string; mode?: string; sub_domain?: string };
+    let body: { payload?: string; mode?: string; sub_domain?: string; force?: boolean };
     try {
         body = await request.json();
     } catch {
         return scanResponse("error", "", "Invalid request body", undefined, 400);
     }
 
-    const { payload, sub_domain } = body;
+    const { payload, sub_domain, force } = body;
     const mode = body.mode as ScanMode | undefined;
 
     if (!payload || typeof payload !== "string") {
@@ -223,10 +223,6 @@ export async function POST(request: NextRequest) {
                         .maybeSingle(),
                 ]);
 
-                if (!shortlisted) {
-                    return scanResponse("error", recruit.name, `${recruit.name} is not shortlisted for ${domainLabel}`, undefined, 400);
-                }
-
                 if (existingToken) {
                     const { data: existingPanel } = await supabase
                         .from("recruit_interview_panels")
@@ -238,6 +234,23 @@ export async function POST(request: NextRequest) {
                         recruit.name,
                         `${recruit.name} already checked in for ${existingPanel?.domain_label ?? domainLabel}`,
                         { token_number: existingToken.token_number, panel_label: existingPanel?.domain_label ?? domainLabel }
+                    );
+                }
+
+                // Not shortlisted (never sat the exam, or sat it and missed cutoff) — don't
+                // hard-block. Interview day is walk-in, and a lead/volunteer standing in
+                // front of the recruit is in a better position to decide than a cutoff
+                // computed days earlier. Report back and let the scanner UI ask "let them
+                // in anyway?" rather than silently turning someone away; only proceed past
+                // this point once the caller confirms with `force: true`.
+                const isWalkin = !shortlisted;
+                if (isWalkin && !force) {
+                    return scanResponse(
+                        "not_shortlisted",
+                        recruit.name,
+                        `${recruit.name} is not shortlisted for ${domainLabel} — allow as a walk-in interview?`,
+                        undefined,
+                        200
                     );
                 }
 
@@ -319,6 +332,7 @@ export async function POST(request: NextRequest) {
                             token_number: nextTokenNumber,
                             queue_position: nextQueuePosition,
                             status: "waiting",
+                            is_walkin: isWalkin,
                         })
                         .select("token_number")
                         .single();
@@ -327,7 +341,9 @@ export async function POST(request: NextRequest) {
                         return scanResponse(
                             "ok",
                             recruit.name,
-                            `Checked in for ${targetPanel.domain_label} — token #${inserted.token_number}`,
+                            isWalkin
+                                ? `Walk-in checked in for ${targetPanel.domain_label} — token #${inserted.token_number}`
+                                : `Checked in for ${targetPanel.domain_label} — token #${inserted.token_number}`,
                             { token_number: inserted.token_number, panel_label: targetPanel.domain_label }
                         );
                     }

@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
 import { isHostelBlock } from "@/lib/hostel-blocks";
+import { isTravelMethod } from "@/lib/travel-method";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (isHosteller && !isHostelBlock(hostel_block)) {
     return NextResponse.json({ success: false, error: "Select a valid hostel block." }, { status: 400 });
   }
+  // Day-scholar-only counterparts, same shape as hostel_block/hostel_room above. Not
+  // required here (same leniency as hostel_room isn't required on this admin-edit path) —
+  // this route also has to accept legacy day-scholar rows that predate these fields.
+  const day_scholar_area = !isHosteller ? boundedText(body.day_scholar_area, FIELD_LIMITS.day_scholar_area) : null;
+  const travel_method = !isHosteller && isTravelMethod(body.travel_method) ? body.travel_method : null;
 
   const supabase = createRecruitSupabaseAdminClient();
 
@@ -73,9 +79,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       is_hosteller: isHosteller,
       hostel_block,
       hostel_room,
+      day_scholar_area,
+      travel_method,
     })
     .eq("id", id)
-    .select("id, name, reg_no, year, department, course, phone, is_hosteller, hostel_block, hostel_room")
+    .select(
+      "id, name, reg_no, year, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method"
+    )
     .maybeSingle();
 
   if (error) {

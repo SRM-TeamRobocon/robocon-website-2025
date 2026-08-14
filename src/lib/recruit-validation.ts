@@ -16,6 +16,7 @@ export const FIELD_LIMITS = {
   session_label: 100,
   hostel_block: 60,
   hostel_room: 20,
+  day_scholar_area: 100,
 } as const;
 
 /**

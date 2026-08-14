@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const TOKEN_COLUMNS = "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id";
+const TOKEN_COLUMNS = "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin";
 
 // Bounded so a pathological race (or a stale read) can never spin.
 const MAX_ATTEMPTS = 5;
@@ -29,6 +29,8 @@ const EMPTY_PROFILE = (recruitId: string) => ({
   shortlisted_for: [] as string[],
   is_hosteller: false,
   hostel_block: null as string | null,
+  day_scholar_area: null as string | null,
+  travel_method: null as string | null,
 });
 
 type TokenRow = {
@@ -39,6 +41,7 @@ type TokenRow = {
   checked_in_at: string;
   called_at: string | null;
   recruit_id: string;
+  is_walkin: boolean;
 };
 
 // POST /api/admin/recruitment/panels/:id/call-next
@@ -79,6 +82,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       checked_in_at: token.checked_in_at,
       called_at: token.called_at ?? undefined,
       already_called: alreadyCalled,
+      is_walkin: Boolean(token.is_walkin),
     });
   };
 

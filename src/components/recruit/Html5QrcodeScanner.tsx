@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Html5QrcodeScanner as Html5QrcodeScannerLib, Html5QrcodeScanType } from "html5-qrcode";
+import {
+    Html5QrcodeScanner as Html5QrcodeScannerLib,
+    Html5QrcodeScanType,
+    Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 
 interface Html5QrcodeScannerProps {
     /** Called on every successful decode. Fires once per frame that decodes cleanly —
@@ -31,9 +35,21 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
         const scanner = new Html5QrcodeScannerLib(
             elementId,
             {
-                fps: 10,
+                fps: 15,
                 qrbox: { width: 250, height: 250 },
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                // Recruit QR payloads are always our own QR codes — restricting the decoder
+                // to this one format (instead of the library's default of trying every
+                // barcode format on every frame) cuts real per-frame decode work.
+                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+                // Uses the browser's native, hardware-accelerated BarcodeDetector API when
+                // available (Chrome/Android) instead of the much slower pure-JS decoder —
+                // library falls back automatically where unsupported (e.g. Safari/iOS).
+                useBarCodeDetectorIfSupported: true,
+                // Skips the mirror-flip decode pass — irrelevant for a rear camera, which
+                // this is (videoConstraints below) for every real scanning device.
+                disableFlip: true,
+                videoConstraints: { facingMode: "environment" },
             },
             /* verbose */ false
         );
