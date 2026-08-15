@@ -2,107 +2,151 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useRouter } from "next/navigation";
-import GlassCard from "./recruit/GlassCard";
-// import { BiDownload } from "react-icons/bi";
+
+const recruitmentVideos = [
+    {
+        id: "DppLeh1YmeA",
+        title: "SRM Team Robocon Game Highlight 1",
+    },
+    {
+        id: "0JPGYL9jRVo",
+        title: "SRM Team Robocon Game Highlight 2",
+    },
+    {
+        id: "belplHIsqZE",
+        title: "SRM Team Robocon Game Highlight 3",
+    },
+];
+
+const domains = [
+    {
+        acronym: "SAMBED",
+        full: "Structural Architecture & Mechanical Body Engineering",
+        blurb: "You design it. You build it. You watch it survive the arena.",
+    },
+    {
+        acronym: "SPACED",
+        full: "Systems Programming, Analysis & Computation Engineering",
+        blurb: "Code the brain — Arduino to Jetson, sensors to autonomous navigation.",
+    },
+    {
+        acronym: "SIESED",
+        full: "System Integration & Electronics Subsystem Engineering",
+        blurb: "Wire the nervous system linking mechanical muscle to digital command.",
+    },
+    {
+        acronym: "MCSOCD",
+        full: "Media Creation & Social Outreach Creatives",
+        blurb: "Own the story — content, design, events, sponsors. No robot wins unseen.",
+    },
+];
 
 const RecruitmentSection = () => {
     const router = useRouter();
-    const recruitmentVideos = [
-        {
-            id: "DppLeh1YmeA",
-            title: "SRM Team Robocon Game Highlight 1",
-        },
-        {
-            id: "0JPGYL9jRVo",
-            title: "SRM Team Robocon Game Highlight 2",
-        },
-        {
-            id: "belplHIsqZE",
-            title: "SRM Team Robocon Game Highlight 3",
-        },
-    ];
 
     return (
-        <section className="relative isolate flex flex-col items-center justify-center w-full h-auto min-h-screen overflow-hidden gap-8 md:gap-10 px-4 md:px-8 py-10 md:py-16">
-            {/* Self-contained, translucent backdrop — kept see-through so the global
-                <ParticlesCom /> canvas behind the page shows through here too.
-                Do NOT use the global .robocon-theme-bg class: its ::before/::after are
-                `position: fixed; inset: 0`, which is meant for a page root (see
-                /attendance). On this mid-page section they blanket the whole viewport
-                and paint over everything above, including the homepage hero. */}
-            <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0.75)_100%)]" />
+        <section className="relative isolate w-full overflow-hidden bg-white py-16 md:py-24 px-4 md:px-8">
+            {/* Deliberately breaks from the site's dark/glass theme — a bold white
+                poster block meant to interrupt the page and grab attention, with
+                angled red edges echoing the clip-path cuts used elsewhere on site
+                (see the video cards below, and the join-popup modal in page.tsx). */}
+            <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-3 md:h-5 bg-red"
+                style={{ clipPath: "polygon(0 0,100% 0,100% 100%,0 35%)" }}
+            />
+            <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-3 md:h-5 bg-red"
+                style={{ clipPath: "polygon(0 65%,100% 0,100% 100%,0 100%)" }}
+            />
 
-            {/* Registration isn't open yet — hide the CTA until it is.
-            <button
-                onClick={() => router.push("/recruit/register")}
-                rel="noopener noreferrer"
-                className="mt-8 mb-8 z-10 bg-red md:hidden hover:bg-red/90 active:scale-[0.97] text-white font-bold py-3 px-6 rounded-full flex items-center justify-center transition-all duration-150 shadow-lg shadow-red/20"
-            >
-                Register
-                <span className="ml-1">Register</span>
-                <BiDownload className="w-5 h-5" />
-            </button>
-            */}
+            <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-14 md:gap-20">
+                {/* Headline */}
+                <div className="max-w-3xl text-center">
+                    <div className="mb-6 inline-block bg-red px-4 py-1.5 text-xs font-bold tracking-[0.3em] text-white md:text-sm">
+                        RECRUITMENT
+                    </div>
+                    <h1 className="text-black text-5xl font-bold leading-[1.02] tracking-tight md:text-7xl">
+                        DARE TO
+                        <br />
+                        JOIN US?
+                    </h1>
+                    <p className="mt-4 text-xl font-bold tracking-tight text-red md:text-2xl">
+                        RANKED. RESPECTED. RELENTLESS.
+                    </p>
+                    <p className="mx-auto mt-4 max-w-xl text-sm text-black/70 md:text-base">
+                        Quarterfinalists at DD Robocon 2026 — out by 4 seconds on a
+                        tiebreak. Ranked 13th of 110+ teams nationally in 2025.
+                    </p>
 
-            {/* <div className="w-full md:w-1/2 z-10 flex justify-center ">
-                <img
-                    src="/events/poster.png"
-                    alt="Poster"
-                    className="max-w-full h-[600px] rounded-md object-contain"
-                />
-            </div> */}
-
-            <div className="z-10 w-full flex items-center justify-center p-4 md:p-8">
-                <div className="w-full max-w-md mx-auto">
-                    <GlassCard contentClassName="p-8 text-center" borderRadius={4}>
-                        <h1 className="text-white text-4xl z-10 md:text-6xl font-bold tracking-tight leading-[1.05]">
-                            DARE TO JOIN US?
-                        </h1>
-                        {/* <h3 className="text-white/60 text-xl z-10 pt-4 md:text-2xl font-bold">
-                           Applications Opening Soon!
-                        </h3>
-                        <h3 className="text-white/60 text-sm z-10 pt-4 md:text-base font-bold">
-                           Keep an eye on our <a href="https://www.instagram.com/srmteamrobocon/" target="_blank" rel="noopener noreferrer" className="text-red underline">Instagram</a> for more information!
-                        </h3> */}
-
-                        {/* Registration isn't open yet — hide the CTA until it is. */}
-                        <button
-                            onClick={() => router.push("/recruit/register")}
-                            rel="noopener noreferrer"
-                            className="mt-8 z-10 bg-red hover:bg-red/90 active:scale-[0.97] text-white font-bold py-3 px-6 rounded-full items-center justify-center inline-flex transition-all duration-150 shadow-lg shadow-red/20"
-                        >
-                            <span className="ml-1">Register</span>
-                            {/* <BiDownload className="w-5 h-5" /> */}
-                        </button>
-                       
-                    </GlassCard>
+                    <button
+                        onClick={() => router.push("/recruit/register")}
+                        rel="noopener noreferrer"
+                        className="mt-8 inline-flex items-center justify-center bg-red px-10 py-3 font-bold text-white shadow-lg shadow-red/30 transition-all duration-150 hover:bg-red/90 active:scale-[0.97]"
+                        style={{ clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)" }}
+                    >
+                        Register
+                    </button>
                 </div>
-            </div>
 
-            <div className="z-10 w-full max-w-6xl px-1 md:px-2">
-                <div className="flex gap-4 overflow-x-auto pb-2 md:justify-center">
-                    {recruitmentVideos.map((video) => (
+                {/* Tagline */}
+                <div className="w-full border-y-2 border-black/10 py-8 text-center">
+                    <div
+                        className="text-4xl font-bold uppercase tracking-tight md:text-7xl"
+                        style={{ color: "#D4AF37" }}
+                    >
+                        Make. Break. Innovate.
+                    </div>
+                </div>
+
+                {/* Domains */}
+                <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6">
+                    {domains.map((domain) => (
                         <div
-                            key={video.id}
-                            className="w-[300px] md:w-[360px] shrink-0 overflow-hidden border border-white/20 bg-black/30"
-                            style={{ clipPath: "polygon(4% 0%,100% 0%,96% 100%,0% 100%)" }}
+                            key={domain.acronym}
+                            className="border-2 border-black bg-white p-5"
+                            style={{
+                                clipPath:
+                                    "polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)",
+                            }}
                         >
-                            <div className="relative w-full pt-[56.25%]">
-                                <iframe
-                                    className="absolute inset-0 h-full w-full"
-                                    src={`https://www.youtube.com/embed/${video.id}`}
-                                    title={video.title}
-                                    loading="lazy"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    referrerPolicy="strict-origin-when-cross-origin"
-                                    allowFullScreen
-                                />
-                            </div>
+                            <h3 className="text-lg font-bold tracking-tight text-black md:text-xl">
+                                {domain.acronym}
+                            </h3>
+                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-red">
+                                {domain.full}
+                            </p>
+                            <p className="mt-3 text-sm text-black/70">{domain.blurb}</p>
                         </div>
                     ))}
                 </div>
-            </div>
 
+                {/* Game highlight videos */}
+                <div className="w-full">
+                    <div className="flex gap-4 overflow-x-auto pb-2 md:justify-center">
+                        {recruitmentVideos.map((video) => (
+                            <div
+                                key={video.id}
+                                className="w-[300px] shrink-0 overflow-hidden border-2 border-black bg-black md:w-[360px]"
+                                style={{
+                                    clipPath: "polygon(4% 0%,100% 0%,96% 100%,0% 100%)",
+                                }}
+                            >
+                                <div className="relative w-full pt-[56.25%]">
+                                    <iframe
+                                        className="absolute inset-0 h-full w-full"
+                                        src={`https://www.youtube.com/embed/${video.id}`}
+                                        title={video.title}
+                                        loading="lazy"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        referrerPolicy="strict-origin-when-cross-origin"
+                                        allowFullScreen
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
         </section>
     );
 };

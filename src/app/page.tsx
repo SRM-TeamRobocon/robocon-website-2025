@@ -13,7 +13,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import JoselinSection from "@/components/JoselinSection";
-import ReqruitmentSection from "@/components/RecruitmentSection";
+import RecruitmentSection from "@/components/RecruitmentSection";
 import GlassCard from "@/components/recruit/GlassCard";
 export default function Home() {
   const [showJoinPopup, setShowJoinPopup] = useState(false);
@@ -25,7 +25,7 @@ export default function Home() {
 
   return (
     <div className="overflow-x-hidden">
-      {showJoinPopup && (
+      {/* {showJoinPopup && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/55 backdrop-blur-[2px]">
           <div className="relative w-full max-w-md [clip-path:polygon(10%_0%,100%_0%,90%_100%,0%_100%)]">
             <GlassCard
@@ -56,7 +56,7 @@ export default function Home() {
             </GlassCard>
           </div>
           </div>
-      )}
+      )} */}
       <Header />
       {/* First section */}
       <section className="w-full md:h-full overflow-x-hidden">
@@ -118,7 +118,7 @@ export default function Home() {
         <JoselinSection />
       </section> */}
       <section className="relative max-md:mt-20">
-        <ReqruitmentSection />
+        <RecruitmentSection />
       </section>
 
       {/* Second section */}

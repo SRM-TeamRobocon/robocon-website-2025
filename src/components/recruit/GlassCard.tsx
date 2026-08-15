@@ -1,12 +1,13 @@
 "use client";
 
-import GlassSurface from "@/components/GlassSurface";
-
-// Standard dark-glass card recipe used across the recruitment pages: a genuinely
-// see-through panel — no white tint — that reads as pure "material" (blur +
-// refraction + a hairline edge) floating over the dark RecruitBackdrop. Content
-// inside should use light text (see recruit page styles) since there's no light
-// surface behind it anymore.
+// Standard dark-card recipe used across the recruitment pages: a solid dark panel
+// with a hairline border and a soft drop shadow — no backdrop-filter, no SVG filter
+// chain. The old version (GlassSurface) rebuilt a 3-channel SVG displacement filter
+// per instance and re-encoded it on every resize, then asked the GPU to resample a
+// live, always-animating background (ParticlesCom) through it every frame. That was
+// the single heaviest thing on these pages, multiplied by however many cards were on
+// screen at once (register/dashboard stack several). This trades the "real glass"
+// refraction look for a flat, cheap panel — same dark-material read, none of the cost.
 export default function GlassCard({
   children,
   className = "",
@@ -19,23 +20,11 @@ export default function GlassCard({
   borderRadius?: number;
 }) {
   return (
-    <GlassSurface
-      width="100%"
-      height="auto"
-      borderRadius={borderRadius}
-      brightness={96}
-      opacity={0.6}
-      blur={18}
-      displace={0.5}
-      backgroundOpacity={0}
-      saturation={1.6}
-      distortionScale={-120}
-      redOffset={0}
-      greenOffset={6}
-      blueOffset={14}
-      className={className}
+    <div
+      className={`w-full bg-[rgba(12,12,16,0.72)] border border-white/[0.14] shadow-[0_8px_32px_rgba(0,0,0,0.35),0_2px_16px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.08)] ${className}`}
+      style={{ borderRadius: `${borderRadius}px` }}
     >
       <div className={`w-full ${contentClassName}`}>{children}</div>
-    </GlassSurface>
+    </div>
   );
 }

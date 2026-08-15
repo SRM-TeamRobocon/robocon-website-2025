@@ -395,6 +395,10 @@ function RecruitRegisterInner() {
                         </svg>
                         Continue with Google
                     </button>
+                    <p className="text-xs text-amber-300/80 text-center -mt-2">
+                        Use your <span className="font-bold">personal  Email </span>  here, not your SRM email —
+                        you&apos;ll enter and verify your SRM email in the next step.
+                    </p>
                     <ErrorBanner message={error} />
                     <p className="text-center text-sm text-white/50">
                         Already registered?{" "}

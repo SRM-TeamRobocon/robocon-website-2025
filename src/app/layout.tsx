@@ -4,7 +4,7 @@ import { Aldrich, Geist } from "next/font/google";
 const aldrich = Aldrich({ weight: "400", subsets: ["latin"] });
 import "aos/dist/aos.css";
 import MenuContextProvider from "@/context/MenuContextProvider";
-import ParticlesCom from "@/components/Particles";
+import ConditionalParticles from "@/components/ConditionalParticles";
 import { Analytics } from "@vercel/analytics/react";
 import Script from "next/script";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,7 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
         <MenuContextProvider>
-          <ParticlesCom />
+          <ConditionalParticles />
           <div className="relative z-10">
             {children}
           </div>
