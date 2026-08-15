@@ -68,7 +68,8 @@ export default function WorkshopsPage() {
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.06, duration: 0.35, ease: "easeOut" }}
-                            className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 sm:p-5 ring-1 ${card.ring} transition-colors`}
+                            className={`relative overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 sm:p-5 ring-1 ${card.ring} transition-colors`}
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                         >
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-gray-500">
@@ -78,7 +79,7 @@ export default function WorkshopsPage() {
                             </div>
                             <div className={`mt-3 text-2xl sm:text-3xl font-black ${card.tone}`}>
                                 {loading ? (
-                                    <span className="inline-block h-8 w-12 rounded bg-white/5 animate-pulse" />
+                                    <span className="inline-block h-8 w-12 bg-white/5 animate-pulse" />
                                 ) : (
                                     <CountUp end={value} duration={1.1} />
                                 )}
@@ -89,12 +90,15 @@ export default function WorkshopsPage() {
             </div>
 
             <Link href="/scanner" className="group block">
-                <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 border border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]">
+                <div
+                    className="relative overflow-hidden bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 border border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
                         <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />
                     </div>
                     <div className="relative z-10">
-                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full mb-4 ring-1 ring-inset bg-emerald-500/20 text-emerald-400 ring-emerald-500/30">
+                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold mb-4 ring-1 ring-inset bg-emerald-500/20 text-emerald-400 ring-emerald-500/30">
                             Live Check-in
                         </span>
                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Scanner</h3>

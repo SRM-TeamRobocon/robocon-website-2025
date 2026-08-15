@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useRouter } from "next/navigation";
+import { InlineChatWidget } from "@/components/recruit/ChatWidget";
 
 const recruitmentVideos = [
     {
@@ -154,6 +155,14 @@ const RecruitmentSection = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                {/* Ask a Doubt — inline chatbot, sharp red/white/black to match the
+                    rest of this section rather than the dashboard's dark glass theme.
+                    Public endpoint (/api/recruit/public-chat): works for visitors who
+                    haven't registered yet. */}
+                <div className="w-full max-w-xl">
+                    <InlineChatWidget />
                 </div>
             </div>
         </section>

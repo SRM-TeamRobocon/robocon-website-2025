@@ -61,6 +61,8 @@ export type Database = {
           reset_otp_hash: string | null;
           reset_otp_expires: string | null;
           reset_otp_attempts: number;
+          google_uid: string | null;
+          google_email: string | null;
         };
         Insert: {
           id?: string;
@@ -83,6 +85,8 @@ export type Database = {
           reset_otp_hash?: string | null;
           reset_otp_expires?: string | null;
           reset_otp_attempts?: number;
+          google_uid?: string | null;
+          google_email?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["member_accounts"]["Insert"]>;
         Relationships: [];

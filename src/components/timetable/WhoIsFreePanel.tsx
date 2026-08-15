@@ -155,7 +155,10 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
     }, [fullyBusy, campuses]);
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+        <div
+            className="border border-white/10 bg-white/[0.03] p-5 sm:p-6"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
             <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
                     <h2 className="flex items-center gap-2 text-lg font-bold text-white">
@@ -167,7 +170,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                 </div>
                 <button
                     onClick={onClose}
-                    className="rounded-lg p-1.5 text-gray-500 transition hover:bg-white/10 hover:text-white"
+                    className="p-1.5 text-gray-500 transition hover:bg-white/10 hover:text-white"
                     aria-label="Close"
                 >
                     <X className="h-4 w-4" />
@@ -182,12 +185,12 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && runTextSearch()}
                         placeholder='Try "do1 who is free between 1pm and 3pm"'
-                        className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-cyan-500"
+                        className="w-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-cyan-500"
                     />
                 </div>
                 <button
                     onClick={runTextSearch}
-                    className="shrink-0 rounded-xl bg-cyan-500/15 px-4 py-2.5 text-sm font-semibold text-cyan-300 ring-1 ring-inset ring-cyan-500/30 transition hover:bg-cyan-500/25"
+                    className="shrink-0 bg-cyan-500/15 px-4 py-2.5 text-sm font-semibold text-cyan-300 ring-1 ring-inset ring-cyan-500/30 transition hover:bg-cyan-500/25"
                 >
                     Search
                 </button>
@@ -204,7 +207,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <select
                         value={dayIndex}
                         onChange={(e) => setDayIndex(Number(e.target.value))}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                        className="w-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
                     >
                         {DAYS.map((d, i) => (
                             <option key={d} value={i} className="bg-gray-900">
@@ -218,7 +221,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <select
                         value={startMin}
                         onChange={(e) => setStartMin(Number(e.target.value))}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                        className="w-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
                     >
                         {TIME_BOUNDARIES.map((m) => (
                             <option key={m} value={m} className="bg-gray-900">
@@ -232,7 +235,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <select
                         value={endMin}
                         onChange={(e) => setEndMin(Number(e.target.value))}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                        className="w-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
                     >
                         {TIME_BOUNDARIES.map((m) => (
                             <option key={m} value={m} className="bg-gray-900">
@@ -246,7 +249,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <select
                         value={domain}
                         onChange={(e) => setDomain(e.target.value)}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                        className="w-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
                     >
                         {domains.map((d) => (
                             <option key={d} value={d} className="bg-gray-900">
@@ -260,7 +263,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     <select
                         value={campusFilter}
                         onChange={(e) => setCampusFilter(e.target.value)}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                        className="w-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
                     >
                         <option value="All" className="bg-gray-900">
                             All
@@ -282,7 +285,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                 <p className="p-6 text-center text-sm text-gray-500">No timetable slots fall in that window.</p>
             ) : (
                 <div className="space-y-4">
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                    <div className="border border-emerald-500/30 bg-emerald-500/10 p-4">
                         <p className="mb-3 text-sm font-bold text-emerald-300">
                             Free the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyFree.length})
                         </p>
@@ -299,7 +302,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                             {bucket.items.map((m) => (
                                                 <span
                                                     key={m.username}
-                                                    className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/30"
+                                                    className="bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/30"
                                                 >
                                                     {m.name}
                                                 </span>
@@ -311,7 +314,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         )}
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="border border-white/10 bg-white/[0.03] p-4">
                         <p className="mb-3 text-sm font-bold text-gray-200">
                             In Class/Lab the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyBusy.length})
                         </p>
@@ -328,7 +331,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                             {bucket.items.map((m) => (
                                                 <span
                                                     key={m.username}
-                                                    className="rounded-lg bg-white/10 px-2 py-1 text-xs font-semibold text-gray-200 ring-1 ring-inset ring-white/20"
+                                                    className="bg-white/10 px-2 py-1 text-xs font-semibold text-gray-200 ring-1 ring-inset ring-white/20"
                                                 >
                                                     {m.name}
                                                 </span>
@@ -357,7 +360,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                         });
 
                         return (
-                            <div key={slotIndex} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                            <div key={slotIndex} className="border border-white/10 bg-black/20 p-4">
                                 <p className="mb-3 text-sm font-bold text-white">
                                     {day} · {TIME_SLOTS[slotIndex]}
                                 </p>
@@ -380,7 +383,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                                                 {bucket.items.map((m) => (
                                                                     <span
                                                                         key={m.username}
-                                                                        className={`rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[statusKey]}`}
+                                                                        className={`px-2 py-1 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[statusKey]}`}
                                                                     >
                                                                         {m.name}
                                                                     </span>
@@ -398,7 +401,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     })}
 
                     {noData.length > 0 && (
-                        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                        <div className="border border-white/5 bg-white/[0.02] p-4">
                             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600">
                                 No timetable saved ({noData.length})
                             </p>
@@ -406,7 +409,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                 {noData.map((m) => (
                                     <span
                                         key={m.username}
-                                        className="rounded-lg bg-white/5 px-2 py-1 text-xs text-gray-500 ring-1 ring-inset ring-white/10"
+                                        className="bg-white/5 px-2 py-1 text-xs text-gray-500 ring-1 ring-inset ring-white/10"
                                     >
                                         {m.name}
                                     </span>

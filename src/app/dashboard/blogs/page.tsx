@@ -55,11 +55,15 @@ function FeedTab({ viewerRole }: { viewerRole: string | null }) {
         return (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {[0, 1, 2].map((i) => (
-                    <div key={i} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                    <div
+                        key={i}
+                        className="overflow-hidden border border-white/10 bg-white/[0.03]"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <div className="aspect-video w-full animate-pulse bg-white/5" />
                         <div className="space-y-2 p-5">
-                            <div className="h-4 w-3/4 animate-pulse rounded bg-white/5" />
-                            <div className="h-3 w-full animate-pulse rounded bg-white/5" />
+                            <div className="h-4 w-3/4 animate-pulse bg-white/5" />
+                            <div className="h-3 w-full animate-pulse bg-white/5" />
                         </div>
                     </div>
                 ))}
@@ -69,7 +73,10 @@ function FeedTab({ viewerRole }: { viewerRole: string | null }) {
 
     if (rows.length === 0) {
         return (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+            <div
+                className="border border-white/10 bg-white/[0.03] p-10 text-center"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <Newspaper className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                 <p className="text-sm text-gray-400">No blogs published yet.</p>
                 <Link href="/dashboard/blogs/new" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline">
@@ -138,7 +145,10 @@ function MineTab() {
 
     if (rows.length === 0) {
         return (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+            <div
+                className="border border-white/10 bg-white/[0.03] p-10 text-center"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <PenSquare className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                 <p className="text-sm text-gray-400">You haven&apos;t written any blogs yet.</p>
                 <Link href="/dashboard/blogs/new" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline">
@@ -153,7 +163,8 @@ function MineTab() {
             {rows.map((row) => (
                 <li
                     key={row.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl"
+                    className="border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                 >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 gap-3">
@@ -162,7 +173,7 @@ function MineTab() {
                                 <p className="break-words font-semibold text-white">{row.title}</p>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                                     <span
-                                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${STATUS_STYLES[row.status]}`}
+                                        className={`inline-flex items-center px-2.5 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${STATUS_STYLES[row.status]}`}
                                     >
                                         {row.status}
                                     </span>
@@ -183,21 +194,21 @@ function MineTab() {
                             {row.status === "approved" && (
                                 <Link
                                     href={`/dashboard/blogs/${row.slug}`}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                                    className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
                                 >
                                     <Eye className="h-3.5 w-3.5" /> View
                                 </Link>
                             )}
                             <Link
                                 href={`/dashboard/blogs/edit/${row.id}`}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                                className="inline-flex items-center gap-1.5 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
                             >
                                 <Pencil className="h-3.5 w-3.5" /> Edit
                             </Link>
                             <button
                                 onClick={() => remove(row)}
                                 disabled={busyId === row.id}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                             >
                                 <Trash2 className="h-3.5 w-3.5" /> Delete
                             </button>
@@ -246,16 +257,26 @@ function BlogsPageContent() {
                 </div>
                 <Link
                     href="/dashboard/blogs/new"
-                    className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400"
+                    className="group relative inline-flex w-fit shrink-0 items-center gap-1.5 overflow-hidden bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 active:translate-y-0 active:scale-[0.97]"
+                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                 >
-                    <PenSquare className="h-4 w-4" /> Write Blog
+                    <span
+                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                        style={{
+                            clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                            backgroundColor: "#D4AF37",
+                        }}
+                    />
+                    <span className="relative z-10 inline-flex items-center gap-1.5 transition-colors duration-200 group-hover:text-black">
+                        <PenSquare className="h-4 w-4" /> Write Blog
+                    </span>
                 </Link>
             </div>
 
             <div className="flex flex-wrap gap-2">
                 <button
                     onClick={() => setTab("feed")}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
                         tab === "feed" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >
@@ -263,7 +284,7 @@ function BlogsPageContent() {
                 </button>
                 <button
                     onClick={() => setTab("mine")}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
                         tab === "mine" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >

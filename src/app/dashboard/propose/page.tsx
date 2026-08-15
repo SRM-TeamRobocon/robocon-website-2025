@@ -75,7 +75,7 @@ export default function ProposeContentPage() {
                 <button
                     key={r.key}
                     onClick={() => setResource(r.key)}
-                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`px-4 py-2 text-sm font-semibold transition ${
                         resource === r.key ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >
@@ -106,7 +106,10 @@ export default function ProposeContentPage() {
                 <h1 className="text-2xl font-bold text-white">
                     {editing === "new" ? `Propose New ${config.label}` : `Propose Edit — ${editing[config.primaryField]}`}
                 </h1>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <ContentEditForm
                         fields={config.fields}
                         initialValues={editing === "new" ? {} : editing}
@@ -137,12 +140,25 @@ export default function ProposeContentPage() {
 
             <button
                 onClick={() => setEditing("new")}
-                className="rounded-xl px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 transition-all"
+                className="group relative overflow-hidden px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 active:translate-y-0 active:scale-[0.97]"
+                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
             >
-                + Propose New {config.label}
+                <span
+                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                    style={{
+                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                        backgroundColor: "#D4AF37",
+                    }}
+                />
+                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                    + Propose New {config.label}
+                </span>
             </button>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : rows.length === 0 ? (
@@ -159,7 +175,7 @@ export default function ProposeContentPage() {
                                 </div>
                                 <button
                                     onClick={() => setEditing(row)}
-                                    className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
+                                    className="shrink-0 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
                                 >
                                     Propose Edit
                                 </button>

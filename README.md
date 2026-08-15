@@ -72,7 +72,7 @@ Recruitment module (see `recruitment.md`; separate `recruit_token` auth, untouch
 
 - `QR_SECRET` — HMAC key for recruit QR signing
 - `RECRUIT_JWT_SECRET` — signs the `recruit_token` cookie
-- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth for recruit sign-in
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth, shared by recruit sign-in and member "Sign in with Google" / "Connect Gmail". If you add the member flow, register these extra authorized redirect URIs on the same OAuth client in Google Cloud Console: `/api/member/auth/google/callback` and `/api/member/auth/google/connect/callback`
 - `RECRUIT_OTP_FROM_EMAIL` — can reuse `SMTP_EMAIL`
 
 ## Supabase Backend

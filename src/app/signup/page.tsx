@@ -62,7 +62,7 @@ export default function MemberSignup() {
             <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
                 <div className="w-full max-w-md relative z-10">
                     <AuthNav />
-                    <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl text-center">
+                    <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 shadow-2xl text-center">
                         <h2 className="text-2xl font-bold text-white mb-3">Check your inbox</h2>
                         <p className="text-sm text-gray-400">
                             We sent a verification link to <span className="text-white">{form.email}</span>. Click it to
@@ -80,13 +80,13 @@ export default function MemberSignup() {
     return (
         <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[100px]" />
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px]" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red/10 rounded-full blur-[100px]" />
             </div>
 
             <div className="w-full max-w-lg relative z-10">
                 <AuthNav />
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 shadow-2xl">
                     <div className="flex justify-center mb-6">
                         <Image src="/LOGO.png" alt="Robocon Logo" width={120} height={120} className="object-contain" unoptimized />
                     </div>
@@ -114,12 +114,11 @@ export default function MemberSignup() {
                             <div className="mt-2">
                                 <Select
                                     id="domain"
-                                    accent="blue"
                                     value={form.domain}
                                     onChange={(v) => setForm((prev) => ({ ...prev, domain: v }))}
                                     placeholder="Select your domain"
                                     options={MEMBER_DOMAINS.map((d) => ({ value: d, label: d }))}
-                                    className="bg-white/5 ring-white/10"
+                                    className="rounded-none bg-white/5 ring-white/10"
                                 />
                             </div>
                         </div>
@@ -162,7 +161,7 @@ export default function MemberSignup() {
                         />
 
                         {error && (
-                            <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
+                            <div className="bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
                                 <h3 className="text-sm text-red font-bold">{error}</h3>
                             </div>
                         )}
@@ -170,18 +169,26 @@ export default function MemberSignup() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all ${
-                                loading
-                                    ? "bg-blue-600/50 cursor-not-allowed"
-                                    : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25"
+                            className={`group relative flex w-full items-center justify-center overflow-hidden px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
+                                loading ? "bg-red/40 cursor-not-allowed" : "bg-red"
                             }`}
+                            style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                         >
-                            {loading ? "Creating account..." : "Sign Up"}
+                            <span
+                                className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                style={{
+                                    clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                    backgroundColor: "#D4AF37",
+                                }}
+                            />
+                            <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                                {loading ? "Creating account..." : "Sign Up"}
+                            </span>
                         </button>
 
                         <p className="text-center text-sm text-gray-400">
                             Already have an account?{" "}
-                            <Link href="/login" className="text-blue-400 hover:text-blue-300">
+                            <Link href="/login" className="text-red hover:text-red/80">
                                 Log in
                             </Link>
                         </p>
@@ -225,7 +232,7 @@ function Field({
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    className={`block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all ${
+                    className={`block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}
                 />

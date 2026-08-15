@@ -50,7 +50,7 @@ export default function TimetableGrid({
                             key={day}
                             type="button"
                             onClick={() => setActiveDay(day)}
-                            className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+                            className={`px-4 py-2 text-sm font-bold transition ${
                                 activeDay === day
                                     ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
                                     : "text-gray-400 hover:bg-white/5"
@@ -67,7 +67,7 @@ export default function TimetableGrid({
                         <select
                             value={campus}
                             onChange={(e) => onCampusChange?.(e.target.value)}
-                            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-white outline-none transition focus:border-cyan-500"
+                            className="border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-white outline-none transition focus:border-cyan-500"
                         >
                             {CAMPUS_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value} className="bg-gray-900">
@@ -77,13 +77,13 @@ export default function TimetableGrid({
                         </select>
                     </label>
                 ) : (
-                    <span className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
+                    <span className="inline-flex w-fit items-center gap-1.5 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
                         {CAMPUS_OPTIONS.find((o) => o.value === campus)?.label ?? campus}
                     </span>
                 )}
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-white/10">
+            <div className="overflow-hidden border border-white/10">
                 {TIME_SLOTS.map((slot, slotIndex) => {
                     const value = row[slotIndex] || "";
                     return (
@@ -99,7 +99,7 @@ export default function TimetableGrid({
                                             key={option.value}
                                             type="button"
                                             onClick={() => onChange?.(activeDay, slotIndex, option.value)}
-                                            className={`rounded-lg px-2 py-1.5 text-xs font-bold transition ${
+                                            className={`px-2 py-1.5 text-xs font-bold transition ${
                                                 value === option.value
                                                     ? ACTIVE_STYLES[option.value]
                                                     : "bg-white/5 text-gray-400 hover:bg-white/10"
@@ -111,7 +111,7 @@ export default function TimetableGrid({
                                 </div>
                             ) : (
                                 <span
-                                    className={`inline-flex w-fit items-center rounded-lg px-3 py-1.5 text-sm font-bold sm:w-auto sm:min-w-32 sm:justify-center ${
+                                    className={`inline-flex w-fit items-center px-3 py-1.5 text-sm font-bold sm:w-auto sm:min-w-32 sm:justify-center ${
                                         BADGE_STYLES[value] ?? BADGE_STYLES[""]
                                     }`}
                                 >

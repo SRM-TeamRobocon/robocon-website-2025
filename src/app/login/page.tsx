@@ -56,7 +56,7 @@ function RoleChooser({ onChoose }: { onChoose: (role: Role) => void }) {
                 <button
                     type="button"
                     onClick={() => onChoose("member")}
-                    className="w-full text-left rounded-xl px-5 py-4 bg-white/5 ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-blue-500/50 active:scale-[0.99] transition-all"
+                    className="w-full text-left px-5 py-4 bg-white/5 ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-red/50 active:scale-[0.99] transition-all"
                 >
                     <span className="block text-sm font-semibold text-white">Team member</span>
                     <span className="block text-xs text-gray-400 mt-1">Lead, admin, or team member account</span>
@@ -64,7 +64,7 @@ function RoleChooser({ onChoose }: { onChoose: (role: Role) => void }) {
                 <button
                     type="button"
                     onClick={() => onChoose("recruit")}
-                    className="w-full text-left rounded-xl px-5 py-4 bg-white/5 ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-red-500/50 active:scale-[0.99] transition-all"
+                    className="w-full text-left px-5 py-4 bg-white/5 ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-red/50 active:scale-[0.99] transition-all"
                 >
                     <span className="block text-sm font-semibold text-white">Recruit</span>
                     <span className="block text-xs text-gray-400 mt-1">Applying this recruitment cycle</span>
@@ -74,17 +74,43 @@ function RoleChooser({ onChoose }: { onChoose: (role: Role) => void }) {
     );
 }
 
+const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+    google_not_configured: "Google sign-in isn't set up yet.",
+    google_auth_failed: "Google sign-in failed. Please try again.",
+    google_state_mismatch: "Google sign-in failed. Please try again.",
+    google_not_verified: "Verify your email before logging in.",
+    google_not_approved: "Your account is awaiting admin approval.",
+};
+
 function MemberForm() {
     const router = useRouter();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
+    const [notice, setNotice] = useState("");
+    const [linked, setLinked] = useState("");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("notice") === "connect_google") {
+            setNotice("No account is linked to that Google account yet. Log in with your username and password below and we'll connect it automatically.");
+        }
+        const errorCode = params.get("error");
+        if (errorCode && GOOGLE_ERROR_MESSAGES[errorCode]) {
+            setError(GOOGLE_ERROR_MESSAGES[errorCode]);
+        }
+    }, []);
+
+    const handleGoogleLogin = () => {
+        window.location.href = "/api/member/auth/google";
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setNotice("");
         setLoading(true);
         try {
             const res = await fetch("/api/admin/login", {
@@ -94,7 +120,12 @@ function MemberForm() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                router.push("/dashboard");
+                if (data.linkedGoogleEmail) {
+                    setLinked(`Connected to ${data.linkedGoogleEmail}.`);
+                    setTimeout(() => router.push("/dashboard"), 1200);
+                } else {
+                    router.push("/dashboard");
+                }
                 return;
             }
             setError(data.error || "Invalid email or password");
@@ -112,6 +143,32 @@ function MemberForm() {
                 <p className="mt-2 text-sm text-gray-400">For leads, admins, and team members</p>
             </div>
 
+            <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex w-full items-center justify-center gap-3 px-4 py-3 mb-6 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
+            >
+                <GoogleIcon />
+                Sign in with Google
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+                <div className="h-px flex-1 bg-white/15" />
+                <span className="text-xs text-gray-500">or</span>
+                <div className="h-px flex-1 bg-white/15" />
+            </div>
+
+            {notice && (
+                <div className="bg-blue-500/10 border border-blue-500/20 p-4 mb-6 text-center text-sm text-blue-300">
+                    {notice}
+                </div>
+            )}
+            {linked && (
+                <div className="bg-green-500/10 border border-green-500/20 p-4 mb-6 text-center text-sm text-green-300">
+                    {linked}
+                </div>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-6">
                 <div>
                     <label htmlFor="username" className="block text-sm font-medium leading-6 text-gray-300">
@@ -125,7 +182,7 @@ function MemberForm() {
                             required
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                             placeholder="Enter your SRM IST email"
                         />
                     </div>
@@ -136,7 +193,7 @@ function MemberForm() {
                         <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-300">
                             Password
                         </label>
-                        <Link href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300">
+                        <Link href="/forgot-password" className="text-sm text-red hover:text-red/80">
                             Forgot password?
                         </Link>
                     </div>
@@ -148,7 +205,7 @@ function MemberForm() {
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 pr-11 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 pr-11 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                             placeholder="Enter your password"
                         />
                         <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
@@ -156,7 +213,7 @@ function MemberForm() {
                 </div>
 
                 {error && (
-                    <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
+                    <div className="bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
                         <div className="flex">
                             <div className="ml-3">
                                 <h3 className="text-sm text-red font-bold">{error}</h3>
@@ -169,18 +226,27 @@ function MemberForm() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-all ${loading
-                                ? "bg-blue-600/50 cursor-not-allowed"
-                                : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25"
-                            }`}
+                        className={`group relative flex w-full items-center justify-center overflow-hidden px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            loading ? "bg-red/40 cursor-not-allowed" : "bg-red"
+                        }`}
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        {loading ? <Spinner /> : "Sign In"}
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                            {loading ? <Spinner /> : "Sign In"}
+                        </span>
                     </button>
                 </div>
 
                 <p className="text-center text-sm text-gray-400">
                     No account yet?{" "}
-                    <Link href="/signup" className="text-blue-400 hover:text-blue-300">
+                    <Link href="/signup" className="text-red hover:text-red/80">
                         Team signup
                     </Link>
                 </p>
@@ -234,7 +300,7 @@ function RecruitForm() {
             <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 mb-6 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
+                className="flex w-full items-center justify-center gap-3 px-4 py-3 mb-6 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
             >
                 <GoogleIcon />
                 Sign in with Google
@@ -259,7 +325,7 @@ function RecruitForm() {
                             required
                             value={srmEmail}
                             onChange={(e) => setSrmEmail(e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                             placeholder="ab1234@srmist.edu.in"
                         />
                     </div>
@@ -277,7 +343,7 @@ function RecruitForm() {
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 pr-11 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6 transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 pr-11 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                             placeholder="Enter your password"
                         />
                         <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
@@ -285,7 +351,7 @@ function RecruitForm() {
                 </div>
 
                 {error && (
-                    <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
+                    <div className="bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
                         <div className="flex">
                             <div className="ml-3">
                                 <h3 className="text-sm text-red font-bold">{error}</h3>
@@ -298,18 +364,27 @@ function RecruitForm() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-all ${loading
-                                ? "bg-blue-600/50 cursor-not-allowed"
-                                : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 hover:shadow-lg hover:shadow-blue-500/25"
-                            }`}
+                        className={`group relative flex w-full items-center justify-center overflow-hidden px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                            loading ? "bg-red/40 cursor-not-allowed" : "bg-red"
+                        }`}
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        {loading ? <Spinner /> : "Sign In"}
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                            {loading ? <Spinner /> : "Sign In"}
+                        </span>
                     </button>
                 </div>
 
                 <p className="text-center text-sm text-gray-400">
                     New recruit?{" "}
-                    <Link href="/recruit/register" className="text-blue-400 hover:text-blue-300">
+                    <Link href="/recruit/register" className="text-red hover:text-red/80">
                         Register here
                     </Link>
                 </p>
@@ -360,13 +435,13 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center relative z-10 p-5 overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-600/10 rounded-full blur-[100px]" />
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px]" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red/10 rounded-full blur-[100px]" />
             </div>
 
             <div className="w-full max-w-md relative z-10">
                 <AuthNav onBack={role ? () => setRole(null) : undefined} />
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 shadow-2xl">
                     <div className="flex justify-center mb-8">
                         <Image
                             src="/LOGO.png"

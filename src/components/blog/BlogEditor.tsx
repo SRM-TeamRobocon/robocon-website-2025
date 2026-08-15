@@ -94,7 +94,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Give your post a title"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-red"
+                        className="w-full border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-red"
                     />
                 </div>
 
@@ -103,9 +103,9 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                     <div className="flex items-start gap-3">
                         {coverImageUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={coverImageUrl} alt="Cover" className="h-16 w-24 shrink-0 rounded-lg border border-white/10 object-cover" />
+                            <img src={coverImageUrl} alt="Cover" className="h-16 w-24 shrink-0 border border-white/10 object-cover" />
                         )}
-                        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
+                        <label className="flex w-fit cursor-pointer items-center gap-2 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
                             <Upload size={14} />
                             {coverUploading ? "Uploading..." : coverImageUrl ? "Replace cover" : "Upload cover"}
                             <input
@@ -131,7 +131,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                 key={v}
                                 type="button"
                                 onClick={() => setVisibility(v)}
-                                className={`flex-1 min-w-[9rem] rounded-lg px-3 py-2 text-left text-sm font-semibold transition ${
+                                className={`flex-1 min-w-[9rem] px-3 py-2 text-left text-sm font-semibold transition ${
                                     visibility === v ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                                 }`}
                             >
@@ -148,7 +148,11 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                     <label className="block text-xs font-bold uppercase tracking-widest text-gray-500">Content</label>
 
                     {blocks.map((block, index) => (
-                        <div key={index} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <div
+                            key={index}
+                            className="border border-white/10 bg-white/[0.03] p-3"
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        >
                             <div className="mb-2 flex items-center justify-between">
                                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 capitalize">
                                     {block.type === "heading" && <Heading size={12} />}
@@ -157,13 +161,13 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                     {block.type}
                                 </span>
                                 <div className="flex items-center gap-1">
-                                    <button type="button" onClick={() => moveBlock(index, -1)} disabled={index === 0} className="rounded p-1 text-gray-500 hover:text-white disabled:opacity-30">
+                                    <button type="button" onClick={() => moveBlock(index, -1)} disabled={index === 0} className="p-1 text-gray-500 hover:text-white disabled:opacity-30">
                                         <ArrowUp size={14} />
                                     </button>
-                                    <button type="button" onClick={() => moveBlock(index, 1)} disabled={index === blocks.length - 1} className="rounded p-1 text-gray-500 hover:text-white disabled:opacity-30">
+                                    <button type="button" onClick={() => moveBlock(index, 1)} disabled={index === blocks.length - 1} className="p-1 text-gray-500 hover:text-white disabled:opacity-30">
                                         <ArrowDown size={14} />
                                     </button>
-                                    <button type="button" onClick={() => removeBlock(index)} className="rounded p-1 text-gray-500 hover:text-red">
+                                    <button type="button" onClick={() => removeBlock(index)} className="p-1 text-gray-500 hover:text-red">
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
@@ -175,7 +179,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                     value={block.text}
                                     onChange={(e) => updateBlock(index, { type: "heading", text: e.target.value })}
                                     placeholder="Section heading"
-                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none transition focus:border-red"
+                                    className="w-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none transition focus:border-red"
                                 />
                             )}
 
@@ -185,7 +189,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                     onChange={(e) => updateBlock(index, { type: "paragraph", text: e.target.value })}
                                     placeholder="Write a paragraph..."
                                     rows={4}
-                                    className="w-full resize-y rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-red"
+                                    className="w-full resize-y border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-red"
                                 />
                             )}
 
@@ -194,9 +198,9 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                     <div className="flex items-start gap-3">
                                         {block.url && (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={block.url} alt="" className="h-16 w-24 shrink-0 rounded-lg border border-white/10 object-cover" />
+                                            <img src={block.url} alt="" className="h-16 w-24 shrink-0 border border-white/10 object-cover" />
                                         )}
-                                        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
+                                        <label className="flex w-fit cursor-pointer items-center gap-2 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
                                             <Upload size={14} />
                                             {uploadingBlock === index ? "Uploading..." : block.url ? "Replace image" : "Add image"}
                                             <input
@@ -217,7 +221,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                         value={block.caption || ""}
                                         onChange={(e) => updateBlock(index, { ...block, caption: e.target.value })}
                                         placeholder="Caption (optional)"
-                                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white outline-none transition focus:border-red"
+                                        className="w-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white outline-none transition focus:border-red"
                                     />
                                 </div>
                             )}
@@ -225,13 +229,13 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                     ))}
 
                     <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => addBlock("heading")} className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition">
+                        <button type="button" onClick={() => addBlock("heading")} className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition">
                             <Heading size={14} /> Add Heading
                         </button>
-                        <button type="button" onClick={() => addBlock("paragraph")} className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition">
+                        <button type="button" onClick={() => addBlock("paragraph")} className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition">
                             <Pilcrow size={14} /> Add Paragraph
                         </button>
-                        <button type="button" onClick={() => addBlock("image")} className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition">
+                        <button type="button" onClick={() => addBlock("image")} className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition">
                             <ImageIcon size={14} /> Add Image
                         </button>
                     </div>
@@ -241,9 +245,19 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                     type="button"
                     disabled={!canSubmit || submitting}
                     onClick={() => onSubmit({ title: title.trim(), coverImageUrl, visibility, content: blocks })}
-                    className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-3 text-sm font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400 disabled:opacity-50"
+                    className="group relative w-full overflow-hidden bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-3 text-sm font-semibold text-white transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-50"
+                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                 >
-                    {submitting ? "Submitting..." : submitLabel}
+                    <span
+                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                        style={{
+                            clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                            backgroundColor: "#D4AF37",
+                        }}
+                    />
+                    <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                        {submitting ? "Submitting..." : submitLabel}
+                    </span>
                 </button>
             </div>
 
@@ -251,7 +265,10 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                 <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <Eye size={14} /> Live Preview
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-4 sm:p-6"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <BlogRenderer
                         title={title || "Untitled post"}
                         coverImageUrl={coverImageUrl}

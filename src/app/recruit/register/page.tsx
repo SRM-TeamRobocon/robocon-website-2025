@@ -40,7 +40,7 @@ function CardShell({ children, onBack }: { children: React.ReactNode; onBack?: (
             <RecruitBackdrop />
             <div className="w-full max-w-lg relative z-10">
                 <AuthNav variant="glass" onBack={onBack} />
-                <GlassCard contentClassName="p-8" borderRadius={32}>
+                <GlassCard contentClassName="p-8" borderRadius={0}>
                     <div className="flex justify-center mb-6">
                         <Image
                             src="/LOGO.png"
@@ -64,7 +64,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
             {[1, 2, 3].map((s) => (
                 <div
                     key={s}
-                    className={`h-1.5 rounded-full transition-all ${
+                    className={`h-1.5 transition-all ${
                         s === step ? "w-8 bg-red" : s < step ? "w-8 bg-red/40" : "w-8 bg-white/15"
                     }`}
                 />
@@ -76,7 +76,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
 function ErrorBanner({ message }: { message: string }) {
     if (!message) return null;
     return (
-        <div className="rounded-lg bg-red/10 border border-red/25 p-4 flex items-center justify-center">
+        <div className="bg-red/10 border border-red/25 p-4 flex items-center justify-center">
             <h3 className="text-sm text-red font-bold">{message}</h3>
         </div>
     );
@@ -128,7 +128,7 @@ function RecruitmentIntro({ onComplete }: { onComplete: () => void }) {
                     <button
                         type="button"
                         onClick={startWithAudio}
-                        className="rounded-full border border-white/30 bg-black/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white backdrop-blur transition hover:bg-white hover:text-black"
+                        className="border border-white/30 bg-black/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white backdrop-blur transition hover:bg-white hover:text-black"
                     >
                         Touch your screen to start with audio
                     </button>
@@ -136,7 +136,7 @@ function RecruitmentIntro({ onComplete }: { onComplete: () => void }) {
                 <button
                     type="button"
                     onClick={onComplete}
-                    className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80 transition hover:text-white"
+                    className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80 transition hover:text-white"
                 >
                     Skip intro
                 </button>
@@ -373,7 +373,7 @@ function RecruitRegisterInner() {
                     <button
                         type="button"
                         onClick={handleGoogleContinue}
-                        className="flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
+                        className="flex w-full items-center justify-center gap-3 px-4 py-3 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
                     >
                         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                             <path
@@ -430,7 +430,7 @@ function RecruitRegisterInner() {
                                         value={srmEmail}
                                         onChange={(e) => setSrmEmail(e.target.value)}
                                         placeholder="ab1234@srmist.edu.in"
-                                        className="block w-full rounded-xl border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
+                                        className="block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                                     />
                                 </div>
                             </div>
@@ -438,13 +438,23 @@ function RecruitRegisterInner() {
                             <button
                                 type="submit"
                                 disabled={otpLoading}
-                                className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm active:scale-[0.99] transition-all ${
+                                className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
                                     otpLoading
                                         ? "bg-red/40 cursor-not-allowed"
-                                        : "bg-red hover:bg-red/90 hover:shadow-lg hover:shadow-red/25"
+                                        : "bg-red hover:bg-red/90"
                                 }`}
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
-                                {otpLoading ? "Sending..." : "Send OTP"}
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                                    {otpLoading ? "Sending..." : "Send OTP"}
+                                </span>
                             </button>
                         </form>
                     ) : (
@@ -470,7 +480,7 @@ function RecruitRegisterInner() {
                                         value={otp}
                                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                                         placeholder="123456"
-                                        className="block w-full rounded-xl border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all tracking-[0.3em] text-center"
+                                        className="block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all tracking-[0.3em] text-center"
                                     />
                                 </div>
                             </div>
@@ -478,13 +488,23 @@ function RecruitRegisterInner() {
                             <button
                                 type="submit"
                                 disabled={verifyLoading}
-                                className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm active:scale-[0.99] transition-all ${
+                                className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
                                     verifyLoading
                                         ? "bg-red/40 cursor-not-allowed"
-                                        : "bg-red hover:bg-red/90 hover:shadow-lg hover:shadow-red/25"
+                                        : "bg-red hover:bg-red/90"
                                 }`}
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
-                                {verifyLoading ? "Verifying..." : "Verify OTP"}
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                                    {verifyLoading ? "Verifying..." : "Verify OTP"}
+                                </span>
                             </button>
                             <button
                                 type="button"
@@ -523,6 +543,7 @@ function RecruitRegisterInner() {
                             <div className="mt-2">
                                 <Select
                                     id="year"
+                                    className="rounded-none"
                                     value={profile.year}
                                     onChange={(v) => setProfile((prev) => ({ ...prev, year: v as ProfileForm["year"] }))}
                                     placeholder="Select year"
@@ -546,7 +567,7 @@ function RecruitRegisterInner() {
                                         key={opt.key}
                                         type="button"
                                         onClick={() => setProfile((prev) => ({ ...prev, gender: opt.key }))}
-                                        className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                        className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
                                                 ? "bg-red/15 border-red/50 text-white"
                                                 : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
@@ -598,7 +619,7 @@ function RecruitRegisterInner() {
                                                 travelMethod: opt.value ? "" : prev.travelMethod,
                                             }))
                                         }
-                                        className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                        className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
                                                 ? "bg-red/15 border-red/50 text-white"
                                                 : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
@@ -620,6 +641,7 @@ function RecruitRegisterInner() {
                                 <div className="mt-2">
                                     <Select
                                         id="hostelBlock"
+                                        className="rounded-none"
                                         value={profile.hostelBlock}
                                         onChange={(v) => setProfile((prev) => ({ ...prev, hostelBlock: v }))}
                                         placeholder="Select block"
@@ -660,7 +682,7 @@ function RecruitRegisterInner() {
                                                 onClick={() =>
                                                     setProfile((prev) => ({ ...prev, travelMethod: opt.key }))
                                                 }
-                                                className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                                className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                                     checked
                                                         ? "bg-red/15 border-red/50 text-white"
                                                         : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
@@ -692,7 +714,7 @@ function RecruitRegisterInner() {
                                             return (
                                                 <label
                                                     key={opt.key}
-                                                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-all cursor-pointer ${
+                                                    className={`flex items-center gap-2 border px-3 py-2.5 text-sm transition-all cursor-pointer ${
                                                         checked
                                                             ? "bg-red/10 border-red/40 text-white"
                                                             : disabled
@@ -747,13 +769,23 @@ function RecruitRegisterInner() {
                     <button
                         type="submit"
                         disabled={submitLoading}
-                        className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm active:scale-[0.99] transition-all ${
+                        className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
                             submitLoading
                                 ? "bg-red/40 cursor-not-allowed"
-                                : "bg-red hover:bg-red/90 hover:shadow-lg hover:shadow-red/25"
+                                : "bg-red hover:bg-red/90"
                         }`}
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        {submitLoading ? "Creating account..." : "Complete Registration"}
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                            {submitLoading ? "Creating account..." : "Complete Registration"}
+                        </span>
                     </button>
                 </form>
             )}
@@ -794,7 +826,7 @@ function Field({
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    className={`block w-full rounded-xl border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
+                    className={`block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}
                 />

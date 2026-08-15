@@ -139,7 +139,7 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
         return (
             <button
                 onClick={() => setOpen(true)}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-red/15 px-4 py-2.5 text-sm font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25"
+                className="inline-flex w-full items-center justify-center gap-1.5 bg-red/15 px-4 py-2.5 text-sm font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25"
             >
                 <Plus className="h-4 w-4" /> Add Table
             </button>
@@ -147,7 +147,10 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
     }
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 space-y-3">
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 space-y-3"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
             <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-gray-500">Domain</label>
                 <Select
@@ -166,7 +169,7 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
                     maxLength={50}
                     disabled={!subDomain}
                     placeholder="Pick a domain first"
-                    className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <p className="mt-1.5 text-xs text-gray-500">
                     Edit it however you like — just has to be unique among this domain&apos;s tables.
@@ -176,7 +179,7 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
                 <button
                     onClick={submit}
                     disabled={busy}
-                    className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                    className="flex-1 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
                 >
                     Create
                 </button>
@@ -187,7 +190,7 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
                         setName("");
                     }}
                     disabled={busy}
-                    className="rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
+                    className="bg-white/5 px-3 py-2 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
                 >
                     Cancel
                 </button>
@@ -289,20 +292,21 @@ function PanelCard({
     return (
         <div
             onClick={onSelect}
-            className={`cursor-pointer rounded-2xl border p-4 transition ${
+            className={`cursor-pointer border p-4 transition ${
                 selected
                     ? "border-red/50 bg-red/[0.08]"
                     : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
             } backdrop-blur-xl`}
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                     <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${panel.is_active ? "bg-emerald-400" : "bg-gray-600"}`}
+                        className={`h-2 w-2 shrink-0 ${panel.is_active ? "bg-emerald-400" : "bg-gray-600"}`}
                     />
                     <h3 className="truncate font-bold text-white">{panel.domain_label}</h3>
                     {!panel.is_active && (
-                        <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                        <span className="shrink-0 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                             Closed
                         </span>
                     )}
@@ -310,17 +314,17 @@ function PanelCard({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-1 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                <span className="inline-flex items-center gap-1 bg-amber-500/10 px-2 py-1 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
                     <Clock3 className="h-3 w-3" /> Waiting: {panel.counts.waiting}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-500/10 px-2 py-1 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
+                <span className="inline-flex items-center gap-1 bg-blue-500/10 px-2 py-1 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
                     <PhoneCall className="h-3 w-3" /> Called: {panel.counts.called}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-1 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
                     <CheckCircle2 className="h-3 w-3" /> Done: {panel.counts.done}
                 </span>
                 {panel.counts.no_show > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 font-semibold text-gray-400 ring-1 ring-inset ring-white/10">
+                    <span className="inline-flex items-center gap-1 bg-white/5 px-2 py-1 font-semibold text-gray-400 ring-1 ring-inset ring-white/10">
                         <UserX className="h-3 w-3" /> No-show: {panel.counts.no_show}
                     </span>
                 )}
@@ -332,14 +336,14 @@ function PanelCard({
                         <button
                             onClick={closePanel}
                             disabled={busy}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
                         >
                             Pause
                         </button>
                         <button
                             onClick={closeForDay}
                             disabled={busy}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                         >
                             Close for the Day
                         </button>
@@ -349,7 +353,7 @@ function PanelCard({
                     onClick={deletePanel}
                     disabled={busy}
                     title={`Delete ${panel.domain_label} table`}
-                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                    className="ml-auto inline-flex items-center gap-1.5 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                 >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                 </button>
@@ -361,7 +365,7 @@ function PanelCard({
 function RecruitProfileCard({ token }: { token: QueueToken }) {
     const r = token.recruit;
     return (
-        <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-3">
+        <div className="border border-white/10 bg-black/30 p-4 space-y-3">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -369,7 +373,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                             #{token.token_number} — {r.name}
                         </p>
                         {token.is_walkin && (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30">
+                            <span className="inline-flex items-center gap-1 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30">
                                 <Footprints className="h-3 w-3" /> Walk-in
                             </span>
                         )}
@@ -394,7 +398,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                         href={r.portfolio_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="shrink-0 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                        className="shrink-0 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
                     >
                         LinkedIn ↗
                     </a>
@@ -407,7 +411,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                     {r.domains.map((d) => (
                         <span
                             key={d}
-                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-inset ${
+                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold ring-1 ring-inset ${
                                 r.shortlisted_for.includes(d)
                                     ? "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30"
                                     : "bg-white/5 text-gray-400 ring-white/10"
@@ -428,7 +432,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                         {r.exam_marks.map((m) => (
                             <span
                                 key={m.sub_domain}
-                                className="rounded-lg bg-white/5 px-2 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10"
+                                className="bg-white/5 px-2 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10"
                             >
                                 {subDomainLabel(m.sub_domain)}: {m.marks}
                             </span>
@@ -585,15 +589,28 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
 
     return (
         <div className="space-y-5">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                     <h2 className="text-xl font-black text-white">{panel.domain_label}</h2>
                     <button
                         onClick={callNext}
                         disabled={busy || !panel.is_active || Boolean(called) || waiting.length === 0}
-                        className="inline-flex items-center gap-2 rounded-xl bg-red px-5 py-2.5 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="group relative overflow-hidden inline-flex items-center bg-red px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-events-none"
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        <PhoneCall className="h-4 w-4" /> Call Next
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
+                            <PhoneCall className="h-4 w-4" /> Call Next
+                        </span>
                     </button>
                 </div>
                 {!panel.is_active && (
@@ -604,7 +621,10 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
             </div>
 
             {called ? (
-                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/[0.06] backdrop-blur-xl p-5 space-y-4">
+                <div
+                    className="border border-blue-500/30 bg-blue-500/[0.06] backdrop-blur-xl p-5 space-y-4"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-400">
                         <PhoneCall className="h-4 w-4" /> Now Interviewing
                     </div>
@@ -616,35 +636,35 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder="Optional notes..."
                             rows={2}
-                            className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                            className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                         />
 
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => logResult("selected")}
                                 disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
                             >
                                 <Award className="h-4 w-4" /> Selected
                             </button>
                             <button
                                 onClick={() => logResult("rejected")}
                                 disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                             >
                                 <Ban className="h-4 w-4" /> Rejected
                             </button>
                             <button
                                 onClick={() => logResult("waitlisted")}
                                 disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
+                                className="inline-flex items-center gap-1.5 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
                             >
                                 <Hourglass className="h-4 w-4" /> Waitlisted
                             </button>
                             <button
                                 onClick={markNoShow}
                                 disabled={busy}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 ml-auto"
+                                className="inline-flex items-center gap-1.5 bg-white/5 px-4 py-2 text-sm font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 ml-auto"
                             >
                                 <UserX className="h-4 w-4" /> No Show
                             </button>
@@ -652,12 +672,18 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                     </div>
                 </div>
             ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-sm text-gray-500">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-sm text-gray-500"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     No one is currently being interviewed. Click &ldquo;Call Next&rdquo; to bring up the next recruit.
                 </div>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <div className="px-5 py-3 border-b border-white/10">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                         <Users className="h-4 w-4 text-gray-400" /> Up Next ({waiting.length})
@@ -682,7 +708,10 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
             </div>
 
             {history.length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <div className="px-5 py-3 border-b border-white/10">
                         <h3 className="text-sm font-bold text-white">History ({history.length})</h3>
                     </div>
@@ -704,7 +733,7 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                                         <td className="px-5 py-2.5 text-gray-400">{t.recruit.reg_no}</td>
                                         <td className="px-5 py-2.5">
                                             <span
-                                                className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                                                     t.status === "done"
                                                         ? "bg-emerald-500/10 text-emerald-400"
                                                         : "bg-white/5 text-gray-500"
@@ -738,7 +767,7 @@ function SortableWaitingRow({ token }: { token: QueueToken }) {
         <div
             ref={setNodeRef}
             style={style}
-            className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"
+            className="flex items-center gap-3 border border-white/10 bg-black/20 px-3 py-2.5"
         >
             <button
                 type="button"
@@ -754,7 +783,7 @@ function SortableWaitingRow({ token }: { token: QueueToken }) {
             {token.is_walkin && (
                 <span
                     title="Not shortlisted — walk-in"
-                    className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+                    className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
                 >
                     <Footprints className="h-3 w-3" /> Walk-in
                 </span>
@@ -854,33 +883,33 @@ function EditResultRow({ row, onSaved, onCancel }: { row: InterviewResultRow; on
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Notes (optional)"
-                        className="flex-1 min-w-[160px] rounded-lg border-0 bg-white/5 py-1.5 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 min-w-[160px] border-0 bg-white/5 py-1.5 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                         onClick={() => submit("selected")}
                         disabled={busy}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
+                        className="inline-flex items-center gap-1 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
                     >
                         <Award className="h-3.5 w-3.5" /> Selected
                     </button>
                     <button
                         onClick={() => submit("rejected")}
                         disabled={busy}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/25 disabled:opacity-50"
+                        className="inline-flex items-center gap-1 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/25 disabled:opacity-50"
                     >
                         <Ban className="h-3.5 w-3.5" /> Rejected
                     </button>
                     <button
                         onClick={() => submit("waitlisted")}
                         disabled={busy}
-                        className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25 disabled:opacity-50"
+                        className="inline-flex items-center gap-1 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25 disabled:opacity-50"
                     >
                         <Hourglass className="h-3.5 w-3.5" /> Waitlisted
                     </button>
                     <button
                         onClick={onCancel}
                         disabled={busy}
-                        className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/10"
+                        className="inline-flex items-center gap-1 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/10"
                     >
                         <X className="h-3.5 w-3.5" /> Cancel
                     </button>
@@ -913,7 +942,10 @@ function DomainResultsSection({
     for (const r of rows) counts[r.result]++;
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
             <button
                 type="button"
                 onClick={() => setCollapsed((c) => !c)}
@@ -927,17 +959,17 @@ function DomainResultsSection({
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs">
                     {counts.selected > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                        <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
                             <Award className="h-3 w-3" /> {counts.selected}
                         </span>
                     )}
                     {counts.rejected > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-red-500/10 px-2 py-0.5 font-semibold text-red-400 ring-1 ring-inset ring-red-500/20">
+                        <span className="inline-flex items-center gap-1 bg-red-500/10 px-2 py-0.5 font-semibold text-red-400 ring-1 ring-inset ring-red-500/20">
                             <Ban className="h-3 w-3" /> {counts.rejected}
                         </span>
                     )}
                     {counts.waitlisted > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                        <span className="inline-flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
                             <Hourglass className="h-3 w-3" /> {counts.waitlisted}
                         </span>
                     )}
@@ -968,7 +1000,7 @@ function DomainResultsSection({
                                                 {row.is_walkin && (
                                                     <span
                                                         title="Not shortlisted — let in as a walk-in"
-                                                        className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+                                                        className="inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
                                                     >
                                                         <Footprints className="h-3 w-3" /> Walk-in
                                                     </span>
@@ -977,7 +1009,7 @@ function DomainResultsSection({
                                             <div className="text-xs text-gray-500">{row.reg_no}</div>
                                         </td>
                                         <td className="px-5 py-2.5">
-                                            <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize ${RESULT_STYLES[row.result]}`}>
+                                            <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize ${RESULT_STYLES[row.result]}`}>
                                                 {row.result}
                                             </span>
                                         </td>
@@ -993,7 +1025,7 @@ function DomainResultsSection({
                                         <td className="px-5 py-2.5 text-right">
                                             <button
                                                 onClick={() => onEdit(row.id)}
-                                                className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 hover:bg-white/10"
+                                                className="inline-flex items-center gap-1 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 hover:bg-white/10"
                                             >
                                                 <Pencil className="h-3 w-3" /> Fix
                                             </button>
@@ -1038,11 +1070,17 @@ function InterviewResultsList() {
                 <span className="text-xs text-gray-500">({rows.length} total)</span>
             </div>
             {loading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500">
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     Loading...
                 </div>
             ) : rows.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500">
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     No results logged yet — they&apos;ll show up here as panels call recruits in.
                 </div>
             ) : (
@@ -1128,16 +1166,16 @@ export default function InterviewManagementPage() {
 
                 {!noCycle && !loading && panels.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
+                        <span className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1.5 font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
                             {totals.open} of {panels.length} tables open
                         </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                        <span className="inline-flex items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
                             <Clock3 className="h-3.5 w-3.5" /> {totals.waiting} waiting
                         </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-1.5 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
+                        <span className="inline-flex items-center gap-1.5 bg-blue-500/10 px-3 py-1.5 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
                             <PhoneCall className="h-3.5 w-3.5" /> {totals.called} in progress
                         </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                        <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
                             <CheckCircle2 className="h-3.5 w-3.5" /> {totals.done} done
                         </span>
                     </div>
@@ -1145,7 +1183,10 @@ export default function InterviewManagementPage() {
             </div>
 
             {noCycle ? (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-6 text-sm text-amber-300">
+                <div
+                    className="border border-amber-500/30 bg-amber-500/[0.06] p-6 text-sm text-amber-300"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     No active recruitment cycle. Start one from Cycles before opening interview panels.
                 </div>
             ) : (
@@ -1156,7 +1197,10 @@ export default function InterviewManagementPage() {
                         {loading ? (
                             <div className="p-8 text-center text-gray-500 text-sm">Loading panels...</div>
                         ) : panels.length === 0 ? (
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500">
+                            <div
+                                className="border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            >
                                 No panels yet. Add one to get started.
                             </div>
                         ) : (
@@ -1182,7 +1226,10 @@ export default function InterviewManagementPage() {
                         {selectedPanel ? (
                             <PanelDashboard panel={selectedPanel} onChanged={loadPanels} />
                         ) : (
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-12 text-center text-sm text-gray-500">
+                            <div
+                                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-12 text-center text-sm text-gray-500"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            >
                                 Select a panel on the left to open its dashboard.
                             </div>
                         )}

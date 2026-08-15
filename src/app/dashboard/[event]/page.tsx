@@ -196,7 +196,10 @@ export default function EventDashboard() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-end">
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-2 flex items-center gap-3 shadow-inner">
+                    <div
+                        className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 flex items-center gap-3 shadow-inner"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <span className="text-emerald-500/80">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
@@ -206,7 +209,10 @@ export default function EventDashboard() {
                         </div>
                     </div>
 
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-2 flex items-center gap-3 shadow-inner">
+                    <div
+                        className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 flex items-center gap-3 shadow-inner"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <span className="text-amber-500/80">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
@@ -217,7 +223,10 @@ export default function EventDashboard() {
                     </div>
 
                     {sessionFilter !== "ALL" && (
-                        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-4 py-2 flex items-center gap-3 shadow-inner">
+                        <div
+                            className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 flex items-center gap-3 shadow-inner"
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        >
                             <span className="text-indigo-500/80">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                             </span>
@@ -232,8 +241,11 @@ export default function EventDashboard() {
 
             {/* Attendance Manager Warning Bar */}
             {sessionFilter !== "ALL" && (
-                <div className="mb-4 bg-indigo-500/10 border border-indigo-500/30 p-3 rounded-xl flex items-center gap-3 backdrop-blur-md">
-                    <div className="p-2 bg-indigo-500/20 rounded-lg">
+                <div
+                    className="mb-4 bg-indigo-500/10 border border-indigo-500/30 p-3 flex items-center gap-3 backdrop-blur-md"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
+                    <div className="p-2 bg-indigo-500/20">
                         <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <div>
@@ -244,8 +256,11 @@ export default function EventDashboard() {
                 </div>
             )}
 
-            <div className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
-                
+            <div
+                className="bg-gray-900/50 border border-gray-800 overflow-hidden shadow-2xl backdrop-blur-sm"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
+
                 {/* Controls Bar */}
                 <div className="p-4 border-b border-gray-800 flex flex-col xl:flex-row gap-4 justify-between bg-gray-900/80">
                     <div className="relative max-w-md w-full">
@@ -257,19 +272,19 @@ export default function EventDashboard() {
                             placeholder="Search name, reg no, UTR..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-gray-800/80 border border-gray-700 text-white text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 transition-colors"
+                            className="bg-gray-800/80 border border-gray-700 text-white text-sm focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 transition-colors"
                         />
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center justify-end">
                         
                         {/* Attendance Session Filter Dropdown */}
-                        <div className="flex items-center gap-2 bg-gray-800/40 p-1.5 rounded-xl border border-gray-700/50">
+                        <div className="flex items-center gap-2 bg-gray-800/40 p-1.5 border border-gray-700/50">
                             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2">View:</span>
                             <select
                                 value={sessionFilter}
                                 onChange={(e) => setSessionFilter(e.target.value)}
-                                className="appearance-none bg-gray-800/80 border border-gray-600 text-white text-xs font-semibold rounded-lg pl-3 pr-8 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer transition-colors"
+                                className="appearance-none bg-gray-800/80 border border-gray-600 text-white text-xs font-semibold pl-3 pr-8 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none cursor-pointer transition-colors"
                             >
                                 <option value="ALL">All Sessions Overview</option>
                                 <optgroup label="Manage Attendance">
@@ -286,7 +301,7 @@ export default function EventDashboard() {
                                 <button
                                     key={f}
                                     onClick={() => setFilter(f)}
-                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filter === f
+                                    className={`px-4 py-2 text-xs font-bold transition-all ${filter === f
                                         ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                                         : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
                                         }`}
@@ -294,7 +309,7 @@ export default function EventDashboard() {
                                     {f}
                                 </button>
                             ))}
-                            <button onClick={fetchData} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors border border-gray-700 group" title="Refresh Data">
+                            <button onClick={fetchData} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 transition-colors border border-gray-700 group" title="Refresh Data">
                                 <svg className="w-4 h-4 text-gray-300 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             </button>
                         </div>
@@ -322,7 +337,7 @@ export default function EventDashboard() {
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                         <div className="flex justify-center flex-col items-center">
-                                            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
+                                            <div className="w-8 h-8 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin mb-3"></div>
                                             Fetching latest rows from Google Sheets...
                                         </div>
                                     </td>
@@ -364,7 +379,7 @@ export default function EventDashboard() {
                                         </td>
 
                                         <td className="px-6 py-4 align-top">
-                                            <div className="bg-gray-800/50 rounded-lg p-2 border border-gray-700/50 inline-block min-w-[200px]">
+                                            <div className="bg-gray-800/50 p-2 border border-gray-700/50 inline-block min-w-[200px]">
                                                 <div className="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-1">Transaction (UTR) ID</div>
                                                 <div className="font-mono text-white text-sm tracking-widest">{row.transactionId || 'N/A'}</div>
                                             </div>
@@ -372,12 +387,12 @@ export default function EventDashboard() {
 
                                         <td className="px-6 py-4 align-middle text-center">
                                             {row.paymentStatus === 'VERIFIED' ? (
-                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold w-max">
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold w-max">
                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                                     VERIFIED
                                                 </div>
                                             ) : (
-                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold w-max">
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold w-max">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                                     PENDING
                                                 </div>
@@ -393,7 +408,7 @@ export default function EventDashboard() {
                                                         return (
                                                             <span
                                                                 key={sess}
-                                                                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${isPresent
+                                                                className={`inline-block px-1.5 py-0.5 text-[9px] font-bold border ${isPresent
                                                                     ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
                                                                     : "bg-gray-800/60 border-gray-700/40 text-gray-600"
                                                                     }`}
@@ -406,7 +421,7 @@ export default function EventDashboard() {
                                             ) : (
                                                 <div className="flex justify-center">
                                                     {row[sessionFilter as keyof RegistrationRow] === "PRESENT" ? (
-                                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]">
                                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                                             CHECKED IN
                                                         </div>
@@ -424,7 +439,7 @@ export default function EventDashboard() {
                                                     <button
                                                         onClick={() => handleVerify(row)}
                                                         disabled={verifyingRow === row.rowIndex}
-                                                        className={`inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-md active:scale-95 whitespace-nowrap ${verifyingRow === row.rowIndex
+                                                        className={`inline-flex items-center justify-center px-4 py-2 text-sm font-semibold transition-all shadow-md active:scale-95 whitespace-nowrap ${verifyingRow === row.rowIndex
                                                             ? "bg-gray-700 text-gray-400 cursor-not-allowed"
                                                             : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20"
                                                             }`}
@@ -449,7 +464,7 @@ export default function EventDashboard() {
                                                     <button
                                                         onClick={() => handleToggleAttendance(row, sessionFilter)}
                                                         disabled={updatingAttendance === row.rowIndex}
-                                                        className={`inline-flex items-center justify-center px-4 py-1.5 text-xs font-bold rounded-lg transition-all shadow-md active:scale-95 whitespace-nowrap min-w-[140px] ${updatingAttendance === row.rowIndex
+                                                        className={`inline-flex items-center justify-center px-4 py-1.5 text-xs font-bold transition-all shadow-md active:scale-95 whitespace-nowrap min-w-[140px] ${updatingAttendance === row.rowIndex
                                                             ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                                                             : row[sessionFilter as keyof RegistrationRow] === "PRESENT"
                                                                 ? "bg-gray-800 hover:bg-red-500/20 border border-gray-700 hover:border-red-500/50 text-gray-400 hover:text-red-400" 

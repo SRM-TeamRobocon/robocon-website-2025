@@ -24,7 +24,8 @@ export default async function AdminContentHome() {
           <Link
             key={resource.table}
             href={`/dashboard/content/${resource.table}`}
-            className="rounded-2xl border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
+            className="border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
           >
             <h2 className="text-xl font-bold text-white">{resource.pluralLabel}</h2>
             <p className="mt-2 text-sm text-gray-400">

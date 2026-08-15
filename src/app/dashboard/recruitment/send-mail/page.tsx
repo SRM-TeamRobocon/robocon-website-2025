@@ -62,7 +62,7 @@ function ShortlistBadges({ domains, rows }: { domains: string[]; rows: Shortlist
                     <span
                         key={d}
                         title={`${subDomainLabel(d)}: ${status ? STATUS_LABELS[status] : "Not computed yet"}`}
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset whitespace-nowrap ${
+                        className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ring-1 ring-inset whitespace-nowrap ${
                             status ? STATUS_BADGE_STYLES[status] : "bg-white/[0.04] text-gray-500 ring-white/10"
                         }`}
                     >
@@ -242,7 +242,10 @@ export default function SendMailPage() {
                 </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 space-y-4">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 space-y-4"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Subject</label>
                     <input
@@ -250,7 +253,7 @@ export default function SendMailPage() {
                         onChange={(e) => setSubject(e.target.value)}
                         maxLength={200}
                         placeholder="e.g. Your interview slot"
-                        className="w-full rounded-lg border-0 bg-white/5 py-2.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
+                        className="w-full border-0 bg-white/5 py-2.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                     />
                 </div>
                 <div>
@@ -261,7 +264,7 @@ export default function SendMailPage() {
                         maxLength={5000}
                         rows={6}
                         placeholder="Write the email body..."
-                        className="w-full rounded-lg border-0 bg-white/5 py-2.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600 resize-y"
+                        className="w-full border-0 bg-white/5 py-2.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600 resize-y"
                     />
                 </div>
                 <div className="max-w-xs">
@@ -272,7 +275,7 @@ export default function SendMailPage() {
                         type="datetime-local"
                         value={eventAt}
                         onChange={(e) => setEventAt(e.target.value)}
-                        className="w-full rounded-lg border-0 bg-white/5 py-2.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red [color-scheme:dark]"
+                        className="w-full border-0 bg-white/5 py-2.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red [color-scheme:dark]"
                     />
                 </div>
 
@@ -283,15 +286,25 @@ export default function SendMailPage() {
                     <button
                         onClick={send}
                         disabled={!canSend}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-red px-5 py-2.5 text-sm font-semibold text-white hover:bg-red/90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="group relative overflow-hidden inline-flex items-center bg-red px-8 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        <Send className="w-4 h-4" />
-                        {sending ? "Sending..." : "Send Mail"}
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative inline-flex items-center gap-1.5 transition-colors duration-200 group-hover:text-black">
+                            <Send className="w-4 h-4" />
+                            {sending ? "Sending..." : "Send Mail"}
+                        </span>
                     </button>
                 </div>
 
                 {result && (
-                    <div className="rounded-lg bg-white/5 ring-1 ring-inset ring-white/10 p-3 text-sm">
+                    <div className="bg-white/5 ring-1 ring-inset ring-white/10 p-3 text-sm">
                         <p className="text-gray-300">
                             Sent <span className="text-emerald-400 font-bold">{result.sent}</span>
                             {result.failed > 0 && (
@@ -315,14 +328,17 @@ export default function SendMailPage() {
                 )}
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <div className="relative flex-1">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name or reg no..."
-                        className="h-10 w-full rounded-lg border-0 bg-white/5 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
+                        className="h-10 w-full border-0 bg-white/5 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                     />
                 </div>
                 <div className="w-48">
@@ -370,7 +386,10 @@ export default function SendMailPage() {
                 </p>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : error ? (

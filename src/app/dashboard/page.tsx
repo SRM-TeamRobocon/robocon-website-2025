@@ -174,13 +174,16 @@ function StatGrid({ cards, loading }: { cards: StatCard[]; loading: boolean }) {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {cards.map((card) => {
                 const body = (
-                    <div className="h-full rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition hover:border-white/20 sm:p-5">
+                    <div
+                        className="h-full border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition hover:border-white/20 sm:p-5"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <span className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 sm:text-[11px]">
                             {card.label}
                         </span>
                         <div className={`mt-3 text-2xl font-black sm:text-3xl ${card.tone}`}>
                             {loading ? (
-                                <span className="inline-block h-7 w-10 animate-pulse rounded bg-white/5 align-middle" />
+                                <span className="inline-block h-7 w-10 animate-pulse bg-white/5 align-middle" />
                             ) : (
                                 card.value
                             )}
@@ -207,9 +210,10 @@ function ActionGrid({ actions }: { actions: QuickAction[] }) {
                 const Icon = action.icon;
                 const card = (
                     <div
-                        className={`relative flex h-full flex-col overflow-hidden rounded-2xl border bg-gradient-to-br p-6 sm:p-7 ${action.accent} ${
+                        className={`relative flex h-full flex-col overflow-hidden border bg-gradient-to-br p-6 sm:p-7 ${action.accent} ${
                             action.disabled ? "" : "transition-all hover:scale-[1.015]"
                         }`}
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                     >
                         <div className="pointer-events-none absolute right-0 top-0 p-6 opacity-20 transition-opacity group-hover:opacity-40">
                             <Icon className={`h-20 w-20 ${action.iconClass}`} strokeWidth={1} />
@@ -217,7 +221,7 @@ function ActionGrid({ actions }: { actions: QuickAction[] }) {
 
                         <div className="relative z-10 flex h-full min-w-0 flex-col">
                             <span
-                                className={`mb-4 inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${action.badgeClass}`}
+                                className={`mb-4 inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold ring-1 ring-inset ${action.badgeClass}`}
                             >
                                 {action.badge}
                             </span>
@@ -350,19 +354,30 @@ export default function AdminDashboard() {
                 {header}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-                            <div className="h-3 w-20 animate-pulse rounded bg-white/5" />
-                            <div className="mt-4 h-7 w-10 animate-pulse rounded bg-white/5" />
+                        <div
+                            key={i}
+                            className="border border-white/10 bg-white/[0.03] p-4 sm:p-5"
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        >
+                            <div className="h-3 w-20 animate-pulse bg-white/5" />
+                            <div className="mt-4 h-7 w-10 animate-pulse bg-white/5" />
                         </div>
                     ))}
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
                     {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="h-52 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
+                        <div
+                            key={i}
+                            className="h-52 animate-pulse border border-white/10 bg-white/[0.03]"
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        />
                     ))}
                 </div>
                 {!loading && !role && (
-                    <div className="rounded-2xl border border-red/30 bg-red/10 p-5 text-sm text-gray-200">
+                    <div
+                        className="border border-red/30 bg-red/10 p-5 text-sm text-gray-200"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         Could not load your account.{" "}
                         <Link href="/login" className="font-semibold text-red underline">
                             Sign in again

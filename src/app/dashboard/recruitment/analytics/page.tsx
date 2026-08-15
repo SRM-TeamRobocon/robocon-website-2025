@@ -84,8 +84,8 @@ function FunnelBar({
                     </span>
                 </span>
             </div>
-            <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                <div className="h-full rounded-full bg-red transition-all" style={{ width: `${pct}%` }} />
+            <div className="h-2 bg-white/5 overflow-hidden">
+                <div className="h-full bg-red transition-all" style={{ width: `${pct}%` }} />
             </div>
         </div>
     );
@@ -94,7 +94,10 @@ function FunnelBar({
 function OutcomeTile({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
     const pct = total > 0 ? Math.round((value / total) * 100) : 0;
     return (
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div
+            className="border border-white/10 bg-white/[0.03] p-4"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{label}</p>
             <p className="text-2xl font-black text-white">{value}</p>
             <p className="text-xs mt-0.5" style={{ color }}>
@@ -137,24 +140,36 @@ export default function RecruitmentAnalyticsPage() {
             </div>
 
             {loading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     Loading...
                 </div>
             ) : error || !data ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm flex flex-col items-center gap-2"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                     {error || "No data available."}
                 </div>
             ) : (
                 <>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Active Cycle</p>
                         <p className="text-xl font-bold text-white">
                             {data.cycle.name} <span className="text-gray-500 font-normal">({data.cycle.year})</span>
                         </p>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <h2 className="text-lg font-bold text-white">Overall Funnel</h2>
                         <div className="space-y-3">
                             {FUNNEL_STAGES.map((stage, i) => (
@@ -170,7 +185,10 @@ export default function RecruitmentAnalyticsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <h2 className="text-lg font-bold text-white">Interview Outcomes</h2>
                         <div className="grid grid-cols-3 gap-3">
                             <OutcomeTile
@@ -194,7 +212,10 @@ export default function RecruitmentAnalyticsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <div className="p-5 pb-0">
                             <h2 className="text-lg font-bold text-white">Breakdown by Sub-Domain</h2>
                         </div>
@@ -237,7 +258,10 @@ export default function RecruitmentAnalyticsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <h2 className="text-lg font-bold text-white">Registration Share by Domain</h2>
                         <div className="space-y-3">
                             {[...data.by_domain]
@@ -253,7 +277,10 @@ export default function RecruitmentAnalyticsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <h2 className="text-lg font-bold text-white">Selection Yield by Domain</h2>
                         <p className="text-xs text-gray-500 -mt-2">Share of each domain&apos;s registrants who were ultimately selected.</p>
                         <div className="space-y-3">
@@ -270,7 +297,10 @@ export default function RecruitmentAnalyticsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <div className="p-5 pb-0">
                             <h2 className="text-lg font-bold text-white">Training Attendance</h2>
                             <p className="mt-1 text-xs text-gray-500">
@@ -299,7 +329,7 @@ export default function RecruitmentAnalyticsPage() {
                                                 <td className="px-5 py-3 text-white font-medium">
                                                     {s.session_label}
                                                     {!s.has_occurred && (
-                                                        <span className="ml-2 inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 ring-1 ring-inset ring-white/10">
+                                                        <span className="ml-2 inline-flex items-center bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 ring-1 ring-inset ring-white/10">
                                                             Scheduled
                                                         </span>
                                                     )}

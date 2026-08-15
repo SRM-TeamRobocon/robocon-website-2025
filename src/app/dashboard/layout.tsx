@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 import AdminSidebar, { type NavRole } from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
+import GoogleConnectReminder from "@/components/dashboard/GoogleConnectReminder";
 import { displayNameForUsername } from "@/lib/admin-users";
 
 export default function AdminLayout({
@@ -67,6 +68,7 @@ export default function AdminLayout({
 
     return (
         <div className="min-h-screen relative z-10 flex">
+            <GoogleConnectReminder />
             <Toaster
                 position="top-right"
                 toastOptions={{

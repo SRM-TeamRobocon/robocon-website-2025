@@ -152,7 +152,10 @@ export default function RecruitmentCutoffsPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+      <div
+        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+      >
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
         ) : (
@@ -189,7 +192,7 @@ export default function RecruitmentCutoffsPage() {
                               setInputs((prev) => ({ ...prev, [inputKey(domain, g.key)]: e.target.value }))
                             }
                             placeholder="Not set"
-                            className="w-24 rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                            className="w-24 border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                           />
                         </td>
                       ))}
@@ -211,7 +214,7 @@ export default function RecruitmentCutoffsPage() {
                           onClick={() => runShortlist(domain)}
                           disabled={computing !== null || !bothSet}
                           title={bothSet ? `Run shortlist for ${d.label}` : "Both cutoffs must be set first"}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-3 py-1.5 text-xs font-semibold hover:bg-red/25 disabled:opacity-40 transition"
+                          className="inline-flex items-center gap-1.5 bg-red/15 text-white ring-1 ring-inset ring-red/40 px-3 py-1.5 text-xs font-semibold hover:bg-red/25 disabled:opacity-40 transition"
                         >
                           <Play className="w-3.5 h-3.5" /> {computing === domain ? "Running..." : "Run"}
                         </button>
@@ -229,34 +232,57 @@ export default function RecruitmentCutoffsPage() {
         <button
           onClick={saveCutoffs}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-500/15 text-blue-400 ring-1 ring-inset ring-blue-500/30 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500/25 disabled:opacity-50 transition"
+          className="group relative overflow-hidden inline-flex items-center bg-red text-white px-8 py-2.5 text-sm font-semibold shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
+          style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
         >
-          <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Cutoffs"}
+          <span
+            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+            style={{
+              clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+              backgroundColor: "#D4AF37",
+            }}
+          />
+          <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
+            <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Cutoffs"}
+          </span>
         </button>
         <button
           onClick={() => runShortlist(null)}
           disabled={computing !== null}
-          className="inline-flex items-center gap-2 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-4 py-2.5 text-sm font-semibold hover:bg-red/25 disabled:opacity-50 transition"
+          className="group relative overflow-hidden inline-flex items-center bg-red text-white px-8 py-2.5 text-sm font-semibold shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
+          style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
         >
-          <Play className="w-4 h-4" /> {computing === "all" ? "Running..." : "Run Shortlist (All Domains)"}
+          <span
+            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+            style={{
+              clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+              backgroundColor: "#D4AF37",
+            }}
+          />
+          <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
+            <Play className="w-4 h-4" /> {computing === "all" ? "Running..." : "Run Shortlist (All Domains)"}
+          </span>
         </button>
       </div>
 
       {stats && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+        <div
+          className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">
             Shortlist Engine Results — {lastRunLabel}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30 p-4">
+            <div className="bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30 p-4">
               <p className="text-2xl font-black text-emerald-400">{stats.shortlisted_count}</p>
               <p className="text-xs text-gray-400 mt-1">Shortlisted</p>
             </div>
-            <div className="rounded-xl bg-red-500/10 ring-1 ring-inset ring-red-500/30 p-4">
+            <div className="bg-red-500/10 ring-1 ring-inset ring-red-500/30 p-4">
               <p className="text-2xl font-black text-red-400">{stats.not_shortlisted_count}</p>
               <p className="text-xs text-gray-400 mt-1">Not Shortlisted</p>
             </div>
-            <div className="rounded-xl bg-amber-500/10 ring-1 ring-inset ring-amber-500/30 p-4">
+            <div className="bg-amber-500/10 ring-1 ring-inset ring-amber-500/30 p-4">
               <p className="text-2xl font-black text-amber-400">{stats.pending_count}</p>
               <p className="text-xs text-gray-400 mt-1">Pending (no marks/gender yet)</p>
             </div>

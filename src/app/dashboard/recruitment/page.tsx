@@ -108,11 +108,17 @@ export default function RecruitmentOverviewPage() {
             </div>
 
             {loading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     Loading...
                 </div>
             ) : error || !data ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-400 text-sm flex flex-col items-center gap-3">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-400 text-sm flex flex-col items-center gap-3"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                     <p>{error || "No active recruitment cycle."}</p>
                     {/* Only leads can open a cycle — pointing a member at /cycles would just
@@ -120,7 +126,7 @@ export default function RecruitmentOverviewPage() {
                     {isLead ? (
                         <Link
                             href="/dashboard/recruitment/cycles"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-4 py-2 text-sm font-semibold hover:bg-red/25 transition"
+                            className="inline-flex items-center gap-1.5 bg-red/15 text-white ring-1 ring-inset ring-red/40 px-4 py-2 text-sm font-semibold hover:bg-red/25 transition"
                         >
                             Go to Cycles
                         </Link>
@@ -130,7 +136,10 @@ export default function RecruitmentOverviewPage() {
                 </div>
             ) : (
                 <>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Active Cycle</p>
                         <p className="text-xl font-bold text-white">
                             {data.cycle.name} <span className="text-gray-500 font-normal">({data.cycle.year})</span>
@@ -139,14 +148,21 @@ export default function RecruitmentOverviewPage() {
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                         {STAT_CARDS.map((stat) => (
-                            <div key={stat.key} className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4">
+                            <div
+                                key={stat.key}
+                                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            >
                                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{stat.label}</p>
                                 <p className="text-2xl font-black text-white">{data.overall[stat.key]}</p>
                             </div>
                         ))}
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                    <div
+                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Domain-wise Registration</p>
                             <Link
@@ -177,8 +193,8 @@ export default function RecruitmentOverviewPage() {
                                                     {row.registered} <span className="text-gray-500 font-normal">({pct}%)</span>
                                                 </span>
                                             </div>
-                                            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                                <div className="h-full rounded-full bg-red transition-all" style={{ width: `${pct}%` }} />
+                                            <div className="h-1.5 bg-white/5 overflow-hidden">
+                                                <div className="h-full bg-red transition-all" style={{ width: `${pct}%` }} />
                                             </div>
                                         </div>
                                     );
@@ -189,12 +205,15 @@ export default function RecruitmentOverviewPage() {
             )}
 
             <Link href="/recruit-scanner" className="group block">
-                <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 border border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]">
+                <div
+                    className="relative overflow-hidden bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 border border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
                         <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />
                     </div>
                     <div className="relative z-10">
-                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full mb-4 ring-1 ring-inset bg-emerald-500/20 text-emerald-400 ring-emerald-500/30">
+                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold mb-4 ring-1 ring-inset bg-emerald-500/20 text-emerald-400 ring-emerald-500/30">
                             Volunteers
                         </span>
                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Recruitment Scanner</h3>
@@ -219,7 +238,8 @@ export default function RecruitmentOverviewPage() {
                             <Link
                                 key={section.href}
                                 href={section.href}
-                                className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 hover:bg-white/[0.06] transition group"
+                                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 hover:bg-white/[0.06] transition group"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                             >
                                 <Icon className="w-6 h-6 text-red mb-3" />
                                 <p className="font-bold text-white group-hover:text-red transition">{section.label}</p>

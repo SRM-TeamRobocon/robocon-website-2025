@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { UserCircle } from "lucide-react";
+import { UserCircle, Mail, Link2 } from "lucide-react";
 import ContentEditForm from "@/components/admin/ContentEditForm";
 import { CONTENT_RESOURCES } from "@/lib/content-resources";
+import { useGoogleConnect } from "@/hooks/use-google-connect";
 
 const PROFILE_FIELDS = CONTENT_RESOURCES.members.fields.filter(
     (f) => f.name !== "is_active" && f.name !== "display_order"
@@ -18,6 +19,66 @@ interface Candidate {
 }
 
 type Mode = "loading" | "not-ready" | "claimed" | "picking" | "claiming" | "creating";
+
+type GoogleStatus = { connected: boolean; email: string | null } | null;
+
+function ConnectedAccounts() {
+    const [status, setStatus] = useState<GoogleStatus>(null);
+
+    useEffect(() => {
+        fetch("/api/member/google-status")
+            .then(async (res) => {
+                if (!res.ok) return; // legacy env-based staff — section stays hidden
+                const data = await res.json();
+                if (data.success) setStatus({ connected: data.connected, email: data.email });
+            })
+            .catch(() => {});
+    }, []);
+
+    const { connect, connecting } = useGoogleConnect((result) => {
+        if (result.success) {
+            toast.success(result.message || "Google account connected");
+            setStatus({ connected: true, email: result.email });
+        } else {
+            toast.error(result.message || "Could not connect Google account");
+        }
+    });
+
+    if (status === null) return null;
+
+    return (
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
+            <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+                <Link2 className="w-4 h-4 text-red" />
+                Connected accounts
+            </h2>
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-sm text-gray-300">
+                    <Mail className="w-4 h-4 text-gray-500" />
+                    {status.connected ? (
+                        <span>
+                            Connected as <span className="text-white">{status.email}</span>
+                        </span>
+                    ) : (
+                        <span className="text-gray-400">Not connected — sign in with Google in one click.</span>
+                    )}
+                </div>
+                {!status.connected && (
+                    <button
+                        onClick={connect}
+                        disabled={connecting}
+                        className="shrink-0 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition disabled:opacity-50"
+                    >
+                        {connecting ? "Connecting…" : "Connect Gmail"}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export default function ProfilePage() {
     const [mode, setMode] = useState<Mode>("loading");
@@ -73,7 +134,10 @@ export default function ProfilePage() {
 
     if (mode === "not-ready") {
         return (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-gray-400 text-sm">
+            <div
+                className="border border-white/10 bg-white/[0.03] p-8 text-center text-gray-400 text-sm"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 Your profile isn't set up yet — check back once your account has been approved.
             </div>
         );
@@ -96,7 +160,10 @@ export default function ProfilePage() {
                 <p className="text-sm text-gray-400">
                     We don't have this login linked to a Team page entry yet. Is one of these you?
                 </p>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     {candidates.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No unclaimed entries found.</div>
                     ) : (
@@ -111,7 +178,7 @@ export default function ProfilePage() {
                                             setSelected(c);
                                             setMode("claiming");
                                         }}
-                                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
+                                        className="bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
                                     >
                                         That's me
                                     </button>
@@ -122,9 +189,19 @@ export default function ProfilePage() {
                 </div>
                 <button
                     onClick={() => setMode("creating")}
-                    className="rounded-xl px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 transition-all"
+                    className="group relative overflow-hidden px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 active:translate-y-0 active:scale-[0.97]"
+                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                 >
-                    None of these are me — create a new entry
+                    <span
+                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                        style={{
+                            clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                            backgroundColor: "#D4AF37",
+                        }}
+                    />
+                    <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                        None of these are me — create a new entry
+                    </span>
                 </button>
             </div>
         );
@@ -134,7 +211,10 @@ export default function ProfilePage() {
         return (
             <div className="space-y-6 max-w-xl">
                 {header}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <ContentEditForm
                         resource="members"
                         fields={PROFILE_FIELDS}
@@ -152,7 +232,10 @@ export default function ProfilePage() {
         return (
             <div className="space-y-6 max-w-xl">
                 {header}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <ContentEditForm
                         resource="members"
                         fields={PROFILE_FIELDS}
@@ -168,7 +251,11 @@ export default function ProfilePage() {
     return (
         <div className="space-y-6 max-w-xl">
             {header}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
+            <ConnectedAccounts />
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <ContentEditForm
                     resource="members"
                     fields={PROFILE_FIELDS}

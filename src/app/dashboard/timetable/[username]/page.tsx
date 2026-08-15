@@ -68,7 +68,10 @@ export default function ViewTimetablePage() {
             {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : notFound || !detail ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-10 text-center"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                     <p className="text-sm text-gray-400">This member hasn&apos;t saved a timetable yet.</p>
                 </div>
@@ -88,7 +91,7 @@ export default function ViewTimetablePage() {
                         {isOwn && (
                             <Link
                                 href="/dashboard/timetable/me"
-                                className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-xl bg-blue-500/15 px-4 py-2.5 text-sm font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                                className="inline-flex w-fit shrink-0 items-center gap-1.5 bg-blue-500/15 px-4 py-2.5 text-sm font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
                             >
                                 <Pencil className="h-4 w-4" /> Edit
                             </Link>

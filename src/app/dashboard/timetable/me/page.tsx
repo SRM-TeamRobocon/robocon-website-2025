@@ -86,9 +86,19 @@ export default function MyTimetablePage() {
                 <button
                     onClick={save}
                     disabled={saving || loading}
-                    className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400 disabled:opacity-50"
+                    className="group relative inline-flex w-fit shrink-0 items-center gap-1.5 overflow-hidden bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-50"
+                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                 >
-                    <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save"}
+                    <span
+                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                        style={{
+                            clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                            backgroundColor: "#D4AF37",
+                        }}
+                    />
+                    <span className="relative z-10 inline-flex items-center gap-1.5 transition-colors duration-200 group-hover:text-black">
+                        <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save"}
+                    </span>
                 </button>
             </div>
 

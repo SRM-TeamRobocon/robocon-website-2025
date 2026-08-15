@@ -199,20 +199,20 @@ export default function RecruitDashboardPage() {
                     </div>
                     <Link
                         href="/recruit/logout"
-                        className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-white border border-white/20 hover:border-white/40 rounded-lg px-3 py-2 transition-colors"
+                        className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-white border border-white/20 hover:border-white/40 px-3 py-2 transition-colors"
                     >
                         Logout
                     </Link>
                 </div>
 
                 {error && (
-                    <div className="rounded-xl bg-red-500/15 border border-red-500/30 p-4 text-sm text-red-200">
+                    <div className="bg-red-500/15 border border-red-500/30 p-4 text-sm text-red-200">
                         {error}
                     </div>
                 )}
 
                 {profile && (
-                    <GlassCard contentClassName="p-6 md:p-8" borderRadius={28}>
+                    <GlassCard contentClassName="p-6 md:p-8" borderRadius={0}>
                         <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-1">// profile</p>
                         <h2 className="text-xl font-bold mb-4 text-white">{profile.name}</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-sm">
@@ -265,7 +265,7 @@ export default function RecruitDashboardPage() {
                     </GlassCard>
                 )}
 
-                <GlassCard contentClassName="p-6 md:p-8" borderRadius={28}>
+                <GlassCard contentClassName="p-6 md:p-8" borderRadius={0}>
                     <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4">// pipeline status</p>
                     <div className="space-y-3">
                         {domains.length === 0 && (
@@ -274,14 +274,14 @@ export default function RecruitDashboardPage() {
                         {domains.map((d) => (
                             <div
                                 key={d.sub_domain}
-                                className="flex items-center justify-between border border-white/10 rounded-xl px-4 py-3 bg-white/5"
+                                className="flex items-center justify-between border border-white/10 px-4 py-3 bg-white/5"
                             >
                                 <span className="font-mono text-sm font-bold text-white/80">
                                     <span className="text-white/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
                                     {subDomainLabel(d.sub_domain)}
                                 </span>
                                 <span
-                                    className={`font-mono text-xs font-bold uppercase tracking-widest border rounded-lg px-3 py-1 ${statusBadgeClass(
+                                    className={`font-mono text-xs font-bold uppercase tracking-widest border px-3 py-1 ${statusBadgeClass(
                                         d.status
                                     )}`}
                                 >
@@ -297,9 +297,9 @@ export default function RecruitDashboardPage() {
                                 Training Attendance
                             </p>
                             <div className="flex items-center gap-4">
-                                <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
+                                <div className="flex-1 h-2.5 bg-white/10 overflow-hidden">
                                     <div
-                                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all"
+                                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
                                         style={{ width: `${training.percentage ?? 0}%` }}
                                     />
                                 </div>
@@ -314,7 +314,7 @@ export default function RecruitDashboardPage() {
                 {interview && (
                     <GlassCard
                         contentClassName={`p-6 md:p-8 ${interview.status === "called" ? "animate-pulse" : ""}`}
-                        borderRadius={28}
+                        borderRadius={0}
                     >
                         <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-1">
                             // interview queue
@@ -322,14 +322,14 @@ export default function RecruitDashboardPage() {
                         <h2 className="text-xl font-bold mb-4 text-white">{interview.panel_label}</h2>
                         {interview.status === "called" ? (
                             <div className="flex items-center gap-3">
-                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-purple-500 bg-purple-500/15 text-purple-300 rounded-lg px-3 py-1 animate-pulse">
+                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-purple-500 bg-purple-500/15 text-purple-300 px-3 py-1 animate-pulse">
                                     You&apos;re being called now
                                 </span>
                                 <span className="text-sm text-white/60">Head to the panel!</span>
                             </div>
                         ) : interview.status === "deferred" ? (
                             <div className="flex items-center gap-3">
-                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-500 bg-amber-500/15 text-amber-300 rounded-lg px-3 py-1">
+                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-500 bg-amber-500/15 text-amber-300 px-3 py-1">
                                     Table closed for the day
                                 </span>
                                 <span className="text-sm text-white/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
@@ -362,9 +362,20 @@ export default function RecruitDashboardPage() {
                             <a
                                 href={badgeImage}
                                 download={`robocon-recruit-tag-${profile?.reg_no ?? "id"}.png`}
-                                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 active:scale-[0.97] backdrop-blur-md border border-white/20 text-white text-sm font-bold px-5 py-2.5 rounded-full shadow-lg transition-all"
+                                className="group relative inline-flex items-center gap-2 overflow-hidden bg-red px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
-                                <Download className="w-4 h-4" /> Download QR
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <Download className="relative w-4 h-4 transition-colors duration-200 group-hover:text-black" />
+                                <span className="relative transition-colors duration-200 group-hover:text-black">
+                                    Download QR
+                                </span>
                             </a>
                         </div>
                     </div>

@@ -63,7 +63,7 @@ export default function TimetableDirectoryPage() {
                 <div className="flex shrink-0 flex-wrap gap-2">
                     <button
                         onClick={() => setShowFreePanel((v) => !v)}
-                        className={`inline-flex w-fit items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                        className={`inline-flex w-fit items-center gap-1.5 px-4 py-2.5 text-sm font-semibold transition ${
                             showFreePanel
                                 ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-inset ring-cyan-500/40"
                                 : "bg-cyan-500/10 text-cyan-400 ring-1 ring-inset ring-cyan-500/30 hover:bg-cyan-500/20"
@@ -73,9 +73,19 @@ export default function TimetableDirectoryPage() {
                     </button>
                     <Link
                         href="/dashboard/timetable/me"
-                        className="inline-flex w-fit items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400"
+                        className="group relative inline-flex w-fit items-center gap-1.5 overflow-hidden bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 active:translate-y-0 active:scale-[0.97]"
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        <PenSquare className="h-4 w-4" /> My Timetable
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative z-10 inline-flex items-center gap-1.5 transition-colors duration-200 group-hover:text-black">
+                            <PenSquare className="h-4 w-4" /> My Timetable
+                        </span>
                     </Link>
                 </div>
             </div>
@@ -87,7 +97,7 @@ export default function TimetableDirectoryPage() {
                     <button
                         key={tab}
                         onClick={() => setDomainTab(tab)}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
                             domainTab === tab
                                 ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
                                 : "text-gray-400 hover:bg-white/5"
@@ -104,14 +114,17 @@ export default function TimetableDirectoryPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by name..."
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
+                    className="w-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
                 />
             </div>
 
             {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : filtered.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-10 text-center"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                     <p className="text-sm text-gray-400">No timetables saved yet.</p>
                     <Link
@@ -127,9 +140,10 @@ export default function TimetableDirectoryPage() {
                         <li key={row.owner_username}>
                             <Link
                                 href={`/dashboard/timetable/${encodeURIComponent(row.owner_username)}`}
-                                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:bg-white/[0.06]"
+                                className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition hover:bg-white/[0.06]"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                             >
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-gray-400">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-white/10 text-gray-400">
                                     <User className="h-4 w-4" />
                                 </span>
                                 <span className="min-w-0">

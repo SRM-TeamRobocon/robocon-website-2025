@@ -279,7 +279,8 @@ export default function TrainingAttendancePage() {
             {/* Start attendance */}
             <form
                 onSubmit={startAttendance}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5"
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
             >
                 <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-400">
                     <CalendarPlus className="h-4 w-4 text-red" /> Start Attendance
@@ -306,22 +307,35 @@ export default function TrainingAttendancePage() {
                             value={newDate}
                             onChange={(e) => setNewDate(e.target.value)}
                             required
-                            className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
+                            className="mt-2 block w-full border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
                         />
                     </label>
                     <button
                         type="submit"
                         disabled={creating}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red px-4 py-2 text-sm font-bold text-white transition hover:bg-red/80 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="group relative overflow-hidden inline-flex items-center justify-center bg-red px-8 py-2 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:pointer-events-none"
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        {creating ? "Starting..." : "Start Attendance"}
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative transition-colors duration-200 group-hover:text-black">
+                            {creating ? "Starting..." : "Start Attendance"}
+                        </span>
                     </button>
                 </div>
             </form>
 
             <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
                 {/* Sessions list */}
-                <section className="h-fit overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
+                <section
+                    className="h-fit overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <div className="border-b border-white/10 px-4 py-3">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">
                             Sessions <span className="text-gray-600">({sessions.length})</span>
@@ -364,22 +378,31 @@ export default function TrainingAttendancePage() {
                 {/* Selected session detail */}
                 <section className="space-y-4">
                     {!selectedSessionId ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center">
+                        <div
+                            className="border border-white/10 bg-white/[0.03] p-10 text-center"
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        >
                             <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                             <p className="text-sm text-gray-400">Create or select a session to view attendance.</p>
                         </div>
                     ) : loadingDetail || !detail ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center text-sm text-gray-500">
+                        <div
+                            className="border border-white/10 bg-white/[0.03] p-10 text-center text-sm text-gray-500"
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        >
                             Loading attendance...
                         </div>
                     ) : (
                         <>
-                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                            <div
+                                className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-white/[0.03] p-5"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            >
                                 <div>
                                     <p className="text-lg font-bold text-white">{domainLabel(detail.session.sub_domain)}</p>
                                     <p className="text-sm text-gray-400">{formatDate(detail.session.session_date)}</p>
                                 </div>
-                                <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2 text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
+                                <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
                                     <UserCheck className="h-4 w-4" />
                                     <span className="font-bold">
                                         {detail.attendedCount}/{detail.totalSelected}
@@ -403,13 +426,16 @@ export default function TrainingAttendancePage() {
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Search by name or reg no..."
-                                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
+                                    className="w-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
                                 />
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 {/* Attended */}
-                                <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                                <div
+                                    className="overflow-hidden border border-white/10 bg-white/[0.03]"
+                                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                >
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                                             <Check className="h-4 w-4 text-emerald-400" /> Attended (
@@ -428,7 +454,7 @@ export default function TrainingAttendancePage() {
                                                     </div>
                                                     <div className="shrink-0 text-right">
                                                         <span
-                                                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${
+                                                            className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${
                                                                 r.method === "qr"
                                                                     ? "bg-blue-500/10 text-blue-300 ring-blue-500/30"
                                                                     : "bg-amber-500/10 text-amber-300 ring-amber-500/30"
@@ -453,7 +479,10 @@ export default function TrainingAttendancePage() {
                                 </div>
 
                                 {/* Pending / manual mark */}
-                                <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                                <div
+                                    className="overflow-hidden border border-white/10 bg-white/[0.03]"
+                                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                >
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                                             <Users className="h-4 w-4 text-gray-400" /> Not Marked Yet (
@@ -474,7 +503,7 @@ export default function TrainingAttendancePage() {
                                                         type="button"
                                                         onClick={() => markPresent(r.recruit_id)}
                                                         disabled={markingId === r.recruit_id}
-                                                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="inline-flex shrink-0 items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
                                                         <Check className="h-3.5 w-3.5" />
                                                         {markingId === r.recruit_id ? "Marking..." : "Mark Present"}
@@ -491,7 +520,10 @@ export default function TrainingAttendancePage() {
             </div>
 
             {/* Overall attendance % per recruit */}
-            <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
+            <section
+                className="overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 <div className="border-b border-white/10 px-5 py-4">
                     <h2 className="text-lg font-bold text-white">Attendance % Across All Sessions</h2>
                     <p className="mt-1 text-xs text-gray-500">
@@ -528,9 +560,9 @@ export default function TrainingAttendancePage() {
                                             </td>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
+                                                    <div className="h-1.5 w-24 overflow-hidden bg-white/10">
                                                         <div
-                                                            className={`h-full rounded-full ${
+                                                            className={`h-full ${
                                                                 r.percentage >= 75
                                                                     ? "bg-emerald-500"
                                                                     : r.percentage >= 50

@@ -50,7 +50,7 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
         return (
             <button
                 onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25"
+                className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25"
             >
                 <CheckCircle2 className="h-3.5 w-3.5" /> Mark Resolved
             </button>
@@ -63,19 +63,19 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Resolution note (optional)"
-                className="flex-1 min-w-[160px] rounded-lg border-0 bg-white/5 py-1.5 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-emerald-500"
+                className="flex-1 min-w-[160px] border-0 bg-white/5 py-1.5 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-emerald-500"
             />
             <button
                 onClick={resolve}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
             >
                 Confirm
             </button>
             <button
                 onClick={() => setOpen(false)}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/10"
+                className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 hover:bg-white/10"
             >
                 Cancel
             </button>
@@ -126,13 +126,19 @@ export default function TicketsPage() {
             </div>
 
             {noCycle ? (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-6 text-sm text-amber-300">
+                <div
+                    className="border border-amber-500/30 bg-amber-500/[0.06] p-6 text-sm text-amber-300"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     No active recruitment cycle.
                 </div>
             ) : loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : tickets.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-gray-500">
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-gray-500"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     No tickets yet.
                 </div>
             ) : (
@@ -140,11 +146,12 @@ export default function TicketsPage() {
                     {tickets.map((t) => (
                         <div
                             key={t.id}
-                            className={`rounded-2xl border p-4 ${
+                            className={`border p-4 ${
                                 t.status === "open"
                                     ? "border-amber-500/30 bg-amber-500/[0.06]"
                                     : "border-white/10 bg-white/[0.03]"
                             } backdrop-blur-xl`}
+                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                         >
                             <div className="flex items-start justify-between gap-3 flex-wrap">
                                 <div>
@@ -152,7 +159,7 @@ export default function TicketsPage() {
                                         <span className="text-sm font-bold text-white">{t.recruit.name}</span>
                                         <span className="text-xs text-gray-500">{t.recruit.reg_no}</span>
                                         <span
-                                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                            className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                                                 t.category === "domain_change"
                                                     ? "bg-blue-500/10 text-blue-400"
                                                     : "bg-white/10 text-gray-300"
@@ -161,7 +168,7 @@ export default function TicketsPage() {
                                             {t.category === "domain_change" ? "Domain Change" : "General"}
                                         </span>
                                         <span
-                                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                            className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                                                 t.status === "open"
                                                     ? "bg-amber-500/15 text-amber-400"
                                                     : "bg-emerald-500/15 text-emerald-400"

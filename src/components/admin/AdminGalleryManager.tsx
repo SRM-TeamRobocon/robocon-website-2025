@@ -243,7 +243,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
         <button
           type="button"
           onClick={() => setCreatingAlbum((v) => !v)}
-          className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
+          className="inline-flex items-center gap-2 bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
         >
           <FolderPlus size={16} />
           New Album
@@ -252,7 +252,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
 
       {(error || notice) && (
         <div
-          className={`rounded-xl border p-4 text-sm ${
+          className={`border p-4 text-sm ${
             error ? "border-red-500/40 bg-red-500/10 text-red-100" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"
           }`}
         >
@@ -261,27 +261,38 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
       )}
 
       {creatingAlbum && (
-        <form onSubmit={createAlbum} className="flex gap-3 rounded-2xl border border-white/10 bg-gray-950/70 p-4">
+        <form onSubmit={createAlbum} className="flex gap-3 border border-white/10 bg-gray-950/70 p-4">
           <input
             autoFocus
             type="text"
             value={newAlbumTitle}
             onChange={(e) => setNewAlbumTitle(e.target.value)}
             placeholder="Album title, e.g. Robocon 2026 Finals"
-            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
+            className="flex-1 border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
           />
           <button
             type="submit"
             disabled={busy || !newAlbumTitle.trim()}
-            className="rounded-lg bg-red px-4 py-2 text-sm font-bold text-white transition hover:bg-red/80 disabled:cursor-not-allowed disabled:opacity-60"
+            className="group relative overflow-hidden bg-red px-8 py-2 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
           >
-            Create
+            <span
+              className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+              style={{
+                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                backgroundColor: "#D4AF37",
+              }}
+            />
+            <span className="relative z-10 transition-colors duration-200 group-hover:text-black">Create</span>
           </button>
         </form>
       )}
 
       <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-gray-950/70">
+        <section
+          className="overflow-hidden border border-white/10 bg-gray-950/70"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
           <div className="border-b border-white/10 px-5 py-4">
             <h2 className="text-lg font-bold text-white">
               Albums <span className="text-sm font-normal text-gray-500">({albums.length})</span>
@@ -296,7 +307,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
                 <button
                   type="button"
                   onClick={() => setCreatingAlbum(true)}
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
+                  className="mt-3 inline-flex items-center gap-2 bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
                 >
                   <FolderPlus size={16} />
                   Create your first album
@@ -325,7 +336,10 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-gray-950/70 p-5">
+        <section
+          className="border border-white/10 bg-gray-950/70 p-5"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
           {!selectedAlbum ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center text-gray-500">
               <Images size={32} />
@@ -341,20 +355,28 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
                       type="text"
                       value={renameTitle}
                       onChange={(e) => setRenameTitle(e.target.value)}
-                      className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white outline-none transition focus:border-red"
+                      className="flex-1 border border-white/10 bg-white/5 px-3 py-1.5 text-white outline-none transition focus:border-red"
                     />
                     <button
                       type="button"
                       onClick={() => renameAlbum(selectedAlbum.id)}
                       disabled={busy}
-                      className="rounded-lg bg-red px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red/80"
+                      className="group relative overflow-hidden bg-red px-8 py-1.5 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
+                      style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                      Save
+                      <span
+                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                        style={{
+                          clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                          backgroundColor: "#D4AF37",
+                        }}
+                      />
+                      <span className="relative z-10 transition-colors duration-200 group-hover:text-black">Save</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setRenamingAlbumId(null)}
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
+                      className="border border-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
                     >
                       Cancel
                     </button>
@@ -379,7 +401,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
                 )}
 
                 <div className="flex gap-2">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200">
+                  <label className="flex cursor-pointer items-center gap-2 bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200">
                     <Upload size={16} />
                     {uploading ? "Uploading..." : "Add Photos"}
                     <input
@@ -398,7 +420,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
                     <button
                       type="button"
                       onClick={() => deleteAlbum(selectedAlbum)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-500/15 px-3 py-2 text-sm font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25"
+                      className="inline-flex items-center gap-2 bg-red-500/15 px-3 py-2 text-sm font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25"
                     >
                       <Trash2 size={15} />
                       Delete Album
@@ -408,7 +430,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
               </div>
 
               {albumPhotos.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/10 p-10 text-center text-gray-500">
+                <div className="border border-dashed border-white/10 p-10 text-center text-gray-500">
                   No photos in this album yet — add some above.
                 </div>
               ) : (
@@ -478,7 +500,7 @@ function Lightbox({
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+        className="absolute right-4 top-4 bg-white/10 p-2 text-white transition hover:bg-white/20"
         aria-label="Close"
       >
         <X size={20} />
@@ -491,7 +513,7 @@ function Lightbox({
             e.stopPropagation();
             onPrev();
           }}
-          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 sm:left-6"
+          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 p-2 text-white transition hover:bg-white/20 sm:left-6"
           aria-label="Previous photo"
         >
           <ChevronLeft size={24} />
@@ -505,7 +527,7 @@ function Lightbox({
             e.stopPropagation();
             onNext();
           }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 sm:right-6"
+          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 p-2 text-white transition hover:bg-white/20 sm:right-6"
           aria-label="Next photo"
         >
           <ChevronRight size={24} />
@@ -517,7 +539,7 @@ function Lightbox({
         <img
           src={photo.image_url}
           alt={photo.title || "photo"}
-          className="max-h-[85vh] max-w-full rounded-lg object-contain"
+          className="max-h-[85vh] max-w-full object-contain"
         />
         {photo.title && <p className="text-sm text-white/80">{photo.title}</p>}
       </div>
@@ -551,7 +573,10 @@ function PhotoCard({
   }, [photo.title, photo.album_id]);
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5">
+    <div
+      className="group relative overflow-hidden border border-white/10 bg-white/5"
+      style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+    >
       <div className="relative aspect-square w-full overflow-hidden bg-white/5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -567,7 +592,7 @@ function PhotoCard({
               e.stopPropagation();
               onDelete();
             }}
-            className="absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white opacity-0 transition group-hover:opacity-100"
+            className="absolute right-2 top-2 bg-black/70 p-1.5 text-white opacity-0 transition group-hover:opacity-100"
             aria-label="Delete photo"
           >
             <X size={14} />
@@ -583,7 +608,7 @@ function PhotoCard({
             if (caption !== (photo.title ?? "")) onSave({ title: caption });
           }}
           placeholder="Caption"
-          className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none transition focus:border-red"
+          className="w-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none transition focus:border-red"
         />
         <select
           value={albumChoice}
@@ -591,7 +616,7 @@ function PhotoCard({
             setAlbumChoice(e.target.value);
             onSave({ album_id: e.target.value });
           }}
-          className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none transition focus:border-red"
+          className="w-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none transition focus:border-red"
         >
           {albums.map((album) => (
             <option key={album.id} value={album.id} className="bg-gray-900">

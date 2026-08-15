@@ -63,7 +63,7 @@ function RecruitLoginInner() {
 
             <div className="w-full max-w-md relative z-10">
                 <AuthNav variant="glass" />
-                <GlassCard contentClassName="p-8" borderRadius={32}>
+                <GlassCard contentClassName="p-8" borderRadius={0}>
                     <div className="flex justify-center mb-8">
                         <Image
                             src="/LOGO.png"
@@ -84,7 +84,7 @@ function RecruitLoginInner() {
                         <button
                             type="button"
                             onClick={handleGoogleLogin}
-                            className="flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
+                            className="flex w-full items-center justify-center gap-3 px-4 py-3 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
                         >
                             <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                                 <path
@@ -126,7 +126,7 @@ function RecruitLoginInner() {
                                         required
                                         value={srmEmail}
                                         onChange={(e) => setSrmEmail(e.target.value)}
-                                        className="block w-full rounded-xl border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
+                                        className="block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                                         placeholder="ab1234@srmist.edu.in"
                                     />
                                 </div>
@@ -144,7 +144,7 @@ function RecruitLoginInner() {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="block w-full rounded-xl border-0 bg-white/10 py-3 px-4 pr-11 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
+                                        className="block w-full border-0 bg-white/10 py-3 px-4 pr-11 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                                         placeholder="Enter your password"
                                     />
                                     <PasswordToggle
@@ -156,7 +156,7 @@ function RecruitLoginInner() {
                             </div>
 
                             {error && (
-                                <div className="rounded-lg bg-red/10 border border-red/25 p-4 flex items-center justify-center">
+                                <div className="bg-red/10 border border-red/25 p-4 flex items-center justify-center">
                                     <h3 className="text-sm text-red font-bold">{error}</h3>
                                 </div>
                             )}
@@ -164,13 +164,23 @@ function RecruitLoginInner() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className={`flex w-full justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm active:scale-[0.99] transition-all ${
+                                className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
                                     loading
                                         ? "bg-red/40 cursor-not-allowed"
-                                        : "bg-red hover:bg-red/90 hover:shadow-lg hover:shadow-red/25"
+                                        : "bg-red hover:bg-red/90"
                                 }`}
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
-                                {loading ? "Signing in..." : "Sign In"}
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                                    {loading ? "Signing in..." : "Sign In"}
+                                </span>
                             </button>
 
                             <p className="text-center text-sm text-white/50">

@@ -195,7 +195,7 @@ export default function AdminMentorManager() {
         <button
           type="button"
           onClick={() => setActiveRow(EMPTY_ROW)}
-          className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
+          className="bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-gray-200"
         >
           New Mentor
         </button>
@@ -203,7 +203,7 @@ export default function AdminMentorManager() {
 
       {(error || notice) && (
         <div
-          className={`rounded-xl border p-4 text-sm ${
+          className={`border p-4 text-sm ${
             error ? "border-red-500/40 bg-red-500/10 text-red-100" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"
           }`}
         >
@@ -212,7 +212,10 @@ export default function AdminMentorManager() {
       )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-gray-950/70">
+        <section
+          className="overflow-hidden border border-white/10 bg-gray-950/70"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
           <div className="flex flex-col gap-3 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-bold text-white">
               Mentors <span className="text-sm font-normal text-gray-500">({filteredRows.length})</span>
@@ -224,7 +227,7 @@ export default function AdminMentorManager() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search..."
-                className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-3 text-sm text-white outline-none transition focus:border-red sm:w-56"
+                className="w-full border border-white/10 bg-white/5 py-1.5 pl-8 pr-3 text-sm text-white outline-none transition focus:border-red sm:w-56"
               />
             </div>
           </div>
@@ -259,7 +262,7 @@ export default function AdminMentorManager() {
                         onClick={() => promoteRow(row)}
                         disabled={promotingId === row.id}
                         title={row.year ? undefined : "Set a Year first"}
-                        className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex items-center gap-1.5 border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <GraduationCap size={14} />
                         {promotingId === row.id ? "Moving..." : "Make Alumni"}
@@ -267,7 +270,7 @@ export default function AdminMentorManager() {
                       <button
                         type="button"
                         onClick={() => setActiveRow(row)}
-                        className={`rounded-lg border px-3 py-2 text-sm text-white transition hover:bg-white/10 ${
+                        className={`border px-3 py-2 text-sm text-white transition hover:bg-white/10 ${
                           isActive ? "border-red/60" : "border-white/10"
                         }`}
                       >
@@ -276,7 +279,7 @@ export default function AdminMentorManager() {
                       <button
                         type="button"
                         onClick={() => deleteRow(row)}
-                        className="rounded-lg bg-red px-3 py-2 text-sm font-bold text-white transition hover:bg-red/80"
+                        className="bg-red px-3 py-2 text-sm font-bold text-white transition hover:bg-red/80"
                       >
                         Delete
                       </button>
@@ -288,7 +291,11 @@ export default function AdminMentorManager() {
           </div>
         </section>
 
-        <form onSubmit={saveRow} className="h-fit rounded-2xl border border-white/10 bg-gray-950/70 p-5">
+        <form
+          onSubmit={saveRow}
+          className="h-fit border border-white/10 bg-gray-950/70 p-5"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
           <h2 className="text-lg font-bold text-white">{activeRow.id ? "Edit Mentor" : "New Mentor"}</h2>
           <div className="mt-5 space-y-4">
             {MENTOR_FIELDS.map((field) => {
@@ -297,7 +304,7 @@ export default function AdminMentorManager() {
 
               if (field.type === "boolean") {
                 return (
-                  <label key={field.name} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white">
+                  <label key={field.name} className="flex items-center gap-3 border border-white/10 bg-white/5 p-3 text-sm text-white">
                     <input
                       type="checkbox"
                       checked={Boolean(activeRow[field.name])}
@@ -336,7 +343,7 @@ export default function AdminMentorManager() {
                       placeholder="2024"
                       value={value}
                       onChange={(event) => setField(field.name, event.target.value.replace(/\D/g, "").slice(0, 4))}
-                      className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
+                      className="mt-2 block w-full border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
                     />
                   </label>
                 );
@@ -350,7 +357,7 @@ export default function AdminMentorManager() {
                     required={field.required}
                     value={value}
                     onChange={(event) => setField(field.name, event.target.value)}
-                    className="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
+                    className="mt-2 block w-full border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-red"
                   />
                 </label>
               );
@@ -360,14 +367,24 @@ export default function AdminMentorManager() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-red px-4 py-2 text-sm font-bold text-white transition hover:bg-red/80 disabled:cursor-not-allowed disabled:opacity-60"
+              className="group relative overflow-hidden bg-red px-8 py-2 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
             >
-              {saving ? "Saving..." : "Save"}
+              <span
+                className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                style={{
+                  clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                  backgroundColor: "#D4AF37",
+                }}
+              />
+              <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                {saving ? "Saving..." : "Save"}
+              </span>
             </button>
             <button
               type="button"
               onClick={() => setActiveRow(EMPTY_ROW)}
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+              className="border border-white/10 px-4 py-2 text-sm text-white transition hover:bg-white/10"
             >
               Clear
             </button>

@@ -78,7 +78,7 @@ export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: 
 
                 <div className="flex items-center gap-3 shrink-0">
                     {role && (
-                        <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-red/10 border border-red/30 text-red text-[10px] font-bold uppercase tracking-wider">
+                        <span className="hidden sm:inline-flex px-2.5 py-1 bg-red/10 border border-red/30 text-red text-[10px] font-bold uppercase tracking-wider">
                             {role}
                         </span>
                     )}
@@ -88,7 +88,7 @@ export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: 
                             onClick={() => setMenuOpen((v) => !v)}
                             aria-haspopup="menu"
                             aria-expanded={menuOpen}
-                            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 pl-1 pr-3 py-1 transition-colors"
+                            className="flex items-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 pl-1 pr-3 py-1 transition-colors"
                         >
                             {photoUrl ? (
                                 <Image
@@ -97,10 +97,10 @@ export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: 
                                     width={28}
                                     height={28}
                                     unoptimized
-                                    className="h-7 w-7 rounded-full object-cover shrink-0"
+                                    className="h-7 w-7 object-cover shrink-0"
                                 />
                             ) : (
-                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-red to-red-800 text-[11px] font-bold text-white shrink-0">
+                                <span className="flex h-7 w-7 items-center justify-center bg-gradient-to-br from-red to-red-800 text-[11px] font-bold text-white shrink-0">
                                     {initials || "AD"}
                                 </span>
                             )}
@@ -112,7 +112,7 @@ export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: 
                         {menuOpen && (
                             <div
                                 role="menu"
-                                className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/10 bg-black/95 backdrop-blur-xl shadow-xl overflow-hidden"
+                                className="absolute right-0 top-full mt-2 w-48 border border-white/10 bg-black/95 backdrop-blur-xl shadow-xl overflow-hidden"
                             >
                                 <Link
                                     href="/dashboard/profile"
@@ -129,7 +129,7 @@ export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: 
 
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-1.5 rounded-lg bg-white/5 hover:bg-red-600 border border-white/10 hover:border-red-600 px-3 py-2 text-xs font-bold text-gray-300 hover:text-white transition-all"
+                        className="flex items-center gap-1.5 bg-white/5 hover:bg-red-600 border border-white/10 hover:border-red-600 px-3 py-2 text-xs font-bold text-gray-300 hover:text-white transition-all"
                     >
                         <LogOut className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Logout</span>

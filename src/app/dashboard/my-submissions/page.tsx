@@ -44,7 +44,10 @@ export default function MySubmissionsPage() {
                 <p className="mt-2 text-gray-400 text-sm">Status of everything you've proposed.</p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : rows.length === 0 ? (
@@ -68,7 +71,7 @@ export default function MySubmissionsPage() {
                                         <td className="px-5 py-3 text-gray-300 capitalize">{row.action}</td>
                                         <td className="px-5 py-3 text-gray-300">{new Date(row.created_at).toLocaleDateString()}</td>
                                         <td className="px-5 py-3">
-                                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize ${STATUS_STYLES[row.status]}`}>
+                                            <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize ${STATUS_STYLES[row.status]}`}>
                                                 {row.status}
                                             </span>
                                         </td>

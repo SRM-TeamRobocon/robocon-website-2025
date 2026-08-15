@@ -67,7 +67,7 @@ function StatusBadge({ status }: { status: ShortlistRow["status"] }) {
   const label =
     status === "shortlisted" ? "Shortlisted" : status === "not_shortlisted" ? "Not Shortlisted" : "Pending";
   return (
-    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${styles}`}>
+    <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${styles}`}>
       {label}
     </span>
   );
@@ -85,7 +85,7 @@ function CalledCheckbox({
   if (row.called_by) {
     return (
       <div className="flex items-center gap-2">
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-emerald-500/20 text-emerald-400 ring-1 ring-inset ring-emerald-500/40">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-emerald-500/20 text-emerald-400 ring-1 ring-inset ring-emerald-500/40">
           <Check className="w-3 h-3" />
         </span>
         <span className="text-xs text-gray-400 whitespace-nowrap">called by {row.called_by}</span>
@@ -100,7 +100,7 @@ function CalledCheckbox({
       disabled={busy}
       onChange={() => onCall(row.id)}
       aria-label="Mark as called"
-      className="h-4 w-4 rounded border-0 bg-white/10 text-blue-500 ring-1 ring-inset ring-white/20 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 cursor-pointer"
+      className="h-4 w-4 border-0 bg-white/10 text-blue-500 ring-1 ring-inset ring-white/20 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 cursor-pointer"
     />
   );
 }
@@ -122,14 +122,14 @@ function OverrideControls({
         <button
           onClick={() => onDecide(row.id, "shortlisted", reason)}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
+          className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
         >
           <Check className="w-3.5 h-3.5" /> Shortlist
         </button>
         <button
           onClick={() => onDecide(row.id, "not_shortlisted", reason)}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
+          className="inline-flex items-center gap-1.5 bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
         >
           <X className="w-3.5 h-3.5" /> Reject
         </button>
@@ -139,7 +139,7 @@ function OverrideControls({
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason (optional)"
-        className="w-48 rounded-lg border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+        className="w-48 border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
       />
     </div>
   );
@@ -301,12 +301,15 @@ function ExamDomainsTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or reg no..."
-            className="h-10 rounded-lg border-0 bg-white/5 pl-8 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+            className="h-10 border-0 bg-white/5 pl-8 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+      <div
+        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+      >
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
         ) : visibleRows.length === 0 ? (
@@ -368,14 +371,14 @@ function ExamDomainsTab() {
                                     setInterviewDates((prev) => ({ ...prev, [row.id]: e.target.value }))
                                   }
                                   placeholder="Interview date/time"
-                                  className="w-36 rounded-lg border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                                  className="w-36 border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => sendWhatsApp(row)}
                                   disabled={!isShortlisted}
                                   title={isShortlisted ? "Send WhatsApp message" : "Only available for shortlisted recruits"}
-                                  className={`inline-flex items-center justify-center w-8 h-8 rounded-full ring-1 ring-inset transition shrink-0 ${
+                                  className={`inline-flex items-center justify-center w-8 h-8 ring-1 ring-inset transition shrink-0 ${
                                     isShortlisted
                                       ? "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30 hover:bg-emerald-500/25"
                                       : "bg-white/5 text-gray-600 ring-white/10 opacity-50 cursor-not-allowed"

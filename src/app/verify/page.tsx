@@ -44,7 +44,7 @@ function VerifyContent() {
         <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
             <div className="w-full max-w-md relative z-10">
                 <AuthNav />
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 shadow-2xl text-center">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 shadow-2xl text-center">
                     {status === "loading" && <p className="text-gray-300">Verifying your email...</p>}
 
                     {(status === "success" || status === "already") && (
@@ -56,9 +56,19 @@ function VerifyContent() {
                             </p>
                             <Link
                                 href="/login"
-                                className="mt-6 inline-block rounded-xl px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
+                                className="group relative mt-6 inline-flex items-center justify-center overflow-hidden bg-red px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
-                                Go to Login
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                                    Go to Login
+                                </span>
                             </Link>
                         </>
                     )}

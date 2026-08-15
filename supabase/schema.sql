@@ -161,6 +161,12 @@ create table if not exists member_accounts (
 alter table member_accounts enable row level security;
 -- No public policies: only accessed via the service-role client in API routes.
 
+-- Optional "Sign in with Google" linking. google_uid is the stable Google account id
+-- (profile.id from the userinfo endpoint); google_email is stored only for display in
+-- the dashboard "Connected accounts" section and needn't match the srmist.edu.in email.
+alter table member_accounts add column if not exists google_uid text unique;
+alter table member_accounts add column if not exists google_email text;
+
 -- Links an approved member account to its (initially draft) public roster row.
 alter table members add column if not exists member_account_id uuid unique references member_accounts(id);
 

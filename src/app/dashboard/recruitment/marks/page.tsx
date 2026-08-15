@@ -33,14 +33,14 @@ function ExamAttendance({ day1, day2 }: { day1: boolean; day2: boolean }) {
 
   if (day === null) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.04] px-2 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-inset ring-white/10">
+      <span className="inline-flex items-center gap-1 bg-white/[0.04] px-2 py-0.5 text-xs font-medium text-gray-500 ring-1 ring-inset ring-white/10">
         <X className="w-3 h-3" /> Absent
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
+    <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
       <Check className="w-3 h-3" /> Day {day}
     </span>
   );
@@ -169,7 +169,7 @@ export default function RecruitmentMarksPage() {
           <button
             key={d.key}
             onClick={() => setDomain(d.key)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            className={`px-4 py-2 text-sm font-semibold transition ${
               domain === d.key
                 ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
                 : "text-gray-400 hover:bg-white/5"
@@ -187,11 +187,14 @@ export default function RecruitmentMarksPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or reg no..."
-          className="w-full rounded-lg border-0 bg-white/5 py-2 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-600"
+          className="w-full border-0 bg-white/5 py-2 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-600"
         />
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+      <div
+        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+      >
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
         ) : rows.length === 0 ? (
@@ -231,7 +234,7 @@ export default function RecruitmentMarksPage() {
                             onChange={(e) =>
                               setInputs((prev) => ({ ...prev, [row.recruit_id]: e.target.value }))
                             }
-                            className="w-20 rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                            className="w-20 border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                           />
                           {row.evaluator_username && (
                             <p className="mt-1 text-[10px] text-gray-500">
@@ -243,7 +246,7 @@ export default function RecruitmentMarksPage() {
                           <button
                             onClick={() => save(row.recruit_id)}
                             disabled={savingId === row.recruit_id || !dirty}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-40 transition"
+                            className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-40 transition"
                           >
                             <Check className="w-3.5 h-3.5" /> Save
                           </button>

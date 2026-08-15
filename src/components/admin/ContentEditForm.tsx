@@ -111,14 +111,14 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
                             rows={4}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     ) : field.type === "boolean" ? (
                         <input
                             type="checkbox"
                             checked={Boolean(values[field.name])}
                             onChange={(e) => setField(field.name, e.target.checked)}
-                            className="h-5 w-5 rounded border-white/20 bg-white/5"
+                            className="h-5 w-5 border-white/20 bg-white/5"
                         />
                     ) : field.type === "number" ? (
                         <input
@@ -126,7 +126,7 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             required={field.required}
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     ) : field.type === "date" ? (
                         <input
@@ -134,7 +134,7 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             required={field.required}
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     ) : field.type === "datetime" ? (
                         <input
@@ -142,7 +142,7 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             required={field.required}
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     ) : field.type === "tags" ? (
                         <input
@@ -150,7 +150,7 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
                             placeholder="Comma-separated"
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     ) : (
                         <input
@@ -159,26 +159,36 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
                             placeholder={field.type === "url" ? "https://..." : undefined}
-                            className="block w-full rounded-xl border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
+                            className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     )}
                 </div>
             ))}
 
             {uploadError && (
-                <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">{uploadError}</p>
+                <p className="border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">{uploadError}</p>
             )}
 
             <button
                 type="submit"
                 disabled={submitting}
-                className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all ${
+                className={`group relative w-full overflow-hidden px-8 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
                     submitting
                         ? "bg-blue-600/50 cursor-not-allowed"
                         : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
                 }`}
+                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
             >
-                {submitting ? "Submitting..." : submitLabel}
+                <span
+                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                    style={{
+                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                        backgroundColor: "#D4AF37",
+                    }}
+                />
+                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                    {submitting ? "Submitting..." : submitLabel}
+                </span>
             </button>
         </form>
     );

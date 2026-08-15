@@ -47,10 +47,14 @@ export async function proxy(request: NextRequest) {
     const isProtectedRecruitPage = pathname.startsWith('/recruit/dashboard');
     // /api/recruit/tables is a deliberate public exception: it backs the /recruit/tables
     // kiosk screen, meant to run on a lobby TV or a recruit's own phone with no login.
+    // /api/recruit/public-chat is the same idea for the homepage "Ask a Doubt" widget —
+    // has to work for visitors who haven't registered yet, rate-limited by IP instead
+    // (recruit-migration-014) since there's no session to lean on.
     const isProtectedRecruitApi =
         pathname.startsWith('/api/recruit/') &&
         !pathname.startsWith('/api/recruit/auth/') &&
-        pathname !== '/api/recruit/tables';
+        pathname !== '/api/recruit/tables' &&
+        pathname !== '/api/recruit/public-chat';
 
     if (isProtectedRecruitPage || isProtectedRecruitApi) {
         const token = request.cookies.get('recruit_token')?.value;

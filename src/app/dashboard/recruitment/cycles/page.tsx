@@ -211,7 +211,10 @@ export default function RecruitmentCyclesPage() {
             </div>
 
             {isAdmin && !activeCycle && !loading && cycles.length > 0 && (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3">
+                <div
+                    className="border border-amber-500/30 bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-200/90">
                         <span className="font-bold">No cycle is active.</span> The recruitment module is offline for
@@ -224,7 +227,8 @@ export default function RecruitmentCyclesPage() {
             {isAdmin && (
                 <form
                     onSubmit={createCycle}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end"
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                 >
                     <div className="flex-1">
                         <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">
@@ -234,7 +238,7 @@ export default function RecruitmentCyclesPage() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Robocon 2026"
-                            className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
+                            className="w-full border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                         />
                     </div>
                     <div className="flex-1">
@@ -245,20 +249,33 @@ export default function RecruitmentCyclesPage() {
                             value={year}
                             onChange={(e) => setYear(e.target.value)}
                             placeholder="2025-26"
-                            className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
+                            className="w-full border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={creating}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-4 py-2 text-sm font-semibold hover:bg-red/25 disabled:opacity-50 transition"
+                        className="group relative overflow-hidden inline-flex items-center justify-center bg-red text-white px-8 py-2 text-sm font-semibold shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
-                        <Plus className="w-4 h-4" /> {creating ? "Creating..." : "Create Cycle"}
+                        <span
+                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                            style={{
+                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                backgroundColor: "#D4AF37",
+                            }}
+                        />
+                        <span className="relative inline-flex items-center gap-1.5 transition-colors duration-200 group-hover:text-black">
+                            <Plus className="w-4 h-4" /> {creating ? "Creating..." : "Create Cycle"}
+                        </span>
                     </button>
                 </form>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : cycles.length === 0 ? (
@@ -284,11 +301,11 @@ export default function RecruitmentCyclesPage() {
                                         <td className="px-5 py-3 text-gray-300">{c.year}</td>
                                         <td className="px-5 py-3">
                                             {c.is_active ? (
-                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-2.5 py-1 text-xs font-semibold">
+                                                <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-2.5 py-1 text-xs font-semibold">
                                                     Active
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 text-gray-400 ring-1 ring-inset ring-white/10 px-2.5 py-1 text-xs font-semibold">
+                                                <span className="inline-flex items-center gap-1.5 bg-white/5 text-gray-400 ring-1 ring-inset ring-white/10 px-2.5 py-1 text-xs font-semibold">
                                                     {c.closed_at ? "Closed" : "Inactive"}
                                                 </span>
                                             )}
@@ -310,7 +327,7 @@ export default function RecruitmentCyclesPage() {
                                                     <button
                                                         onClick={() => closeCycle(c)}
                                                         disabled={closingId === c.id}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
+                                                        className="inline-flex items-center gap-1.5 bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
                                                     >
                                                         <PowerOff className="w-3.5 h-3.5" />{" "}
                                                         {closingId === c.id ? "Closing..." : "Close"}
@@ -319,7 +336,7 @@ export default function RecruitmentCyclesPage() {
                                                     <button
                                                         onClick={() => activateCycle(c)}
                                                         disabled={activatingId === c.id}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
+                                                        className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
                                                     >
                                                         <Power className="w-3.5 h-3.5" />{" "}
                                                         {activatingId === c.id ? "Activating..." : "Activate"}
@@ -337,7 +354,10 @@ export default function RecruitmentCyclesPage() {
 
             {pending && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl">
+                    <div
+                        className="w-full max-w-md border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
                         <h2 className="flex items-center gap-2 text-lg font-bold text-white">
                             <AlertTriangle className="h-5 w-5 text-red" />
                             {pending.title}
@@ -353,7 +373,7 @@ export default function RecruitmentCyclesPage() {
                             value={confirmText}
                             onChange={(e) => setConfirmText(e.target.value)}
                             placeholder={pending.confirmName}
-                            className="mt-2 w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
+                            className="mt-2 w-full border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                         />
                         <div className="mt-5 flex justify-end gap-2">
                             <button
@@ -363,7 +383,7 @@ export default function RecruitmentCyclesPage() {
                                     setConfirmText("");
                                 }}
                                 disabled={running}
-                                className="rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 disabled:opacity-50"
+                                className="bg-white/5 px-4 py-2 text-sm font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 disabled:opacity-50"
                             >
                                 Cancel
                             </button>
@@ -371,9 +391,19 @@ export default function RecruitmentCyclesPage() {
                                 type="button"
                                 onClick={runPending}
                                 disabled={running || confirmText.trim() !== pending.confirmName}
-                                className="rounded-lg bg-red/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="group relative overflow-hidden bg-red text-white px-8 py-2 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-events-none"
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
-                                {running ? "Working..." : pending.actionLabel}
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <span className="relative transition-colors duration-200 group-hover:text-black">
+                                    {running ? "Working..." : pending.actionLabel}
+                                </span>
                             </button>
                         </div>
                     </div>

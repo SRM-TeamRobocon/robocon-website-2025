@@ -149,7 +149,10 @@ function MembersTab() {
         <div className="space-y-8">
             <div>
                 <h2 className="text-lg font-bold text-white mb-3">Pending Signups</h2>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     {pending.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No pending approvals.</div>
                     ) : (
@@ -180,7 +183,7 @@ function MembersTab() {
                                                 <select
                                                     value={mergeSelections[row.id] || ""}
                                                     onChange={(e) => setMergeSelections((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                                                    className="rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 max-w-[180px]"
+                                                    className="border-0 bg-white/5 py-1.5 px-3 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 max-w-[180px]"
                                                 >
                                                     <option value="" className="bg-gray-900">Not on old roster</option>
                                                     {unlinked.map((u) => (
@@ -196,7 +199,7 @@ function MembersTab() {
                                                         <button
                                                             onClick={() => merge(row.id)}
                                                             disabled={busyId === row.id}
-                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/15 text-blue-400 ring-1 ring-inset ring-blue-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-blue-500/25 disabled:opacity-50 transition"
+                                                            className="inline-flex items-center gap-1.5 bg-blue-500/15 text-blue-400 ring-1 ring-inset ring-blue-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-blue-500/25 disabled:opacity-50 transition"
                                                         >
                                                             <Check className="w-3.5 h-3.5" /> Merge
                                                         </button>
@@ -204,7 +207,7 @@ function MembersTab() {
                                                         <button
                                                             onClick={() => approve(row.id)}
                                                             disabled={busyId === row.id}
-                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
+                                                            className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
                                                         >
                                                             <Check className="w-3.5 h-3.5" /> Approve as New
                                                         </button>
@@ -212,7 +215,7 @@ function MembersTab() {
                                                     <button
                                                         onClick={() => reject(row.id)}
                                                         disabled={busyId === row.id}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
+                                                        className="inline-flex items-center gap-1.5 bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
                                                     >
                                                         <X className="w-3.5 h-3.5" /> Reject
                                                     </button>
@@ -229,7 +232,10 @@ function MembersTab() {
 
             <div>
                 <h2 className="text-lg font-bold text-white mb-3">Approved Accounts</h2>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                <div
+                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                     {approved.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No approved accounts yet.</div>
                     ) : (
@@ -254,7 +260,7 @@ function MembersTab() {
                                                     value={row.role}
                                                     disabled={busyId === row.id}
                                                     onChange={(e) => changeRole(row.id, e.target.value)}
-                                                    className="rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                                                    className="border-0 bg-white/5 py-1.5 px-3 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                                                 >
                                                     <option value="member" className="bg-gray-900">member</option>
                                                     <option value="lead" className="bg-gray-900">lead</option>
@@ -317,7 +323,10 @@ function ContentTab() {
     if (loading) return <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>;
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
             {rows.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
             ) : (
@@ -345,21 +354,21 @@ function ContentTab() {
                                 <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
+                                        className="bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition"
                                     >
                                         {expanded === row.id ? "Hide" : "View"}
                                     </button>
                                     <button
                                         onClick={() => decide(row.id, "approve")}
                                         disabled={busyId === row.id}
-                                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
+                                        className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
                                     >
                                         <Check className="w-3.5 h-3.5" /> Approve
                                     </button>
                                     <button
                                         onClick={() => decide(row.id, "reject")}
                                         disabled={busyId === row.id}
-                                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
+                                        className="inline-flex items-center gap-1.5 bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
                                     >
                                         <X className="w-3.5 h-3.5" /> Reject
                                     </button>
@@ -367,7 +376,7 @@ function ContentTab() {
                             </div>
 
                             {expanded === row.id && (
-                                <pre className="mt-3 rounded-xl bg-black/40 border border-white/10 p-4 text-xs text-gray-300 overflow-x-auto">
+                                <pre className="mt-3 bg-black/40 border border-white/10 p-4 text-xs text-gray-300 overflow-x-auto">
                                     {JSON.stringify(row.payload, null, 2)}
                                 </pre>
                             )}
@@ -460,7 +469,7 @@ function BlogsTab() {
                 <button
                     key={v}
                     onClick={() => setView(v)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`px-3 py-1.5 text-xs font-semibold transition ${
                         view === v ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >
@@ -473,7 +482,10 @@ function BlogsTab() {
     return (
         <div>
             {tabs}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+            <div
+                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : rows.length === 0 ? (
@@ -500,13 +512,13 @@ function BlogsTab() {
                                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                                         <button
                                             onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                                            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                                            className="bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
                                         >
                                             {expanded === row.id ? "Hide" : "View"}
                                         </button>
                                         <Link
                                             href={`/dashboard/blogs/edit/${row.id}`}
-                                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                                            className="inline-flex items-center gap-1.5 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
                                         >
                                             <Pencil className="h-3.5 w-3.5" /> Edit
                                         </Link>
@@ -516,14 +528,14 @@ function BlogsTab() {
                                                 <button
                                                     onClick={() => decide(row.id, "approve")}
                                                     disabled={busyId === row.id}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                                    className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
                                                 >
                                                     <Check className="h-3.5 w-3.5" /> Approve
                                                 </button>
                                                 <button
                                                     onClick={() => decide(row.id, "reject")}
                                                     disabled={busyId === row.id}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                                                    className="inline-flex items-center gap-1.5 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                                                 >
                                                     <X className="h-3.5 w-3.5" /> Reject
                                                 </button>
@@ -532,7 +544,7 @@ function BlogsTab() {
                                             <button
                                                 onClick={() => decide(row.id, "unpublish")}
                                                 disabled={busyId === row.id}
-                                                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
+                                                className="inline-flex items-center gap-1.5 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
                                             >
                                                 <EyeOff className="h-3.5 w-3.5" /> Unpublish
                                             </button>
@@ -541,7 +553,7 @@ function BlogsTab() {
                                         <button
                                             onClick={() => remove(row)}
                                             disabled={busyId === row.id}
-                                            className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-50"
+                                            className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-50"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" /> Delete
                                         </button>
@@ -549,13 +561,13 @@ function BlogsTab() {
                                 </div>
 
                                 {expanded === row.id && (
-                                    <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-gray-300">
+                                    <div className="mt-3 space-y-3 border border-white/10 bg-black/40 p-4 text-sm text-gray-300">
                                         {row.content.map((block, i) => {
                                             if (block.type === "heading") return <p key={i} className="font-bold text-white">{block.text}</p>;
                                             if (block.type === "paragraph") return <p key={i} className="whitespace-pre-wrap break-words">{block.text}</p>;
                                             if (block.type === "image")
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                return <img key={i} src={block.url} alt={block.caption || ""} className="max-h-64 rounded-lg border border-white/10 object-cover" />;
+                                                return <img key={i} src={block.url} alt={block.caption || ""} className="max-h-64 border border-white/10 object-cover" />;
                                             return null;
                                         })}
                                     </div>
@@ -590,7 +602,7 @@ export default function ApprovalsPage() {
             <div className="flex gap-2">
                 <button
                     onClick={() => setTab("members")}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
                         tab === "members" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >
@@ -598,7 +610,7 @@ export default function ApprovalsPage() {
                 </button>
                 <button
                     onClick={() => setTab("content")}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
                         tab === "content" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >
@@ -606,7 +618,7 @@ export default function ApprovalsPage() {
                 </button>
                 <button
                     onClick={() => setTab("blogs")}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
                         tab === "blogs" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
                     }`}
                 >
