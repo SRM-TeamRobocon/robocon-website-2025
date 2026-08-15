@@ -4,6 +4,7 @@ import { getSession, requireRole } from "@/lib/session";
 import { boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
 import { isHostelBlock } from "@/lib/hostel-blocks";
 import { isTravelMethod } from "@/lib/travel-method";
+import { isGender } from "@/lib/gender";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const name = boundedText(body.name, FIELD_LIMITS.name);
   const reg_no = boundedText(body.reg_no, FIELD_LIMITS.reg_no);
   const year = typeof body.year === "string" ? body.year : "";
+  // Not hard-required here (same leniency as day_scholar_area/travel_method below) — this
+  // route also has to accept legacy recruits that predate this column.
+  const gender = isGender(body.gender) ? body.gender : null;
   const department = boundedText(body.department, FIELD_LIMITS.department);
   const course = boundedText(body.course, FIELD_LIMITS.course);
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
@@ -73,6 +77,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       name,
       reg_no,
       year,
+      gender,
       department,
       course,
       phone,
@@ -84,7 +89,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     })
     .eq("id", id)
     .select(
-      "id, name, reg_no, year, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method"
+      "id, name, reg_no, year, gender, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method"
     )
     .maybeSingle();
 

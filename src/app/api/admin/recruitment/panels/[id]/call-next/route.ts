@@ -31,6 +31,7 @@ const EMPTY_PROFILE = (recruitId: string) => ({
   hostel_block: null as string | null,
   day_scholar_area: null as string | null,
   travel_method: null as string | null,
+  gender: null as string | null,
 });
 
 type TokenRow = {

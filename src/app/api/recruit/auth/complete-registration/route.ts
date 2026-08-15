@@ -13,6 +13,7 @@ import {
 import { isRecruitSubDomain, subDomainFullLabel } from "@/lib/recruit-domains";
 import { isHostelBlock } from "@/lib/hostel-blocks";
 import { isTravelMethod } from "@/lib/travel-method";
+import { isGender } from "@/lib/gender";
 import { safeHttpUrl, boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
 import { signQR } from "@/lib/recruit-qr";
 import { getTransporter, SMTP_EMAIL, logoAttachment } from "@/lib/mailer";
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
         const name = boundedText(body.name || statePayload.name, FIELD_LIMITS.name);
         const regNo = boundedText(body.reg_no, FIELD_LIMITS.reg_no);
         const year = String(body.year || "").trim();
+        const gender = isGender(body.gender) ? body.gender : null;
         const department = boundedText(body.department, FIELD_LIMITS.department);
         const course = boundedText(body.course, FIELD_LIMITS.course);
         const phone = String(body.phone || "").trim();
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!name || !regNo || !year || !department || !course || !phone || !password || !portfolioUrl) {
+        if (!name || !regNo || !year || !gender || !department || !course || !phone || !password || !portfolioUrl) {
             return NextResponse.json({ success: false, error: "Fill in all required fields." }, { status: 400 });
         }
         if (!["1", "2", "3"].includes(year)) {
@@ -186,6 +188,7 @@ export async function POST(request: Request) {
                 name,
                 reg_no: normalizedRegNo,
                 year,
+                gender,
                 department,
                 course,
                 phone,

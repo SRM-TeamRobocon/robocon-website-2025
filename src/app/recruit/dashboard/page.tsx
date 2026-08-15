@@ -13,6 +13,7 @@ import FaqSection from "@/components/recruit/FaqSection";
 import TicketsSection from "@/components/recruit/TicketsSection";
 import ChatWidget from "@/components/recruit/ChatWidget";
 import { travelMethodLabel } from "@/lib/travel-method";
+import { genderLabel } from "@/lib/gender";
 
 const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), { ssr: false });
 
@@ -23,14 +24,13 @@ type RecruitProfile = {
     srm_email: string;
     reg_no: string;
     year: string;
+    gender?: string | null;
     department: string;
     course: string;
     phone?: string | null;
     is_hosteller?: boolean;
     hostel_block?: string | null;
     hostel_room?: string | null;
-    day_scholar_area?: string | null;
-    travel_method?: string | null;
     portfolio_url?: string | null;
     is_selected: boolean;
 };
@@ -229,6 +229,10 @@ export default function RecruitDashboardPage() {
                                 <p className="text-white/80">{profile.year}</p>
                             </div>
                             <div>
+                                <p className="text-white/40 text-xs uppercase tracking-widest">Gender</p>
+                                <p className="text-white/80">{genderLabel(profile.gender)}</p>
+                            </div>
+                            <div>
                                 <p className="text-white/40 text-xs uppercase tracking-widest">Department</p>
                                 <p className="text-white/80">{profile.department}</p>
                             </div>
@@ -241,9 +245,7 @@ export default function RecruitDashboardPage() {
                                 <p className="text-white/80">
                                     {profile.is_hosteller
                                         ? [profile.hostel_block, profile.hostel_room].filter(Boolean).join(" · ")
-                                        : ["Day Scholar", profile.day_scholar_area, travelMethodLabel(profile.travel_method)]
-                                              .filter(Boolean)
-                                              .join(" · ")}
+                                        : "Day Scholar"}
                                 </p>
                             </div>
                             {profile.portfolio_url && (

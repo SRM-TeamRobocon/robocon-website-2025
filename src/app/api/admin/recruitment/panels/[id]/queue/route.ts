@@ -22,6 +22,7 @@ export type RecruitProfile = {
   hostel_block: string | null;
   day_scholar_area: string | null;
   travel_method: string | null;
+  gender: string | null;
 };
 
 export type QueueToken = {
@@ -71,6 +72,7 @@ const EMPTY_PROFILE = (recruitId: string): RecruitProfile => ({
   hostel_block: null,
   day_scholar_area: null,
   travel_method: null,
+  gender: null,
 });
 
 // Shared by this route and ../call-next/route.ts so both return the identical recruit
@@ -92,7 +94,7 @@ export async function buildRecruitProfiles(
   const [{ data: recruits }, { data: selections }, { data: marks }, { data: shortlist }] = await Promise.all([
     supabase
       .from("recruit_accounts")
-      .select("id, name, reg_no, year, department, portfolio_url, is_hosteller, hostel_block, day_scholar_area, travel_method")
+      .select("id, name, reg_no, year, department, portfolio_url, is_hosteller, hostel_block, day_scholar_area, travel_method, gender")
       .in("id", recruitIds),
     supabase
       .from("recruit_domain_selections")
@@ -128,6 +130,7 @@ export async function buildRecruitProfiles(
       hostel_block: r.hostel_block ?? null,
       day_scholar_area: r.day_scholar_area ?? null,
       travel_method: r.travel_method ?? null,
+      gender: r.gender ?? null,
     });
   }
   for (const s of selections ?? []) {

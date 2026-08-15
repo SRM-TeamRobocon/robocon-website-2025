@@ -121,6 +121,11 @@ create table if not exists recruit_accounts (
   -- residence-consistency constraint below for why.
   day_scholar_area    text,
   travel_method       text,
+  -- Male/female (originally migration 013) — feeds gender-scoped cutoffs on
+  -- recruit_cutoffs below. Same checked-text-column pattern as travel_method, nullable
+  -- here for the same reason (existing rows predate this column); required for new
+  -- registrations at the application layer.
+  gender              text,
   portfolio_url       text,
   password_hash       text not null,
   is_selected         boolean not null default false,
@@ -144,6 +149,9 @@ create table if not exists recruit_accounts (
   ),
   constraint recruit_accounts_travel_method_valid check (
     travel_method is null or travel_method in ('own_vehicle', 'college_bus')
+  ),
+  constraint recruit_accounts_gender_valid check (
+    gender is null or gender in ('male', 'female')
   )
 );
 
@@ -170,6 +178,15 @@ do $$ begin
       (is_hosteller and hostel_block is not null and day_scholar_area is null and travel_method is null)
       or (not is_hosteller and hostel_block is null and hostel_room is null)
     );
+exception when duplicate_object then null; end $$;
+
+-- Same treatment for the gender column added by migration 013.
+alter table recruit_accounts add column if not exists gender text;
+
+do $$ begin
+  alter table recruit_accounts
+    add constraint recruit_accounts_gender_valid
+    check (gender is null or gender in ('male', 'female'));
 exception when duplicate_object then null; end $$;
 
 -- `reg_no` had no uniqueness of any kind, so the same student could register twice (or
@@ -351,17 +368,54 @@ alter table recruit_marks enable row level security;
 -- recruit_cutoffs
 ---------------------------------------------------------------------------
 
+-- Gender-scoped since migration 013: a domain now has TWO cutoffs (one per gender), not
+-- one. shortlist/compute (src/app/api/admin/recruitment/shortlist/compute/route.ts) skips
+-- a domain entirely unless BOTH genders' cutoffs are set for it — see that route for why.
 create table if not exists recruit_cutoffs (
   id           uuid primary key default gen_random_uuid(),
   cycle_id     uuid not null references recruitment_cycles(id),
   sub_domain   recruit_subdomain not null,
   cutoff_marks integer not null check (cutoff_marks >= 0 and cutoff_marks <= 100),
+  gender       text not null check (gender in ('male', 'female')),
   set_by       text not null,
   set_at       timestamptz default now(),
-  unique (cycle_id, sub_domain)
+  unique (cycle_id, sub_domain, gender)
 );
 
 alter table recruit_cutoffs enable row level security;
+
+-- Brings an already-existing recruit_cutoffs table (predating migration 013) up to the
+-- gender-scoped shape. Widens every pre-existing gender-blind cutoff row into a 'male' +
+-- 'female' pair carrying the same cutoff_marks forward, rather than wiping a lead's prior
+-- work — see migration 013 for the full reasoning. No-op on a fresh database.
+alter table recruit_cutoffs add column if not exists gender text;
+
+alter table recruit_cutoffs drop constraint if exists recruit_cutoffs_cycle_id_sub_domain_key;
+
+insert into recruit_cutoffs (cycle_id, sub_domain, cutoff_marks, set_by, set_at, gender)
+select cycle_id, sub_domain, cutoff_marks, set_by, set_at, 'female'
+from recruit_cutoffs src
+where src.gender is null
+  and not exists (
+    select 1 from recruit_cutoffs f
+    where f.cycle_id = src.cycle_id and f.sub_domain = src.sub_domain and f.gender = 'female'
+  );
+
+update recruit_cutoffs set gender = 'male' where gender is null;
+
+alter table recruit_cutoffs alter column gender set not null;
+
+do $$ begin
+  alter table recruit_cutoffs
+    add constraint recruit_cutoffs_gender_valid
+    check (gender in ('male', 'female'));
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter table recruit_cutoffs
+    add constraint recruit_cutoffs_cycle_sub_gender_key
+    unique (cycle_id, sub_domain, gender);
+exception when duplicate_object then null; end $$;
 
 ---------------------------------------------------------------------------
 -- recruit_shortlist_status

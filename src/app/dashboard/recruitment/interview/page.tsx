@@ -69,6 +69,7 @@ interface RecruitProfile {
     hostel_block: string | null;
     day_scholar_area: string | null;
     travel_method: string | null;
+    gender: string | null;
 }
 
 interface QueueToken {
@@ -84,6 +85,7 @@ interface QueueToken {
 
 import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 import { travelMethodLabel } from "@/lib/travel-method";
+import { genderLabel } from "@/lib/gender";
 import Select from "@/components/ui/select";
 
 function AddPanelForm({ onCreated }: { onCreated: () => void }) {
@@ -374,6 +376,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                     </div>
                     <p className="text-sm text-gray-400">
                         {r.reg_no} · Year {r.year} · {r.department}
+                        {r.gender ? ` · ${genderLabel(r.gender)}` : ""}
                     </p>
                     <p className="mt-1 text-sm text-gray-400">
                         {r.is_hosteller

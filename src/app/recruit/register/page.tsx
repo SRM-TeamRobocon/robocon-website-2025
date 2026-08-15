@@ -7,6 +7,7 @@ import Link from "next/link";
 import { groupBySubsystem } from "@/lib/recruit-domains";
 import { HOSTEL_BLOCKS } from "@/lib/hostel-blocks";
 import { TRAVEL_METHODS } from "@/lib/travel-method";
+import { GENDERS } from "@/lib/gender";
 import PasswordToggle from "@/components/PasswordToggle";
 import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
 import GlassCard from "@/components/recruit/GlassCard";
@@ -19,6 +20,7 @@ type ProfileForm = {
     name: string;
     regNo: string;
     year: "" | "1" | "2";
+    gender: "" | "male" | "female";
     department: string;
     course: string;
     phone: string;
@@ -166,6 +168,7 @@ function RecruitRegisterInner() {
         name: googleName,
         regNo: "",
         year: "",
+        gender: "",
         department: "",
         course: "",
         phone: "",
@@ -258,6 +261,10 @@ function RecruitRegisterInner() {
         e.preventDefault();
         setError("");
 
+        if (!profile.gender) {
+            setError("Select your gender.");
+            return;
+        }
         if (domains.length < 1) {
             setError("Select at least 1 domain.");
             return;
@@ -296,6 +303,7 @@ function RecruitRegisterInner() {
                     name: profile.name,
                     reg_no: profile.regNo,
                     year: profile.year,
+                    gender: profile.gender,
                     department: profile.department,
                     course: profile.course,
                     phone: profile.phone,
@@ -522,6 +530,29 @@ function RecruitRegisterInner() {
                             </div>
                         </div>
                         <Field label="Department" id="department" value={profile.department} onChange={updateProfile("department")} placeholder="CSE" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">Gender</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {GENDERS.map((opt) => {
+                                const checked = profile.gender === opt.key;
+                                return (
+                                    <button
+                                        key={opt.key}
+                                        type="button"
+                                        onClick={() => setProfile((prev) => ({ ...prev, gender: opt.key }))}
+                                        className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                            checked
+                                                ? "bg-red/15 border-red/50 text-white"
+                                                : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
                     <Field label="Course" id="course" value={profile.course} onChange={updateProfile("course")} placeholder="B.Tech" />

@@ -17,6 +17,8 @@ import {
     ArrowUpRight,
     Ticket,
     BookOpen,
+    Mail,
+    HelpCircle,
 } from "lucide-react";
 import { useRoleGate } from "@/hooks/use-require-role";
 import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
@@ -50,10 +52,16 @@ const SECTIONS = [
     { label: "Cutoffs", href: "/dashboard/recruitment/cutoffs", icon: SlidersHorizontal, desc: "Set cutoffs and run auto-shortlist", leadOnly: true },
     { label: "Shortlist", href: "/dashboard/recruitment/shortlist", icon: ListChecks, desc: "Review and override shortlist status", leadOnly: true },
     { label: "Interview", href: "/dashboard/recruitment/interview", icon: Mic2, desc: "Panels, live queue, and results", leadOnly: false },
+    { label: "Send Mail", href: "/dashboard/recruitment/send-mail", icon: Mail, desc: "Email selected recruits, with an optional date & time", leadOnly: true },
     { label: "Training", href: "/dashboard/recruitment/training", icon: GraduationCap, desc: "Sessions and attendance", leadOnly: false },
     { label: "Analytics", href: "/dashboard/recruitment/analytics", icon: BarChart3, desc: "Full funnel breakdown", leadOnly: false },
     { label: "Tickets", href: "/dashboard/recruitment/tickets", icon: Ticket, desc: "Domain change and general requests from recruits", leadOnly: false },
     { label: "Knowledge Base", href: "/dashboard/recruitment/knowledge-base", icon: BookOpen, desc: "Upload .txt files for the recruit chatbot", leadOnly: true },
+    // FAQ itself lives in the generic content CMS (src/lib/content-resources.ts), not under
+    // /dashboard/recruitment — it's just linked from here too since it's recruit-facing
+    // content (shown in FaqSection on /recruit/dashboard) and belongs alongside the rest of
+    // the recruitment admin surface.
+    { label: "FAQ", href: "/dashboard/content/faq", icon: HelpCircle, desc: "Manage the FAQ shown on the recruit dashboard", leadOnly: true },
 ];
 
 const STAT_CARDS: { key: keyof FunnelCounts; label: string }[] = [

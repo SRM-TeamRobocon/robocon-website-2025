@@ -8,6 +8,7 @@ import { groupBySubsystem, subDomainLabel } from "@/lib/recruit-domains";
 import { SortableTh, compareBy, nextSortState, type SortState } from "@/components/recruit/SortableTh";
 import { HOSTEL_BLOCKS } from "@/lib/hostel-blocks";
 import { TRAVEL_METHODS, travelMethodLabel } from "@/lib/travel-method";
+import { GENDERS, genderLabel } from "@/lib/gender";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
 import Select from "@/components/ui/select";
 
@@ -20,6 +21,7 @@ interface Recruit {
     name: string;
     reg_no: string;
     year: string;
+    gender: string | null;
     department: string;
     course: string;
     srm_email: string;
@@ -293,6 +295,7 @@ export default function RecruitsPage() {
                                             {expanded && (
                                                 <DetailRow colSpan={4}>
                                                     <DetailField label="Year" value={r.year} />
+                                                    <DetailField label="Gender" value={genderLabel(r.gender) || "—"} />
                                                     <DetailField label="Department" value={r.department} />
                                                     <DetailField
                                                         label="Stay"
@@ -350,6 +353,7 @@ type EditableFields = Pick<
     | "name"
     | "reg_no"
     | "year"
+    | "gender"
     | "department"
     | "course"
     | "phone"
@@ -372,6 +376,7 @@ function EditRecruitModal({
     const [name, setName] = useState(recruit.name);
     const [regNo, setRegNo] = useState(recruit.reg_no);
     const [year, setYear] = useState(recruit.year);
+    const [gender, setGender] = useState(recruit.gender || "");
     const [department, setDepartment] = useState(recruit.department);
     const [course, setCourse] = useState(recruit.course || "");
     const [phone, setPhone] = useState(recruit.phone || "");
@@ -392,6 +397,7 @@ function EditRecruitModal({
                     name,
                     reg_no: regNo,
                     year,
+                    gender: gender || null,
                     department,
                     course,
                     phone,
@@ -466,6 +472,16 @@ function EditRecruitModal({
                                 className="w-full rounded-lg border-0 bg-white/5 py-2 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red"
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Gender</label>
+                        <Select
+                            value={gender}
+                            onChange={setGender}
+                            placeholder="Select"
+                            className="bg-white/5 ring-white/10 py-2 px-3 text-sm"
+                            options={GENDERS.map((g) => ({ value: g.key, label: g.label }))}
+                        />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>

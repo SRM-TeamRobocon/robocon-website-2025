@@ -4,6 +4,7 @@ import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS, subDomainFullLabel } from "@/lib/recruit-domains";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
 import { travelMethodLabel } from "@/lib/travel-method";
+import { genderLabel } from "@/lib/gender";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ const HEADER = [
   "Name",
   "Reg No",
   "Year",
+  "Gender",
   "Department",
   "Course",
   "SRM Email",
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_accounts")
       .select(
-        "id, name, reg_no, year, department, course, srm_email, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, created_at"
+        "id, name, reg_no, year, gender, department, course, srm_email, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, created_at"
       )
       .eq("cycle_id", cycleId)
       .order("created_at", { ascending: false });
@@ -156,6 +158,7 @@ export async function GET(request: NextRequest) {
     r.name,
     r.reg_no,
     r.year,
+    genderLabel(r.gender),
     r.department,
     r.course,
     r.srm_email,

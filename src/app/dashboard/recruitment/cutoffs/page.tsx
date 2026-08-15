@@ -5,11 +5,13 @@ import toast from "react-hot-toast";
 import { SlidersHorizontal, Save, Play } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, RECRUIT_SUBDOMAIN_KEYS, subDomainLabel, type RecruitSubDomain } from "@/lib/recruit-domains";
+import { GENDERS, type Gender } from "@/lib/gender";
 
 type ExamDomain = RecruitSubDomain;
 
 interface CutoffRow {
   sub_domain: ExamDomain;
+  gender: Gender;
   cutoff_marks: number | null;
   set_by: string | null;
   set_at: string | null;
@@ -21,15 +23,20 @@ interface ComputeStats {
   pending_count: number;
 }
 
+function inputKey(domain: string, gender: string) {
+  return `${domain}:${gender}`;
+}
+
 export default function RecruitmentCutoffsPage() {
   const ready = useRequireRole(["lead", "admin"]);
   const [rows, setRows] = useState<CutoffRow[]>([]);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [computing, setComputing] = useState(false);
+  const [computing, setComputing] = useState<string | null>(null); // domain key being run, or "all"
   const [stats, setStats] = useState<ComputeStats | null>(null);
   const [skippedDomains, setSkippedDomains] = useState<string[]>([]);
+  const [lastRunLabel, setLastRunLabel] = useState<string>("");
 
   const load = async () => {
     setLoading(true);
@@ -40,7 +47,7 @@ export default function RecruitmentCutoffsPage() {
         setRows(data.data);
         const nextInputs: Record<string, string> = {};
         for (const row of data.data as CutoffRow[]) {
-          nextInputs[row.sub_domain] = row.cutoff_marks === null ? "" : String(row.cutoff_marks);
+          nextInputs[inputKey(row.sub_domain, row.gender)] = row.cutoff_marks === null ? "" : String(row.cutoff_marks);
         }
         setInputs(nextInputs);
       } else {
@@ -60,16 +67,18 @@ export default function RecruitmentCutoffsPage() {
   }, [ready]);
 
   const saveCutoffs = async () => {
-    const payload: Array<{ sub_domain: ExamDomain; cutoff_marks: number }> = [];
+    const payload: Array<{ sub_domain: ExamDomain; gender: Gender; cutoff_marks: number }> = [];
     for (const domain of RECRUIT_SUBDOMAIN_KEYS) {
-      const raw = inputs[domain] ?? "";
-      if (raw.trim() === "") continue;
-      const value = Number(raw);
-      if (!Number.isInteger(value) || value < 0 || value > 100) {
-        toast.error(`${subDomainLabel(domain)} cutoff must be an integer between 0 and 100`);
-        return;
+      for (const g of GENDERS) {
+        const raw = inputs[inputKey(domain, g.key)] ?? "";
+        if (raw.trim() === "") continue;
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value < 0 || value > 100) {
+          toast.error(`${subDomainLabel(domain)} (${g.label}) cutoff must be an integer between 0 and 100`);
+          return;
+        }
+        payload.push({ sub_domain: domain, gender: g.key, cutoff_marks: value });
       }
-      payload.push({ sub_domain: domain, cutoff_marks: value });
     }
 
     if (payload.length === 0) {
@@ -98,24 +107,32 @@ export default function RecruitmentCutoffsPage() {
     }
   };
 
-  const runShortlist = async () => {
-    setComputing(true);
+  // domain === null runs every domain in one request (the original global button);
+  // otherwise scopes the run to just that domain — a domain still needs BOTH male and
+  // female cutoffs set or the server skips it regardless of scope.
+  const runShortlist = async (domain: string | null) => {
+    setComputing(domain ?? "all");
     setStats(null);
     setSkippedDomains([]);
     try {
-      const res = await fetch("/api/admin/recruitment/shortlist/compute", { method: "POST" });
+      const res = await fetch("/api/admin/recruitment/shortlist/compute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(domain ? { sub_domain: domain } : {}),
+      });
       const data = await res.json();
       if (res.ok && data.computed) {
         setStats(data.stats);
         setSkippedDomains(data.skipped_domains || []);
-        toast.success("Shortlist engine ran successfully");
+        setLastRunLabel(domain ? subDomainLabel(domain) : "All domains");
+        toast.success(domain ? `Shortlist engine ran for ${subDomainLabel(domain)}` : "Shortlist engine ran for all domains");
       } else {
         toast.error(data.error || "Could not run shortlist engine");
       }
     } catch {
       toast.error("Could not run shortlist engine");
     } finally {
-      setComputing(false);
+      setComputing(null);
     }
   };
 
@@ -129,8 +146,9 @@ export default function RecruitmentCutoffsPage() {
           Cutoffs &amp; Shortlist Engine
         </h1>
         <p className="mt-2 text-gray-400 text-sm max-w-xl">
-          Set a pass mark per domain, then run the shortlist engine to auto-compute status
-          for every recruit who selected that domain.
+          Set a male and female pass mark per domain, then run the shortlist engine to
+          auto-compute status for every recruit who selected that domain. A domain is
+          skipped until both genders&apos; cutoffs are set.
         </p>
       </div>
 
@@ -143,36 +161,60 @@ export default function RecruitmentCutoffsPage() {
               <thead>
                 <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
                   <th className="px-5 py-3">Domain</th>
-                  <th className="px-5 py-3">Cutoff Marks (0–100)</th>
+                  <th className="px-5 py-3">Male Cutoff</th>
+                  <th className="px-5 py-3">Female Cutoff</th>
                   <th className="px-5 py-3">Last Set</th>
+                  <th className="px-5 py-3 text-right">Run</th>
                 </tr>
               </thead>
               <tbody>
                 {RECRUIT_SUBDOMAINS.map((d) => {
                   const domain = d.key;
-                  const row = rows.find((r) => r.sub_domain === domain);
+                  const domainRows = rows.filter((r) => r.sub_domain === domain);
+                  const rowFor = (gender: Gender) => domainRows.find((r) => r.gender === gender);
+                  const bothSet = GENDERS.every((g) => (inputs[inputKey(domain, g.key)] ?? "").trim() !== "");
                   return (
                     <tr key={domain} className="border-b border-white/5 last:border-0">
                       <td className="px-5 py-3 text-white font-medium">
                         {d.label} <span className="text-xs font-normal text-gray-500">{d.subsystem}</span>
                       </td>
-                      <td className="px-5 py-3">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={inputs[domain] ?? ""}
-                          onChange={(e) =>
-                            setInputs((prev) => ({ ...prev, [domain]: e.target.value }))
-                          }
-                          placeholder="Not set"
-                          className="w-24 rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
+                      {GENDERS.map((g) => (
+                        <td key={g.key} className="px-5 py-3">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={inputs[inputKey(domain, g.key)] ?? ""}
+                            onChange={(e) =>
+                              setInputs((prev) => ({ ...prev, [inputKey(domain, g.key)]: e.target.value }))
+                            }
+                            placeholder="Not set"
+                            className="w-24 rounded-lg border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                          />
+                        </td>
+                      ))}
                       <td className="px-5 py-3 text-gray-500 text-xs">
-                        {row?.set_by && row?.set_at
-                          ? `${row.set_by} · ${new Date(row.set_at).toLocaleString()}`
-                          : "Never set"}
+                        {GENDERS.map((g) => {
+                          const row = rowFor(g.key);
+                          return (
+                            <div key={g.key}>
+                              {g.label}:{" "}
+                              {row?.set_by && row?.set_at
+                                ? `${row.set_by} · ${new Date(row.set_at).toLocaleString()}`
+                                : "Never set"}
+                            </div>
+                          );
+                        })}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => runShortlist(domain)}
+                          disabled={computing !== null || !bothSet}
+                          title={bothSet ? `Run shortlist for ${d.label}` : "Both cutoffs must be set first"}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-3 py-1.5 text-xs font-semibold hover:bg-red/25 disabled:opacity-40 transition"
+                        >
+                          <Play className="w-3.5 h-3.5" /> {computing === domain ? "Running..." : "Run"}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -192,18 +234,18 @@ export default function RecruitmentCutoffsPage() {
           <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Cutoffs"}
         </button>
         <button
-          onClick={runShortlist}
-          disabled={computing}
+          onClick={() => runShortlist(null)}
+          disabled={computing !== null}
           className="inline-flex items-center gap-2 rounded-lg bg-red/15 text-white ring-1 ring-inset ring-red/40 px-4 py-2.5 text-sm font-semibold hover:bg-red/25 disabled:opacity-50 transition"
         >
-          <Play className="w-4 h-4" /> {computing ? "Running..." : "Run Shortlist"}
+          <Play className="w-4 h-4" /> {computing === "all" ? "Running..." : "Run Shortlist (All Domains)"}
         </button>
       </div>
 
       {stats && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6">
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">
-            Shortlist Engine Results
+            Shortlist Engine Results — {lastRunLabel}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-xl bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30 p-4">
@@ -216,12 +258,12 @@ export default function RecruitmentCutoffsPage() {
             </div>
             <div className="rounded-xl bg-amber-500/10 ring-1 ring-inset ring-amber-500/30 p-4">
               <p className="text-2xl font-black text-amber-400">{stats.pending_count}</p>
-              <p className="text-xs text-gray-400 mt-1">Pending (no marks yet)</p>
+              <p className="text-xs text-gray-400 mt-1">Pending (no marks/gender yet)</p>
             </div>
           </div>
           {skippedDomains.length > 0 && (
             <p className="mt-4 text-xs text-amber-400">
-              Skipped (no cutoff set): {skippedDomains.map((d) => subDomainLabel(d)).join(", ")}
+              Skipped (male + female cutoff not both set): {skippedDomains.map((d) => subDomainLabel(d)).join(", ")}
             </p>
           )}
         </div>
