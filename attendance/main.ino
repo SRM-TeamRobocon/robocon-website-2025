@@ -27,7 +27,10 @@ const char* password = "STR@KungFu26";
    - Set tapURL to the deployed site's /api/attendance/tap endpoint.
    - Set deviceSecret to match ATTENDANCE_DEVICE_SECRET in the server's env.
    - Give each physical scanner its own deviceId if you add more than one. */
-const char* tapURL = "https://srmteamrobocon.com/api/attendance/tap";
+// Must be the canonical host — srmteamrobocon.com (no www) 307-redirects here, and
+// ESP32's HTTPClient doesn't follow POST redirects by default (see setFollowRedirects
+// below, which is a defensive fallback, not a substitute for the right URL).
+const char* tapURL = "https://www.srmteamrobocon.com/api/attendance/tap";
 const char* deviceSecret = "da403a99daa7552d5be254dda555f7b377ad90484ee45e54eb49aeff62aad1ae";
 const char* deviceId = "lobby-scanner-1";
 
@@ -94,6 +97,10 @@ String sendTap(const String& uid, int& httpCode) {
 
   HTTPClient http;
   http.begin(client, tapURL);
+  // Defensive: tapURL above should already be the canonical (non-redirecting) host,
+  // but if that ever changes, STRICT mode follows 307/308 without turning the POST
+  // into a GET (unlike the default, which doesn't follow redirects at all).
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", String("Bearer ") + deviceSecret);
 
