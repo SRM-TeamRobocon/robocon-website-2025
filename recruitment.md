@@ -163,48 +163,23 @@ Route: `GET /api/recruit/auth/google`
 
 **Google OAuth implementation:** Use `googleapis` npm package (`google-auth-library`). Do NOT use Supabase Auth — the existing Supabase setup is Postgres-only, not Supabase Auth. Add `googleapis` as a dependency.
 
-#### Step 2 — SRM Email Entry + OTP
+#### Step 2 — SRM Email Entry (OTP verification DEFERRED, 2026-08-16)
 
 Page: `/recruit/register` (shows step 2 after step 1 cookie is detected)
-Route: `POST /api/recruit/auth/send-otp`
 
-Request body:
-```json
-{ "srm_email": "ab1234@srmist.edu.in" }
-```
+**Changed 2026-08-16**: this step used to send + verify a 6-digit OTP before letting the
+recruit continue (see "Post-Registration Email Verification" below for where that moved).
+It is now just an SRM-email input with client-side-only format validation
+(`^[a-zA-Z0-9._%+\-]+@srmist\.edu\.in$`) and a "Continue" button — no server round-trip,
+no OTP UI, straight to Step 3. `/api/recruit/auth/send-otp` and `/api/recruit/auth/verify-otp`
+still exist as routes (nothing deleted) but the register wizard no longer calls them; they're
+effectively orphaned pre-registration endpoints now. The rationale: get recruits into an
+account fast, let them prove SRM ownership at their own pace afterward rather than gating
+signup on an email round-trip that can be slow/land in spam.
 
-Validations:
-- Must match `^[a-zA-Z0-9._%+\-]+@srmist\.edu\.in$`
-- Check `recruit_accounts`: if `srm_email` already exists AND `srm_email_verified = true` for this cycle → return 409 "already registered"
-- Rate limit: max 3 OTP sends per email per hour (track in `recruit_email_otps`, count rows within last 60 min)
+#### Step 3 — Profile + Domain Selection
 
-Server actions:
-- Generate 6-digit numeric OTP
-- Bcrypt-hash it (cost 10)
-- Insert into `recruit_email_otps`: `{ srm_email, otp_hash, expires_at: now + 15min, used_at: null }`
-- Send email via existing Nodemailer setup (`src/lib/mailer.ts`) — subject: "SRM Team Robocon — OTP Verification", body: plain text with the 6-digit code and 15-min expiry warning
-- Return 200 `{ sent: true }`
-
-#### Step 3 — OTP Verification
-
-Route: `POST /api/recruit/auth/verify-otp`
-
-Request body:
-```json
-{ "srm_email": "ab1234@srmist.edu.in", "otp": "123456" }
-```
-
-Server actions:
-- Fetch latest unused, unexpired row from `recruit_email_otps` for this srm_email
-- If none → 400 "OTP expired or not found"
-- Bcrypt compare otp against otp_hash → if mismatch → 400 "Invalid OTP"
-- Mark row: `used_at = now()`
-- Store `{ srm_email, srm_verified: true }` appended to the `recruit_oauth_state` cookie (re-sign, same 15-min window)
-- Return 200 `{ verified: true }`
-
-#### Step 4 — Profile + Domain Selection
-
-Page: `/recruit/register` (shows step 3 form after OTP verified)
+Page: `/recruit/register` (shows step 3 form right after the Step 2 email input — no OTP gate)
 Route: `POST /api/recruit/auth/complete-registration`
 
 Form fields collected:
@@ -220,25 +195,54 @@ Form fields collected:
   domains: string[]      // 1-2 values from: coding, webdev, siesed, corporate, vfx_gfx, sambed
   portfolio_url?: string // LinkedIn URL — asked of EVERY recruit, not domain-gated.
                          // Field name kept to match the DB column; UI labels say "LinkedIn".
+  srm_email: string      // NEW 2026-08-16 — sent directly in this request body now, since
+                         // it no longer travels through a verified oauth_state cookie
 }
 ```
 
 Validations server-side:
-- Read `recruit_oauth_state` cookie → must be valid, not expired, `srm_verified: true`
+- Read `recruit_oauth_state` cookie → must be valid, not expired, must carry `google_uid`
+  (the Google step is still mandatory — only the SRM-email-OTP step was relaxed)
+- `srm_email` (2026-08-16, read from the request body, not the cookie) must match the SRM
+  email regex — 400 otherwise
 - `domains.length >= 1 && domains.length <= 2`
 - Each domain must be one of the 6 valid sub-domain keys
 - `portfolio_url` (LinkedIn) is enforced as **required by the client only** — the register page blocks submit with "LinkedIn URL is required", but the route accepts a missing value and stores `null`. If provided it must pass `safeHttpUrl()`: `http:`/`https:` scheme only, max 500 chars → 400 otherwise. That guard is not cosmetic; the value is rendered as a clickable `<a href>` in the admin shortlist and interview panels, so a `javascript:` URL would be stored XSS against a logged-in lead.
-- `reg_no` format: loosely validate non-empty, 10+ chars
+- `reg_no` format: `^RA\d{13}$` (case-insensitive), normalized upper-case before storage
 - `phone` must be 10 digits
 
 Server actions:
 - Bcrypt hash the password (cost 12)
 - Get active `recruitment_cycles` row (`is_active = true`) — if none, return 503 "Registrations not open"
-- Insert `recruit_accounts` row
+- Insert `recruit_accounts` row with **`srm_email_verified: false`** (changed 2026-08-16 — was
+  `true`; the OTP step that used to earn that flag no longer runs before this insert)
 - Insert 1-2 `recruit_domain_selections` rows
 - Clear `recruit_oauth_state` cookie
 - Issue `recruit_token` JWT cookie
 - Return 200 `{ recruit_id, redirect: "/recruit/dashboard" }`
+
+### Post-Registration Email Verification (optional, 2026-08-16)
+
+Since Step 2 above no longer proves SRM-email ownership before an account exists, verification
+moved to an **optional, non-blocking** prompt on `/recruit/dashboard`: a dismissible
+`EmailVerifyBanner` component (`src/components/recruit/EmailVerifyBanner.tsx`) that only
+renders while `srm_email_verified` is `false`. Nothing else on the dashboard — QR code,
+pipeline status, interview queue — is gated on this; it's purely a "you should probably do
+this" nudge, not an access control.
+
+Two new session-gated (`recruit_token`, via `getRecruitSession()`) routes, mirroring the
+pre-registration `send-otp`/`verify-otp` routes' rate-limit/bcrypt/attempts logic but scoped
+to the logged-in recruit's own account instead of an unauthenticated email + signed cookie:
+
+- `POST /api/recruit/verify-email/send-otp` — looks up the session recruit's `srm_email`
+  from `recruit_accounts`, same 3/hour rate limit and `recruit_email_otps` mechanics as the
+  original `send-otp` route. No-ops (still returns `{ sent: true }`) if already verified.
+- `POST /api/recruit/verify-email/verify-otp` — body `{ otp }`. Same bcrypt-compare + 5-attempt
+  cap as the original `verify-otp` route. On match, sets `recruit_accounts.srm_email_verified
+  = true` for the session's `recruit_id`.
+
+`GET /api/recruit/me` now returns `srm_email_verified` on the `recruit` object so the
+dashboard knows whether to show the banner.
 
 ### Login Flow
 
@@ -334,14 +338,51 @@ export async function issueRecruitToken(payload: RecruitSession): Promise<string
 }
 ```
 
-### UI Notes (theme must not change)
+### UI Notes — sharp red/white/black theme (rewritten 2026-08-16, supersedes the original spec below)
 
-All recruit-facing pages (`/recruit/*`) must use the existing site theme:
-- Font: `font-Aldrich` (already in tailwind config)
-- Primary red: `text-red` or `bg-red` (`#C20000` in config)
-- Dark backgrounds matching existing pages
-- Reuse existing `<Navbar>` and `<Footer>` components if they exist; if not, build matching ones
-- Do NOT introduce new color tokens, new fonts, or new global CSS
+**The original theme mandate below no longer holds — read this instead.** As of 2026-08-16,
+`/recruit/register`, `/recruit/login`, and `/recruit/dashboard` (plus the `AuthNav` shared
+component and the homepage `RecruitmentSection.tsx` teaser, which was the pattern's origin)
+were deliberately migrated OFF the dark "glass" look to a bold **sharp red/white/black poster
+theme**:
+
+- `bg-white` page/card backgrounds, `border-2 border-black` panels with clipped (not rounded)
+  corners via inline `style={{ clipPath: "polygon(...)" }}` — angular edges, no `rounded-*`.
+- Black body text, red (`text-red`/`bg-red`, `#C20000`) for primary accents/CTAs/errors, gold
+  `#D4AF37` as a secondary hover-accent (see the Register button's hover-swap animation in
+  `RecruitmentSection.tsx` for the exact pattern reused across primary buttons).
+- `AuthNav` gained a `variant="sharp"` (white pill, `border-2 border-black`, hover flips to
+  red bg/white text, clipped-corner shape) used on all three pages above instead of the old
+  `variant="glass"`.
+- `src/components/ui/select.tsx` gained an additive `accent="sharp"` for light-themed dropdowns.
+
+**`/dashboard/recruitment/interview` (the STAFF admin interview-day tool) deliberately did
+NOT move to this theme** — it stayed on the existing dark admin look
+(`border-white/10 bg-white/[0.03] backdrop-blur-xl`). Only the recruit-facing pages and the
+homepage teaser use the sharp red/white/black theme; the staff `/dashboard/*` area generally
+did not change.
+
+**Performance rewrite, same day**: the underlying `GlassCard`/`GlassSurface` component that
+every recruit page previously rendered through was replaced. The old `GlassSurface` built a
+3-channel SVG displacement filter per card instance and re-encoded it on every resize, applied
+via `backdrop-filter` — expensive on its own, and especially bad stacked (4-6 cards per page)
+on top of the site's always-animating `Particles.tsx` background canvas, which
+`backdrop-filter` has to resample every frame. `GlassCard` (`src/components/recruit/GlassCard.tsx`)
+now renders a plain bordered `<div>` with a CSS box-shadow — same prop API
+(`children`/`className`/`contentClassName`/`borderRadius`), so nothing that used it needed to
+change — and `GlassSurface.tsx`/`.css` were deleted as dead code. Separately, `Particles.tsx`
+(mounted globally in `src/app/layout.tsx`) is now skipped specifically on `/recruit/register`
+and `/recruit/login` via a small client wrapper, `src/components/ConditionalParticles.tsx`,
+since those are the pages recruits spend the longest time actively typing into.
+
+---
+
+*Original spec (superseded above, kept for history):* all recruit-facing pages were to use
+`font-Aldrich`, `text-red`/`bg-red`, and dark backgrounds matching the rest of the site, with
+no new color tokens/fonts/global CSS. In practice `font-Aldrich` was never actually applied
+anywhere in the codebase (grep confirms zero real usages before 2026-08-16), and the whole
+premise of "must match the existing dark theme" was explicitly reversed by the sharp
+red/white/black redesign above.
 
 The registration flow is a **multi-step form on a single page** (`/recruit/register`) that transitions between steps client-side. Use `useState` for step tracking. No page reloads between steps.
 
@@ -956,7 +997,8 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 | PATCH | `/api/admin/recruitment/panels/:id/close-for-day` | **Non-reversible.** Deactivates the table AND redistributes every `waiting` token to the least-loaded other open table for the same domain (landing at the position matching their original check-in time), or flips them to `deferred` if no other table for that domain is open. Returns `{ closed_for_day: true, moved, deferred }` |
 | GET | `/api/admin/recruitment/panels/:id/queue` | Get token queue for a table, ordered by `queue_position` (not `token_number`) |
 | POST | `/api/admin/recruitment/panels/:id/call-next` | Mark the front of the `queue_position` order as `called`, return recruit profile. Compare-and-swap guarded |
-| PATCH | `/api/admin/recruitment/panels/:id/tokens/:tokenId/reorder` | Drag-and-drop reorder. Body: `{ after_token_id: string \| null }` (`null` = move to front) — recomputes only the moved token's `queue_position` as the midpoint of its new neighbours |
+| POST | `/api/admin/recruitment/panels/:id/call-token` | **New 2026-08-16.** Body: `{ token_id }`. Manually call a SPECIFIC waiting recruit to THIS panel, even if they're currently attached to a different open panel for the same `sub_domain` — reassigns `panel_id` (allocating a fresh `token_number` scoped to the new panel, same allocation discipline as check-in) if needed, then marks `called`. 400 if the token isn't `waiting` or its `sub_domain` doesn't match this panel's. See [Interview Module](#7-interview-module) 2026-08-16 update. |
+| PATCH | `/api/admin/recruitment/panels/:id/tokens/:tokenId/reorder` | Drag-and-drop reorder. Body: `{ after_token_id: string \| null }` (`null` = move to front) — recomputes only the moved token's `queue_position` as the midpoint of its new neighbours. Still scoped to one panel — kept alongside the new cross-panel `call-token` above, not replaced by it. |
 | PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/no-show` | Mark a `called` token as `no_show` |
 | GET | `/api/admin/recruitment/interview-results` | List logged results for active cycle, newest first |
 | POST | `/api/admin/recruitment/interview-results` | Log **or correct** a result. Body: `{ recruit_id, sub_domain, result, notes?, panel_id? }`. Upsert; recomputes `is_selected` |
@@ -1430,6 +1472,16 @@ Returns all `recruit_shortlist_status` rows for active cycle, joined with recrui
 
 Recruitment Module — Interview Module. Covers walk-in interview flow, panel creation, the live queue, result logging, and real-time updates.
 
+### Update 2026-08-16 — admin page rebuilt into a 4-column board
+
+`/dashboard/recruitment/interview` (the admin page only — see [Public Kiosk Screen](#public-kiosk-screen-recruittables-replaces-the-old-per-panel-tv-display-2026-08-13) below for the unrelated, unchanged `/recruit/tables` kiosk) was restructured from a "left list of individual tables, click one to open its own dashboard" master-detail layout into a **4-column board, one column per subsystem** (SPACED, SIESED, MCSOCD, SAMBED, in that order). SPACED and MCSOCD each contain 2 sub-domains, so those two columns show 2 stacked sub-domain rows internally (SPACED: Coding row + Web Dev row; MCSOCD: Corporate row + VFX/GFX row); SIESED and SAMBED have 1 sub-domain each and fill their column with a single row.
+
+Within a sub-domain row: every currently-open table for that sub-domain gets its own slot with its own "Now Serving" card (recruit **name + the table's `domain_label`**, e.g. "SPACED-Coding-1", as the visual centerpiece — this is literally what a walk-in recruit needs to know: who's up, and which physical desk to go to) and its own front-of-queue "Call Next" (unchanged route/behavior). Below the tables, **one shared waiting queue per sub-domain**, merging `waiting` tokens across ALL of that sub-domain's open tables into a single list.
+
+**New: manual cross-table calling.** An interviewer can click any recruit in that shared list to call them to THEIR OWN table specifically — even if the recruit was originally auto-routed to a different table for the same sub-domain at check-in. This required a new route, `POST /api/admin/recruitment/panels/:id/call-token` (body `{ token_id }`), which reassigns the token's `panel_id` to the calling table when it differs (allocating a fresh `token_number` scoped to the new panel, same discipline as check-in allocation — see [Interview Check-In](#interview-check-in-qr-scan-auto-routed-since-2026-08-13)), rejecting if the token isn't `waiting` or its `sub_domain` doesn't match the target panel's. The existing drag-to-reorder ("Up Next", `@dnd-kit`, the `reorder` route) is kept alongside this, still scoped to one panel's own queue — click-to-call did not replace it.
+
+Existing per-table actions (Pause / Close for the Day / Delete, and the "Add Table" form) still exist within this layout, just relocated per-row instead of a standalone left-hand list. `InterviewResultsList`/`DomainResultsSection`/the "Fix" correction flow at the bottom of the page are unchanged. **The admin page's color theme did NOT change** — still the dark `border-white/10 bg-white/[0.03] backdrop-blur-xl` look; this was a layout/interaction redesign only, separate from the recruit-facing sharp red/white/black theme migration (see [UI Notes](#ui-notes--sharp-redwhiteblack-theme-rewritten-2026-08-16-supersedes-the-original-spec-below) in the Auth section). No schema/migration change was needed — `panel_id`, `token_number`, `queue_position`, `sub_domain`, `status` all already existed.
+
 ### Design Philosophy
 
 Interviews are walk-in — no time slots, no pre-booking. On interview day:
@@ -1783,6 +1835,18 @@ A full rewrite of the interview module — see [Interview Module](#7-interview-m
 
 This was built directly in response to iterative user requests within one session (not a scoped upfront spec like the rest of this module) — several design decisions were confirmed via clarifying questions rather than pre-written into a spec doc: least-loaded auto-routing (vs. oldest-table-first or one-table-per-domain), redistribution ordering by original check-in time (vs. simple back-of-line), a new `deferred` status (vs. reusing `no_show`), and a separate non-reversible "Close for the Day" action (vs. changing the existing reversible `close` button's behavior). If a future session needs to revisit any of these, that's genuinely a design choice, not a bug to "fix back."
 
+### Interview board redesign + sharp theme migration + deferred OTP (2026-08-16)
+
+Three related changes shipped together in one session, built by parallel background agents with non-overlapping file ownership (see each area's own "2026-08-16" note for full detail — this is the summary/index):
+
+1. **Interview admin page → 4-column board.** `/dashboard/recruitment/interview` restructured from master-detail (pick one table, see its dashboard) into a 4-subsystem-column board with per-table "Now Serving: name + desk" cards, a shared per-sub-domain waiting queue, and a new manual cross-table "call this specific recruit to my table" action (`POST .../panels/:id/call-token`) alongside the existing drag-reorder. Dark admin theme unchanged. Full detail in [Interview Module](#7-interview-module).
+2. **Recruit-facing pages → sharp red/white/black theme.** `/recruit/register`, `/recruit/login`, `/recruit/dashboard` (and `AuthNav`, `FaqSection`, `TicketsSection`, `ChatWidget`) moved off the dark glass look to match the homepage `RecruitmentSection.tsx` teaser's bold poster style. Full detail in [UI Notes](#ui-notes--sharp-redwhiteblack-theme-rewritten-2026-08-16-supersedes-the-original-spec-below).
+3. **SRM email OTP deferred to post-signup.** Registration no longer gates account creation on OTP verification — just an SRM email typed in, format-validated client-side. Verification becomes an optional dashboard prompt (`EmailVerifyBanner`) any time after. Full detail in [Post-Registration Email Verification](#post-registration-email-verification-optional-2026-08-16).
+
+**Also same session, upstream of the above** (performance, not feature work): `GlassSurface`'s SVG-filter `backdrop-filter` approach was replaced repo-wide with a flat CSS panel (`GlassCard` kept its prop API, `GlassSurface.tsx`/`.css` deleted), `Particles.tsx` was disabled on `/recruit/register`/`/recruit/login` specifically via `ConditionalParticles.tsx`, and a new public (unauthenticated) "Ask a Doubt" chatbot was added inline on the homepage `RecruitmentSection.tsx` (`InlineChatWidget` in `src/components/recruit/ChatWidget.tsx`, backed by a new rate-limited `POST /api/recruit/public-chat` route — 15 requests per 15 minutes per hashed IP, `recruit_public_chat_requests` table, migration 014 — explicitly carved out of the `recruit_token` gate in `src/proxy.ts` alongside the existing `/api/recruit/tables` exception, since homepage visitors aren't logged in as recruits yet).
+
+**Recruitment 2026 KB re-ingested** the same session after a manual edit added "bring your recruitment QR code" to the exam checklist (`scripts/kb/recruitment-2026.txt` → `recruit_kb_documents`/`recruit_kb_chunks`, re-chunked via `scripts/ingest-recruit-kb.ts`). The `faq` table and `recruit_kb_documents`/`recruit_kb_chunks`/`recruit_tickets` were also truncated this session ahead of a new recruitment cycle starting — if you're reading this before a new cycle has been created via `/dashboard/recruitment/cycles`, expect `recruitment_cycles` to be empty and most recruit-facing routes to 503.
+
 ### Known remaining gaps (not fixed yet)
 
 - **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) — but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel. The 2026-08-13 auto-routing/redistribution logic inherits the same caveat — verified by reading the code and by manual testing against seeded data (via Supabase MCP + a Playwright screenshot of the kiosk screen), not load-tested.
@@ -1805,13 +1869,16 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 ### File map
 
 - `supabase/recruit-schema.sql` — full current schema (already reflects all pending migrations — it's the target state, not what's live)
-- `supabase/recruit-migration-00{1..5}-*.sql` — the pending migrations, apply in order. 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value
+- `supabase/recruit-migration-00{1..14}-*.sql` — the numbered migrations, apply in order. 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the new public chatbot
 - `src/lib/recruit-domains.ts` — domain/subsystem source of truth
-- `src/lib/recruit-interview-redistribution.ts` (2026-08-13) — shared `redistributeWaitingTokens`/`reattachHistoricalTokens`, used by Close for the Day and table deletion
+- `src/lib/recruit-interview-redistribution.ts` (2026-08-13) — shared `redistributeWaitingTokens`/`reattachHistoricalTokens`, used by Close for the Day, table deletion, and the new (2026-08-16) cross-panel `call-token` reassignment
 - `src/lib/recruit-session.ts`, `recruit-qr.ts`, `recruit-validation.ts` — shared recruit-auth/QR/validation helpers
 - `src/lib/supabase/recruit-admin.ts` — untyped service-role client for `recruit_*` tables (the generated `Database` type doesn't know about them)
-- `src/app/api/recruit/**` — student-facing API (auth, me, qr) **and** the public kiosk API (`tables/route.ts`, 2026-08-13 — the one exception carved out of the `recruit_token` gate)
-- `src/app/api/admin/recruitment/**` — staff-facing API (~24 routes as of 2026-08-13: +close-for-day, +reorder; the old panel-scoped queue-display page's route is gone, it never had its own API)
-- `src/app/recruit/**` (incl. `tables/page.tsx`, 2026-08-13 — the public kiosk page), `src/app/recruit-scanner/**` — student/public pages + scanner
-- `src/app/dashboard/recruitment/**` — admin pages (`interview/panel/[panelId]` removed 2026-08-13 — superseded by `/recruit/tables`)
+- `src/app/api/recruit/**` — student-facing API (auth, me, qr), the public kiosk API (`tables/route.ts`, 2026-08-13), the new public chat API (`public-chat/route.ts`, 2026-08-16 — the other exception carved out of the `recruit_token` gate), and the new session-gated post-signup verification routes (`verify-email/send-otp`, `verify-email/verify-otp`, 2026-08-16)
+- `src/app/api/admin/recruitment/**` — staff-facing API (~25 routes as of 2026-08-16: +call-token; the old panel-scoped queue-display page's route is gone, it never had its own API)
+- `src/app/recruit/**` (incl. `tables/page.tsx`, 2026-08-13 — the public kiosk page), `src/app/recruit-scanner/**` — student/public pages + scanner. `register`/`login`/`dashboard` moved to the sharp red/white/black theme 2026-08-16, `tables`/`recruit-scanner` did not.
+- `src/app/dashboard/recruitment/**` — admin pages (`interview/panel/[panelId]` removed 2026-08-13 — superseded by `/recruit/tables`; `interview/page.tsx` rebuilt into a 4-column board 2026-08-16)
+- `src/components/recruit/EmailVerifyBanner.tsx` (new, 2026-08-16) — dismissible post-signup SRM-email verify prompt, used on `/recruit/dashboard`
+- `src/components/recruit/GlassCard.tsx` (rewritten 2026-08-16) — flat CSS panel, replaced the old SVG-filter `GlassSurface` (deleted) for performance; same prop API
+- `src/components/ConditionalParticles.tsx` (new, 2026-08-16) — skips `Particles.tsx` on `/recruit/register`/`/recruit/login` only
 - `scripts/seed-recruitment.ts` — seed data generator (seeds panels via the old free-text `domain_label` shape — check it still inserts a valid `sub_domain`/`table_number` before relying on seeded interview data post-2026-08-13)
