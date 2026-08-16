@@ -29,6 +29,12 @@ export const HOSTEL_BLOCKS = [
   "Meenakshi",
   "Began",
   "NRI",
+  "PF",
+  "APJ Abdul Kalam",
+  "Green Peqrl",
+  "Senbagam",
+  "others",
+
 ] as const;
 
 export type HostelBlock = (typeof HOSTEL_BLOCKS)[number];
