@@ -68,7 +68,10 @@ export function adminCookieOptions(maxAge: number) {
     return {
         name: ADMIN_COOKIE_NAME,
         httpOnly: true,
-        secure: false, // matches the existing admin_token cookie — works over local HTTP
+        // Must be Secure in production — Safari's ITP silently drops/fast-expires
+        // non-Secure cookies on HTTPS, which was causing iPhone users to get bounced
+        // back to /login. `false` locally so it still works over plain HTTP in dev.
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax" as const,
         path: "/",
         maxAge,

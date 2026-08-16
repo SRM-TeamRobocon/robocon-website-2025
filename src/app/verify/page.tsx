@@ -41,7 +41,7 @@ function VerifyContent() {
     }, [token]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
+        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5">
             <div className="w-full max-w-md relative z-10">
                 <AuthNav />
                 <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 shadow-2xl text-center">
@@ -87,7 +87,7 @@ function VerifyContent() {
 
 export default function MemberVerify() {
     return (
-        <Suspense fallback={<div className="min-h-screen" />}>
+        <Suspense fallback={<div className="min-h-[100dvh]" />}>
             <VerifyContent />
         </Suspense>
     );

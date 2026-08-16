@@ -179,6 +179,7 @@ function MemberForm() {
                             id="username"
                             name="username"
                             type="text"
+                            autoComplete="username"
                             required
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -202,6 +203,7 @@ function MemberForm() {
                             id="password"
                             name="password"
                             type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -322,6 +324,7 @@ function RecruitForm() {
                             id="srmEmail"
                             name="srmEmail"
                             type="email"
+                            autoComplete="username"
                             required
                             value={srmEmail}
                             onChange={(e) => setSrmEmail(e.target.value)}
@@ -340,6 +343,7 @@ function RecruitForm() {
                             id="recruitPassword"
                             name="recruitPassword"
                             type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -429,11 +433,11 @@ export default function LoginPage() {
     }, [router]);
 
     if (checkingSession) {
-        return <div className="min-h-screen" />;
+        return <div className="min-h-[100dvh]" />;
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5 overflow-hidden">
+        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5 overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red/10 rounded-full blur-[100px]" />

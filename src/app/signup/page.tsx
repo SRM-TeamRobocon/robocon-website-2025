@@ -59,7 +59,7 @@ export default function MemberSignup() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
+            <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5">
                 <div className="w-full max-w-md relative z-10">
                     <AuthNav />
                     <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 shadow-2xl text-center">
@@ -78,7 +78,7 @@ export default function MemberSignup() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
+        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5">
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red/10 rounded-full blur-[100px]" />
@@ -102,6 +102,7 @@ export default function MemberSignup() {
                             label="Email"
                             id="email"
                             type="email"
+                            autoComplete="username"
                             value={form.email}
                             onChange={update("email")}
                             placeholder="cr0707@srmist.edu.in"
@@ -138,6 +139,7 @@ export default function MemberSignup() {
                             label="Phone"
                             id="phone"
                             type="tel"
+                            autoComplete="tel"
                             required={false}
                             value={form.phone}
                             onChange={update("phone")}
@@ -147,6 +149,7 @@ export default function MemberSignup() {
                             label="Password"
                             id="password"
                             type="password"
+                            autoComplete="new-password"
                             value={form.password}
                             onChange={update("password")}
                             placeholder="At least 8 characters"
@@ -155,6 +158,7 @@ export default function MemberSignup() {
                             label="Confirm Password"
                             id="confirmPassword"
                             type="password"
+                            autoComplete="new-password"
                             value={form.confirmPassword}
                             onChange={update("confirmPassword")}
                             placeholder="Re-enter password"
@@ -207,6 +211,7 @@ function Field({
     onChange,
     placeholder,
     required = true,
+    autoComplete,
 }: {
     label: string;
     id: string;
@@ -215,6 +220,7 @@ function Field({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     required?: boolean;
+    autoComplete?: string;
 }) {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === "password";
@@ -232,6 +238,7 @@ function Field({
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
+                    autoComplete={autoComplete}
                     className={`block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}

@@ -58,7 +58,7 @@ function RecruitLoginInner() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5 overflow-hidden">
+        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5 overflow-hidden">
             <RecruitBackdrop />
 
             <div className="w-full max-w-md relative z-10">
@@ -123,6 +123,7 @@ function RecruitLoginInner() {
                                         id="srmEmail"
                                         name="srmEmail"
                                         type="email"
+                                        autoComplete="username"
                                         required
                                         value={srmEmail}
                                         onChange={(e) => setSrmEmail(e.target.value)}
@@ -141,6 +142,7 @@ function RecruitLoginInner() {
                                         id="password"
                                         name="password"
                                         type={showPassword ? "text" : "password"}
+                                        autoComplete="current-password"
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
@@ -199,7 +201,7 @@ function RecruitLoginInner() {
 
 export default function RecruitLoginPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-black" />}>
+        <Suspense fallback={<div className="min-h-[100dvh] bg-black" />}>
             <RecruitLoginInner />
         </Suspense>
     );

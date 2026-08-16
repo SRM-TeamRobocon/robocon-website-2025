@@ -75,7 +75,7 @@ export default function ForgotPassword() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5">
+        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5">
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-[100px]" />
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red/10 rounded-full blur-[100px]" />
@@ -100,6 +100,7 @@ export default function ForgotPassword() {
                                     label="Email"
                                     id="email"
                                     type="email"
+                                    autoComplete="username"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="jane@srmist.edu.in"
@@ -122,6 +123,7 @@ export default function ForgotPassword() {
                                 <Field
                                     label="Reset Code"
                                     id="otp"
+                                    autoComplete="one-time-code"
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value)}
                                     placeholder="6-digit code"
@@ -130,6 +132,7 @@ export default function ForgotPassword() {
                                     label="New Password"
                                     id="newPassword"
                                     type="password"
+                                    autoComplete="new-password"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     placeholder="At least 8 characters"
@@ -138,6 +141,7 @@ export default function ForgotPassword() {
                                     label="Confirm New Password"
                                     id="confirmPassword"
                                     type="password"
+                                    autoComplete="new-password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="Re-enter password"
@@ -221,6 +225,7 @@ function Field({
     value,
     onChange,
     placeholder,
+    autoComplete,
 }: {
     label: string;
     id: string;
@@ -228,6 +233,7 @@ function Field({
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
+    autoComplete?: string;
 }) {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === "password";
@@ -245,6 +251,7 @@ function Field({
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
+                    autoComplete={autoComplete}
                     className={`block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}

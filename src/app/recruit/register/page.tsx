@@ -36,7 +36,7 @@ type ProfileForm = {
 
 function CardShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
     return (
-        <div className="min-h-screen flex items-center justify-center relative z-10 p-5 overflow-hidden">
+        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5 overflow-hidden">
             <RecruitBackdrop />
             <div className="w-full max-w-lg relative z-10">
                 <AuthNav variant="glass" onBack={onBack} />
@@ -426,6 +426,7 @@ function RecruitRegisterInner() {
                                     <input
                                         id="srmEmail"
                                         type="email"
+                                        autoComplete="username"
                                         required
                                         value={srmEmail}
                                         onChange={(e) => setSrmEmail(e.target.value)}
@@ -585,6 +586,7 @@ function RecruitRegisterInner() {
                         label="Phone"
                         id="phone"
                         type="tel"
+                        autoComplete="tel"
                         value={profile.phone}
                         onChange={updateProfile("phone")}
                         placeholder="9876543210"
@@ -751,6 +753,7 @@ function RecruitRegisterInner() {
                         label="Password"
                         id="password"
                         type="password"
+                        autoComplete="new-password"
                         value={profile.password}
                         onChange={updateProfile("password")}
                         placeholder="At least 8 characters"
@@ -759,6 +762,7 @@ function RecruitRegisterInner() {
                         label="Confirm Password"
                         id="confirmPassword"
                         type="password"
+                        autoComplete="new-password"
                         value={profile.confirmPassword}
                         onChange={updateProfile("confirmPassword")}
                         placeholder="Re-enter password"
@@ -801,6 +805,7 @@ function Field({
     onChange,
     placeholder,
     required = true,
+    autoComplete,
 }: {
     label: string;
     id: string;
@@ -809,6 +814,7 @@ function Field({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     required?: boolean;
+    autoComplete?: string;
 }) {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === "password";
@@ -826,6 +832,7 @@ function Field({
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
+                    autoComplete={autoComplete}
                     className={`block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}
@@ -844,7 +851,7 @@ function Field({
 
 export default function RecruitRegisterPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-black" />}>
+        <Suspense fallback={<div className="min-h-[100dvh] bg-black" />}>
             <RecruitRegisterInner />
         </Suspense>
     );
