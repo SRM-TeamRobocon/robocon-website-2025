@@ -8,7 +8,6 @@ import {
     Users,
     PhoneCall,
     CheckCircle2,
-    XCircle,
     Clock3,
     UserX,
     Award,
@@ -83,31 +82,29 @@ interface QueueToken {
     is_walkin: boolean;
 }
 
-import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem } from "@/lib/recruit-domains";
+import {
+    RECRUIT_SUBDOMAINS,
+    subDomainLabel,
+    subDomainFullLabel,
+    subDomainSubsystem,
+    groupBySubsystem,
+    type RecruitSubDomain,
+} from "@/lib/recruit-domains";
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
-import Select from "@/components/ui/select";
 
-function AddPanelForm({ onCreated }: { onCreated: () => void }) {
+// Scoped to a single, already-known sub_domain — every call site now lives inside that
+// domain's own row, so there's no dropdown to pick from any more (the row IS the pick).
+// table_number/routing is still auto-allocated server-side regardless of the name typed
+// here.
+function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; onCreated: () => void }) {
     const [open, setOpen] = useState(false);
-    const [subDomain, setSubDomain] = useState("");
-    const [name, setName] = useState("");
+    const meta = RECRUIT_SUBDOMAINS.find((d) => d.key === subDomain);
+    const defaultName = meta ? `${meta.subsystem}-${meta.label}-` : "";
+    const [name, setName] = useState(defaultName);
     const [busy, setBusy] = useState(false);
 
-    // Prefills the name with "<Subsystem>-<Domain>-" every time the domain changes —
-    // table_number (routing/kiosk grouping) is still auto-allocated server-side
-    // regardless of what the creator does with this text from here.
-    const handleDomainChange = (value: string) => {
-        setSubDomain(value);
-        const meta = RECRUIT_SUBDOMAINS.find((d) => d.key === value);
-        setName(meta ? `${meta.subsystem}-${meta.label}-` : "");
-    };
-
     const submit = async () => {
-        if (!subDomain) {
-            toast.error("Pick a domain first");
-            return;
-        }
         const trimmedName = name.trim();
         if (!trimmedName) {
             toast.error("Enter a table name");
@@ -123,8 +120,7 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
             const data = await res.json();
             if (res.ok) {
                 toast.success(`${data.domain_label} is live`);
-                setSubDomain("");
-                setName("");
+                setName(defaultName);
                 setOpen(false);
                 onCreated();
             } else {
@@ -139,58 +135,41 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
         return (
             <button
                 onClick={() => setOpen(true)}
-                className="inline-flex w-full items-center justify-center gap-1.5 bg-red/15 px-4 py-2.5 text-sm font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25"
+                className="inline-flex shrink-0 items-center gap-1.5 bg-red/15 px-3 py-1.5 text-xs font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25"
             >
-                <Plus className="h-4 w-4" /> Add Table
+                <Plus className="h-3.5 w-3.5" /> Add Table
             </button>
         );
     }
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 space-y-3"
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-3 space-y-2"
             style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
-            <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-gray-500">Domain</label>
-                <Select
-                    value={subDomain}
-                    onChange={handleDomainChange}
-                    placeholder="Select a domain..."
-                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` }))}
-                />
-            </div>
-            <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-gray-500">Table name</label>
-                <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && submit()}
-                    maxLength={50}
-                    disabled={!subDomain}
-                    placeholder="Pick a domain first"
-                    className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                />
-                <p className="mt-1.5 text-xs text-gray-500">
-                    Edit it however you like — just has to be unique among this domain&apos;s tables.
-                </p>
-            </div>
+            <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                maxLength={50}
+                placeholder="Table name"
+                className="w-full border-0 bg-white/5 py-1.5 px-2.5 text-xs text-white ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+            />
             <div className="flex gap-2">
                 <button
                     onClick={submit}
                     disabled={busy}
-                    className="flex-1 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                    className="flex-1 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
                 >
                     Create
                 </button>
                 <button
                     onClick={() => {
                         setOpen(false);
-                        setSubDomain("");
-                        setName("");
+                        setName(defaultName);
                     }}
                     disabled={busy}
-                    className="bg-white/5 px-3 py-2 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
+                    className="bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
                 >
                     Cancel
                 </button>
@@ -199,19 +178,10 @@ function AddPanelForm({ onCreated }: { onCreated: () => void }) {
     );
 }
 
-function PanelCard({
-    panel,
-    selected,
-    onSelect,
-    onClosed,
-    onDeleted,
-}: {
-    panel: Panel;
-    selected: boolean;
-    onSelect: () => void;
-    onClosed: () => void;
-    onDeleted: () => void;
-}) {
+// Shared by TableSlot's own control strip (open tables) and PanelCard (closed tables /
+// legacy no-domain panels) — one place for the Pause / Close-for-Day / Delete network
+// calls so the two presentations can't drift apart.
+function usePanelActions(panel: Panel, onChanged: () => void) {
     const [busy, setBusy] = useState(false);
 
     // Reversible pause — Reopen brings back any stranded `waiting` tokens exactly as they
@@ -224,7 +194,7 @@ function PanelCard({
             const data = await res.json();
             if (res.ok && data.closed) {
                 toast.success("Table paused");
-                onClosed();
+                onChanged();
             } else {
                 toast.error(data.error || "Could not close table");
             }
@@ -251,7 +221,7 @@ function PanelCard({
                 if (data.moved > 0) parts.push(`${data.moved} moved to another table`);
                 if (data.deferred > 0) parts.push(`${data.deferred} deferred to another day`);
                 toast.success(parts.length > 0 ? `Table closed — ${parts.join(", ")}` : "Table closed for the day");
-                onClosed();
+                onChanged();
             } else {
                 toast.error(data.error || "Could not close this table");
             }
@@ -280,7 +250,7 @@ function PanelCard({
                 if (data.moved > 0) parts.push(`${data.moved} moved`);
                 if (data.deferred > 0) parts.push(`${data.deferred} deferred`);
                 toast.success(`Deleted "${panel.domain_label}"${parts.length > 0 ? ` — ${parts.join(", ")}` : ""}`);
-                onDeleted();
+                onChanged();
             } else {
                 toast.error(data.error || "Could not delete table");
             }
@@ -289,61 +259,90 @@ function PanelCard({
         }
     };
 
+    return { busy, closePanel, closeForDay, deletePanel };
+}
+
+// Compact action strip for an OPEN table's own slot card.
+function TableControls({ panel, onChanged }: { panel: Panel; onChanged: () => void }) {
+    const { busy, closePanel, closeForDay, deletePanel } = usePanelActions(panel, onChanged);
+    return (
+        <div className="flex shrink-0 flex-wrap gap-1.5">
+            <button
+                onClick={closePanel}
+                disabled={busy}
+                className="inline-flex items-center gap-1 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+                Pause
+            </button>
+            <button
+                onClick={closeForDay}
+                disabled={busy}
+                className="inline-flex items-center gap-1 bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+            >
+                Close Day
+            </button>
+            <button
+                onClick={deletePanel}
+                disabled={busy}
+                title={`Delete ${panel.domain_label} table`}
+                className="inline-flex items-center gap-1 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+            >
+                <Trash2 className="h-3 w-3" />
+            </button>
+        </div>
+    );
+}
+
+// Read-only-ish fallback card: counts + status alongside Pause/Close-for-Day/Delete,
+// without the full call/interview flow. Used for a sub-domain row's own CLOSED tables,
+// and for any legacy panel with no sub_domain at all (pre-2026-08-13 free-text panels) —
+// the new subsystem-column layout groups strictly by sub_domain, so a null-domain panel
+// has nowhere else to render; without this fallback it would be invisible and
+// unmanageable (can't Pause/Close/Delete it) even though its row in the DB still exists.
+function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }) {
+    const { busy, closePanel, closeForDay, deletePanel } = usePanelActions(panel, onChanged);
+
     return (
         <div
-            onClick={onSelect}
-            className={`cursor-pointer border p-4 transition ${
-                selected
-                    ? "border-red/50 bg-red/[0.08]"
-                    : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-            } backdrop-blur-xl`}
+            className="border border-white/10 bg-white/[0.03] p-3"
             style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
-                    <span
-                        className={`h-2 w-2 shrink-0 ${panel.is_active ? "bg-emerald-400" : "bg-gray-600"}`}
-                    />
-                    <h3 className="truncate font-bold text-white">{panel.domain_label}</h3>
+                    <span className={`h-2 w-2 shrink-0 ${panel.is_active ? "bg-emerald-400" : "bg-gray-600"}`} />
+                    <h3 className="truncate text-sm font-bold text-white">{panel.domain_label}</h3>
                     {!panel.is_active && (
                         <span className="shrink-0 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                             Closed
                         </span>
                     )}
                 </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 bg-amber-500/10 px-2 py-1 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
-                    <Clock3 className="h-3 w-3" /> Waiting: {panel.counts.waiting}
-                </span>
-                <span className="inline-flex items-center gap-1 bg-blue-500/10 px-2 py-1 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
-                    <PhoneCall className="h-3 w-3" /> Called: {panel.counts.called}
-                </span>
-                <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-1 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                    <CheckCircle2 className="h-3 w-3" /> Done: {panel.counts.done}
-                </span>
-                {panel.counts.no_show > 0 && (
-                    <span className="inline-flex items-center gap-1 bg-white/5 px-2 py-1 font-semibold text-gray-400 ring-1 ring-inset ring-white/10">
-                        <UserX className="h-3 w-3" /> No-show: {panel.counts.no_show}
+                <div className="flex flex-wrap gap-1.5 text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                        <Clock3 className="h-3 w-3" /> {panel.counts.waiting}
                     </span>
-                )}
+                    <span className="inline-flex items-center gap-1 bg-blue-500/10 px-1.5 py-0.5 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
+                        <PhoneCall className="h-3 w-3" /> {panel.counts.called}
+                    </span>
+                    <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                        <CheckCircle2 className="h-3 w-3" /> {panel.counts.done}
+                    </span>
+                </div>
             </div>
-
-            <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-2 flex flex-wrap gap-1.5">
                 {panel.is_active && (
                     <>
                         <button
                             onClick={closePanel}
                             disabled={busy}
-                            className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
                         >
                             Pause
                         </button>
                         <button
                             onClick={closeForDay}
                             disabled={busy}
-                            className="inline-flex items-center gap-1.5 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                         >
                             Close for the Day
                         </button>
@@ -352,10 +351,9 @@ function PanelCard({
                 <button
                     onClick={deletePanel}
                     disabled={busy}
-                    title={`Delete ${panel.domain_label} table`}
-                    className="ml-auto inline-flex items-center gap-1.5 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                    className="ml-auto inline-flex items-center gap-1 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
                 >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                    <Trash2 className="h-3 w-3" /> Delete
                 </button>
             </div>
         </div>
@@ -444,70 +442,17 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
     );
 }
 
-function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => void }) {
-    const [queue, setQueue] = useState<QueueToken[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [busy, setBusy] = useState(false);
+// One OPEN table's own card: its "Now Serving" slot (centerpiece: recruit name + this
+// table's own display name, per the exact ask), its own Call Next (front of ITS OWN
+// queue_position-ordered waiting list — unchanged FIFO behaviour), result logging, and
+// its Pause/Close/Delete controls. Manual cross-table calling into this slot happens
+// from SharedWaitingQueue below, not here — both actions land the same recruit in the
+// same "called" slot either way.
+function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueToken[]; onChanged: () => void }) {
+    const called = tokens.find((t) => t.status === "called") ?? null;
+    const waitingCount = tokens.filter((t) => t.status === "waiting").length;
     const [notes, setNotes] = useState("");
-
-    const loadQueue = useCallback(async () => {
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/queue`);
-            const data = await res.json();
-            if (res.ok) setQueue(data.data ?? []);
-        } finally {
-            setLoading(false);
-        }
-    }, [panel.id]);
-
-    useEffect(() => {
-        setLoading(true);
-        loadQueue();
-        const interval = setInterval(loadQueue, 5000);
-        return () => clearInterval(interval);
-    }, [loadQueue]);
-
-    const called = queue.find((t) => t.status === "called") ?? null;
-    const waiting = queue.filter((t) => t.status === "waiting");
-    const history = queue.filter((t) => t.status !== "waiting" && t.status !== "called");
-
-    const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-    // Optimistically reorders the local waiting list, then persists just the moved
-    // token's new position — see the reorder route for why only one row is touched.
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-
-        const oldIndex = waiting.findIndex((t) => t.token_id === active.id);
-        const newIndex = waiting.findIndex((t) => t.token_id === over.id);
-        if (oldIndex === -1 || newIndex === -1) return;
-
-        const reordered = arrayMove(waiting, oldIndex, newIndex);
-        setQueue((prev) => [...reordered, ...prev.filter((t) => t.status !== "waiting")]);
-
-        const movedToken = reordered[newIndex];
-        const afterToken = newIndex > 0 ? reordered[newIndex - 1] : null;
-
-        try {
-            const res = await fetch(
-                `/api/admin/recruitment/panels/${panel.id}/tokens/${movedToken.token_id}/reorder`,
-                {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ after_token_id: afterToken ? afterToken.token_id : null }),
-                }
-            );
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                toast.error(data.error || "Could not reorder queue");
-            }
-        } catch {
-            toast.error("Network error while reordering");
-        } finally {
-            loadQueue();
-        }
-    };
+    const [busy, setBusy] = useState(false);
 
     useEffect(() => {
         if (!called) setNotes("");
@@ -526,17 +471,16 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
             } else {
                 toast.success(`Called #${data.token_number} — ${data.recruit?.name ?? ""}`);
             }
-            await loadQueue();
-            onChanged();
         } finally {
             setBusy(false);
+            onChanged();
         }
     };
 
     const logResult = async (result: "selected" | "rejected" | "waitlisted") => {
         if (!called) return;
         if (!panel.sub_domain) {
-            toast.error("This panel has no domain set — cannot log a result");
+            toast.error("This table has no domain set — cannot log a result");
             return;
         }
         setBusy(true);
@@ -556,13 +500,12 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
             if (res.ok && data.saved) {
                 toast.success(`Logged: ${result}`);
                 setNotes("");
-                await loadQueue();
-                onChanged();
             } else {
                 toast.error(data.error || "Could not log result");
             }
         } finally {
             setBusy(false);
+            onChanged();
         }
     };
 
@@ -577,56 +520,45 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
             const data = await res.json();
             if (res.ok && data.no_show) {
                 toast.success("Marked no-show");
-                await loadQueue();
-                onChanged();
             } else {
                 toast.error(data.error || "Could not mark no-show");
             }
         } finally {
             setBusy(false);
+            onChanged();
         }
     };
 
     return (
-        <div className="space-y-5">
-            <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-            >
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <h2 className="text-xl font-black text-white">{panel.domain_label}</h2>
-                    <button
-                        onClick={callNext}
-                        disabled={busy || !panel.is_active || Boolean(called) || waiting.length === 0}
-                        className="group relative overflow-hidden inline-flex items-center bg-red px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-events-none"
-                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                    >
-                        <span
-                            className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                            style={{
-                                clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
-                                backgroundColor: "#D4AF37",
-                            }}
-                        />
-                        <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
-                            <PhoneCall className="h-4 w-4" /> Call Next
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 space-y-3"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0">
+                    <h3 className="truncate font-bold text-white">{panel.domain_label}</h3>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
+                        <span className="inline-flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                            <Clock3 className="h-3 w-3" /> {panel.counts.waiting} waiting
                         </span>
-                    </button>
+                        <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                            <CheckCircle2 className="h-3 w-3" /> {panel.counts.done} done
+                        </span>
+                    </div>
                 </div>
-                {!panel.is_active && (
-                    <p className="mt-2 text-xs text-amber-400">
-                        This table is closed — remaining tokens are visible but no new recruits can check in.
-                    </p>
-                )}
+                <TableControls panel={panel} onChanged={onChanged} />
             </div>
 
             {called ? (
-                <div
-                    className="border border-blue-500/30 bg-blue-500/[0.06] backdrop-blur-xl p-5 space-y-4"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
+                <div className="border border-blue-500/30 bg-blue-500/[0.06] p-4 space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-400">
-                        <PhoneCall className="h-4 w-4" /> Now Interviewing
+                        <PhoneCall className="h-4 w-4" /> Now Serving
+                    </div>
+                    {/* Centerpiece per the exact ask: recruit name + this table's display
+                        name, front and center above the fuller profile detail. */}
+                    <div className="text-center py-1">
+                        <p className="text-2xl font-black text-white leading-tight">{called.recruit.name}</p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-widest text-blue-400">{panel.domain_label}</p>
                     </div>
                     <RecruitProfileCard token={called} />
 
@@ -638,7 +570,6 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                             rows={2}
                             className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                         />
-
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => logResult("selected")}
@@ -672,88 +603,41 @@ function PanelDashboard({ panel, onChanged }: { panel: Panel; onChanged: () => v
                     </div>
                 </div>
             ) : (
-                <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-sm text-gray-500"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                <button
+                    onClick={callNext}
+                    disabled={busy || waitingCount === 0}
+                    className="group relative w-full overflow-hidden inline-flex items-center justify-center bg-red px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-events-none"
+                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                 >
-                    No one is currently being interviewed. Click &ldquo;Call Next&rdquo; to bring up the next recruit.
-                </div>
-            )}
-
-            <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-            >
-                <div className="px-5 py-3 border-b border-white/10">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" /> Up Next ({waiting.length})
-                    </h3>
-                    <p className="mt-0.5 text-xs text-gray-500">Drag to reorder who comes next.</p>
-                </div>
-                {loading ? (
-                    <div className="p-6 text-center text-gray-500 text-sm">Loading...</div>
-                ) : waiting.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500 text-sm">Nobody is waiting.</div>
-                ) : (
-                    <div className="p-3 space-y-1.5">
-                        <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={waiting.map((t) => t.token_id)} strategy={verticalListSortingStrategy}>
-                                {waiting.map((t) => (
-                                    <SortableWaitingRow key={t.token_id} token={t} />
-                                ))}
-                            </SortableContext>
-                        </DndContext>
-                    </div>
-                )}
-            </div>
-
-            {history.length > 0 && (
-                <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
-                    <div className="px-5 py-3 border-b border-white/10">
-                        <h3 className="text-sm font-bold text-white">History ({history.length})</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
-                                    <th className="px-5 py-2.5">#</th>
-                                    <th className="px-5 py-2.5">Name</th>
-                                    <th className="px-5 py-2.5">Reg No</th>
-                                    <th className="px-5 py-2.5">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {history.map((t) => (
-                                    <tr key={t.token_id} className="border-b border-white/5 last:border-0">
-                                        <td className="px-5 py-2.5 font-mono text-gray-300">{t.token_number}</td>
-                                        <td className="px-5 py-2.5 text-white font-medium">{t.recruit.name}</td>
-                                        <td className="px-5 py-2.5 text-gray-400">{t.recruit.reg_no}</td>
-                                        <td className="px-5 py-2.5">
-                                            <span
-                                                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                                    t.status === "done"
-                                                        ? "bg-emerald-500/10 text-emerald-400"
-                                                        : "bg-white/5 text-gray-500"
-                                                }`}
-                                            >
-                                                {t.status.replace("_", " ")}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                    <span
+                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)", backgroundColor: "#D4AF37" }}
+                    />
+                    <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
+                        <PhoneCall className="h-4 w-4" /> Call Next
+                    </span>
+                </button>
             )}
         </div>
     );
 }
 
-function SortableWaitingRow({ token }: { token: QueueToken }) {
+// One row inside the shared, per-sub-domain waiting queue. Shows which table currently
+// holds this recruit's token isn't rendered here (grouping headers above do that job in
+// SharedWaitingQueue) — this row's own job is the recruit summary plus one "Call to X"
+// button per currently open table, so an interviewer at ANY table in this sub-domain can
+// pull this recruit to their own desk regardless of which table they checked into.
+function SortableSharedRow({
+    token,
+    openPanels,
+    onCall,
+    callingId,
+}: {
+    token: QueueToken;
+    openPanels: Panel[];
+    onCall: (targetPanelId: string, tokenId: string) => void;
+    callingId: string | null;
+}) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: token.token_id,
     });
@@ -767,7 +651,7 @@ function SortableWaitingRow({ token }: { token: QueueToken }) {
         <div
             ref={setNodeRef}
             style={style}
-            className="flex items-center gap-3 border border-white/10 bg-black/20 px-3 py-2.5"
+            className="flex flex-wrap items-center gap-2 border border-white/10 bg-black/20 px-3 py-2.5"
         >
             <button
                 type="button"
@@ -789,6 +673,217 @@ function SortableWaitingRow({ token }: { token: QueueToken }) {
                 </span>
             )}
             <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
+            <div className="flex shrink-0 flex-wrap gap-1">
+                {openPanels.map((p) => (
+                    <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => onCall(p.id, token.token_id)}
+                        disabled={callingId === token.token_id}
+                        title={`Call to ${p.domain_label}`}
+                        className="inline-flex items-center gap-1 bg-red/15 px-2 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
+                    >
+                        <PhoneCall className="h-3 w-3" /> {p.domain_label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ONE shared waiting list for the whole sub-domain, combining every currently open
+// table's `waiting` tokens — the core of the manual, cross-table calling model. Grouped
+// visually by table (with a sub-header) rather than flattened into one global order,
+// because the drag-reorder endpoint is scoped to a single panel_id: it can only place a
+// token relative to OTHER waiting tokens on that SAME panel, so a per-table DndContext
+// keeps every drag operation valid by construction — a token can never be dragged into
+// another table's queue (that's what the "Call to X" buttons are for instead).
+function SharedWaitingQueue({
+    subDomain,
+    openPanels,
+    tokensByPanel,
+    loading,
+    onChanged,
+}: {
+    subDomain: string;
+    openPanels: Panel[];
+    tokensByPanel: Record<string, QueueToken[]>;
+    loading: boolean;
+    onChanged: () => void;
+}) {
+    const [callingId, setCallingId] = useState<string | null>(null);
+    const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    const groups = openPanels.map((p) => ({
+        panel: p,
+        waiting: (tokensByPanel[p.id] ?? []).filter((t) => t.status === "waiting"),
+    }));
+    const totalWaiting = groups.reduce((n, g) => n + g.waiting.length, 0);
+
+    const callToken = async (targetPanelId: string, tokenId: string) => {
+        setCallingId(tokenId);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/${targetPanelId}/call-token`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token_id: tokenId }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(`Called #${data.token_number} — ${data.recruit?.name ?? ""}`);
+            } else {
+                toast.error(data.error || "Could not call this recruit");
+            }
+        } finally {
+            setCallingId(null);
+            onChanged();
+        }
+    };
+
+    const makeDragEndHandler = (panelId: string, waiting: QueueToken[]) => async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = waiting.findIndex((t) => t.token_id === active.id);
+        const newIndex = waiting.findIndex((t) => t.token_id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reordered = arrayMove(waiting, oldIndex, newIndex);
+        const movedToken = reordered[newIndex];
+        const afterToken = newIndex > 0 ? reordered[newIndex - 1] : null;
+
+        try {
+            const res = await fetch(
+                `/api/admin/recruitment/panels/${panelId}/tokens/${movedToken.token_id}/reorder`,
+                {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ after_token_id: afterToken ? afterToken.token_id : null }),
+                }
+            );
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || "Could not reorder queue");
+            }
+        } catch {
+            toast.error("Network error while reordering");
+        } finally {
+            onChanged();
+        }
+    };
+
+    return (
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
+            <div className="px-4 py-2.5 border-b border-white/10">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Users className="h-4 w-4 text-gray-400" /> Waiting — {subDomainLabel(subDomain)} ({totalWaiting})
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                    Click a table button to call that recruit there. Drag to reorder within a table&apos;s own line.
+                </p>
+            </div>
+            {loading ? (
+                <div className="p-5 text-center text-gray-500 text-sm">Loading...</div>
+            ) : totalWaiting === 0 ? (
+                <div className="p-5 text-center text-gray-500 text-sm">Nobody is waiting.</div>
+            ) : (
+                <div className="p-3 space-y-3">
+                    {groups.map(
+                        (g) =>
+                            g.waiting.length > 0 && (
+                                <div key={g.panel.id}>
+                                    {openPanels.length > 1 && (
+                                        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                                            {g.panel.domain_label}
+                                        </p>
+                                    )}
+                                    <DndContext
+                                        sensors={dragSensors}
+                                        collisionDetection={closestCenter}
+                                        onDragEnd={makeDragEndHandler(g.panel.id, g.waiting)}
+                                    >
+                                        <SortableContext items={g.waiting.map((t) => t.token_id)} strategy={verticalListSortingStrategy}>
+                                            <div className="space-y-1.5">
+                                                {g.waiting.map((t) => (
+                                                    <SortableSharedRow
+                                                        key={t.token_id}
+                                                        token={t}
+                                                        openPanels={openPanels}
+                                                        onCall={callToken}
+                                                        callingId={callingId}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </SortableContext>
+                                    </DndContext>
+                                </div>
+                            )
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// One sub-domain's full board: its own "Add Table" (domain already fixed), every open
+// table's TableSlot, any closed tables for this domain (compact PanelCard), and the one
+// shared waiting queue for the whole domain.
+function SubDomainBoard({
+    subDomain,
+    panels,
+    tokensByPanel,
+    loading,
+    onChanged,
+}: {
+    subDomain: RecruitSubDomain;
+    panels: Panel[];
+    tokensByPanel: Record<string, QueueToken[]>;
+    loading: boolean;
+    onChanged: () => void;
+}) {
+    const openPanels = panels.filter((p) => p.is_active).sort((a, b) => (a.table_number ?? 0) - (b.table_number ?? 0));
+    const closedPanels = panels.filter((p) => !p.is_active);
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-black uppercase tracking-wide text-white">{subDomainLabel(subDomain)}</h3>
+                <AddPanelForm subDomain={subDomain} onCreated={onChanged} />
+            </div>
+
+            {openPanels.length === 0 && closedPanels.length === 0 && (
+                <div
+                    className="border border-white/10 bg-white/[0.03] p-5 text-center text-xs text-gray-500"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
+                    No tables open yet.
+                </div>
+            )}
+
+            {openPanels.map((p) => (
+                <TableSlot key={p.id} panel={p} tokens={tokensByPanel[p.id] ?? []} onChanged={onChanged} />
+            ))}
+
+            {closedPanels.length > 0 && (
+                <div className="space-y-2">
+                    {closedPanels.map((p) => (
+                        <PanelCard key={p.id} panel={p} onChanged={onChanged} />
+                    ))}
+                </div>
+            )}
+
+            {openPanels.length > 0 && (
+                <SharedWaitingQueue
+                    subDomain={subDomain}
+                    openPanels={openPanels}
+                    tokensByPanel={tokensByPanel}
+                    loading={loading}
+                    onChanged={onChanged}
+                />
+            )}
         </div>
     );
 }
@@ -1108,17 +1203,20 @@ function InterviewResultsList() {
 export default function InterviewManagementPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
     const [panels, setPanels] = useState<Panel[]>([]);
+    const [tokensByPanel, setTokensByPanel] = useState<Record<string, QueueToken[]>>({});
     const [loading, setLoading] = useState(true);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [queuesLoading, setQueuesLoading] = useState(true);
     const [noCycle, setNoCycle] = useState(false);
 
-    const loadPanels = useCallback(async () => {
+    const loadPanels = useCallback(async (): Promise<Panel[]> => {
         try {
             const res = await fetch("/api/admin/recruitment/panels");
             const data = await res.json();
             if (res.ok) {
                 setNoCycle(false);
-                setPanels(data.data ?? []);
+                const list: Panel[] = data.data ?? [];
+                setPanels(list);
+                return list;
             } else if (res.status === 503) {
                 setNoCycle(true);
             } else {
@@ -1127,18 +1225,50 @@ export default function InterviewManagementPage() {
         } finally {
             setLoading(false);
         }
+        return [];
     }, []);
+
+    // Every currently open table's own queue, fetched in parallel. The old master-detail
+    // dashboard only ever fetched one (the selected) panel's queue at a time; the new
+    // all-tables-visible-at-once board needs every open table's queue simultaneously so
+    // it can render each one's own "Now Serving" slot plus the merged shared queue.
+    const loadQueues = useCallback(async (panelList: Panel[]) => {
+        const openIds = panelList.filter((p) => p.is_active).map((p) => p.id);
+        if (openIds.length === 0) {
+            setTokensByPanel({});
+            setQueuesLoading(false);
+            return;
+        }
+        try {
+            const results = await Promise.all(
+                openIds.map(async (id) => {
+                    const res = await fetch(`/api/admin/recruitment/panels/${id}/queue`);
+                    const data = await res.json();
+                    return [id, res.ok ? ((data.data ?? []) as QueueToken[]) : []] as const;
+                })
+            );
+            setTokensByPanel(Object.fromEntries(results));
+        } finally {
+            setQueuesLoading(false);
+        }
+    }, []);
+
+    // Always reads the just-fetched panel list directly (not React state, which wouldn't
+    // have committed yet) so loadQueues never races a stale panels array.
+    const refreshAll = useCallback(async () => {
+        const list = await loadPanels();
+        await loadQueues(list);
+    }, [loadPanels, loadQueues]);
 
     useEffect(() => {
         if (!ready) return;
-        loadPanels();
-        const interval = setInterval(loadPanels, 5000);
+        refreshAll();
+        const interval = setInterval(refreshAll, 5000);
         return () => clearInterval(interval);
-    }, [ready, loadPanels]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ready]);
 
     if (!ready) return null;
-
-    const selectedPanel = panels.find((p) => p.id === selectedId) ?? null;
 
     const totals = panels.reduce(
         (acc, p) => ({
@@ -1150,6 +1280,15 @@ export default function InterviewManagementPage() {
         { open: 0, waiting: 0, called: 0, done: 0 }
     );
 
+    // 4 columns, one per subsystem, in RECRUIT_SUBSYSTEMS order (SPACED, SIESED, MCSOCD,
+    // SAMBED) — SPACED/MCSOCD naturally end up with 2 stacked SubDomainBoards since they
+    // have 2 sub-domains each; SIESED/SAMBED get exactly 1, filling the column alone.
+    const subsystemGroups = groupBySubsystem();
+    // Pre-2026-08-13 free-text panels (or any panel somehow created with no sub_domain)
+    // don't belong to any column above — surfaced separately so they stay manageable
+    // instead of silently disappearing from the page.
+    const legacyPanels = panels.filter((p) => !p.sub_domain);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -1159,8 +1298,8 @@ export default function InterviewManagementPage() {
                         Interview Day
                     </h1>
                     <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                        Open tables, call recruits in, and log results — walk-in, no time slots. Add a table per
-                        domain running today.
+                        Every subsystem&apos;s tables at once — call recruits in, pull anyone from a shared domain
+                        queue to your own table, and log results. Walk-in, no time slots.
                     </p>
                 </div>
 
@@ -1189,52 +1328,41 @@ export default function InterviewManagementPage() {
                 >
                     No active recruitment cycle. Start one from Cycles before opening interview panels.
                 </div>
+            ) : loading ? (
+                <div className="p-8 text-center text-gray-500 text-sm">Loading tables...</div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
-                    <div className="space-y-4">
-                        <AddPanelForm onCreated={loadPanels} />
-
-                        {loading ? (
-                            <div className="p-8 text-center text-gray-500 text-sm">Loading panels...</div>
-                        ) : panels.length === 0 ? (
-                            <div
-                                className="border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500"
-                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                            >
-                                No panels yet. Add one to get started.
-                            </div>
-                        ) : (
-                            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 -mr-1">
-                                {panels.map((p) => (
-                                    <PanelCard
-                                        key={p.id}
-                                        panel={p}
-                                        selected={p.id === selectedId}
-                                        onSelect={() => setSelectedId(p.id)}
-                                        onClosed={loadPanels}
-                                        onDeleted={() => {
-                                            setSelectedId((cur) => (cur === p.id ? null : cur));
-                                            loadPanels();
-                                        }}
+                <>
+                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+                        {subsystemGroups.map((group) => (
+                            <div key={group.subsystem} className="space-y-6">
+                                <h2 className="text-xs font-black uppercase tracking-widest text-red">{group.subsystem}</h2>
+                                {group.domains.map((d) => (
+                                    <SubDomainBoard
+                                        key={d.key}
+                                        subDomain={d.key}
+                                        panels={panels.filter((p) => p.sub_domain === d.key)}
+                                        tokensByPanel={tokensByPanel}
+                                        loading={queuesLoading}
+                                        onChanged={refreshAll}
                                     />
                                 ))}
                             </div>
-                        )}
+                        ))}
                     </div>
 
-                    <div>
-                        {selectedPanel ? (
-                            <PanelDashboard panel={selectedPanel} onChanged={loadPanels} />
-                        ) : (
-                            <div
-                                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-12 text-center text-sm text-gray-500"
-                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                            >
-                                Select a panel on the left to open its dashboard.
+                    {legacyPanels.length > 0 && (
+                        <div className="space-y-3">
+                            <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">
+                                Unassigned Tables (no domain)
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {legacyPanels.map((p) => (
+                                    <PanelCard key={p.id} panel={p} onChanged={refreshAll} />
+                                ))}
                             </div>
-                        )}
-                    </div>
-                </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {!noCycle && <InterviewResultsList />}

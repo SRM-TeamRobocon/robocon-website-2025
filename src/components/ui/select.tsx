@@ -21,6 +21,10 @@ const ACCENTS = {
     red: { ring: "focus:ring-red/50", selectedBg: "bg-red/15", check: "text-red" },
     // Matches the bg-gray-900 "portal" pages (/login, /signup, /forgot-password).
     blue: { ring: "focus:ring-blue-500", selectedBg: "bg-blue-500/15", check: "text-blue-400" },
+    // Matches the sharp red/white/black poster theme (RecruitmentSection, /recruit/register,
+    // /recruit/login) — the only accent that also swaps the trigger chrome and popup to a
+    // light surface; red/blue above assume the dark-glass card this component was built for.
+    sharp: { ring: "focus:ring-red/40", selectedBg: "bg-red/10", check: "text-red" },
 } as const;
 
 export interface SelectGroup {
@@ -128,9 +132,13 @@ export default function Select({
                 }}
                 className={`flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition-colors ${
                     o.disabled
-                        ? "cursor-not-allowed text-white/25"
+                        ? accent === "sharp"
+                            ? "cursor-not-allowed text-black/25"
+                            : "cursor-not-allowed text-white/25"
                         : o.value === value
-                        ? `${colors.selectedBg} text-white`
+                        ? `${colors.selectedBg} ${accent === "sharp" ? "text-black" : "text-white"}`
+                        : accent === "sharp"
+                        ? "text-black/70 hover:bg-red/5"
                         : "text-white/80 hover:bg-white/10"
                 }`}
             >
@@ -152,14 +160,20 @@ export default function Select({
                 aria-controls={listboxId}
                 onClick={() => setOpen((o) => !o)}
                 className={cn(
-                    `flex w-full items-center justify-between gap-2 rounded-xl border-0 bg-white/10 py-3 px-4 text-left text-white shadow-sm ring-1 ring-inset ring-white/15 outline-none transition-all focus:ring-2 focus:ring-inset ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`,
+                    accent === "sharp"
+                        ? `flex w-full items-center justify-between gap-2 border-2 border-black/15 bg-white py-3 px-4 text-left text-black shadow-sm outline-none transition-all focus:border-red focus:ring-2 ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`
+                        : `flex w-full items-center justify-between gap-2 rounded-xl border-0 bg-white/10 py-3 px-4 text-left text-white shadow-sm ring-1 ring-inset ring-white/15 outline-none transition-all focus:ring-2 focus:ring-inset ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`,
                     className
                 )}
             >
-                <span className={`truncate ${selected ? "" : "text-white/40"}`}>
+                <span className={`truncate ${selected ? "" : accent === "sharp" ? "text-black/40" : "text-white/40"}`}>
                     {selected ? selected.label : placeholder}
                 </span>
-                <ChevronDown className={`h-4 w-4 shrink-0 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+                <ChevronDown
+                    className={`h-4 w-4 shrink-0 ${accent === "sharp" ? "text-black/40" : "text-white/40"} transition-transform ${
+                        open ? "rotate-180" : ""
+                    }`}
+                />
             </button>
 
             {open &&
@@ -171,16 +185,26 @@ export default function Select({
                         role="listbox"
                         id={listboxId}
                         style={{ top: rect.top + 8, left: rect.left, width: rect.width }}
-                        className="fixed z-[1000] max-h-64 overflow-auto rounded-xl border border-white/10 bg-[#141418] py-1 shadow-2xl ring-1 ring-white/10"
+                        className={
+                            accent === "sharp"
+                                ? "fixed z-[1000] max-h-64 overflow-auto border-2 border-black bg-white py-1 shadow-2xl"
+                                : "fixed z-[1000] max-h-64 overflow-auto rounded-xl border border-white/10 bg-[#141418] py-1 shadow-2xl ring-1 ring-white/10"
+                        }
                     >
                         {options.length === 0 ? (
-                            <li className="px-4 py-2.5 text-sm text-white/40">No options</li>
+                            <li className={`px-4 py-2.5 text-sm ${accent === "sharp" ? "text-black/40" : "text-white/40"}`}>
+                                No options
+                            </li>
                         ) : groups ? (
                             <>
                                 {leadingOptions?.map(renderOption)}
                                 {groups.map((group) => (
                                     <li key={group.label} role="presentation">
-                                        <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-widest text-white/30">
+                                        <p
+                                            className={`px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-widest ${
+                                                accent === "sharp" ? "text-black/40" : "text-white/30"
+                                            }`}
+                                        >
                                             {group.label}
                                         </p>
                                         <ul role="group" aria-label={group.label}>

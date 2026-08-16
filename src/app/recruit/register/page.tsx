@@ -9,12 +9,15 @@ import { HOSTEL_BLOCKS } from "@/lib/hostel-blocks";
 import { TRAVEL_METHODS } from "@/lib/travel-method";
 import { GENDERS } from "@/lib/gender";
 import PasswordToggle from "@/components/PasswordToggle";
-import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
-import GlassCard from "@/components/recruit/GlassCard";
 import AuthNav from "@/components/AuthNav";
 import Select from "@/components/ui/select";
 
 const DOMAIN_GROUPS = groupBySubsystem();
+
+// Same shape as SRM_EMAIL_RE in src/app/api/recruit/auth/send-otp/route.ts — kept in sync
+// by hand since this is a client-side pre-check only; the server (complete-registration)
+// re-validates against its own copy regardless.
+const SRM_EMAIL_RE = /^[a-zA-Z0-9._%+-]+@srmist\.edu\.in$/;
 
 type ProfileForm = {
     name: string;
@@ -34,25 +37,30 @@ type ProfileForm = {
     portfolioUrl: string;
 };
 
+// Sharp red/white/black poster theme — matches RecruitmentSection (homepage recruitment
+// teaser). White card, angled black border, clipped corner via inline clip-path rather
+// than rounded corners. Replaces the old dark GlassCard/RecruitBackdrop wrapper.
 function CardShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
     return (
-        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5 overflow-hidden">
-            <RecruitBackdrop />
-            <div className="w-full max-w-lg relative z-10">
-                <AuthNav variant="glass" onBack={onBack} />
-                <GlassCard contentClassName="p-8" borderRadius={0}>
+        <div className="min-h-[100dvh] flex items-center justify-center bg-white p-5">
+            <div className="w-full max-w-lg">
+                <AuthNav variant="sharp" onBack={onBack} />
+                <div
+                    className="w-full border-2 border-black bg-white p-8"
+                    style={{ clipPath: "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)" }}
+                >
                     <div className="flex justify-center mb-6">
                         <Image
                             src="/LOGO.png"
                             alt="Robocon Logo"
                             width={120}
                             height={120}
-                            className="object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+                            className="object-contain"
                             unoptimized
                         />
                     </div>
                     {children}
-                </GlassCard>
+                </div>
             </div>
         </div>
     );
@@ -65,7 +73,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
                 <div
                     key={s}
                     className={`h-1.5 transition-all ${
-                        s === step ? "w-8 bg-red" : s < step ? "w-8 bg-red/40" : "w-8 bg-white/15"
+                        s === step ? "w-8 bg-red" : s < step ? "w-8 bg-red/40" : "w-8 bg-black/10"
                     }`}
                 />
             ))}
@@ -76,7 +84,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
 function ErrorBanner({ message }: { message: string }) {
     if (!message) return null;
     return (
-        <div className="bg-red/10 border border-red/25 p-4 flex items-center justify-center">
+        <div className="border-2 border-red/30 bg-red/5 p-4 flex items-center justify-center">
             <h3 className="text-sm text-red font-bold">{message}</h3>
         </div>
     );
@@ -159,10 +167,6 @@ function RecruitRegisterInner() {
     const [step, setStep] = useState<1 | 2 | 3>(googleName || googleEmail ? 2 : 1);
 
     const [srmEmail, setSrmEmail] = useState("");
-    const [otp, setOtp] = useState("");
-    const [otpSent, setOtpSent] = useState(false);
-    const [otpLoading, setOtpLoading] = useState(false);
-    const [verifyLoading, setVerifyLoading] = useState(false);
 
     const [profile, setProfile] = useState<ProfileForm>({
         name: googleName,
@@ -211,50 +215,19 @@ function RecruitRegisterInner() {
         window.location.href = "/api/recruit/auth/google";
     };
 
-    const handleSendOtp = async (e: React.FormEvent) => {
+    // SRM-email OTP verification now happens later, from the dashboard (EmailVerifyBanner) —
+    // this step just captures + format-checks the address so registration isn't blocked on
+    // a mail round-trip. Server-side, complete-registration re-validates the same shape.
+    const handleContinueFromEmail = (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        setOtpLoading(true);
-        try {
-            const res = await fetch("/api/recruit/auth/send-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ srm_email: srmEmail }),
-            });
-            const data = await res.json();
-            if (res.ok && data.sent) {
-                setOtpSent(true);
-            } else {
-                setError(data.error || "Could not send OTP.");
-            }
-        } catch {
-            setError("An unexpected error occurred. Please try again.");
-        } finally {
-            setOtpLoading(false);
+        const normalized = srmEmail.trim().toLowerCase();
+        if (!SRM_EMAIL_RE.test(normalized)) {
+            setError("Use a valid @srmist.edu.in email.");
+            return;
         }
-    };
-
-    const handleVerifyOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError("");
-        setVerifyLoading(true);
-        try {
-            const res = await fetch("/api/recruit/auth/verify-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ srm_email: srmEmail, otp }),
-            });
-            const data = await res.json();
-            if (res.ok && data.verified) {
-                setStep(3);
-            } else {
-                setError(data.error || "Invalid OTP.");
-            }
-        } catch {
-            setError("An unexpected error occurred. Please try again.");
-        } finally {
-            setVerifyLoading(false);
-        }
+        setSrmEmail(normalized);
+        setStep(3);
     };
 
     const handleCompleteRegistration = async (e: React.FormEvent) => {
@@ -300,6 +273,7 @@ function RecruitRegisterInner() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    srm_email: srmEmail,
                     name: profile.name,
                     reg_no: profile.regNo,
                     year: profile.year,
@@ -330,20 +304,14 @@ function RecruitRegisterInner() {
         }
     };
 
-    // Back walks the wizard backwards one sub-step at a time (profile → OTP → email →
-    // Google). Only on step 1 is there nothing left to undo, so it falls through to
-    // AuthNav's default history-back behaviour.
+    // Back walks the wizard backwards one sub-step at a time (profile → email → Google).
+    // Only on step 1 is there nothing left to undo, so it falls through to AuthNav's
+    // default history-back behaviour.
     const stepBack =
         step === 3
             ? () => {
                   setError("");
                   setStep(2);
-              }
-            : step === 2 && otpSent
-            ? () => {
-                  setError("");
-                  setOtp("");
-                  setOtpSent(false);
               }
             : step === 2
             ? () => {
@@ -359,21 +327,21 @@ function RecruitRegisterInner() {
     return (
         <CardShell onBack={stepBack}>
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Recruit Registration</h2>
-                <p className="mt-2 text-sm text-white/50">SRM Team Robocon — {new Date().getFullYear()} recruitment</p>
+                <h2 className="text-2xl font-bold tracking-tight text-black sm:text-3xl">Recruit Registration</h2>
+                <p className="mt-2 text-sm text-black/50">SRM Team Robocon — {new Date().getFullYear()} recruitment</p>
             </div>
 
             <StepIndicator step={step} />
 
             {step === 1 && (
                 <div className="space-y-5">
-                    <p className="text-sm text-white/50 text-center">
+                    <p className="text-sm text-black/50 text-center">
                         Start with your Google account to pull in your name and email.
                     </p>
                     <button
                         type="button"
                         onClick={handleGoogleContinue}
-                        className="flex w-full items-center justify-center gap-3 px-4 py-3 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
+                        className="flex w-full items-center justify-center gap-3 border-2 border-black bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-red hover:text-white hover:border-red active:scale-[0.99] shadow-sm transition-all"
                     >
                         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                             <path
@@ -395,12 +363,12 @@ function RecruitRegisterInner() {
                         </svg>
                         Continue with Google
                     </button>
-                    <p className="text-xs text-amber-300/80 text-center -mt-2">
-                        Use your <span className="font-bold">personal  Email </span>  here, not your SRM email —
-                        you&apos;ll enter and verify your SRM email in the next step.
+                    <p className="text-xs text-red/80 text-center -mt-2">
+                        Use your <span className="font-bold">personal Email</span> here, not your SRM email — you&apos;ll
+                        enter your SRM email next, and can verify it later from your dashboard.
                     </p>
                     <ErrorBanner message={error} />
-                    <p className="text-center text-sm text-white/50">
+                    <p className="text-center text-sm text-black/50">
                         Already registered?{" "}
                         <Link href="/recruit/login" className="text-red hover:text-red/80 font-semibold">
                             Log in
@@ -412,120 +380,56 @@ function RecruitRegisterInner() {
             {step === 2 && (
                 <div className="space-y-5">
                     {googleName && (
-                        <p className="text-sm text-white/50 text-center">
-                            Welcome, <span className="text-white font-semibold">{googleName}</span>. Verify your SRM email to continue.
+                        <p className="text-sm text-black/50 text-center">
+                            Welcome, <span className="text-black font-semibold">{googleName}</span>. Enter your SRM email to
+                            continue.
                         </p>
                     )}
-                    {!otpSent ? (
-                        <form onSubmit={handleSendOtp} className="space-y-5">
-                            <div>
-                                <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-white/70">
-                                    SRM Email
-                                </label>
-                                <div className="mt-2">
-                                    <input
-                                        id="srmEmail"
-                                        type="email"
-                                        autoComplete="username"
-                                        required
-                                        value={srmEmail}
-                                        onChange={(e) => setSrmEmail(e.target.value)}
-                                        placeholder="ab1234@srmist.edu.in"
-                                        className="block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
-                                    />
-                                </div>
-                            </div>
-                            <ErrorBanner message={error} />
-                            <button
-                                type="submit"
-                                disabled={otpLoading}
-                                className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
-                                    otpLoading
-                                        ? "bg-red/40 cursor-not-allowed"
-                                        : "bg-red hover:bg-red/90"
-                                }`}
-                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                            >
-                                <span
-                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                                    style={{
-                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
-                                        backgroundColor: "#D4AF37",
-                                    }}
+                    <form onSubmit={handleContinueFromEmail} className="space-y-5">
+                        <div>
+                            <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-black/70">
+                                SRM Email
+                            </label>
+                            <div className="mt-2">
+                                <input
+                                    id="srmEmail"
+                                    type="email"
+                                    autoComplete="username"
+                                    required
+                                    value={srmEmail}
+                                    onChange={(e) => setSrmEmail(e.target.value)}
+                                    placeholder="ab1234@srmist.edu.in"
+                                    className="block w-full border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
                                 />
-                                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
-                                    {otpLoading ? "Sending..." : "Send OTP"}
-                                </span>
-                            </button>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleVerifyOtp} className="space-y-5">
-                            <p className="text-sm text-white/50 text-center">
-                                Enter the 6-digit code sent to <span className="text-white font-semibold">{srmEmail}</span>.
-                            </p>
-                            <p className="text-xs text-white/40 text-center -mt-3">
-                                Don&apos;t see it? Check your spam/junk folder too.
-                            </p>
-                            <div>
-                                <label htmlFor="otp" className="block text-sm font-medium leading-6 text-white/70">
-                                    OTP
-                                </label>
-                                <div className="mt-2">
-                                    <input
-                                        id="otp"
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]{6}"
-                                        maxLength={6}
-                                        required
-                                        value={otp}
-                                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                                        placeholder="123456"
-                                        className="block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all tracking-[0.3em] text-center"
-                                    />
-                                </div>
                             </div>
-                            <ErrorBanner message={error} />
-                            <button
-                                type="submit"
-                                disabled={verifyLoading}
-                                className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
-                                    verifyLoading
-                                        ? "bg-red/40 cursor-not-allowed"
-                                        : "bg-red hover:bg-red/90"
-                                }`}
-                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                            >
-                                <span
-                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                                    style={{
-                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
-                                        backgroundColor: "#D4AF37",
-                                    }}
-                                />
-                                <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
-                                    {verifyLoading ? "Verifying..." : "Verify OTP"}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setOtpSent(false);
-                                    setOtp("");
-                                    setError("");
+                            <p className="mt-2 text-xs text-black/40">
+                                You can verify this address later from your dashboard — no OTP needed right now.
+                            </p>
+                        </div>
+                        <ErrorBanner message={error} />
+                        <button
+                            type="submit"
+                            className="group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] bg-red hover:bg-red/90"
+                            style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
+                        >
+                            <span
+                                className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                style={{
+                                    clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                    backgroundColor: "#D4AF37",
                                 }}
-                                className="w-full text-center text-sm text-red hover:text-red/80 font-semibold"
-                            >
-                                Use a different email
-                            </button>
-                        </form>
-                    )}
+                            />
+                            <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
+                                Continue
+                            </span>
+                        </button>
+                    </form>
                 </div>
             )}
 
             {step === 3 && (
                 <form onSubmit={handleCompleteRegistration} className="space-y-5">
-                    <p className="text-sm text-white/50 text-center">SRM email verified. Complete your profile.</p>
+                    <p className="text-sm text-black/50 text-center">Complete your profile.</p>
 
                     <Field label="Full Name" id="name" value={profile.name} onChange={updateProfile("name")} placeholder="Full name" />
                     <Field
@@ -538,13 +442,13 @@ function RecruitRegisterInner() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="year" className="block text-sm font-medium leading-6 text-white/70">
+                            <label htmlFor="year" className="block text-sm font-medium leading-6 text-black/70">
                                 Year
                             </label>
                             <div className="mt-2">
                                 <Select
                                     id="year"
-                                    className="rounded-none"
+                                    accent="sharp"
                                     value={profile.year}
                                     onChange={(v) => setProfile((prev) => ({ ...prev, year: v as ProfileForm["year"] }))}
                                     placeholder="Select year"
@@ -559,7 +463,7 @@ function RecruitRegisterInner() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">Gender</label>
+                        <label className="block text-sm font-medium leading-6 text-black/70 mb-2">Gender</label>
                         <div className="grid grid-cols-2 gap-2">
                             {GENDERS.map((opt) => {
                                 const checked = profile.gender === opt.key;
@@ -570,8 +474,8 @@ function RecruitRegisterInner() {
                                         onClick={() => setProfile((prev) => ({ ...prev, gender: opt.key }))}
                                         className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
-                                                ? "bg-red/15 border-red/50 text-white"
-                                                : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                ? "bg-red/10 border-2 border-red text-black"
+                                                : "bg-white border-black/15 text-black/60 hover:border-black/40"
                                         }`}
                                     >
                                         {opt.label}
@@ -593,7 +497,7 @@ function RecruitRegisterInner() {
                     />
 
                     <div>
-                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
+                        <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
                             Do you stay in a hostel?
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -623,8 +527,8 @@ function RecruitRegisterInner() {
                                         }
                                         className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
-                                                ? "bg-red/15 border-red/50 text-white"
-                                                : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                ? "bg-red/10 border-2 border-red text-black"
+                                                : "bg-white border-black/15 text-black/60 hover:border-black/40"
                                         }`}
                                     >
                                         {opt.label}
@@ -637,13 +541,13 @@ function RecruitRegisterInner() {
                     {profile.isHosteller && (
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="hostelBlock" className="block text-sm font-medium leading-6 text-white/70">
+                                <label htmlFor="hostelBlock" className="block text-sm font-medium leading-6 text-black/70">
                                     Hostel Block
                                 </label>
                                 <div className="mt-2">
                                     <Select
                                         id="hostelBlock"
-                                        className="rounded-none"
+                                        accent="sharp"
                                         value={profile.hostelBlock}
                                         onChange={(v) => setProfile((prev) => ({ ...prev, hostelBlock: v }))}
                                         placeholder="Select block"
@@ -671,7 +575,7 @@ function RecruitRegisterInner() {
                                 placeholder="e.g. Tambaram"
                             />
                             <div>
-                                <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
+                                <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
                                     How do you travel to college?
                                 </label>
                                 <div className="grid grid-cols-2 gap-2">
@@ -686,8 +590,8 @@ function RecruitRegisterInner() {
                                                 }
                                                 className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                                     checked
-                                                        ? "bg-red/15 border-red/50 text-white"
-                                                        : "bg-white/5 border-white/10 text-white/60 hover:border-white/25"
+                                                        ? "bg-red/10 border-2 border-red text-black"
+                                                        : "bg-white border-black/15 text-black/60 hover:border-black/40"
                                                 }`}
                                             >
                                                 {opt.label}
@@ -700,13 +604,13 @@ function RecruitRegisterInner() {
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
-                            Domains <span className="text-white/40">(choose 1–2)</span>
+                        <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
+                            Domains <span className="text-black/40">(choose 1–2)</span>
                         </label>
                         <div className="space-y-3">
                             {DOMAIN_GROUPS.map((group) => (
                                 <div key={group.subsystem}>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-1.5">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 mb-1.5">
                                         {group.subsystem}
                                     </p>
                                     <div className="grid grid-cols-2 gap-2">
@@ -718,10 +622,10 @@ function RecruitRegisterInner() {
                                                     key={opt.key}
                                                     className={`flex items-center gap-2 border px-3 py-2.5 text-sm transition-all cursor-pointer ${
                                                         checked
-                                                            ? "bg-red/10 border-red/40 text-white"
+                                                            ? "bg-red/10 border-red/60 text-black"
                                                             : disabled
-                                                            ? "bg-white/[0.03] border-white/5 text-white/30 cursor-not-allowed"
-                                                            : "bg-white/5 border-white/10 text-white/70 hover:border-white/20"
+                                                            ? "bg-black/[0.02] border-black/10 text-black/30 cursor-not-allowed"
+                                                            : "bg-white border-black/15 text-black/70 hover:border-black/30"
                                                     }`}
                                                 >
                                                     <input
@@ -820,7 +724,7 @@ function Field({
     const isPassword = type === "password";
     return (
         <div>
-            <label htmlFor={id} className="block text-sm font-medium leading-6 text-white/70">
+            <label htmlFor={id} className="block text-sm font-medium leading-6 text-black/70">
                 {label}
             </label>
             <div className="mt-2 relative">
@@ -833,7 +737,7 @@ function Field({
                     onChange={onChange}
                     placeholder={placeholder}
                     autoComplete={autoComplete}
-                    className={`block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
+                    className={`block w-full border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}
                 />
@@ -841,7 +745,7 @@ function Field({
                     <PasswordToggle
                         shown={showPassword}
                         onToggle={() => setShowPassword((s) => !s)}
-                        className="text-white/40 hover:text-white/70"
+                        className="text-black/40 hover:text-black/70"
                     />
                 )}
             </div>
@@ -851,7 +755,7 @@ function Field({
 
 export default function RecruitRegisterPage() {
     return (
-        <Suspense fallback={<div className="min-h-[100dvh] bg-black" />}>
+        <Suspense fallback={<div className="min-h-[100dvh] bg-white" />}>
             <RecruitRegisterInner />
         </Suspense>
     );

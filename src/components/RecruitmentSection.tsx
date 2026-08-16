@@ -106,6 +106,12 @@ const RecruitmentSection = () => {
                     >
                         Make. Break. Innovate.
                     </div>
+                    <div
+                        className="text-4xl font-bold uppercase tracking-tight md:text-7xl"
+                        style={{ color: "#D4AF37" }}
+                    >
+                       DD ROBOCON 2026 AIR 5
+                    </div>
                 </div>
 
                 {/* Domains */}

@@ -96,7 +96,7 @@ export async function GET() {
             supabase
                 .from("recruit_accounts")
                 .select(
-                    "id, srm_email, name, reg_no, year, gender, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, portfolio_url, is_selected, created_at"
+                    "id, srm_email, srm_email_verified, name, reg_no, year, gender, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, portfolio_url, is_selected, created_at"
                 )
                 .eq("id", recruit_id)
                 .eq("cycle_id", cycle_id)
@@ -285,6 +285,7 @@ export async function GET() {
             recruit: {
                 name: account.name,
                 srm_email: account.srm_email,
+                srm_email_verified: Boolean(account.srm_email_verified),
                 reg_no: account.reg_no,
                 year: account.year,
                 gender: account.gender,

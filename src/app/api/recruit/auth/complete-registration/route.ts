@@ -25,6 +25,11 @@ export const dynamic = "force-dynamic";
 // upper(reg_no) and lower(srm_email) added in migration 006.
 const UNIQUE_VIOLATION = "23505";
 
+// Same pattern as SRM_EMAIL_RE in src/app/api/recruit/auth/send-otp/route.ts — the SRM
+// email is no longer OTP-verified before registration (that now happens later, from the
+// dashboard), so this route is the only server-side gate on its shape.
+const SRM_EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@srmist\.edu\.in$/;
+
 export async function POST(request: Request) {
     try {
         const cookieStore = await cookies();
@@ -32,20 +37,13 @@ export async function POST(request: Request) {
 
         if (!statePayload) {
             return NextResponse.json(
-                { success: false, error: "Your session expired. Please verify your SRM email again." },
+                { success: false, error: "Your session expired. Please sign in with Google again." },
                 { status: 401 }
             );
         }
 
-        if (!statePayload.srm_verified || !statePayload.srm_email) {
-            return NextResponse.json(
-                { success: false, error: "Please verify your SRM email before completing registration." },
-                { status: 401 }
-            );
-        }
-
-        // The Google step is mandatory — see 02-AUTH.md step 1. verify-otp already enforces
-        // this, but re-check here so the final write can never land without a google_uid.
+        // The Google step is mandatory — see 02-AUTH.md step 1. Re-checked here so the
+        // final write can never land without a google_uid.
         if (!statePayload.google_uid) {
             return NextResponse.json(
                 { success: false, error: "Start with Google sign-in before completing registration." },
@@ -54,6 +52,11 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
+        const srmEmail = String(body.srm_email || "").trim().toLowerCase();
+        if (!SRM_EMAIL_RE.test(srmEmail)) {
+            return NextResponse.json({ success: false, error: "Use a valid @srmist.edu.in email." }, { status: 400 });
+        }
+
         const name = boundedText(body.name || statePayload.name, FIELD_LIMITS.name);
         const regNo = boundedText(body.reg_no, FIELD_LIMITS.reg_no);
         const year = String(body.year || "").trim();
@@ -150,7 +153,7 @@ export async function POST(request: Request) {
         const { data: existing } = await supabase
             .from("recruit_accounts")
             .select("id")
-            .eq("srm_email", statePayload.srm_email)
+            .eq("srm_email", srmEmail)
             .eq("cycle_id", cycle.id)
             .maybeSingle();
 
@@ -183,8 +186,11 @@ export async function POST(request: Request) {
                 cycle_id: cycle.id,
                 google_uid: statePayload.google_uid || null,
                 personal_email: statePayload.personal_email || null,
-                srm_email: statePayload.srm_email,
-                srm_email_verified: true,
+                srm_email: srmEmail,
+                // Genuinely not verified yet at this point — the OTP-verify step was moved
+                // out of registration and now happens later, optionally, from the dashboard
+                // (see EmailVerifyBanner / /api/recruit/verify-email/*).
+                srm_email_verified: false,
                 name,
                 reg_no: normalizedRegNo,
                 year,
@@ -256,7 +262,7 @@ export async function POST(request: Request) {
                 // deduped in case Google's personal address happens to be the SRM one.
                 const recipients = Array.from(
                     new Set(
-                        [statePayload.srm_email, statePayload.personal_email]
+                        [srmEmail, statePayload.personal_email]
                             .filter((e): e is string => !!e)
                             .map((e) => e.toLowerCase())
                     )
@@ -284,7 +290,7 @@ export async function POST(request: Request) {
 
         const token = await issueRecruitToken({
             recruit_id: account.id,
-            srm_email: statePayload.srm_email,
+            srm_email: srmEmail,
             cycle_id: cycle.id,
         });
 

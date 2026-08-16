@@ -6,9 +6,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Download } from "lucide-react";
 import { generateBadgeImage } from "@/components/recruit/generateBadgeImage";
-import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
-import GlassCard from "@/components/recruit/GlassCard";
 import AuthNav from "@/components/AuthNav";
+import EmailVerifyBanner from "@/components/recruit/EmailVerifyBanner";
 import FaqSection from "@/components/recruit/FaqSection";
 import TicketsSection from "@/components/recruit/TicketsSection";
 import ChatWidget from "@/components/recruit/ChatWidget";
@@ -17,11 +16,17 @@ import { genderLabel } from "@/lib/gender";
 
 const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), { ssr: false });
 
+// Sharp red/white/black poster theme — matches RecruitmentSection (homepage teaser) and
+// the reskinned /recruit/register + /recruit/login. Same clip-path used by CardShell on
+// those pages, reused here so every card on the dashboard reads as part of one family.
+const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
+
 type DomainStatus = { sub_domain: string; status: string };
 
 type RecruitProfile = {
     name: string;
     srm_email: string;
+    srm_email_verified: boolean;
     reg_no: string;
     year: string;
     gender?: string | null;
@@ -54,28 +59,30 @@ import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 // Hidden for now — flip back on when attendance is ready to be shown to recruits.
 const SHOW_TRAINING_ATTENDANCE = false;
 
-// Light chip variants — these badges sit on the fully transparent dark glass cards,
-// so they need enough weight/saturation against the dark backdrop, not the darker
-// weights that used to be needed for a light frosted surface.
+// Recolored for the sharp white-card theme: these badges now sit on a solid white
+// surface, so they need the darker/saturated weights a light surface calls for
+// (tinted bg + solid border + dark-enough text for contrast) instead of the
+// dark-glass-tuned `text-*-300 border-*-500/40 bg-*-500/10` pattern. Same semantic
+// distinctions as before, just recolored — POWER ON/DEPLOYED/etc. below unchanged.
 function statusBadgeClass(label: string): string {
-    if (label.startsWith("RUNTIME")) return "text-cyan-300 border-cyan-500/40 bg-cyan-500/10";
+    if (label.startsWith("RUNTIME")) return "text-[#D4AF37] border-[#D4AF37] bg-[#D4AF37]/10";
     switch (label) {
         case "POWER ON":
-            return "text-white/60 border-white/15 bg-white/5";
+            return "text-black/50 border-black/20 bg-black/5";
         case "SYSTEM CHECK: PASS":
-            return "text-blue-300 border-blue-500/40 bg-blue-500/10";
+            return "text-blue-700 border-blue-600 bg-blue-50";
         case "DIAGNOSTIC RUNNING":
-            return "text-amber-300 border-amber-500/40 bg-amber-500/10 animate-pulse";
+            return "text-amber-700 border-amber-600 bg-amber-50 animate-pulse";
         case "DIAGNOSTIC: PASS":
-            return "text-emerald-300 border-emerald-500/40 bg-emerald-500/10";
+            return "text-emerald-700 border-emerald-600 bg-emerald-50";
         case "DIAGNOSTIC: FAIL":
-            return "text-red-300 border-red-500/40 bg-red-500/10";
+            return "text-red border-red bg-red/10";
         case "CALIBRATION":
-            return "text-purple-300 border-purple-500/40 bg-purple-500/10";
+            return "text-purple-700 border-purple-600 bg-purple-50";
         case "DEPLOYED":
-            return "text-emerald-300 border-emerald-500 bg-emerald-500/20";
+            return "text-white border-emerald-600 bg-emerald-600";
         default:
-            return "text-white/60 border-white/15 bg-white/5";
+            return "text-black/50 border-black/20 bg-black/5";
     }
 }
 
@@ -177,72 +184,79 @@ export default function RecruitDashboardPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center relative z-10 text-white gap-4">
-                <RecruitBackdrop />
-                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-                <p className="font-mono text-sm text-white/60 tracking-widest">BOOTING...</p>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-4">
+                <div className="w-12 h-12 border-4 border-black/10 border-t-red rounded-full animate-spin" />
+                <p className="font-mono text-sm text-black/50 tracking-widest">BOOTING...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen relative z-10 px-4 py-8 md:py-12">
-            <RecruitBackdrop />
+        <div className="min-h-screen bg-white px-4 py-8 md:py-12">
             <div className="max-w-3xl mx-auto">
-                <AuthNav variant="glass" />
+                <AuthNav variant="sharp" />
             </div>
             <div className="max-w-3xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/50">Recruit Terminal</p>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Status Dashboard</h1>
+                        <p className="font-mono text-xs uppercase tracking-widest text-red font-bold">Recruit Terminal</p>
+                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-black">Status Dashboard</h1>
                     </div>
                     <Link
                         href="/recruit/logout"
-                        className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-white border border-white/20 hover:border-white/40 px-3 py-2 transition-colors"
+                        className="inline-flex items-center gap-2 border-2 border-black bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-black transition-all hover:bg-red hover:text-white hover:border-red active:scale-[0.97]"
+                        style={{ clipPath: "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)" }}
                     >
                         Logout
                     </Link>
                 </div>
 
                 {error && (
-                    <div className="bg-red-500/15 border border-red-500/30 p-4 text-sm text-red-200">
+                    <div className="border-2 border-red/30 bg-red/5 p-4 text-sm text-red font-bold text-center">
                         {error}
                     </div>
                 )}
 
                 {profile && (
-                    <GlassCard contentClassName="p-6 md:p-8" borderRadius={0}>
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-1">// profile</p>
-                        <h2 className="text-xl font-bold mb-4 text-white">{profile.name}</h2>
+                    <EmailVerifyBanner
+                        srmEmail={profile.srm_email}
+                        verified={profile.srm_email_verified}
+                        onVerified={() => setProfile((p) => (p ? { ...p, srm_email_verified: true } : p))}
+                    />
+                )}
+
+                {profile && (
+                    <div className="border-2 border-black bg-white p-6 md:p-8" style={{ clipPath: CARD_CLIP }}>
+                        <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">// profile</p>
+                        <h2 className="text-xl font-bold mb-4 text-black">{profile.name}</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-sm">
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">SRM Email</p>
-                                <p className="text-white/80 break-all">{profile.srm_email}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">SRM Email</p>
+                                <p className="text-black/80 break-all">{profile.srm_email}</p>
                             </div>
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Reg No</p>
-                                <p className="text-white/80">{profile.reg_no}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Reg No</p>
+                                <p className="text-black/80">{profile.reg_no}</p>
                             </div>
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Year</p>
-                                <p className="text-white/80">{profile.year}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Year</p>
+                                <p className="text-black/80">{profile.year}</p>
                             </div>
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Gender</p>
-                                <p className="text-white/80">{genderLabel(profile.gender)}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Gender</p>
+                                <p className="text-black/80">{genderLabel(profile.gender)}</p>
                             </div>
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Department</p>
-                                <p className="text-white/80">{profile.department}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Department</p>
+                                <p className="text-black/80">{profile.department}</p>
                             </div>
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Course</p>
-                                <p className="text-white/80">{profile.course}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Course</p>
+                                <p className="text-black/80">{profile.course}</p>
                             </div>
                             <div>
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Stay</p>
-                                <p className="text-white/80">
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Stay</p>
+                                <p className="text-black/80">
                                     {profile.is_hosteller
                                         ? [profile.hostel_block, profile.hostel_room].filter(Boolean).join(" · ")
                                         : "Day Scholar"}
@@ -250,34 +264,34 @@ export default function RecruitDashboardPage() {
                             </div>
                             {profile.portfolio_url && (
                                 <div>
-                                    <p className="text-white/40 text-xs uppercase tracking-widest">LinkedIn</p>
+                                    <p className="text-black/40 text-xs uppercase tracking-widest">LinkedIn</p>
                                     <a
                                         href={profile.portfolio_url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-blue-400 hover:text-blue-300 break-all"
+                                        className="text-red hover:text-red/80 break-all"
                                     >
                                         {profile.portfolio_url}
                                     </a>
                                 </div>
                             )}
                         </div>
-                    </GlassCard>
+                    </div>
                 )}
 
-                <GlassCard contentClassName="p-6 md:p-8" borderRadius={0}>
-                    <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4">// pipeline status</p>
+                <div className="border-2 border-black bg-white p-6 md:p-8" style={{ clipPath: CARD_CLIP }}>
+                    <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// pipeline status</p>
                     <div className="space-y-3">
                         {domains.length === 0 && (
-                            <p className="text-sm text-white/40 font-mono">No domain selections found.</p>
+                            <p className="text-sm text-black/40 font-mono">No domain selections found.</p>
                         )}
                         {domains.map((d) => (
                             <div
                                 key={d.sub_domain}
-                                className="flex items-center justify-between border border-white/10 px-4 py-3 bg-white/5"
+                                className="flex items-center justify-between border border-black/15 px-4 py-3 bg-black/[0.02]"
                             >
-                                <span className="font-mono text-sm font-bold text-white/80">
-                                    <span className="text-white/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
+                                <span className="font-mono text-sm font-bold text-black/80">
+                                    <span className="text-black/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
                                     {subDomainLabel(d.sub_domain)}
                                 </span>
                                 <span
@@ -292,54 +306,56 @@ export default function RecruitDashboardPage() {
                     </div>
 
                     {SHOW_TRAINING_ATTENDANCE && training?.started && (
-                        <div className="mt-6 pt-6 border-t border-white/10">
-                            <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-2">
+                        <div className="mt-6 pt-6 border-t border-black/10">
+                            <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-2">
                                 Training Attendance
                             </p>
                             <div className="flex items-center gap-4">
-                                <div className="flex-1 h-2.5 bg-white/10 overflow-hidden">
+                                <div className="flex-1 h-2.5 bg-black/10 overflow-hidden">
                                     <div
                                         className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
                                         style={{ width: `${training.percentage ?? 0}%` }}
                                     />
                                 </div>
-                                <span className="font-mono text-sm font-bold text-blue-400 whitespace-nowrap">
+                                <span className="font-mono text-sm font-bold text-blue-700 whitespace-nowrap">
                                     {training.attended} / {training.total} ({training.percentage ?? 0}%)
                                 </span>
                             </div>
                         </div>
                     )}
-                </GlassCard>
+                </div>
 
                 {interview && (
-                    <GlassCard
-                        contentClassName={`p-6 md:p-8 ${interview.status === "called" ? "animate-pulse" : ""}`}
-                        borderRadius={0}
+                    <div
+                        className={`border-2 border-black bg-white p-6 md:p-8 ${
+                            interview.status === "called" ? "animate-pulse" : ""
+                        }`}
+                        style={{ clipPath: CARD_CLIP }}
                     >
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-1">
+                        <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">
                             // interview queue
                         </p>
-                        <h2 className="text-xl font-bold mb-4 text-white">{interview.panel_label}</h2>
+                        <h2 className="text-xl font-bold mb-4 text-black">{interview.panel_label}</h2>
                         {interview.status === "called" ? (
                             <div className="flex items-center gap-3">
-                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-purple-500 bg-purple-500/15 text-purple-300 px-3 py-1 animate-pulse">
+                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-purple-600 bg-purple-50 text-purple-700 px-3 py-1 animate-pulse">
                                     You&apos;re being called now
                                 </span>
-                                <span className="text-sm text-white/60">Head to the panel!</span>
+                                <span className="text-sm text-black/60">Head to the panel!</span>
                             </div>
                         ) : interview.status === "deferred" ? (
                             <div className="flex items-center gap-3">
-                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-500 bg-amber-500/15 text-amber-300 px-3 py-1">
+                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-600 bg-amber-50 text-amber-700 px-3 py-1">
                                     Table closed for the day
                                 </span>
-                                <span className="text-sm text-white/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
+                                <span className="text-sm text-black/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">
-                                <span className="font-mono text-2xl font-black text-blue-400">
+                                <span className="font-mono text-2xl font-black text-red">
                                     #{interview.waiting_ahead + 1}
                                 </span>
-                                <span className="text-sm text-white/60">
+                                <span className="text-sm text-black/60">
                                     {interview.waiting_ahead === 0
                                         ? "You're next!"
                                         : `${interview.waiting_ahead} recruit${
@@ -348,12 +364,11 @@ export default function RecruitDashboardPage() {
                                 </span>
                             </div>
                         )}
-                    </GlassCard>
+                    </div>
                 )}
 
                 <FaqSection />
                 <TicketsSection currentDomains={domains.map((d) => d.sub_domain)} />
-               
 
                 {badgeImage && (
                     <div className="p-6 md:p-8 w-full flex flex-col items-center justify-center">
@@ -381,8 +396,8 @@ export default function RecruitDashboardPage() {
                     </div>
                 )}
             </div>
-             
-            <ChatWidget />
+
+            <ChatWidget theme="light" />
         </div>
     );
 }

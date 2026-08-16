@@ -76,60 +76,122 @@ function useDoubtChat(endpoint: string) {
     return { messages, input, setInput, busy, send, scrollRef };
 }
 
-// Floating dark-glass widget — unchanged behaviour, used on /recruit/dashboard.
-export default function ChatWidget() {
+// Floating widget — used on /recruit/dashboard. `theme` defaults to the original
+// dark-glass look so every other call site (there was only ever this one, but the
+// default keeps it that way if that changes) is unaffected; the dashboard now passes
+// theme="light" to match its sharp red/white/black reskin instead of floating dark
+// glass over a white page.
+export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light" }) {
     const [open, setOpen] = useState(false);
     const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/chat");
+    const light = theme === "light";
 
     return (
         <>
             {open && (
-                <div className="fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/60">Ask a Doubt</p>
-                        <button onClick={() => setOpen(false)} className="text-white/40 hover:text-white transition">
+                <div
+                    className={
+                        light
+                            ? "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col border-2 border-black bg-white shadow-2xl overflow-hidden"
+                            : "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+                    }
+                    style={light ? { clipPath: "polygon(0 0,100% 0,100% 96%,96% 100%,0 100%)" } : undefined}
+                >
+                    <div
+                        className={
+                            light
+                                ? "flex items-center justify-between px-4 py-3 border-b-2 border-black"
+                                : "flex items-center justify-between px-4 py-3 border-b border-white/10"
+                        }
+                    >
+                        <p
+                            className={
+                                light
+                                    ? "font-mono text-xs uppercase tracking-widest text-black/60"
+                                    : "font-mono text-xs uppercase tracking-widest text-white/60"
+                            }
+                        >
+                            Ask a Doubt
+                        </p>
+                        <button
+                            onClick={() => setOpen(false)}
+                            className={light ? "text-black/40 hover:text-black transition" : "text-white/40 hover:text-white transition"}
+                        >
                             <X className="h-4 w-4" />
                         </button>
                     </div>
 
                     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                         {messages.length === 0 && (
-                            <p className="text-sm text-white/40 font-mono">
+                            <p className={light ? "text-sm text-black/50" : "text-sm text-white/40 font-mono"}>
                                 Ask anything about recruitment — I can only answer from what the team has shared here.
                             </p>
                         )}
                         {messages.map((m, i) => (
                             <div
                                 key={i}
-                                className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                                    m.role === "user"
-                                        ? "ml-auto bg-red/20 text-white"
-                                        : "bg-white/10 text-white/80"
-                                }`}
+                                className={
+                                    light
+                                        ? `max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
+                                              m.role === "user"
+                                                  ? "ml-auto bg-red text-white"
+                                                  : "border border-black/15 bg-black/[0.03] text-black/80"
+                                          }`
+                                        : `max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                                              m.role === "user"
+                                                  ? "ml-auto bg-red/20 text-white"
+                                                  : "bg-white/10 text-white/80"
+                                          }`
+                                }
                             >
-                                {renderMessageContent(m.content, "underline text-red-300 hover:text-red-200 break-all")}
+                                {renderMessageContent(
+                                    m.content,
+                                    light
+                                        ? "underline text-red hover:text-red/80 break-all font-semibold"
+                                        : "underline text-red-300 hover:text-red-200 break-all"
+                                )}
                             </div>
                         ))}
                         {busy && (
-                            <div className="bg-white/10 text-white/50 rounded-xl px-3 py-2 text-sm w-fit font-mono">
+                            <div
+                                className={
+                                    light
+                                        ? "border border-black/15 bg-black/[0.03] text-black/40 px-3 py-2 text-sm w-fit"
+                                        : "bg-white/10 text-white/50 rounded-xl px-3 py-2 text-sm w-fit font-mono"
+                                }
+                            >
                                 thinking...
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 p-3 border-t border-white/10">
+                    <div
+                        className={
+                            light
+                                ? "flex items-center gap-2 p-3 border-t-2 border-black"
+                                : "flex items-center gap-2 p-3 border-t border-white/10"
+                        }
+                    >
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && send()}
                             placeholder="Type your question..."
                             disabled={busy}
-                            className="flex-1 rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-white/30 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red/50 disabled:opacity-50"
+                            className={
+                                light
+                                    ? "flex-1 border border-black/20 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-red disabled:opacity-50"
+                                    : "flex-1 rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-white/30 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red/50 disabled:opacity-50"
+                            }
                         />
                         <button
                             onClick={send}
                             disabled={busy || !input.trim()}
-                            className="shrink-0 rounded-lg bg-red/20 p-2 text-red transition hover:bg-red/30 disabled:opacity-40"
+                            className={
+                                light
+                                    ? "shrink-0 bg-red p-2 text-white transition hover:bg-red/90 disabled:opacity-40"
+                                    : "shrink-0 rounded-lg bg-red/20 p-2 text-red transition hover:bg-red/30 disabled:opacity-40"
+                            }
                         >
                             <Send className="h-4 w-4" />
                         </button>

@@ -5,8 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import PasswordToggle from "@/components/PasswordToggle";
-import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
-import GlassCard from "@/components/recruit/GlassCard";
 import AuthNav from "@/components/AuthNav";
 
 function RecruitLoginInner() {
@@ -58,33 +56,34 @@ function RecruitLoginInner() {
     };
 
     return (
-        <div className="min-h-[100dvh] flex items-center justify-center relative z-10 p-5 overflow-hidden">
-            <RecruitBackdrop />
-
-            <div className="w-full max-w-md relative z-10">
-                <AuthNav variant="glass" />
-                <GlassCard contentClassName="p-8" borderRadius={0}>
+        <div className="min-h-[100dvh] flex items-center justify-center bg-white p-5">
+            <div className="w-full max-w-md">
+                <AuthNav variant="sharp" />
+                <div
+                    className="w-full border-2 border-black bg-white p-8"
+                    style={{ clipPath: "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)" }}
+                >
                     <div className="flex justify-center mb-8">
                         <Image
                             src="/LOGO.png"
                             alt="Robocon Logo"
                             width={160}
                             height={160}
-                            className="object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+                            className="object-contain"
                             unoptimized
                         />
                     </div>
 
                     <div className="text-center mb-8">
-                        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Recruit Login</h2>
-                        <p className="mt-2 text-sm text-white/50">SRM Team Robocon recruitment portal</p>
+                        <h2 className="text-2xl font-bold tracking-tight text-black sm:text-3xl">Recruit Login</h2>
+                        <p className="mt-2 text-sm text-black/50">SRM Team Robocon recruitment portal</p>
                     </div>
 
                     <div className="space-y-5">
                         <button
                             type="button"
                             onClick={handleGoogleLogin}
-                            className="flex w-full items-center justify-center gap-3 px-4 py-3 text-sm font-semibold text-white bg-white/10 backdrop-blur-md ring-1 ring-inset ring-white/20 hover:bg-white/15 active:scale-[0.99] shadow-sm transition-all"
+                            className="flex w-full items-center justify-center gap-3 border-2 border-black bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-red hover:text-white hover:border-red active:scale-[0.99] shadow-sm transition-all"
                         >
                             <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                                 <path
@@ -108,14 +107,14 @@ function RecruitLoginInner() {
                         </button>
 
                         <div className="flex items-center gap-3">
-                            <div className="h-px flex-1 bg-white/15" />
-                            <span className="text-xs text-white/40">or</span>
-                            <div className="h-px flex-1 bg-white/15" />
+                            <div className="h-px flex-1 bg-black/15" />
+                            <span className="text-xs text-black/40">or</span>
+                            <div className="h-px flex-1 bg-black/15" />
                         </div>
 
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div>
-                                <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-white/70">
+                                <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-black/70">
                                     SRM Email
                                 </label>
                                 <div className="mt-2">
@@ -127,14 +126,14 @@ function RecruitLoginInner() {
                                         required
                                         value={srmEmail}
                                         onChange={(e) => setSrmEmail(e.target.value)}
-                                        className="block w-full border-0 bg-white/10 py-3 px-4 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
+                                        className="block w-full border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
                                         placeholder="ab1234@srmist.edu.in"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label htmlFor="password" className="block text-sm font-medium leading-6 text-white/70">
+                                <label htmlFor="password" className="block text-sm font-medium leading-6 text-black/70">
                                     Password
                                 </label>
                                 <div className="mt-2 relative">
@@ -146,19 +145,19 @@ function RecruitLoginInner() {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="block w-full border-0 bg-white/10 py-3 px-4 pr-11 text-white placeholder:text-white/30 shadow-sm ring-1 ring-inset ring-white/15 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
+                                        className="block w-full border-2 border-black/15 bg-white py-3 px-4 pr-11 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
                                         placeholder="Enter your password"
                                     />
                                     <PasswordToggle
                                         shown={showPassword}
                                         onToggle={() => setShowPassword((s) => !s)}
-                                        className="text-white/40 hover:text-white/70"
+                                        className="text-black/40 hover:text-black/70"
                                     />
                                 </div>
                             </div>
 
                             {error && (
-                                <div className="bg-red/10 border border-red/25 p-4 flex items-center justify-center">
+                                <div className="border-2 border-red/30 bg-red/5 p-4 flex items-center justify-center">
                                     <h3 className="text-sm text-red font-bold">{error}</h3>
                                 </div>
                             )}
@@ -185,7 +184,7 @@ function RecruitLoginInner() {
                                 </span>
                             </button>
 
-                            <p className="text-center text-sm text-white/50">
+                            <p className="text-center text-sm text-black/50">
                                 New recruit?{" "}
                                 <Link href="/recruit/register" className="text-red hover:text-red/80 font-semibold">
                                     Register here
@@ -193,7 +192,7 @@ function RecruitLoginInner() {
                             </p>
                         </form>
                     </div>
-                </GlassCard>
+                </div>
             </div>
         </div>
     );
@@ -201,7 +200,7 @@ function RecruitLoginInner() {
 
 export default function RecruitLoginPage() {
     return (
-        <Suspense fallback={<div className="min-h-[100dvh] bg-black" />}>
+        <Suspense fallback={<div className="min-h-[100dvh] bg-white" />}>
             <RecruitLoginInner />
         </Suspense>
     );
