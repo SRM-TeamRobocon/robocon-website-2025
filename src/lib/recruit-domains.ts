@@ -21,10 +21,10 @@ export interface SubDomainMeta {
 export const RECRUIT_SUBDOMAINS: SubDomainMeta[] = [
     { key: "coding", label: "Coding", subsystem: "SPACED" },
     { key: "webdev", label: "Web Dev", subsystem: "SPACED" },
-    { key: "siesed", label: "SIESED", subsystem: "SIESED" },
+    { key: "siesed", label: "SIESED (Electronics)", subsystem: "SIESED" },
     { key: "corporate", label: "Corporate", subsystem: "MCSOCD" },
     { key: "vfx_gfx", label: "VFX / GFX", subsystem: "MCSOCD" },
-    { key: "sambed", label: "SAMBED", subsystem: "SAMBED" },
+    { key: "sambed", label: "SAMBED (Mechanical)", subsystem: "SAMBED" },
 ];
 
 const BY_KEY = new Map(RECRUIT_SUBDOMAINS.map((d) => [d.key, d]));
