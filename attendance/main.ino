@@ -27,7 +27,7 @@ const char* password = "STR@KungFu26";
    - Set tapURL to the deployed site's /api/attendance/tap endpoint.
    - Set deviceSecret to match ATTENDANCE_DEVICE_SECRET in the server's env.
    - Give each physical scanner its own deviceId if you add more than one. */
-const char* tapURL = "https://srmteamrobocon/api/attendance/tap";
+const char* tapURL = "https://srmteamrobocon.com/api/attendance/tap";
 const char* deviceSecret = "da403a99daa7552d5be254dda555f7b377ad90484ee45e54eb49aeff62aad1ae";
 const char* deviceId = "lobby-scanner-1";
 
@@ -82,8 +82,13 @@ void setup() {
   showMessage("Scan Card", "");
 }
 
-/* ── POST one tap, return the raw JSON response body (or "" on failure) ── */
-String sendTap(const String& uid) {
+/* ── POST one tap, return the raw JSON response body (or "" on failure) ──
+   httpCode is filled in either way so the caller can tell "never reached the
+   server" (negative, from HTTPClient itself) apart from "server answered
+   with something other than 200" (a real status code — 404 means this route
+   isn't deployed yet, 401 means deviceSecret doesn't match the server's
+   ATTENDANCE_DEVICE_SECRET). */
+String sendTap(const String& uid, int& httpCode) {
   WiFiClientSecure client;
   client.setInsecure();
 
@@ -93,13 +98,14 @@ String sendTap(const String& uid) {
   http.addHeader("Authorization", String("Bearer ") + deviceSecret);
 
   String body = String("{\"uid\":\"") + uid + "\",\"deviceId\":\"" + deviceId + "\"}";
-  int code = http.POST(body);
+  httpCode = http.POST(body);
 
   String response = "";
-  if (code == 200) {
+  if (httpCode == 200) {
     response = http.getString();
   } else {
-    Serial.println("Tap request failed, HTTP code: " + String(code));
+    Serial.println("Tap request failed, HTTP code: " + String(httpCode));
+    Serial.println("Response: " + http.getString());
   }
   http.end();
   return response;
@@ -125,10 +131,14 @@ void loop() {
   lastScanTime = millis();
 
   showMessage("Checking...", "");
-  String response = sendTap(uid);
+  int httpCode = 0;
+  String response = sendTap(uid, httpCode);
 
   if (response == "") {
-    showMessage("Network Error", "Try again");
+    // Negative = never reached the server (WiFi/DNS/TLS). A positive code
+    // that isn't 200 means the server answered but rejected the request —
+    // 404 = this route isn't deployed yet, 401 = wrong deviceSecret.
+    showMessage(httpCode < 0 ? "Connect Failed" : "HTTP Error", String(httpCode));
   } else if (!extractJsonBool(response, "ok")) {
     String event = extractJsonString(response, "event");
     showMessage(event == "unauthorized" ? "Unauthorized" : "Error", event);
