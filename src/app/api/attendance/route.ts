@@ -1,92 +1,59 @@
-// Server-side proxy — fetches attendance data from Google Apps Script
-// Uses Node.js https module because fetch() doesn't handle Google's redirect chain properly
 import { NextResponse } from "next/server";
-import https from "https";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSession, requireRole } from "@/lib/session";
 
-const APPS_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "";
-
+// Team-wide attendance board data for the dashboard. No longer public — every
+// teammate can see every other teammate's live status, but only from inside the
+// dashboard, not the open internet.
 export const dynamic = "force-dynamic";
 
-function httpsGet(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const doRequest = (requestUrl: string, redirectCount: number) => {
-      if (redirectCount > 10) {
-        reject(new Error("Too many redirects"));
-        return;
-      }
-      
-      https.get(requestUrl, (res) => {
-        // Handle redirects manually
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          doRequest(res.headers.location, redirectCount + 1);
-          return;
-        }
-        
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode}`));
-          return;
-        }
-        
-        let data = "";
-        res.on("data", (chunk) => { data += chunk; });
-        res.on("end", () => resolve(data));
-        res.on("error", reject);
-      }).on("error", reject);
-    };
-    
-    doRequest(url, 0);
-  });
-}
-
-let cachedData = "";
-let cacheTime = 0;
+const DASHBOARD_ROLES = ["member", "lead", "admin"] as const;
+const LOOKBACK_DAYS = 60;
 
 export async function GET() {
-  try {
-    if (!APPS_SCRIPT_URL) {
-      return NextResponse.json(
-        { error: "GOOGLE_SCRIPT_URL is not configured" },
-        { status: 500 }
-      );
+    const session = await getSession();
+    if (!requireRole(session, [...DASHBOARD_ROLES])) {
+        return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 
-    // 30 Seconds In-Memory Cache to drastically speed up load times
-    if (Date.now() - cacheTime < 30_000 && cachedData) {
-      return new NextResponse(cachedData, {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    const supabase = createSupabaseAdminClient();
+    const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: logs, error: logsError } = await supabase
+        .from("attendance_logs")
+        .select("member_account_id, action, occurred_at")
+        .gte("occurred_at", since)
+        .order("occurred_at", { ascending: true });
+
+    if (logsError) {
+        console.error("attendance board fetch error", logsError);
+        return NextResponse.json({ success: false, error: "Could not load attendance." }, { status: 500 });
     }
 
-    const urlObj = new URL(APPS_SCRIPT_URL);
-    // Force the action=get parameter which the Apps script requires
-    urlObj.searchParams.set("action", "get");
-    // Append timestamp to bust Google's internal caches
-    urlObj.searchParams.set("t", Date.now().toString());
-
-    const body = await httpsGet(urlObj.toString());
-
-    // Sanity check
-    if (body.trim().startsWith("<!") || body.trim().startsWith("<HTML")) {
-      return NextResponse.json(
-        { error: "Apps Script returned HTML — re-deploy with Access: Anyone" },
-        { status: 502 }
-      );
+    const memberAccountIds = Array.from(new Set((logs || []).map((l) => l.member_account_id)));
+    if (memberAccountIds.length === 0) {
+        return NextResponse.json({ success: true, events: [] });
     }
 
-    cachedData = body;
-    cacheTime = Date.now();
+    const [{ data: accounts }, { data: roster }] = await Promise.all([
+        supabase.from("member_accounts").select("id, name, domain").in("id", memberAccountIds),
+        supabase.from("members").select("member_account_id, name, domain").in("member_account_id", memberAccountIds),
+    ]);
 
-    return new NextResponse(body, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
+    const rosterByAccountId = new Map((roster || []).filter((r) => r.member_account_id).map((r) => [r.member_account_id as string, r]));
+    const accountById = new Map((accounts || []).map((a) => [a.id, a]));
+
+    const events = (logs || []).map((log) => {
+        const rosterEntry = rosterByAccountId.get(log.member_account_id);
+        const account = accountById.get(log.member_account_id);
+        return {
+            memberAccountId: log.member_account_id,
+            name: rosterEntry?.name || account?.name || "Unknown",
+            domain: rosterEntry?.domain || account?.domain || "GENERAL",
+            action: log.action,
+            occurredAt: log.occurred_at,
+        };
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "Internal error" },
-      { status: 500 }
-    );
-  }
+
+    return NextResponse.json({ success: true, events });
 }

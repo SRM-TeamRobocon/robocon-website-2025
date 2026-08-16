@@ -254,3 +254,41 @@ alter table timetables add constraint timetables_campus_check check (campus in (
 
 alter table timetables enable row level security;
 -- No public policies: service-role only via API routes, same pattern as blogs.
+
+-- RFID office attendance (ESP32 scanner). Replaces the old Google-Sheets/Apps-Script
+-- system: card UIDs are no longer hardcoded in firmware, they're bound to a
+-- member_accounts row via self-service pairing from the dashboard.
+alter table member_accounts add column if not exists rfid_uid text unique;
+
+-- One row per tap (or per self-service correction / cron auto-checkout). Domain is
+-- deliberately NOT stored here — it's resolved live via member_accounts -> members at
+-- read time, so it can't drift the way the old hardcoded per-device roster did.
+create table if not exists attendance_logs (
+  id uuid primary key default gen_random_uuid(),
+  member_account_id uuid not null references member_accounts(id),
+  action text not null check (action in ('IN', 'OUT')),
+  source text not null default 'rfid' check (source in ('rfid', 'manual_correction', 'auto_checkout')),
+  device_id text,
+  note text,
+  occurred_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists attendance_logs_member_idx on attendance_logs (member_account_id, occurred_at desc);
+
+alter table attendance_logs enable row level security;
+-- No public policies: service-role only, same pattern as member_accounts. Reads go
+-- through /api/attendance (session-gated) and /api/member/attendance/* (self-scoped).
+
+-- Short-lived pairing session: member starts one from the dashboard, then the next
+-- unrecognized card tapped on any scanner within the window gets bound to their account.
+create table if not exists rfid_pairing_requests (
+  id uuid primary key default gen_random_uuid(),
+  member_account_id uuid not null references member_accounts(id),
+  status text not null default 'pending' check (status in ('pending', 'claimed', 'expired', 'cancelled')),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists rfid_pairing_requests_pending_idx on rfid_pairing_requests (status, expires_at);
+
+alter table rfid_pairing_requests enable row level security;
+-- No public policies: service-role only.

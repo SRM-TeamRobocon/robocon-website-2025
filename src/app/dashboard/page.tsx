@@ -14,6 +14,7 @@ import {
     FilePlus2,
     ListChecks,
     CalendarClock,
+    Radio,
 } from "lucide-react";
 import { displayNameForUsername } from "@/lib/admin-users";
 
@@ -133,6 +134,18 @@ const PROPOSE_ACTION: QuickAction = {
     badgeClass: "bg-emerald-500/20 text-emerald-400 ring-emerald-500/30",
     iconClass: "text-emerald-400",
     textClass: "group-hover:text-emerald-400",
+};
+
+const ATTENDANCE_ACTION: QuickAction = {
+    href: "/dashboard/attendance",
+    title: "Attendance",
+    description: "See who's in the lab right now, tap-in streaks, and link your RFID card.",
+    icon: Radio,
+    badge: "Live",
+    accent: "from-rose-600/20 via-rose-900/20 to-gray-900 border-rose-500/30 hover:shadow-[0_0_30px_rgba(244,63,94,0.2)]",
+    badgeClass: "bg-rose-500/20 text-rose-400 ring-rose-500/30",
+    iconClass: "text-rose-400",
+    textClass: "group-hover:text-rose-400",
 };
 
 const SUBMISSIONS_ACTION: QuickAction = {
@@ -401,7 +414,7 @@ export default function AdminDashboard() {
             <div className="space-y-8">
                 {header}
                 {/* <StatGrid cards={cards} loading={loading} /> */}
-                <ActionGrid actions={[PROFILE_ACTION, PROPOSE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, SUBMISSIONS_ACTION, TIMETABLE_ACTION]} />
+                <ActionGrid actions={[PROFILE_ACTION, ATTENDANCE_ACTION, PROPOSE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, SUBMISSIONS_ACTION, TIMETABLE_ACTION]} />
             </div>
         );
     }
@@ -416,8 +429,8 @@ export default function AdminDashboard() {
 
     const staffActions =
         role === "lead" || role === "admin"
-            ? [CONTENT_ACTION, APPROVALS_ACTION, TIMETABLE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, RECRUITMENTS_ACTION]
-            : [CONTENT_ACTION, TIMETABLE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, RECRUITMENTS_ACTION];
+            ? [CONTENT_ACTION, APPROVALS_ACTION, TIMETABLE_ACTION, ATTENDANCE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, RECRUITMENTS_ACTION]
+            : [CONTENT_ACTION, TIMETABLE_ACTION, ATTENDANCE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, RECRUITMENTS_ACTION];
 
     return (
         <div className="space-y-8">

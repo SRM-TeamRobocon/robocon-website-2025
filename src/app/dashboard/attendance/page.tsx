@@ -1,0 +1,349 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+import { Download, Flame, Radio, Clock, Users, UserCircle2, X } from "lucide-react";
+import {
+    calculateStats,
+    buildSessions,
+    generateSessionCSV,
+    formatDuration,
+    type AttendanceEvent,
+    type MemberAttendanceStats,
+    type AttendanceSession,
+} from "@/lib/attendance";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
+
+const CARD_CLIP = { clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" };
+const REFRESH_MS = 30_000;
+
+interface BroadcastPayload {
+    event: "tap" | "linked";
+    name: string;
+    domain?: string;
+    action?: "IN" | "OUT";
+}
+
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+    return (
+        <div className={`border border-white/10 bg-white/[0.03] backdrop-blur-xl ${className}`} style={CARD_CLIP}>
+            {children}
+        </div>
+    );
+}
+
+function StatTile({ icon: Icon, label, value, tone }: { icon: React.ElementType; label: string; value: string; tone: string }) {
+    return (
+        <Card className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 sm:text-[11px]">{label}</span>
+                <Icon className={`h-4 w-4 ${tone}`} strokeWidth={1.5} />
+            </div>
+            <div className={`mt-3 text-2xl font-black sm:text-3xl ${tone}`}>{value}</div>
+        </Card>
+    );
+}
+
+export default function AttendanceBoardPage() {
+    const [events, setEvents] = useState<AttendanceEvent[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [now, setNow] = useState(Date.now());
+    const [selected, setSelected] = useState<MemberAttendanceStats | null>(null);
+    const eventsRef = useRef<AttendanceEvent[]>([]);
+
+    const fetchEvents = useCallback(async () => {
+        try {
+            const res = await fetch("/api/attendance");
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || "Failed to load attendance");
+            setEvents(data.events);
+            eventsRef.current = data.events;
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load attendance");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchEvents();
+        const interval = setInterval(fetchEvents, REFRESH_MS);
+        const clock = setInterval(() => setNow(Date.now()), 30_000);
+        return () => {
+            clearInterval(interval);
+            clearInterval(clock);
+        };
+    }, [fetchEvents]);
+
+    // Live updates: the tap route broadcasts here via Supabase Realtime's server-side
+    // REST broadcast endpoint (see broadcastAttendanceEvent in src/lib/attendance.ts).
+    // The 30s poll above is the safety net if a broadcast is ever missed.
+    useEffect(() => {
+        const supabase = createPublicSupabaseClient();
+        if (!supabase) return;
+
+        const channel = supabase.channel("attendance-live");
+        channel
+            .on("broadcast", { event: "attendance" }, ({ payload }: { payload: BroadcastPayload }) => {
+                if (payload.event === "linked") {
+                    toast.success(`🔗 ${payload.name} linked a new RFID card!`);
+                } else if (payload.action === "IN") {
+                    toast.success(`🤖 ${payload.name} has entered the lab.`);
+                } else {
+                    toast(`👋 ${payload.name} has left the lab.`, { icon: "🚪" });
+                }
+                fetchEvents();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchEvents]);
+
+    const stats = useMemo(() => calculateStats(events, now), [events, now]);
+    const liveIn = useMemo(() => stats.filter((s) => s.status === "IN").sort((a, b) => a.lastTapMs - b.lastTapMs), [stats]);
+    const totalHours = useMemo(() => stats.reduce((sum, s) => sum + s.totalTimeMs, 0), [stats]);
+    const topStreak = useMemo(() => Math.max(0, ...stats.map((s) => s.currentStreak)), [stats]);
+
+    const domainTotals = useMemo(() => {
+        const map = new Map<string, { total: number; members: number }>();
+        for (const s of stats) {
+            const entry = map.get(s.domain) || { total: 0, members: 0 };
+            entry.total += s.totalTimeMs;
+            entry.members += 1;
+            map.set(s.domain, entry);
+        }
+        return Array.from(map.entries())
+            .map(([domain, v]) => ({ domain, ...v }))
+            .sort((a, b) => b.total - a.total);
+    }, [stats]);
+
+    const leaderboard = useMemo(() => [...stats].sort((a, b) => b.totalTimeMs - a.totalTimeMs), [stats]);
+    const maxDomainTotal = Math.max(1, ...domainTotals.map((d) => d.total));
+
+    const selectedSessions = useMemo<AttendanceSession[]>(() => {
+        if (!selected) return [];
+        return buildSessions(
+            events.filter((e) => e.memberAccountId === selected.memberAccountId),
+            now
+        );
+    }, [events, selected, now]);
+
+    const handleDownload = () => {
+        const sessions = buildSessions(events, now);
+        const csv = generateSessionCSV(sessions);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `attendance_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-red">
+                        <Radio className="h-3.5 w-3.5 animate-pulse" /> Live
+                    </p>
+                    <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl">Attendance</h1>
+                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-400 sm:text-base">
+                        Who&apos;s in the lab right now, and how the team&apos;s been showing up.
+                    </p>
+                </div>
+                <div className="flex gap-3">
+                    <Link
+                        href="/dashboard/attendance/me"
+                        className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white hover:bg-white/10 transition"
+                        style={CARD_CLIP}
+                    >
+                        <UserCircle2 className="h-4 w-4" /> My Card
+                    </Link>
+                    <button
+                        onClick={handleDownload}
+                        className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white hover:bg-white/10 transition"
+                        style={CARD_CLIP}
+                    >
+                        <Download className="h-4 w-4" /> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            {error && (
+                <Card className="border-red/30 bg-red/10 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-red">Connection error</p>
+                    <p className="mt-1 text-sm text-gray-300">{error}</p>
+                </Card>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                <StatTile icon={Users} label="In right now" value={String(liveIn.length)} tone="text-red" />
+                <StatTile icon={Clock} label="Total hours (60d)" value={formatDuration(totalHours)} tone="text-white" />
+                <StatTile icon={Flame} label="Top streak" value={`${topStreak}d`} tone="text-amber-400" />
+                <StatTile icon={UserCircle2} label="Members tracked" value={String(stats.length)} tone="text-cyan-400" />
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <Card className="p-5 sm:p-6">
+                    <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white">
+                        <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-red" />
+                        </span>
+                        In the lab
+                    </h2>
+                    {loading ? (
+                        <div className="space-y-2">
+                            {[0, 1, 2].map((i) => (
+                                <div key={i} className="h-12 animate-pulse bg-white/5" />
+                            ))}
+                        </div>
+                    ) : liveIn.length === 0 ? (
+                        <p className="text-sm text-gray-500">Nobody&apos;s checked in right now.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {liveIn.map((m) => (
+                                <button
+                                    key={m.memberAccountId}
+                                    onClick={() => setSelected(m)}
+                                    className="flex w-full items-center justify-between border border-white/5 bg-black/20 px-3 py-2.5 text-left transition hover:border-white/20"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-white">{m.name}</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-500">{m.domain}</p>
+                                    </div>
+                                    <span className="shrink-0 font-mono text-xs text-red">since {new Date(m.lastTapMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                <Card className="p-5 sm:p-6">
+                    <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-white">Domain leaderboard</h2>
+                    {loading ? (
+                        <div className="space-y-2">
+                            {[0, 1, 2].map((i) => (
+                                <div key={i} className="h-8 animate-pulse bg-white/5" />
+                            ))}
+                        </div>
+                    ) : domainTotals.length === 0 ? (
+                        <p className="text-sm text-gray-500">No data yet.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {domainTotals.map((d) => (
+                                <div key={d.domain}>
+                                    <div className="mb-1 flex items-center justify-between text-xs">
+                                        <span className="font-bold text-gray-300">{d.domain}</span>
+                                        <span className="font-mono text-gray-500">
+                                            {formatDuration(d.total)} · {d.members} member{d.members === 1 ? "" : "s"}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-white/5">
+                                        <div className="h-1.5 bg-red/70" style={{ width: `${(d.total / maxDomainTotal) * 100}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+            </div>
+
+            <Card className="p-5 sm:p-6">
+                <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-white">All members</h2>
+                {loading ? (
+                    <div className="space-y-2">
+                        {[0, 1, 2, 3].map((i) => (
+                            <div key={i} className="h-10 animate-pulse bg-white/5" />
+                        ))}
+                    </div>
+                ) : leaderboard.length === 0 ? (
+                    <p className="text-sm text-gray-500">No attendance recorded yet — taps will show up here.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[520px] text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
+                                    <th className="pb-2 font-bold">Name</th>
+                                    <th className="pb-2 font-bold">Domain</th>
+                                    <th className="pb-2 font-bold">Status</th>
+                                    <th className="pb-2 font-bold">Hours</th>
+                                    <th className="pb-2 font-bold">Streak</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {leaderboard.map((m) => (
+                                    <tr
+                                        key={m.memberAccountId}
+                                        onClick={() => setSelected(m)}
+                                        className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
+                                    >
+                                        <td className="py-2.5 font-semibold text-white">{m.name}</td>
+                                        <td className="py-2.5 text-gray-400">{m.domain}</td>
+                                        <td className="py-2.5">
+                                            <span
+                                                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${
+                                                    m.status === "IN" ? "bg-red/20 text-red ring-red/30" : "bg-white/5 text-gray-400 ring-white/10"
+                                                }`}
+                                            >
+                                                {m.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-2.5 font-mono text-gray-300">{formatDuration(m.totalTimeMs)}</td>
+                                        <td className="py-2.5 text-amber-400">{m.currentStreak > 0 ? `🔥 ${m.currentStreak}` : "—"}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Card>
+
+            {selected && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    onClick={() => setSelected(null)}
+                >
+                    <div
+                        className="max-h-[80vh] w-full max-w-lg overflow-hidden border border-white/10 bg-black/95"
+                        style={CARD_CLIP}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                            <div>
+                                <p className="text-sm font-bold text-white">{selected.name}</p>
+                                <p className="text-[10px] uppercase tracking-widest text-gray-500">{selected.domain}</p>
+                            </div>
+                            <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white">
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-y-auto p-5">
+                            {selectedSessions.length === 0 ? (
+                                <p className="text-sm text-gray-500">No sessions recorded.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {selectedSessions.map((s, i) => (
+                                        <div key={i} className="flex items-center justify-between border border-white/5 bg-white/[0.02] px-3 py-2 text-xs">
+                                            <span className="text-gray-300">{new Date(s.inAt).toLocaleString()}</span>
+                                            <span className="font-mono text-gray-500">{s.outAt ? formatDuration(s.durationMs) : "still in"}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+        </div>
+    );
+}

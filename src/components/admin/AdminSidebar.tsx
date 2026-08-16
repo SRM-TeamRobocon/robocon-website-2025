@@ -21,6 +21,7 @@ import {
     PenSquare,
     GraduationCap,
     CalendarClock,
+    Radio,
 } from "lucide-react";
 
 export type NavRole = "lead" | "admin" | "member";
@@ -46,6 +47,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Blog", href: "/dashboard/blogs", icon: Newspaper, roles: ALL_ROLES },
     { label: "Write Blog", href: "/dashboard/blogs/new", icon: PenSquare, roles: ALL_ROLES },
     { label: "Timetable", href: "/dashboard/timetable", icon: CalendarClock, roles: ALL_ROLES },
+    { label: "Attendance", href: "/dashboard/attendance", icon: Radio, roles: ALL_ROLES },
     { label: "Propose Content", href: "/dashboard/propose", icon: FilePlus2, roles: ["member"] },
     { label: "My Submissions", href: "/dashboard/my-submissions", icon: ListChecks, roles: ["member"] },
 ];

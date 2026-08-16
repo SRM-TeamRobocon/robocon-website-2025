@@ -63,6 +63,7 @@ export type Database = {
           reset_otp_attempts: number;
           google_uid: string | null;
           google_email: string | null;
+          rfid_uid: string | null;
         };
         Insert: {
           id?: string;
@@ -87,6 +88,7 @@ export type Database = {
           reset_otp_attempts?: number;
           google_uid?: string | null;
           google_email?: string | null;
+          rfid_uid?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["member_accounts"]["Insert"]>;
         Relationships: [];
@@ -381,6 +383,48 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["timetables"]["Insert"]>;
+        Relationships: [];
+      };
+      attendance_logs: {
+        Row: {
+          id: string;
+          member_account_id: string;
+          action: string;
+          source: string;
+          device_id: string | null;
+          note: string | null;
+          occurred_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_account_id: string;
+          action: string;
+          source?: string;
+          device_id?: string | null;
+          note?: string | null;
+          occurred_at?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["attendance_logs"]["Insert"]>;
+        Relationships: [];
+      };
+      rfid_pairing_requests: {
+        Row: {
+          id: string;
+          member_account_id: string;
+          status: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_account_id: string;
+          status?: string;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["rfid_pairing_requests"]["Insert"]>;
         Relationships: [];
       };
     };

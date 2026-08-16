@@ -6,7 +6,8 @@ Next.js website for SRM Team Robocon with public pages, workshop/event registrat
 
 - Next.js App Router, React, TypeScript
 - Tailwind CSS
-- Google Sheets / Apps Script for attendance and registrations
+- Google Sheets / Apps Script for workshop/event registrations
+- Supabase-backed RFID office attendance (ESP32 + `/api/attendance/*`)
 - Razorpay for paid workshop registration
 - SMTP via Nodemailer for registration emails
 - JWT-protected admin dashboard for event operations
@@ -43,15 +44,19 @@ Supabase backend:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Attendance and Google Sheets:
+Workshop/event registration (Google Sheets):
 
-- `GOOGLE_SCRIPT_URL`
 - `GOOGLE_SHEET_ID`
 - `GOOGLE_SHEET_WEBHOOK_URL`
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
 - `GOOGLE_PRIVATE_KEY`
-- `CRON_SECRET`
+- `CRON_SECRET` — also guards `/api/attendance/auto-checkout` below
 - `NEXT_PUBLIC_SITE_URL`
+
+Office RFID attendance (Supabase-backed — see `attendance/main.ino`):
+
+- `ATTENDANCE_DEVICE_SECRET` — bearer secret the ESP32 scanner sends to `/api/attendance/tap`; must match `deviceSecret` in the firmware. Falls back to `"local-dev"` if unset, which is only safe for local testing.
+- `GOOGLE_SCRIPT_URL` is no longer used — the old Apps-Script-backed attendance system was replaced by Supabase (`attendance_logs`/`rfid_pairing_requests` tables, `member_accounts.rfid_uid`). Safe to remove once the old Apps Script deployment is decommissioned.
 
 Payments and email:
 
