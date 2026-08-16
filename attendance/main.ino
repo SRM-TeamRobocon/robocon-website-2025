@@ -6,6 +6,12 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
+// WiFi credentials and the device bearer secret live in secrets.h, which is
+// gitignored — this repo is public, so nothing that grants network/API access goes
+// in main.ino. Copy secrets.example.h to secrets.h and fill in real values before
+// flashing (see attendance/README.md).
+#include "secrets.h"
+
 /* ── RFID ─────────────────────────────────── */
 #define SS_PIN 21
 #define RST_PIN 22
@@ -14,24 +20,17 @@ MFRC522 rfid(SS_PIN, RST_PIN);
 /* ── LCD ──────────────────────────────────── */
 LiquidCrystal_I2C lcd(0x3F, 16, 2);
 
-/* ── WiFi ─────────────────────────────────── */
-const char* ssid = "SRM TEAM ROBOCON";
-const char* password = "STR@KungFu26";
-
 /* ── Backend ──────────────────────────────────────────────────────────────
    Card UIDs are no longer hardcoded here — they're bound to a member's
    account via self-service pairing from the website dashboard. This device
    just forwards taps to one endpoint and shows whatever it says back.
 
-   TODO before flashing:
-   - Set tapURL to the deployed site's /api/attendance/tap endpoint.
-   - Set deviceSecret to match ATTENDANCE_DEVICE_SECRET in the server's env.
-   - Give each physical scanner its own deviceId if you add more than one. */
-// Must be the canonical host — srmteamrobocon.com (no www) 307-redirects here, and
-// ESP32's HTTPClient doesn't follow POST redirects by default (see setFollowRedirects
-// below, which is a defensive fallback, not a substitute for the right URL).
+   Must be the canonical host — srmteamrobocon.com (no www) 307-redirects here, and
+   ESP32's HTTPClient doesn't follow POST redirects by default (see
+   setFollowRedirects below, which is a defensive fallback, not a substitute for
+   the right URL). Give each physical scanner its own deviceId if you add more
+   than one. */
 const char* tapURL = "https://www.srmteamrobocon.com/api/attendance/tap";
-const char* deviceSecret = "da403a99daa7552d5be254dda555f7b377ad90484ee45e54eb49aeff62aad1ae";
 const char* deviceId = "lobby-scanner-1";
 
 String lastUID = "";
@@ -71,18 +70,18 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
-  lcd.print("Connecting WiFi");
-  WiFi.begin(ssid, password);
+  lcd.print("Linking Up...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) delay(500);
 
   lcd.clear();
-  lcd.print("WiFi Connected");
+  lcd.print("Locked & Loaded");
 
   SPI.begin();
   rfid.PCD_Init();
 
   delay(1500);
-  showMessage("Scan Card", "");
+  showMessage("Tap In Bestie", "SRM Robocon");
 }
 
 /* ── POST one tap, return the raw JSON response body (or "" on failure) ──
@@ -102,7 +101,7 @@ String sendTap(const String& uid, int& httpCode) {
   // into a GET (unlike the default, which doesn't follow redirects at all).
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + deviceSecret);
+  http.addHeader("Authorization", String("Bearer ") + DEVICE_SECRET);
 
   String body = String("{\"uid\":\"") + uid + "\",\"deviceId\":\"" + deviceId + "\"}";
   httpCode = http.POST(body);
@@ -137,32 +136,43 @@ void loop() {
   lastUID = uid;
   lastScanTime = millis();
 
-  showMessage("Checking...", "");
+  showMessage("Checking Vibes", "hold up...");
   int httpCode = 0;
   String response = sendTap(uid, httpCode);
 
   if (response == "") {
     // Negative = never reached the server (WiFi/DNS/TLS). A positive code
     // that isn't 200 means the server answered but rejected the request —
-    // 404 = this route isn't deployed yet, 401 = wrong deviceSecret.
-    showMessage(httpCode < 0 ? "Connect Failed" : "HTTP Error", String(httpCode));
+    // 404 = this route isn't deployed yet, 401 = wrong deviceSecret. Codes
+    // stay on-screen (not just flavor text) since they're the first thing
+    // you'll want to read off when debugging a scanner in the field.
+    showMessage(httpCode < 0 ? "No Signal Fam" : "Server Yikes", String(httpCode));
   } else if (!extractJsonBool(response, "ok")) {
     String event = extractJsonString(response, "event");
-    showMessage(event == "unauthorized" ? "Unauthorized" : "Error", event);
+    showMessage(event == "unauthorized" ? "Not On The List" : "Big Yikes", event == "unauthorized" ? "Sry Bestie" : event);
   } else {
     String event = extractJsonString(response, "event");
     String name = extractJsonString(response, "name");
     if (event == "linked") {
-      showMessage("Card Linked!", name);
+      // A little HUD-style boot sequence instead of a flat "Card Linked!" —
+      // this is the moment someone's card goes live, worth a beat of drama.
+      for (int i = 0; i < 3; i++) {
+        String dots = "";
+        for (int d = 0; d <= i; d++) dots += ".";
+        showMessage(name + " is...", "syncing" + dots);
+        delay(300);
+      }
+      showMessage(name + " is", "ONLINE");
     } else {
       String action = extractJsonString(response, "action");
       String domain = extractJsonString(response, "domain");
-      showMessage(action + "  " + domain, name);
+      String vibe = action == "IN" ? "Locked In" : "Ghosted";
+      showMessage(name, domain + " " + vibe);
     }
   }
 
   Serial.println(response);
 
   delay(2500);
-  showMessage("Scan Card", "");
+  showMessage("Tap In Bestie", "SRM Robocon");
 }

@@ -45,6 +45,10 @@ build_output.txt
 # vercel
 .vercel
 
+# ESP32 firmware secrets (WiFi password, device bearer secret) — see
+# attendance/secrets.example.h for the template that IS committed.
+attendance/secrets.h
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
