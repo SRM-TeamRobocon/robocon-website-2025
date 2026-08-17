@@ -348,7 +348,7 @@ export default function RecruitsPage() {
 }
 
 // Fields PATCH /api/admin/recruitment/recruits/:id accepts and returns. Deliberately a
-// subset of Recruit — srm_email/domains aren't editable here (see the route's own comment).
+// subset of Recruit — srm_email isn't editable here (see the route's own comment).
 type EditableFields = Pick<
     Recruit,
     | "id"
@@ -364,6 +364,7 @@ type EditableFields = Pick<
     | "hostel_room"
     | "day_scholar_area"
     | "travel_method"
+    | "domains"
 >;
 
 function EditRecruitModal({
@@ -387,9 +388,18 @@ function EditRecruitModal({
     const [hostelRoom, setHostelRoom] = useState(recruit.hostel_room || "");
     const [dayScholarArea, setDayScholarArea] = useState(recruit.day_scholar_area || "");
     const [travelMethod, setTravelMethod] = useState(recruit.travel_method || "");
+    const [domains, setDomains] = useState<string[]>(recruit.domains || []);
     const [saving, setSaving] = useState(false);
 
+    const toggleDomain = (key: string) =>
+        setDomains((prev) => (prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key]));
+
+    // Server-side re-validates this too (a recruit must have at least one domain) — this is
+    // just so the button reflects an invalid state before the round-trip.
+    const domainsValid = domains.length > 0;
+
     const save = async () => {
+        if (!domainsValid) return;
         setSaving(true);
         try {
             const res = await fetch(`/api/admin/recruitment/recruits/${recruit.id}`, {
@@ -412,6 +422,7 @@ function EditRecruitModal({
                     hostel_room: isHosteller ? hostelRoom : null,
                     day_scholar_area: isHosteller ? null : dayScholarArea,
                     travel_method: isHosteller ? null : travelMethod,
+                    domains,
                 }),
             });
             const data = await res.json();
@@ -563,6 +574,37 @@ function EditRecruitModal({
                             </div>
                         </div>
                     )}
+
+                    <div>
+                        <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">
+                            Domain(s)
+                        </label>
+                        <div className="space-y-3 border-0 bg-white/5 p-3 ring-1 ring-inset ring-white/10">
+                            {DOMAIN_GROUPS.map((group) => (
+                                <div key={group.subsystem}>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
+                                        {group.subsystem}
+                                    </p>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                        {group.domains.map((d) => (
+                                            <label key={d.key} className="flex items-center gap-2 text-sm text-gray-300">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={domains.includes(d.key)}
+                                                    onChange={() => toggleDomain(d.key)}
+                                                    className="border-white/20 bg-white/5 text-red focus:ring-red"
+                                                />
+                                                {d.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {!domainsValid && (
+                            <p className="mt-1.5 text-xs text-red-400">Select at least one domain.</p>
+                        )}
+                    </div>
                 </div>
 
                 <div className="mt-6 flex justify-end gap-3">
@@ -575,7 +617,7 @@ function EditRecruitModal({
                     </button>
                     <button
                         onClick={save}
-                        disabled={saving}
+                        disabled={saving || !domainsValid}
                         className="group relative overflow-hidden bg-red px-8 py-2 text-sm font-semibold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
                         style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >

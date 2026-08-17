@@ -5,17 +5,27 @@ import { boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
 import { isHostelBlock } from "@/lib/hostel-blocks";
 import { isTravelMethod } from "@/lib/travel-method";
 import { isGender } from "@/lib/gender";
+import { isRecruitSubDomain } from "@/lib/recruit-domains";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// PATCH /api/admin/recruitment/recruits/:id — edit a recruit's own profile fields.
-// Deliberately does NOT allow editing srm_email/password (auth-sensitive — email is the
-// login identity and unique per cycle) or `domains` (recruit_domain_selections rows are
-// the join key for marks/shortlist/interview_tokens; changing them here without touching
-// those tables would silently orphan data — that's a bigger operation than a name/phone
-// fix and belongs in a dedicated flow if it's ever needed).
+// PATCH /api/admin/recruitment/recruits/:id — edit a recruit's own profile fields, and
+// optionally their domain selections. Deliberately does NOT allow editing srm_email/password
+// (auth-sensitive — email is the login identity and unique per cycle).
+//
+// An optional `domains: string[]` in the body swaps the recruit's recruit_domain_selections
+// rows to exactly that set (diffed against what's currently there — only the delta is
+// deleted/inserted). Same reasoning as the ticket-resolve route's domain-change logic (see
+// src/app/api/admin/recruitment/tickets/[id]/resolve/route.ts): this deliberately does NOT
+// touch recruit_marks, recruit_shortlist_status, recruit_interview_tokens/results, or
+// training attendance tied to a removed domain — those are the historical record of what
+// already happened under that domain (exam sat, interview called, etc.), and moving/deleting
+// them would silently rewrite that history. A lead who needs the recruit re-evaluated under
+// a newly-added domain does that manually through the existing per-domain tooling (marks,
+// shortlist, interview) rather than this route inventing rows for a process that hasn't
+// happened yet.
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -69,6 +79,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const day_scholar_area = !isHosteller ? boundedText(body.day_scholar_area, FIELD_LIMITS.day_scholar_area) : null;
   const travel_method = !isHosteller && isTravelMethod(body.travel_method) ? body.travel_method : null;
 
+  // `domains` is optional — omitting it (or sending it as `undefined`) leaves the recruit's
+  // domain selections untouched. When present it's treated as the recruit's complete new
+  // selection set, same shape as complete-registration's own rule (1-2 distinct domains).
+  const domainsProvided = Array.isArray(body.domains);
+  let domains: string[] | null = null;
+  if (domainsProvided) {
+    const raw: unknown[] = body.domains;
+    if (raw.length === 0) {
+      return NextResponse.json({ success: false, error: "Select at least one domain." }, { status: 400 });
+    }
+    if (!raw.every(isRecruitSubDomain)) {
+      return NextResponse.json({ success: false, error: "Invalid domain selection." }, { status: 400 });
+    }
+    domains = Array.from(new Set(raw as string[]));
+  }
+
   const supabase = createRecruitSupabaseAdminClient();
 
   const { data, error } = await supabase
@@ -89,7 +115,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     })
     .eq("id", id)
     .select(
-      "id, name, reg_no, year, gender, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method"
+      "id, name, reg_no, year, gender, department, course, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, cycle_id"
     )
     .maybeSingle();
 
@@ -101,7 +127,78 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ success: false, error: "Recruit not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, data });
+  const { cycle_id, ...profile } = data;
+
+  if (domainsProvided && domains) {
+    const { data: existingRows, error: existingError } = await supabase
+      .from("recruit_domain_selections")
+      .select("sub_domain")
+      .eq("recruit_id", id)
+      .eq("cycle_id", cycle_id);
+
+    if (existingError) {
+      console.error("recruit PATCH: domain lookup error", existingError);
+      return NextResponse.json(
+        { success: false, error: "Profile saved, but could not read current domains." },
+        { status: 500 }
+      );
+    }
+
+    const existingDomains = (existingRows || []).map((r) => r.sub_domain);
+    const existingSet = new Set(existingDomains);
+    const nextSet = new Set(domains);
+
+    const toRemove = existingDomains.filter((d) => !nextSet.has(d));
+    const toAdd = domains.filter((d) => !existingSet.has(d));
+
+    if (toRemove.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("recruit_domain_selections")
+        .delete()
+        .eq("recruit_id", id)
+        .eq("cycle_id", cycle_id)
+        .in("sub_domain", toRemove);
+      if (deleteError) {
+        console.error("recruit PATCH: domain delete error", deleteError);
+        return NextResponse.json(
+          { success: false, error: "Profile saved, but could not update domains." },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (toAdd.length > 0) {
+      const { error: insertError } = await supabase
+        .from("recruit_domain_selections")
+        .insert(toAdd.map((sub_domain) => ({ recruit_id: id, cycle_id, sub_domain })));
+      if (insertError) {
+        console.error("recruit PATCH: domain insert error", insertError);
+        return NextResponse.json(
+          { success: false, error: "Profile saved, but could not update domains." },
+          { status: 500 }
+        );
+      }
+    }
+  }
+
+  const { data: currentDomainRows, error: currentDomainError } = await supabase
+    .from("recruit_domain_selections")
+    .select("sub_domain")
+    .eq("recruit_id", id)
+    .eq("cycle_id", cycle_id);
+
+  if (currentDomainError) {
+    console.error("recruit PATCH: final domain read error", currentDomainError);
+    return NextResponse.json(
+      { success: false, error: "Profile saved, but could not read current domains." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    data: { ...profile, domains: (currentDomainRows || []).map((r) => r.sub_domain) },
+  });
 }
 
 // DELETE /api/admin/recruitment/recruits/:id — permanently remove a recruit.
