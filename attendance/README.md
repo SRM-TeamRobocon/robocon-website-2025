@@ -323,6 +323,33 @@ something's been pushed publicly.
 - `CRON_SECRET` — guards the nightly auto-checkout sweep (shared with the rest of the
   app's cron-triggered routes).
 
+## Building
+
+`arduino-cli` requires the sketch folder to be named after the `.ino` file, and this
+one is `main.ino` inside `attendance/` — so compiling in place fails. Stage it in a
+folder called `main` first:
+
+```bash
+arduino-cli config add board_manager.additional_urls \
+  https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli core update-index
+arduino-cli core install esp32:esp32
+arduino-cli lib install "MFRC522" "LiquidCrystal I2C"
+
+mkdir -p /tmp/main && cp attendance/main.ino attendance/secrets.h /tmp/main/
+arduino-cli compile --fqbn esp32:esp32:esp32 /tmp/main
+```
+
+Verified building against **esp32:esp32 core 3.3.11** (2026-08-17): 83% of program
+storage, 15% of dynamic memory. That flash figure is worth watching — there isn't
+room for much more, and the fix if it overflows is a `huge_app` partition scheme, not
+cutting features. The `LiquidCrystal I2C claims to run on avr architecture` warning is
+expected and harmless.
+
+Note that only the `ESP_ARDUINO_VERSION_MAJOR >= 3` half of the enterprise `#if` gets
+compiled on a 3.x core; the 2.x branch is carried for older cores but isn't exercised
+by this build.
+
 ## Flashing checklist
 
 1. Copy `attendance/secrets.example.h` to `attendance/secrets.h` and fill in the real

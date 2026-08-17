@@ -1,56 +1,248 @@
 SRM Team Robocon — Recruitment 2026 Knowledge Base
 
-Key Dates (Tentative)
-Orientation: August 30, 2026.
-Recruitment written exam: August 31 and September 1, 2026 (two days).
+===========================================================
+SECTION 1 — DATES, VENUE AND TIMING
+===========================================================
+
+When is the recruitment exam? What are the recruitment dates?
+The SRM Team Robocon recruitment written exam is held on August 31 and September 1, 2026 — two days.
 Venue: University Building (UB), 5th Floor.
-Timing: 5:15 PM onwards (last year's exam ran until 6:45 PM — expect a similar window this year).
-These dates, the venue and the timing are all tentative and may change — always check the latest announcement on Instagram (@srmteamrobocon) or official college mail closer to the date.
+Timing: 5:15 PM onwards. Last year's exam ran until about 6:45 PM, so expect a similar window this year.
+All dates, venues and timings are tentative and can change. Always check the latest announcement on Instagram (@srmteamrobocon) or your official college mail closer to the date.
 
-How many domains can I apply for?
-You can select a maximum of 2 domains at registration. If you're attempting both, you can attempt both on the same day if time permits, or split them across the two exam days — one on August 31 and one on September 1.
+When and where is the orientation?
+The orientation date and venue have not been announced yet. Both will be announced on Instagram (@srmteamrobocon) and through official college mail. Do not assume a date from older posts — wait for the official announcement.
 
-What are the domains?
+Is there any fee? Do I have to pay to register, to write the exam, or to join the team?
+No. There is no fee at any stage of SRM Team Robocon recruitment. Registration is free, the written exam is free, the interview is free, and joining the team after selection is free. Nobody from the team will ever ask you to pay money to apply or to get selected. If someone asks you for a payment, it is not from us — report it by raising a ticket on your recruit dashboard.
+
+===========================================================
+SECTION 2 — DOMAINS
+===========================================================
+
+What are the domains? Which domains can I apply to?
 SRM Team Robocon recruits into 6 domains across 4 divisions:
-- SPACED (Systems Programming Analysis and Computation Engineering Division): Coding, Web Dev
-- SIESED (System Integration and Electronics Subsystem Engineering Division): SIESED
-- SAMBED (Structural Architecture and Mechanical Body Engineering Division): SAMBED
+- SPACED (Systems Programming, Analysis and Computation Engineering Division): Coding, Web Dev
+- SIESED (System Integration and Electronics Subsystem Engineering Division): SIESED — this is the Electronics domain
+- SAMBED (Structural Architecture and Mechanical Body Engineering Division): SAMBED — this is the Mechanical domain
 - MCSOCD (Media Creation and Social Outreach Creatives Division): Corporate, VFX/GFX
 
-Is the recruitment test written or an interview?
-The first round for every domain is a written exam, conducted offline on paper. There is no fixed syllabus — prepare the fundamentals of your chosen domain(s) plus general aptitude and logical reasoning. Exact topics and sample questions are not shared in advance.
+Which domain do I pick for electronics? Which domain is electronics?
+Electronics is the SIESED domain. If you are interested in circuits, PCB design, sensors, motor drivers, power systems or signal integration, pick SIESED.
 
-Do I need to bring a laptop?
-A laptop is required ONLY for the Web Dev and VFX/GFX domains. No other domain — Coding, SIESED, Corporate, or SAMBED — requires you to bring a laptop.
+Which domain do I pick for mechanical? Which domain is mechanical?
+Mechanical is the SAMBED domain. If you are interested in mechanical design, CAD, fabrication, manufacturing or structural engineering, pick SAMBED.
 
-What is the written exam out of?
+Which domain is for programming or software?
+Coding and Web Dev, both under SPACED. Coding covers embedded systems programming and robotics algorithms; Web Dev covers the team's websites and internal software tools.
+
+Which domain is for design, editing, video or social media?
+VFX/GFX (graphics, video editing, motion design, posters, reels) and Corporate (sponsorship, PR, event management, documentation, outreach), both under MCSOCD.
+
+How many domains can I apply for? Can I select more than two?
+You can select a maximum of 2 domains at registration. Two is the hard limit — you cannot attempt three.
+
+Can I attempt one domain on Day 1 and the other on Day 2?
+Yes. If you are attempting both of your domains, you can write both on the same day if time permits, or split them — one on August 31 and one on September 1.
+
+I picked the wrong domain at registration. Can I change it?
+Domain changes are not something you can do yourself from the dashboard. Raise a ticket from your recruit dashboard with your correct domain choice, and the recruitment team will handle it. Do this as early as possible, well before the exam day.
+
+===========================================================
+SECTION 3 — THE WRITTEN EXAM
+===========================================================
+
+Is the recruitment test written or an interview? Is it online or offline?
+The first round for every domain is a written exam, conducted offline on paper at the venue. It is not online, and you cannot write it from home or from your hostel. The interview happens later, only for shortlisted candidates.
+
+Is there a syllabus? What should I study?
+There is no fixed syllabus and no syllabus PDF. Prepare the fundamentals of your chosen domain(s) plus general aptitude and logical reasoning. Exact topics and sample question papers are not shared in advance, and no sample paper will be released.
+
+What is the written exam out of? How many marks is the exam?
 The exam is not out of 100 marks. The exact maximum marks will be announced closer to the exam date.
 
-What should I bring to the exam?
-Your college ID card and reqruitment qr is mandatory. In some cases a clear photo of your ID may be accepted if you've forgotten the physical card. Reach early — late entry may be allowed, but no extra time is given past the end of the exam window.
+Is there a passing mark or a cutoff? How many students get selected?
+There is no fixed passing mark published in advance and no fixed intake number. Shortlisting is done per domain using a cutoff computed from that domain's results, so selection depends on your overall performance relative to everyone else who wrote that domain's paper.
 
-What happens after the written exam?
-Evaluators enter marks per domain, and a cutoff-based shortlist is computed for each domain separately — clearing one of your two domains does not depend on the other. Shortlisted candidates are called for a walk-in interview. Selected candidates then go through a training period before being formally inducted as members.
+Will there be subjective questions, or only MCQs?
+Both. Most technical domains have a mix of MCQs and subjective (written-answer) questions.
+
+Is the paper the same for first years and second years?
+No, not everywhere. Several domains set a different paper, or different expectations, for first years and second years. Details are in the domain-specific section below.
+
+===========================================================
+SECTION 4 — WHAT TO BRING
+===========================================================
+
+What should I bring to the exam?
+Bring these four things:
+1. Your college ID card — mandatory. If you have genuinely forgotten the physical card, a clear photo of your ID may be accepted in some cases, but carry the real card if you can.
+2. Your recruitment QR code — mandatory. It is on your recruit dashboard on the website and is scanned at the entry desk to mark your attendance.
+3. Your phone — you need it to show the recruitment QR code at check-in.
+4. A pen.
+That is all you need, unless your domain requires a laptop (see below).
+
+Do I need to bring a laptop? Is a laptop compulsory?
+A laptop is required ONLY for the Web Dev and VFX/GFX domains. No other domain — Coding, SIESED (Electronics), SAMBED (Mechanical) or Corporate — requires a laptop. If one of your two domains is Web Dev or VFX/GFX, bring your laptop (and its charger) on the day you are attempting that domain.
+
+Do I need to bring rough sheets?
+No. You do not need to bring rough sheets.
+
+Can I use a calculator?
+Generally no. Do not plan on using a calculator unless the invigilators specifically tell you otherwise on the day.
+
+Can I use my phone during the exam?
+Bring your phone for the QR check-in at the entry desk, but once the paper starts, follow the invigilators' instructions — assume phones are put away during the exam.
+
+What if I forgot my ID card?
+A clear photo of your ID may sometimes be accepted at the desk. Do not rely on it — carry the physical card.
+
+===========================================================
+SECTION 5 — DOMAIN-SPECIFIC EXAM CONTENT
+===========================================================
+
+What is asked in the Coding exam? What should I prepare for Coding?
+The Coding paper has logic building, algorithms, MCQs and subjective coding questions. Any programming language is allowed — write in whatever you are comfortable with. First years may write just the algorithm or the logic; second years are expected to write full working code.
+Topics usually expected: basic algorithms, sorting, strings and arrays, pattern problems, logical thinking and aptitude.
+
+What is asked in the Web Dev exam? What does the team expect from Web Dev applicants?
+For first years, energy is enough — showing up and being genuinely interested matters more than what you already know. For second years, knowing JavaScript, React and Next.js is a strong bonus. Bring your laptop for this domain.
+
+What is asked in the SIESED (Electronics) exam? What should I prepare for Electronics?
+The Electronics paper focuses on class 11 and 12 electronics basics, current electricity, semiconductors, robotics-related electronics and aptitude. The format is MCQs plus subjective questions, and there is a different paper for first years and second years.
+
+What is asked in the SAMBED (Mechanical) exam? What should I prepare for Mechanical?
+The Mechanical paper covers mechanical fundamentals, robotics mechanisms, problem solving and basic engineering aptitude.
+
+What is asked in the VFX/GFX exam? What should I prepare for VFX/GFX?
+The VFX/GFX paper tests creativity, design understanding, visual thinking and basic awareness of design and editing software. Bring your laptop for this domain.
+
+What is asked in the Corporate exam? What should I prepare for Corporate?
+Nothing heavy or technical — the Corporate paper is mostly aptitude. Prepare general aptitude, logical reasoning and clear communication.
+
+What should first years prepare, in general?
+Fundamentals of your domain, aptitude and logical thinking. No prior robotics experience is expected from first years.
+
+What should second years prepare, in general?
+Core technical concepts of your domain and practical implementation — second years are held to a higher bar than first years in most domains.
+
+===========================================================
+SECTION 6 — EXAM DAY LOGISTICS
+===========================================================
+
+Can I attend on either day? I am only attempting one domain.
+Yes. If you are attempting only one domain, you may come on either of the two recruitment days.
+
+Can I attend only on Day 2?
+Yes, but be prepared to explain why you skipped Day 1 if you are asked.
+
+What if I have a class during the exam time?
+Attend the other recruitment day instead. That is exactly why the exam runs across two days.
+
+What happens if I arrive late?
+Late entry is generally allowed, but no extra time is given past the end of the exam window. Reach early — the entry desk and QR check-in take time when there is a queue.
+
+Do I have to register on the website before coming to the exam?
+Yes. Register on the recruitment page first, because your recruitment QR code (generated from your account) is scanned at check-in. Do not turn up unregistered.
+
+===========================================================
+SECTION 7 — REGISTERING ON THE WEBSITE
+===========================================================
 
 How do I register on the website?
 1. Go to the recruitment registration page and click "Continue with Google" — use your PERSONAL Gmail account here, not your SRM email.
 2. Enter your SRM email (@srmist.edu.in) on the next step. You do not need to verify it with an OTP right away — you can continue straight to filling your profile.
 3. Fill in your name, registration number, year, department, course, phone number, hostel or day-scholar details, LinkedIn URL, a password, and pick 1–2 domains.
-4. Submit — your account is created immediately and you're taken straight to your recruit dashboard.
-5. From the dashboard, you can verify your SRM email with an OTP whenever convenient. It's optional at signup but recommended to complete soon after.
+4. Submit — your account is created immediately and you are taken straight to your recruit dashboard.
+5. From the dashboard, you can verify your SRM email with an OTP whenever convenient. It is optional at signup but recommended to complete soon after.
 
 Why use a personal Gmail and not my SRM email for Google sign-in?
-Google sign-in is only used to pull in your name and give you a way to sign back in — your SRM email is collected separately in the very next step of registration. Signing in with an SRM Google account there can cause issues, so use a personal Gmail account for that button specifically.
+Google sign-in is only used to pull in your name and to give you a way to sign back in — your SRM email is collected separately in the very next step of registration. Signing in with an SRM Google account on that button can cause issues, so use a personal Gmail account for that button specifically.
 
-About SRM Team Robocon
-SRM Team Robocon is SRM's competitive robotics team, known for representing the university at DD Robocon (India's national ABU Robocon qualifier) and ABU Robocon. The team runs on four divisions:
+Is the SRM email OTP verification mandatory?
+No. Email verification is optional at signup — your account is created without it and you can use your dashboard immediately. A prompt on your dashboard lets you verify with an OTP whenever you want, and you should complete it soon after registering so you do not miss any mail.
+
+I cannot log back in. Which account do I use?
+Sign back in with the same personal Gmail account you used for "Continue with Google" during registration, or with your SRM email and the password you set at registration. Using a different Google account creates a different login and will not show your existing registration.
+
+I forgot my password.
+Use the password you set during registration, or sign back in with the same personal Gmail account you registered with — that gets you into the same account without needing the password. If you are still locked out, raise a ticket from the recruitment page.
+
+===========================================================
+SECTION 8 — YOUR RECRUIT DASHBOARD
+===========================================================
+
+Where is my recruitment QR code? What is the recruitment QR for?
+Your recruitment QR code is on your recruit dashboard on the website, after you log in. It identifies you at the exam entry desk and at the interview check-in desk, and it is how your attendance is marked. Open it on your phone at the desk. Keep your screen brightness up — QR codes are harder to scan on a dim screen.
+
+Can I show a screenshot of my QR code?
+A clear screenshot generally scans fine, but it is safer to open your live dashboard so the desk sees your account. Have the dashboard loaded before you reach the front of the queue.
+
+How will I know if I am shortlisted? Where are the results?
+Your status is shown on your recruit dashboard — check there after the exam. Announcements also go out on Instagram (@srmteamrobocon) and official college mail. Shortlisting is computed per domain, so if you attempted two domains, you may clear one and not the other; clearing one does not depend on the other.
+
+===========================================================
+SECTION 9 — AFTER THE WRITTEN EXAM: INTERVIEWS
+===========================================================
+
+What happens after the written exam?
+Evaluators enter marks per domain, and a cutoff-based shortlist is computed for each domain separately. Shortlisted candidates are called for a walk-in interview. Selected candidates then go through a training period before being formally inducted as members of the team.
+
+How does the interview day work?
+Interviews are walk-in. You check in at the desk with your recruitment QR code, and you are assigned a token number for your domain's queue. Your dashboard shows your token number and how many people are ahead of you, so you can see your position without standing at the desk. A public display screen at the venue shows the live queue for every table at once.
+
+What does "table closed for the day" mean on my dashboard?
+It means the interview table you were queued at has finished for that day before your turn came. You have NOT been rejected — you will be interviewed on another day. Watch your dashboard and the announcements for when to come back.
+
+===========================================================
+SECTION 10 — AFTER SELECTION
+===========================================================
+
+What happens after I am selected? How long is the training?
+Selected candidates go through a structured cross-domain training period before being formally inducted as members. Details of the training schedule, the time commitment and what is expected of you will be shared with you after selection.
+
+How much time will I have to give to the team every week?
+Details of the expected time commitment will be shared with you after selection. Robocon is a competitive team and build season is genuinely demanding, but nothing is sprung on you — you will be told what is expected before you are inducted.
+
+Can I be in other clubs or teams at the same time?
+This is discussed after selection. Raise a ticket if it affects your decision to apply.
+
+Do I need prior robotics experience?
+No. New recruits go through structured cross-domain training before induction, so no prior robotics experience is required — just genuine interest and a willingness to learn and put in hours.
+
+===========================================================
+SECTION 11 — ABOUT SRM TEAM ROBOCON
+===========================================================
+
+What is SRM Team Robocon?
+SRM Team Robocon is SRM's competitive robotics team, known for representing the university at DD Robocon (India's national ABU Robocon qualifier) and ABU Robocon. The team designs and builds full competition robots in-house every year, and runs on four divisions:
 - SAMBED handles mechanical design, fabrication and structural engineering of the robots.
-- SPACED handles embedded systems programming (Arduino, STM32, ESP32, Raspberry Pi, Jetson), robotics algorithms such as localisation, path planning and PID control, and the team's own Web Development.
+- SPACED handles embedded systems programming (Arduino, STM32, ESP32, Raspberry Pi, Jetson), robotics algorithms such as localisation, path planning and PID control, and the team's own web development.
 - SIESED bridges SAMBED and SPACED — electronics, PCB design, circuit and signal integration.
 - MCSOCD (covering the Corporate and VFX/GFX recruitment domains) runs content, design, video, sponsorship, PR and event management for the team.
 
-Why join SRM Team Robocon?
-You get hands-on experience building real competition robots from scratch, not just coursework. Recent highlights include an All-India rank of 13 among 110+ teams at DD Robocon 2025 at IIT Delhi, a "Best Hardware Prize" at the Automation and Robotics Challenge 2026 for an adaptive prosthetic gripper, strong showings at Smart India Hackathon and other hackathons, and flagship in-house workshops such as SolidWorks and Altium run by the team itself. New recruits go through structured cross-domain training before induction, so no prior robotics experience is required — just interest and a willingness to learn.
+Why should I join SRM Team Robocon? Why join Robocon?
+Because you get to build real machines with real stakes, with people and equipment you will not get access to anywhere else on campus:
+- Hardware you actually get your hands on: NVIDIA Jetson boards for on-robot vision and compute, 3D printers, STM32/ESP32/Arduino/Raspberry Pi platforms, in-house PCB design and fabrication, and the fabrication and workshop tooling that goes into a full competition robot.
+- A whole lab that is yours. The Robocon lab is where the team works, eats, argues, prototypes, crashes for the night and gets back up. During build season it runs effectively 24/7 — if you want to work at 3 AM, there are people there working at 3 AM.
+- One of the most active clubs on campus. This is not a club that meets once a month and posts a group photo. There is something being built, tested, filmed or shipped almost every week of the year.
+- People worth learning from, and people you can bet on. Seniors who have actually built competition-grade systems, who will sit with you and debug at midnight, and teammates who show up when it matters. That reliability is the single best thing about the team.
+- Real competition experience: an All-India rank of 13 among 110+ teams at DD Robocon 2025 at IIT Delhi, a "Best Hardware Prize" at the Automation and Robotics Challenge 2026 for an adaptive prosthetic gripper, and strong showings at Smart India Hackathon and other hackathons.
+- Structured training before induction, so first years are taught properly instead of being thrown in.
+- Flagship in-house workshops such as SolidWorks and Altium, run by the team itself — you learn the industry tools and later teach them.
+- Real software in production, not toy projects: the team builds and runs its own website, registration and attendance systems used by the whole team and by every applicant, including this recruitment portal.
+- Non-technical experience that actually counts: sponsorship pitches, budgets, brand and media work, event management and documentation, through MCSOCD.
+- A serious alumni network and a portfolio that stands up in interviews. "I built the drive system / vision stack / PCB for a national competition robot" is a very different line on a resume from a course project.
 
-Where can I ask more questions?
-Use the "Ask a Doubt" chat on the recruitment page or your dashboard, or follow the official Instagram @srmteamrobocon for the latest announcements.
+===========================================================
+SECTION 12 — ASKING QUESTIONS
+===========================================================
+
+Who can I call or message for doubts? Can I contact a lead directly?
+Do not call or message anyone individually. Raise a ticket from your recruit dashboard — that is the official channel and it is the fastest way to get a correct answer. You can also use the "Ask a Doubt" chat on the recruitment page.
+
+How do I raise a ticket?
+Log in to your recruit dashboard and use the tickets section to raise a ticket describing your issue. Include your registration number and your domain so the team can find your record quickly.
+
+Where can I ask more questions or get the latest updates?
+Use the "Ask a Doubt" chat on the recruitment page or your dashboard, raise a ticket from your dashboard, or follow the official Instagram @srmteamrobocon for the latest announcements. Announcements also go to official college mail.
