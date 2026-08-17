@@ -25,7 +25,7 @@ or IN/OUT status — it just reads a UID off a card and asks the server what to 
 
 ## Data model
 
-Three things live in Supabase, on top of the existing `member_accounts` / `members`
+Four things live in Supabase, on top of the existing `member_accounts` / `members`
 tables:
 
 - **`member_accounts.rfid_uid`** — one column, added to the existing accounts table.
@@ -41,6 +41,10 @@ tables:
 - **`rfid_pairing_requests`** — short-lived rows (60s TTL) created when someone clicks
   "Link my RFID card" on the dashboard. Whichever *unrecognized* card gets tapped
   anywhere while one of these is pending gets bound to that person's account.
+- **`overnight_passes`** — one row per "I'm staying overnight" opt-in, exempting that
+  member from exactly one midnight auto-checkout sweep. See
+  [Staying overnight](#staying-overnight) below for why the one-night guarantee is
+  enforced through `status` rather than timestamps.
 
 ## The tap flow, step by step
 
@@ -91,8 +95,53 @@ within the last 24h, doesn't overlap your existing open/closed session). No appr
 step — it's your own attendance, on the honor system.
 
 There's also a nightly cron (`POST /api/attendance/auto-checkout`, guarded by
-`CRON_SECRET`) that force-closes anyone still `IN` at day's end, so nobody's "session"
-silently runs for days if they forget to tap out and never notice.
+`CRON_SECRET`, scheduled `30 18 * * *` = midnight IST) that force-closes anyone still
+`IN` at day's end, so nobody's "session" silently runs for days if they forget to tap
+out and never notice.
+
+## Staying overnight
+
+The midnight sweep would otherwise punish exactly the people you least want to
+punish — whoever's still in the lab at 3am before a competition. So there's an opt-in
+on `/dashboard/attendance/me`: hit **I'm staying overnight** (optional one-line
+reason) and `POST /api/member/attendance/overnight` writes an `overnight_passes` row.
+Self-serve, no lead approval — nobody's awake at 2am to approve one. `DELETE` on the
+same route cancels it.
+
+A pass is good for **exactly one night**, and that guarantee comes from `status`,
+deliberately not from clock math:
+
+- Each sweep loads every `active` pass. Members holding one are skipped (no
+  `auto_checkout` row is written for them at all, so they don't land on the ghost
+  board either).
+- The same sweep then **resolves every pass it saw** — `used` for the people it
+  actually kept checked in, `expired` for anyone who'd claimed one but tapped out
+  normally. So no pass can still be `active` when tomorrow's sweep runs.
+- `expires_at` (26h) is only a backstop for the day the cron doesn't fire at all;
+  without it a pass claimed during an outage would sit `active` forever.
+
+If you're still `IN` at the *next* midnight, you get swept out like anyone else — a
+real overnight ends with a tap out in the morning. `night_of` on the row is a display
+label only ("pass active for the night of the 17th"), never a decision input; a
+partial unique index (`overnight_passes_one_active_idx`) keeps a member to one live
+pass so double-clicks and second tabs can't stack them.
+
+The board shows an indigo **Overnight** badge for anyone currently `IN` with a live
+pass, and `/api/member/attendance/me` suppresses its "forgot to tap out?" nudge while
+one is held.
+
+## Ghost board
+
+`/dashboard/attendance` ranks members by how many times the midnight sweep had to
+close a session for them — i.e. how often they walked out without tapping out.
+All-time, visible to everyone on the board (it's meant to be mildly embarrassing).
+
+The count is just `attendance_logs` rows with `source = 'auto_checkout'`, grouped per
+member — no separate counter to keep in sync, and nights covered by an overnight pass
+can't show up because no row was ever written for them. Note this query is all-time
+while the rest of the board is a 60-day window, so `/api/attendance` resolves names
+across the union of both ID sets (someone can be on the ghost board with no recent
+taps) and caps the scan at 5000 rows.
 
 ## Live updates
 
@@ -107,8 +156,71 @@ the safety net in case a broadcast ever gets dropped.
 
 ## Firmware code walkthrough (`main.ino`)
 
-- **WiFi + LCD + RFID init** (`setup()`) — connects to WiFi, initializes the LCD and
-  the MFRC522 reader, then sits on an idle screen.
+- **WiFi + LCD + RFID init** (`setup()`) — brings up WiFi (see below), initializes the
+  LCD and the MFRC522 reader, then sits on an idle screen. It no longer blocks forever
+  waiting for WiFi: if the network is down the scanner still boots, shows a clear
+  error per tap, and keeps retrying.
+- **`ensureOnline()`** — getting this device onto the campus network is three
+  separate things that fail independently, which is why they're three functions:
+
+  1. **Associate** (`associateCampus()` / `associateFallback()`). The campus SSID is
+     open, so this is just `WiFi.begin(ssid)`. If `EAP_USERNAME` is set in
+     `secrets.h` it instead associates via **WPA2-Enterprise (PEAP/MSCHAPv2)** —
+     supported because campuses commonly run an open portal SSID and an 802.1X one
+     side by side, so switching is a `secrets.h` edit rather than a code change. Note
+     that the enterprise API **changed in Arduino-ESP32 3.x** (`esp_eap_client.h` +
+     `esp_eap_client_set_*` vs `esp_wpa2.h` + `esp_wifi_sta_wpa2_ent_*` on 2.x);
+     `main.ino` `#if`s on `ESP_ARDUINO_VERSION_MAJOR` so it builds on either. "Not
+     declared in this scope" here is a core-version mismatch, not a bug.
+  2. **Authenticate to the captive portal** (`portalLogin()`). This is the important
+     one: association succeeding tells you nothing, because the AP hands out an IP
+     and then swallows every packet until you log in. A human does this in a browser;
+     the scanner posts the same form itself.
+  3. **Set the clock** (`syncClock()`). The pinned certificate can't be validated by
+     a device that thinks it's 1970, and NTP is itself blocked until step 2 finishes
+     — so the ordering is load-bearing, not incidental.
+
+  All three are re-checked before *every* tap rather than once at boot, because
+  portal sessions expire on idle and this device is idle for hours between taps. It's
+  a cheap no-op when everything's already up.
+
+- **`portalRequest()` / `portalKeepAlive()`** — SRM runs a Sophos/Cyberoam portal,
+  whose browser page posts a urlencoded form to `http://<host>:8090/login.xml`:
+  `mode=191` login, `192` keepalive, `193` logout (`a` is just a cache-buster, so
+  `millis()` is fine — this runs before the clock is set). Sessions die of idleness,
+  so `loop()` re-pings every 150s, before the "no card present" early return.
+
+  **If the portal speaks something else, `portalRequest()` is the only function that
+  changes.** Capture the real login request from a browser's network tab and match
+  it; the raw response body is always printed to Serial for that purpose. A
+  `LIMIT_REACHED` response is recognised separately because "your account is already
+  logged in on too many devices" otherwise looks identical to a wrong password.
+
+- **`wifiBadge()` / `drawBadge()`** — the last two columns of the bottom row always
+  show WiFi quality as `0`-`99`, higher is better (the usual `2 × (RSSI + 100)` map,
+  capped at 99 because two columns is the entire budget). `--` means not associated
+  at all, which is worth telling apart from "associated with an awful signal". It's
+  on every screen, so it's still readable while you're looking at a failed tap — a
+  scanner that's "being slow" is nearly always a scanner sitting at 30.
+
+  `showMessage()` truncates line 2 at column 14 rather than 16 to keep those columns
+  free; no message is that long today, and error screens put their HTTP code at the
+  left of that line, so nothing readable gets clipped. `loop()` also redraws just
+  those two columns every 5s — no `lcd.clear()`, so no flicker — because the idle
+  screen can otherwise sit for hours showing a stale number.
+
+- **Certificate pinning** — `secureClient.setCACert(ISRG_ROOT_X1)` replaced
+  `setInsecure()`. On an **open** network, no cert validation means anyone in range
+  can stand up a rogue AP, answer for our host, and be handed `DEVICE_SECRET` in the
+  `Authorization` header — enough to forge taps for the entire team. The site's chain
+  is `leaf → YR1 → Root YR → ISRG Root X1`, so the Let's Encrypt root is what's
+  pinned (valid to 2035). The cost: **if the site ever moves off Let's Encrypt, the
+  scanner stops working until it's reflashed.** Verify the chain with
+  `openssl s_client -connect www.srmteamrobocon.com:443 -showcerts`.
+
+  `syncClock()` deliberately does *not* fall back to `setInsecure()` when NTP fails —
+  silently downgrading to an unvalidated connection on an open network is the exact
+  thing the pinning exists to prevent, so it fails visibly instead.
 - **`extractJsonString` / `extractJsonBool`** — the server's replies are always a
   small, fixed shape (`{"ok":true,"event":"tap","action":"IN","name":"...",
   "domain":"..."}`), so instead of pulling in the ArduinoJson library, these just do
@@ -152,11 +264,28 @@ misbehaving in the field.
 
 ## Secrets
 
-This repo is public, so WiFi credentials and the device bearer secret live in
+This repo is public, so network credentials and the device bearer secret live in
 `attendance/secrets.h` — gitignored, never committed. `main.ino` does
-`#include "secrets.h"` and references `WIFI_SSID`, `WIFI_PASSWORD`, `DEVICE_SECRET`
-from it. `attendance/secrets.example.h` is the committed template — copy it to
-`secrets.h` and fill in real values before flashing.
+`#include "secrets.h"` and reads `CAMPUS_SSID`, `CAMPUS_PASSWORD`, `EAP_*`,
+`PORTAL_*`, `FALLBACK_*` and `DEVICE_SECRET` from it. `attendance/secrets.example.h`
+is the committed template — copy it to `secrets.h` and fill in real values before
+flashing. **Only `secrets.h` gets real values**; the example file is published on
+every push, netid included.
+
+Because the campus portal is per-user, `PORTAL_USERNAME`/`PORTAL_PASSWORD` are
+somebody's **actual SRMIST login**, in plaintext on a device sitting in a shared lab
+that anyone can walk up to and re-flash over USB. Two things follow:
+
+- Use a dedicated/service account if the department will issue one, and never an
+  account that matters for anything else.
+- Portals cap concurrent logins per account. A scanner holding a session 24/7 will
+  either block that person's own laptop or get silently kicked when they log in
+  elsewhere — and attendance then quietly stops working until someone notices. If
+  taps start failing for no obvious reason, check Serial for `LIMIT_REACHED` first.
+
+The durable fix for both is to ask the network admins to **MAC-whitelist the
+scanner** so it bypasses the portal entirely. Then `PORTAL_HOST` goes back to `""`
+and no credentials live on the device at all.
 
 If a real secret ever ends up committed anyway (it happened once — an earlier
 version of this file had both baked in directly), the fix is to **rotate it**, not to
@@ -179,16 +308,36 @@ something's been pushed publicly.
 ## Flashing checklist
 
 1. Copy `attendance/secrets.example.h` to `attendance/secrets.h` and fill in the real
-   WiFi credentials and `DEVICE_SECRET` (must match `ATTENDANCE_DEVICE_SECRET` on the
-   server). In `main.ino`, confirm `tapURL` points at the deployed site's canonical
-   host (watch out for `www` vs non-`www` redirects — POST doesn't survive a redirect
-   the `HTTPClient` library doesn't know to follow).
-2. Flash it, open the Serial monitor at 115200 baud for debugging.
+   portal credentials and `DEVICE_SECRET` (must match `ATTENDANCE_DEVICE_SECRET` on
+   the server). Keep real values **only** in `secrets.h` — `secrets.example.h` is
+   committed to a public repo, so anything typed into it is published. In `main.ino`,
+   confirm `tapURL` points at the deployed site's canonical host (watch out for `www`
+   vs non-`www` redirects — POST doesn't survive a redirect the `HTTPClient` library
+   doesn't know to follow).
+2. Find the portal host: on a laptop joined to the same SSID, `curl -v
+   http://neverssl.com` and read the IP out of the `Location:` redirect header. Put
+   it in `PORTAL_HOST`. Until this is set the firmware skips portal login and every
+   tap fails, because the portal swallows the request.
+3. Flash it, open the Serial monitor at 115200 baud. A healthy boot prints
+   `Associated (campus): <ip>` then `Portal: authenticated.` The LCD can only tell
+   you a tap failed, never *why* — Serial is where the answer is:
+   - `portal login -> HTTP …` with the raw body: the portal spoke, but didn't
+     accept. Compare the body against what a browser sends.
+   - `LIMIT_REACHED`: account already logged in elsewhere, not a wrong password.
+   - `clock: NTP sync failed`: TLS will reject every cert until this works. NTP is
+     blocked until portal login succeeds, so fix that first.
+   - Taps failing with a negative code *after* a clean boot: usually the pinned
+     cert, i.e. the site moved off Let's Encrypt.
 3. Tap an unlinked card with no pairing session open → LCD should show
    `Not On The List`.
 4. Start a pairing session from `/dashboard/attendance/me`, tap that same card within
    60s → should animate through the "linked" sequence.
 5. Tap it again → `IN`. Tap again → `OUT`.
+6. Claim an overnight pass from `/dashboard/attendance/me` while `IN`, then run the
+   sweep by hand (`curl -H "Authorization: Bearer $CRON_SECRET"
+   https://.../api/attendance/auto-checkout`) — you should stay `IN`, and the response
+   should report `stayingOvernight: 1`. Run it a second time and you should be checked
+   out, since the first run burned the pass.
 
 ## What this replaced
 

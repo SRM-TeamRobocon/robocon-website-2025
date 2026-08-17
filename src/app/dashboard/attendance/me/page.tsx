@@ -3,12 +3,19 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { CreditCard, ArrowLeft, AlertTriangle, LogOut, LogIn } from "lucide-react";
+import { CreditCard, ArrowLeft, AlertTriangle, LogOut, LogIn, Moon } from "lucide-react";
 import { formatDuration, type AttendanceSession } from "@/lib/attendance";
 
 const CARD_CLIP = { clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" };
 const PAIRING_POLL_MS = 2000;
 const PAIRING_WINDOW_S = 60;
+
+interface OvernightPass {
+    id: string;
+    nightOf: string;
+    reason: string | null;
+    expiresAt: string;
+}
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
@@ -39,6 +46,10 @@ export default function MyAttendancePage() {
     const [correctionTime, setCorrectionTime] = useState("");
     const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
+    const [overnight, setOvernight] = useState<OvernightPass | null>(null);
+    const [overnightReason, setOvernightReason] = useState("");
+    const [savingOvernight, setSavingOvernight] = useState(false);
+
     const load = useCallback(() => {
         fetch("/api/member/attendance/me")
             .then((res) => res.json())
@@ -48,6 +59,7 @@ export default function MyAttendancePage() {
                     setCardTail(data.cardTail);
                     setSessions(data.sessions || []);
                     setOpenSince(data.openSince);
+                    setOvernight(data.overnight || null);
                 }
             })
             .catch(() => {})
@@ -105,6 +117,47 @@ export default function MyAttendancePage() {
             load();
         } else {
             toast.error(data.error || "Could not unlink card.");
+        }
+    };
+
+    const claimOvernight = async () => {
+        setSavingOvernight(true);
+        try {
+            const res = await fetch("/api/member/attendance/overnight", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reason: overnightReason.trim() || undefined }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setOvernight(data.pass);
+                setOvernightReason("");
+                toast.success("Overnight pass on — you won't be auto-checked out tonight.");
+            } else {
+                toast.error(data.error || "Could not start your overnight pass.");
+            }
+        } catch {
+            toast.error("Could not start your overnight pass.");
+        } finally {
+            setSavingOvernight(false);
+        }
+    };
+
+    const cancelOvernight = async () => {
+        setSavingOvernight(true);
+        try {
+            const res = await fetch("/api/member/attendance/overnight", { method: "DELETE" });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setOvernight(null);
+                toast.success("Overnight pass cancelled.");
+            } else {
+                toast.error(data.error || "Could not cancel your overnight pass.");
+            }
+        } catch {
+            toast.error("Could not cancel your overnight pass.");
+        } finally {
+            setSavingOvernight(false);
         }
     };
 
@@ -177,6 +230,57 @@ export default function MyAttendancePage() {
                         <button onClick={startPairing} className="w-fit bg-red px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-red/80 transition">
                             Link my RFID card
                         </button>
+                    </div>
+                )}
+            </Card>
+
+            <Card className={`p-5 sm:p-6 ${overnight ? "border-indigo-400/30 bg-indigo-500/10" : ""}`}>
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white">
+                    <Moon className="h-4 w-4 text-indigo-400" /> Staying overnight
+                </h2>
+
+                {loading ? (
+                    <div className="h-10 w-56 animate-pulse bg-white/5" />
+                ) : overnight ? (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-indigo-200">
+                                Pass active for the night of {new Date(`${overnight.nightOf}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}.
+                            </p>
+                            <p className="mt-0.5 text-xs text-gray-400">
+                                Midnight auto-checkout will skip you tonight{overnight.reason ? ` — ${overnight.reason}` : ""}. Remember to tap out when you actually leave.
+                            </p>
+                        </div>
+                        <button
+                            onClick={cancelOvernight}
+                            disabled={savingOvernight}
+                            className="w-fit shrink-0 border border-white/10 px-4 py-2 text-xs font-bold text-gray-300 hover:bg-white/10 transition disabled:opacity-50"
+                        >
+                            Cancel pass
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <p className="text-sm text-gray-400">
+                            Pulling an all-nighter? Turn this on and the midnight sweep won&apos;t check you out — good for exactly one night.
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <input
+                                type="text"
+                                value={overnightReason}
+                                onChange={(e) => setOvernightReason(e.target.value)}
+                                placeholder="What are you working on? (optional)"
+                                maxLength={200}
+                                className="flex-1 border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-indigo-400/50 focus:outline-none"
+                            />
+                            <button
+                                onClick={claimOvernight}
+                                disabled={savingOvernight}
+                                className="shrink-0 bg-indigo-500 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-indigo-500/80 transition disabled:opacity-50"
+                            >
+                                {savingOvernight ? "Saving…" : "I'm staying overnight"}
+                            </button>
+                        </div>
                     </div>
                 )}
             </Card>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Download, Flame, Radio, Clock, Users, UserCircle2, X } from "lucide-react";
+import { Download, Flame, Radio, Clock, Users, UserCircle2, X, Ghost, Moon } from "lucide-react";
 import {
     calculateStats,
     buildSessions,
@@ -13,6 +13,7 @@ import {
     type AttendanceEvent,
     type MemberAttendanceStats,
     type AttendanceSession,
+    type GhostStat,
 } from "@/lib/attendance";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
@@ -71,6 +72,8 @@ export default function AttendanceBoardPage() {
     const [now, setNow] = useState(Date.now());
     const [selected, setSelected] = useState<MemberAttendanceStats | null>(null);
     const [onLeaveMap, setOnLeaveMap] = useState<Map<string, LeaveWindow>>(new Map());
+    const [ghosts, setGhosts] = useState<GhostStat[]>([]);
+    const [overnightIds, setOvernightIds] = useState<Set<string>>(new Set());
     const eventsRef = useRef<AttendanceEvent[]>([]);
 
     const fetchEvents = useCallback(async () => {
@@ -80,6 +83,8 @@ export default function AttendanceBoardPage() {
             if (!res.ok || !data.success) throw new Error(data.error || "Failed to load attendance");
             setEvents(data.events);
             eventsRef.current = data.events;
+            setGhosts(data.ghosts || []);
+            setOvernightIds(new Set<string>(data.overnight || []));
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load attendance");
@@ -253,7 +258,12 @@ export default function AttendanceBoardPage() {
                                     className="flex w-full items-center justify-between border border-white/5 bg-black/20 px-3 py-2.5 text-left transition hover:border-white/20"
                                 >
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold text-white">{m.name}</p>
+                                        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-white">
+                                            {m.name}
+                                            {overnightIds.has(m.memberAccountId) && (
+                                                <Moon className="h-3.5 w-3.5 shrink-0 text-indigo-400" strokeWidth={2} />
+                                            )}
+                                        </p>
                                         <p className="text-[10px] uppercase tracking-wider text-gray-500">{m.domain}</p>
                                     </div>
                                     <span className="shrink-0 font-mono text-xs text-red">since {new Date(m.lastTapMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
@@ -294,6 +304,57 @@ export default function AttendanceBoardPage() {
             </div>
 
             <Card className="p-5 sm:p-6">
+                <div className="mb-1 flex items-center gap-2">
+                    <Ghost className="h-4 w-4 text-indigo-400" strokeWidth={1.5} />
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-white">Ghost board</h2>
+                </div>
+                <p className="mb-4 text-xs text-gray-500">
+                    Times the midnight sweep had to check someone out because they walked off without tapping. Nights covered by an
+                    overnight pass don&apos;t count.
+                </p>
+                {loading ? (
+                    <div className="space-y-2">
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="h-10 animate-pulse bg-white/5" />
+                        ))}
+                    </div>
+                ) : ghosts.length === 0 ? (
+                    <p className="text-sm text-gray-500">Nobody&apos;s ghosted yet. Clean record.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[420px] text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
+                                    <th className="pb-2 font-bold">#</th>
+                                    <th className="pb-2 font-bold">Name</th>
+                                    <th className="pb-2 font-bold">Domain</th>
+                                    <th className="pb-2 font-bold">Ghosted</th>
+                                    <th className="pb-2 font-bold">Last time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {ghosts.map((g, i) => (
+                                    <tr key={g.memberAccountId} className="border-b border-white/5">
+                                        <td className="py-2.5 font-mono text-xs text-gray-600">{i + 1}</td>
+                                        <td className="py-2.5 font-semibold text-white">
+                                            {i === 0 && <span className="mr-1.5">👻</span>}
+                                            {g.name}
+                                        </td>
+                                        <td className="py-2.5 text-gray-400">{g.domain}</td>
+                                        <td className="py-2.5 font-mono text-indigo-300">
+                                            {g.count}
+                                            <span className="text-gray-600">×</span>
+                                        </td>
+                                        <td className="py-2.5 text-xs text-gray-500">{new Date(g.lastAt).toLocaleDateString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Card>
+
+            <Card className="p-5 sm:p-6">
                 <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-white">All members</h2>
                 {loading ? (
                     <div className="space-y-2">
@@ -319,6 +380,9 @@ export default function AttendanceBoardPage() {
                                 {leaderboard.map((m) => {
                                     const leave = onLeaveMap.get(m.memberAccountId);
                                     const onLeaveNow = leave && isWithinLeaveWindow(leave, now);
+                                    // Only worth flagging while they're actually in the lab — a pass
+                                    // claimed by someone who's already tapped out reads as noise.
+                                    const stayingOvernight = m.status === "IN" && overnightIds.has(m.memberAccountId);
                                     return (
                                         <tr
                                             key={m.memberAccountId}
@@ -331,6 +395,10 @@ export default function AttendanceBoardPage() {
                                                 {onLeaveNow ? (
                                                     <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-purple-500/15 text-purple-300 ring-purple-500/30">
                                                         On Leave
+                                                    </span>
+                                                ) : stayingOvernight ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-indigo-500/15 text-indigo-300 ring-indigo-500/30">
+                                                        <Moon className="h-2.5 w-2.5" strokeWidth={2.5} /> Overnight
                                                     </span>
                                                 ) : (
                                                     <span

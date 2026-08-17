@@ -293,6 +293,35 @@ create index if not exists rfid_pairing_requests_pending_idx on rfid_pairing_req
 alter table rfid_pairing_requests enable row level security;
 -- No public policies: service-role only.
 
+-- "I'm staying overnight" opt-in: exempts a member from exactly ONE midnight
+-- auto-checkout sweep, so an all-nighter isn't logged as a forgotten tap-out.
+-- Self-serve (no lead approval) — nobody's awake at 2am to approve one.
+--
+-- The one-night guarantee comes from `status`, deliberately NOT from clock math:
+-- every sweep resolves every active pass it sees ('used' if that member was still
+-- IN, 'expired' if they weren't), so a pass physically cannot survive to cover a
+-- second night. `expires_at` is only a backstop for the day the cron doesn't fire
+-- at all — without it, a pass claimed during a cron outage would stay active
+-- indefinitely.
+create table if not exists overnight_passes (
+  id uuid primary key default gen_random_uuid(),
+  member_account_id uuid not null references member_accounts(id),
+  night_of date not null, -- IST evening date; a display label only, never a decision input
+  reason text,
+  status text not null default 'active' check (status in ('active', 'used', 'expired', 'cancelled')),
+  expires_at timestamptz not null,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now()
+);
+-- At most one live pass per member — makes the claim endpoint safe against
+-- double-clicks and two tabs without any read-then-write race.
+create unique index if not exists overnight_passes_one_active_idx
+  on overnight_passes (member_account_id) where status = 'active';
+create index if not exists overnight_passes_active_idx on overnight_passes (status, expires_at);
+
+alter table overnight_passes enable row level security;
+-- No public policies: service-role only, same pattern as attendance_logs.
+
 -- Member-submitted leave requests: date range (+ optional time-of-day window; null
 -- start_time/end_time = whole day), held for lead/admin approval before it counts as
 -- "approved busy" anywhere (timetable directory, attendance board). Same

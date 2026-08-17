@@ -427,6 +427,30 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["rfid_pairing_requests"]["Insert"]>;
         Relationships: [];
       };
+      overnight_passes: {
+        Row: {
+          id: string;
+          member_account_id: string;
+          night_of: string;
+          reason: string | null;
+          status: string;
+          expires_at: string;
+          resolved_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_account_id: string;
+          night_of: string;
+          reason?: string | null;
+          status?: string;
+          expires_at: string;
+          resolved_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["overnight_passes"]["Insert"]>;
+        Relationships: [];
+      };
       leave_requests: {
         Row: {
           id: string;

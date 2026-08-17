@@ -14,12 +14,12 @@ export async function GET() {
         return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
     if (!session.memberAccountId) {
-        return NextResponse.json({ success: true, linked: false, cardTail: null, sessions: [], openSince: null });
+        return NextResponse.json({ success: true, linked: false, cardTail: null, sessions: [], openSince: null, overnight: null });
     }
 
     const supabase = createSupabaseAdminClient();
 
-    const [{ data: account }, { data: logs }] = await Promise.all([
+    const [{ data: account }, { data: logs }, { data: pass }] = await Promise.all([
         supabase.from("member_accounts").select("rfid_uid, name, domain").eq("id", session.memberAccountId).maybeSingle(),
         supabase
             .from("attendance_logs")
@@ -27,6 +27,13 @@ export async function GET() {
             .eq("member_account_id", session.memberAccountId)
             .order("occurred_at", { ascending: false })
             .limit(60),
+        supabase
+            .from("overnight_passes")
+            .select("id, night_of, reason, expires_at")
+            .eq("member_account_id", session.memberAccountId)
+            .eq("status", "active")
+            .gt("expires_at", new Date().toISOString())
+            .maybeSingle(),
     ]);
 
     const name = session.name || account?.name || "You";
@@ -38,7 +45,10 @@ export async function GET() {
 
     const sessions = buildSessions(events, Date.now()).slice(0, 20);
     const openSession = sessions.find((s) => s.outAt === null) || null;
-    const openTooLong = openSession && Date.now() - Date.parse(openSession.inAt) > OPEN_SESSION_NUDGE_MS ? openSession.inAt : null;
+    // Holding an overnight pass means the long open session is intentional, so don't
+    // nag them about a tap-out they haven't forgotten.
+    const openTooLong =
+        openSession && !pass && Date.now() - Date.parse(openSession.inAt) > OPEN_SESSION_NUDGE_MS ? openSession.inAt : null;
 
     return NextResponse.json({
         success: true,
@@ -46,5 +56,6 @@ export async function GET() {
         cardTail: account?.rfid_uid ? account.rfid_uid.slice(-4) : null,
         sessions,
         openSince: openTooLong,
+        overnight: pass ? { id: pass.id, nightOf: pass.night_of, reason: pass.reason, expiresAt: pass.expires_at } : null,
     });
 }

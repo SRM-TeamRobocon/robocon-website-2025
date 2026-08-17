@@ -5,6 +5,26 @@
 export const PAIRING_WINDOW_MS = 60_000;
 export const TAP_DEBOUNCE_MS = 3_000;
 
+// Backstop lifetime for an overnight pass. The midnight sweep normally resolves a
+// pass the same night it's claimed, so this only matters if the cron doesn't fire at
+// all — it stops a pass from sitting "active" forever and silently covering some
+// later night. Long enough that a pass claimed at any hour still covers the next
+// midnight sweep.
+export const OVERNIGHT_PASS_TTL_MS = 26 * 60 * 60 * 1000;
+
+// IST is a fixed UTC+5:30 with no DST, so a plain offset is exact — no tz library.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// Which "night" a pass belongs to, as an IST calendar date. Claimed at 23:00 on the
+// 17th → "…-17"; claimed at 02:00 on the 18th you're still in the same night, so it's
+// also "…-17". This is a label for the UI ("pass active for the night of X") — the
+// sweep's skip decision runs off `status`, never off this date.
+export function istNightOf(nowMs: number): string {
+  const ist = new Date(nowMs + IST_OFFSET_MS);
+  if (ist.getUTCHours() < 6) ist.setUTCDate(ist.getUTCDate() - 1);
+  return ist.toISOString().slice(0, 10);
+}
+
 // Used only to estimate a duration when a session's matching OUT is missing/anomalous
 // (e.g. the auto-checkout cron closed it, or a session spans an absurd length).
 const FIXED_SESSION_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -38,6 +58,18 @@ export interface MemberAttendanceStats {
   totalTimeMs: number;
   lastTapMs: number;
   currentStreak: number;
+}
+
+// One row of the "ghost board": members ranked by how many sessions the midnight
+// sweep had to close for them because they walked out without tapping out. Nights
+// covered by an overnight pass never produce an auto_checkout row, so they can't
+// land anyone here.
+export interface GhostStat {
+  memberAccountId: string;
+  name: string;
+  domain: string;
+  count: number;
+  lastAt: string;
 }
 
 export function calculateStats(events: AttendanceEvent[], nowMs: number): MemberAttendanceStats[] {
