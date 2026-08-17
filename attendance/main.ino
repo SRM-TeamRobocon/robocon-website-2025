@@ -42,10 +42,12 @@ WiFiClient plainClient;
    ISRG Root X1 (Let's Encrypt), the root the site's certificate chains to:
    leaf -> YR1 -> Root YR -> ISRG Root X1. Valid until 2035-06-04.
 
-   This replaces setInsecure(). It matters because the campus network is OPEN —
-   with no cert validation, anyone in range could stand up a rogue AP, answer for
-   our host, and the ESP32 would hand them DEVICE_SECRET in the Authorization
-   header, which is enough to forge taps for the whole team.
+   This replaces setInsecure(). Without cert validation, anyone who can get the
+   device to talk to them — a rogue AP answering for our host — is handed
+   DEVICE_SECRET in the Authorization header, which is enough to forge taps for the
+   whole team. SRMIST being WPA2-Enterprise raises that bar (per-client session
+   keys), but it doesn't remove it, and the guest SSID this device may end up on is
+   wide open.
 
    Two consequences worth knowing before you debug a "why is every tap failing":
    1. If the site is ever moved off Let's Encrypt, this must be reflashed. That's
@@ -218,19 +220,23 @@ void showMessage(const String& line1, const String& line2) {
    Three separate things have to succeed before a tap can be sent, and they
    fail independently — which is why they're three functions and not one:
 
-     1. ASSOCIATE with the access point. On the campus SSID that's it — the
-        network is open, no key.
-     2. AUTHENTICATE to the captive portal. Until this happens the AP hands out
-        an IP and then swallows every packet, so association "succeeding" tells
-        you nothing. This is the step a normal user does in a browser; the
-        device has no browser, so it posts the same form itself.
-     3. SET THE CLOCK over NTP, because the pinned certificate can't be
-        validated against a device that thinks it's 1970. NTP is itself blocked
-        until step 2 finishes, so the order here is load-bearing.
+     1. ASSOCIATE with the access point. SRMIST is WPA2-Enterprise/PEAP (verified
+        2026-08-17: EAP type "Protected EAP", security key absent), so this is the
+        real login and EAP_USERNAME being set is what selects that path.
+     2. AUTHENTICATE to the captive portal. A NO-OP on SRMIST, which has no portal
+        — plain HTTP returns 200 with no redirect and the gateway has nothing on
+        8090. It's here for the open guest/hostel SSID, where association
+        "succeeding" tells you nothing because the AP hands out an IP and then
+        swallows every packet until you log in. A normal user does that in a
+        browser; this device has none, so it posts the same form itself.
+     3. SET THE CLOCK over NTP, because the pinned certificate can't be validated
+        against a device that thinks it's 1970. Behind a portal NTP is blocked
+        until step 2 finishes, so the ordering stays load-bearing even though step
+        2 is currently inert.
 
    Each is time-boxed and re-checked before every tap rather than done once in
-   setup(): portal sessions expire on idle, and this device is idle for hours
-   between taps. */
+   setup(): associations drop, portal sessions expire on idle, and this device is
+   idle for hours between taps. */
 const unsigned long WIFI_ATTEMPT_TIMEOUT_MS = 20000;
 const unsigned long PORTAL_TIMEOUT_MS = 8000;
 const unsigned long CLOCK_SYNC_TIMEOUT_MS = 10000;
@@ -239,7 +245,6 @@ const unsigned long PORTAL_KEEPALIVE_MS = 150000;
 // Any timestamp after 2020 proves NTP replied rather than the RTC still being at boot.
 const time_t CLOCK_SANITY_EPOCH = 1600000000;
 
-bool onFallbackNetwork = false;  // fallback router has no portal to log into
 bool portalAuthed = false;
 bool clockSynced = false;
 unsigned long lastKeepAliveMs = 0;
@@ -253,7 +258,9 @@ String urlEncode(const String& value) {
   const char* hex = "0123456789ABCDEF";
   for (unsigned int i = 0; i < value.length(); i++) {
     char c = value.charAt(i);
-    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+    // Cast before isalnum: char is signed on this toolchain, so a non-ASCII byte in a
+    // password would pass a negative value and land in undefined behaviour.
+    if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~') {
       out += c;
     } else {
       out += '%';
@@ -273,11 +280,14 @@ bool awaitConnection(unsigned long timeoutMs) {
   return WiFi.status() == WL_CONNECTED;
 }
 
-/* Campus association. If EAP_USERNAME is set we associate via WPA2-Enterprise;
-   otherwise we join CAMPUS_SSID openly (empty CAMPUS_PASSWORD) or with a
-   pre-shared key. Both are supported because campuses commonly run an open
-   portal SSID and an 802.1X one side by side — which one you're on is a
-   secrets.h edit, not a code change. */
+/* The only network. EAP_USERNAME set = WPA2-Enterprise (the SRMIST case); otherwise
+   we join CAMPUS_SSID openly (empty CAMPUS_PASSWORD) or with a pre-shared key. Both
+   exist because SRM runs an 802.1X SSID and an open guest one side by side — moving
+   the scanner between them is a secrets.h edit, not a code change.
+
+   There is deliberately no backup network: the lab router that used to fill that
+   role is dead, and a fallback pointing at a network that never answers buys nothing
+   but a 20s stall on every reconnect. */
 bool associateCampus() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_STA);
@@ -304,22 +314,15 @@ bool associateCampus() {
   return awaitConnection(WIFI_ATTEMPT_TIMEOUT_MS);
 }
 
-bool associateFallback() {
-  if (strlen(FALLBACK_SSID) == 0) return false;
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(FALLBACK_SSID, FALLBACK_PASSWORD);
-  return awaitConnection(WIFI_ATTEMPT_TIMEOUT_MS);
-}
+/* Sophos/Cyberoam captive portal — unused on SRMIST (no portal there), kept for the
+   open guest/hostel SSID. Its browser page posts a urlencoded form to /login.xml on
+   port 8090; mode 191 = login, 192 = keepalive, 193 = logout. `a` is just a
+   cache-buster, so millis() is fine — this runs before the clock is set.
 
-/* Sophos/Cyberoam captive portal, the flavour SRM runs. Its browser page posts a
-   urlencoded form to /login.xml on port 8090; mode 191 = login, 192 = keepalive,
-   193 = logout. `a` is just a cache-buster, so millis() is fine — this runs before
-   the clock is set.
-
-   If your portal turns out to speak something else, this one function is what
-   changes: capture the real request from a browser's network tab and match it.
-   The raw response body is always printed to Serial for exactly that purpose. */
+   This is UNVERIFIED against the real guest portal: it's the standard Sophos shape,
+   not something observed on campus. If it speaks something else, this one function
+   is what changes — capture the real request from a browser's network tab and match
+   it. The raw response body is always printed to Serial for exactly that purpose. */
 bool portalRequest(int mode, const char* label) {
   HTTPClient http;
   String url = String("http://") + PORTAL_HOST + ":" + String(PORTAL_PORT) + "/login.xml";
@@ -359,7 +362,7 @@ bool portalLogin() {
 
 // Fire-and-forget: a failed keepalive just means the next tap re-logs in.
 void portalKeepAlive() {
-  if (!portalAuthed || !portalConfigured() || onFallbackNetwork) return;
+  if (!portalAuthed || !portalConfigured()) return;
   if (millis() - lastKeepAliveMs < PORTAL_KEEPALIVE_MS) return;
   lastKeepAliveMs = millis();
   if (!portalRequest(192, "keepalive")) portalAuthed = false;
@@ -376,8 +379,8 @@ bool syncClock() {
   clockSynced = time(nullptr) >= CLOCK_SANITY_EPOCH;
   if (!clockSynced) {
     // Deliberately not falling back to setInsecure() here: silently dropping to an
-    // unvalidated connection on an open network is the exact failure this pinning
-    // exists to prevent. Better a visible error than a quiet downgrade.
+    // unvalidated connection is the exact failure this pinning exists to prevent.
+    // Better a visible error than a quiet downgrade.
     Serial.println("clock: NTP sync failed — TLS will reject certs until this works.");
   }
   return clockSynced;
@@ -388,19 +391,14 @@ bool ensureOnline() {
   if (WiFi.status() != WL_CONNECTED) {
     portalAuthed = false;
     Serial.println("WiFi down — reconnecting...");
-    if (associateCampus()) {
-      onFallbackNetwork = false;
-      Serial.println("Associated (campus): " + WiFi.localIP().toString());
-    } else if (associateFallback()) {
-      onFallbackNetwork = true;
-      Serial.println("Associated (fallback): " + WiFi.localIP().toString());
-    } else {
-      Serial.println("WiFi association failed on both networks.");
+    if (!associateCampus()) {
+      Serial.println("WiFi association failed.");
       return false;
     }
+    Serial.println("Associated: " + WiFi.localIP().toString());
   }
 
-  if (!portalAuthed && portalConfigured() && !onFallbackNetwork) {
+  if (!portalAuthed && portalConfigured()) {
     if (!portalLogin()) return false;
     portalAuthed = true;
     Serial.println("Portal: authenticated.");
@@ -489,9 +487,16 @@ void loop() {
   if (!rfid.PICC_IsNewCardPresent()) return;
   if (!rfid.PICC_ReadCardSerial()) return;
 
+  // Zero-pad every byte to two hex digits. String(b, HEX) drops the leading zero on
+  // anything below 0x10, which makes the joined string ambiguous — {04,A1,B2,C3} and
+  // {4A,1B,2C,03} both render as "4a1b2c3". Two different cards collapsing onto one
+  // identity means one member silently taps in as another, which is exactly the class
+  // of drift this whole system was rebuilt to eliminate.
   String uid = "";
-  for (byte i = 0; i < rfid.uid.size; i++)
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    if (rfid.uid.uidByte[i] < 0x10) uid += "0";
     uid += String(rfid.uid.uidByte[i], HEX);
+  }
   uid.toUpperCase();
 
   rfid.PICC_HaltA();
@@ -515,7 +520,7 @@ void loop() {
     // between taps rather than the network being down — the portal just swallowed
     // the request. Re-auth and retry once, while the member is still standing there,
     // instead of making them tap twice.
-    if (response == "" && httpCode < 0 && portalConfigured() && !onFallbackNetwork) {
+    if (response == "" && httpCode < 0 && portalConfigured()) {
       Serial.println("Tap failed — reauthenticating with portal and retrying.");
       portalAuthed = false;
       if (ensureOnline()) response = sendTap(uid, httpCode);

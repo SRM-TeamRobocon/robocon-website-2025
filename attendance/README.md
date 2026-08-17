@@ -49,7 +49,15 @@ tables:
 ## The tap flow, step by step
 
 1. Card touches the reader. `main.ino` reads the UID (`rfid.uid.uidByte[]`), formats
-   it as an uppercase hex string.
+   it as an uppercase hex string with **every byte zero-padded to two digits**.
+
+   The padding is load-bearing, and older firmware got it wrong: `String(b, HEX)`
+   drops the leading zero on anything below `0x10`, so the joined string was
+   ambiguous — `{04,A1,B2,C3}` and `{4A,1B,2C,03}` both came out as `4A1B2C3`. Two
+   cards collapsing onto one identity means one member silently taps in as another.
+   **Any card paired before this fix has the old unpadded string in
+   `member_accounts.rfid_uid` and will read as unrecognised** — those members just
+   hit "Link my RFID card" once more and tap; pairing overwrites the column.
 2. It `POST`s that UID (plus a device ID) to `/api/attendance/tap`
    ([route.ts](../src/app/api/attendance/tap/route.ts)), with a bearer-token secret
    in the `Authorization` header so randoms on the internet can't fake taps.
@@ -163,19 +171,30 @@ the safety net in case a broadcast ever gets dropped.
 - **`ensureOnline()`** — getting this device onto the campus network is three
   separate things that fail independently, which is why they're three functions:
 
-  1. **Associate** (`associateCampus()` / `associateFallback()`). The campus SSID is
-     open, so this is just `WiFi.begin(ssid)`. If `EAP_USERNAME` is set in
-     `secrets.h` it instead associates via **WPA2-Enterprise (PEAP/MSCHAPv2)** —
-     supported because campuses commonly run an open portal SSID and an 802.1X one
-     side by side, so switching is a `secrets.h` edit rather than a code change. Note
-     that the enterprise API **changed in Arduino-ESP32 3.x** (`esp_eap_client.h` +
+  1. **Associate** (`associateCampus()`). SRMIST is **WPA2-Enterprise
+     (PEAP/MSCHAPv2)**, so this is the real login — `EAP_USERNAME` being non-empty in
+     `secrets.h` is what selects that path. Joining an open or pre-shared-key SSID is
+     also supported (blank `EAP_USERNAME`, optionally set `CAMPUS_PASSWORD`), because
+     SRM runs an open guest SSID alongside the 802.1X one and moving the scanner
+     between them should be a `secrets.h` edit, not a code change. Note that the
+     enterprise API **changed in Arduino-ESP32 3.x** (`esp_eap_client.h` +
      `esp_eap_client_set_*` vs `esp_wpa2.h` + `esp_wifi_sta_wpa2_ent_*` on 2.x);
      `main.ino` `#if`s on `ESP_ARDUINO_VERSION_MAJOR` so it builds on either. "Not
      declared in this scope" here is a core-version mismatch, not a bug.
-  2. **Authenticate to the captive portal** (`portalLogin()`). This is the important
-     one: association succeeding tells you nothing, because the AP hands out an IP
-     and then swallows every packet until you log in. A human does this in a browser;
-     the scanner posts the same form itself.
+
+     **There is exactly one network and no backup.** The old `SRM TEAM ROBOCON` lab
+     router used to be a fallback; it's dead, and a fallback pointing at a network
+     that never answers costs a 20s stall on every reconnect while buying nothing. If
+     a working backup router ever appears, re-adding it is a small change — a second
+     `WiFi.begin` path in `ensureOnline()` — but don't re-add one on spec.
+  2. **Authenticate to the captive portal** (`portalLogin()`) — **currently a no-op**,
+     because `PORTAL_HOST` is empty. SRMIST has no portal: verified 2026-08-17, a
+     plain `http://` request returns 200 with no redirect and the gateway has nothing
+     listening on 8090/80/443/8080. The step exists because the *guest/hostel* SSID
+     is an open network with a browser login, and if the scanner ever has to live
+     there, association succeeding tells you nothing — the AP hands out an IP and
+     then swallows every packet until you log in. A human does that in a browser; the
+     scanner posts the same form itself.
   3. **Set the clock** (`syncClock()`). The pinned certificate can't be validated by
      a device that thinks it's 1970, and NTP is itself blocked until step 2 finishes
      — so the ordering is load-bearing, not incidental.
@@ -267,25 +286,24 @@ misbehaving in the field.
 This repo is public, so network credentials and the device bearer secret live in
 `attendance/secrets.h` — gitignored, never committed. `main.ino` does
 `#include "secrets.h"` and reads `CAMPUS_SSID`, `CAMPUS_PASSWORD`, `EAP_*`,
-`PORTAL_*`, `FALLBACK_*` and `DEVICE_SECRET` from it. `attendance/secrets.example.h`
+`PORTAL_*` and `DEVICE_SECRET` from it. `attendance/secrets.example.h`
 is the committed template — copy it to `secrets.h` and fill in real values before
 flashing. **Only `secrets.h` gets real values**; the example file is published on
 every push, netid included.
 
-Because the campus portal is per-user, `PORTAL_USERNAME`/`PORTAL_PASSWORD` are
-somebody's **actual SRMIST login**, in plaintext on a device sitting in a shared lab
-that anyone can walk up to and re-flash over USB. Two things follow:
+Because the campus network is per-user, `EAP_USERNAME`/`EAP_PASSWORD` are somebody's
+**actual SRMIST login**, in plaintext on a device sitting in a shared lab that anyone
+can walk up to and re-flash over USB. Use a dedicated/service account if the
+department will issue one, and never an account that matters for anything else. The
+cleanest outcome is asking the network admins for a **device/MAC registration** for
+the scanner, so no personal credentials live on it at all.
 
-- Use a dedicated/service account if the department will issue one, and never an
-  account that matters for anything else.
-- Portals cap concurrent logins per account. A scanner holding a session 24/7 will
-  either block that person's own laptop or get silently kicked when they log in
-  elsewhere — and attendance then quietly stops working until someone notices. If
-  taps start failing for no obvious reason, check Serial for `LIMIT_REACHED` first.
-
-The durable fix for both is to ask the network admins to **MAC-whitelist the
-scanner** so it bypasses the portal entirely. Then `PORTAL_HOST` goes back to `""`
-and no credentials live on the device at all.
+If the scanner ever moves to the guest SSID with its browser login, the same warning
+applies to `PORTAL_USERNAME`/`PORTAL_PASSWORD`, plus one more: portals cap concurrent
+logins per account, so a scanner holding a session 24/7 will either block that
+person's own laptop or get silently kicked when they log in elsewhere — and
+attendance then quietly stops working until someone notices. If taps start failing
+for no obvious reason there, check Serial for `LIMIT_REACHED` first.
 
 If a real secret ever ends up committed anyway (it happened once — an earlier
 version of this file had both baked in directly), the fix is to **rotate it**, not to
@@ -314,18 +332,22 @@ something's been pushed publicly.
    confirm `tapURL` points at the deployed site's canonical host (watch out for `www`
    vs non-`www` redirects — POST doesn't survive a redirect the `HTTPClient` library
    doesn't know to follow).
-2. Find the portal host: on a laptop joined to the same SSID, `curl -v
-   http://neverssl.com` and read the IP out of the `Location:` redirect header. Put
-   it in `PORTAL_HOST`. Until this is set the firmware skips portal login and every
-   tap fails, because the portal swallows the request.
+2. Confirm which network you're targeting. On SRMIST (802.1X/PEAP) fill in `EAP_*`
+   and leave `PORTAL_HOST` empty — that's the current setup. Only if you're putting
+   the scanner on the open guest SSID do you need the portal: join it on a laptop,
+   `curl -v http://neverssl.com`, read the IP out of the `Location:` redirect header
+   into `PORTAL_HOST`, and blank the `EAP_*` fields.
 3. Flash it, open the Serial monitor at 115200 baud. A healthy boot prints
-   `Associated (campus): <ip>` then `Portal: authenticated.` The LCD can only tell
-   you a tap failed, never *why* — Serial is where the answer is:
+   `Associated (campus): <ip>` (plus `Portal: authenticated.` only when a portal is
+   configured). The LCD can only tell you a tap failed, never *why* — Serial is where
+   the answer is:
+   - `WiFi association failed`: EAP credentials are the first thing to check, and
+     there's no backup network to mask it. The LCD shows the signal badge as `--`
+     whenever it's unassociated.
    - `portal login -> HTTP …` with the raw body: the portal spoke, but didn't
      accept. Compare the body against what a browser sends.
    - `LIMIT_REACHED`: account already logged in elsewhere, not a wrong password.
-   - `clock: NTP sync failed`: TLS will reject every cert until this works. NTP is
-     blocked until portal login succeeds, so fix that first.
+   - `clock: NTP sync failed`: TLS will reject every cert until this works.
    - Taps failing with a negative code *after* a clean boot: usually the pinned
      cert, i.e. the site moved off Let's Encrypt.
 3. Tap an unlinked card with no pairing session open → LCD should show

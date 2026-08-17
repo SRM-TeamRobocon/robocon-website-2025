@@ -29,11 +29,5 @@ const int PORTAL_PORT = 8090;
 const char* PORTAL_USERNAME = "";
 const char* PORTAL_PASSWORD = "";
 
-// ── Optional WPA2-Personal fallback ──────────────────────────────────────────
-// Tried only if the campus network won't come up. Assumed to have no captive
-// portal. Set FALLBACK_SSID to "" to disable it.
-const char* FALLBACK_SSID = "";
-const char* FALLBACK_PASSWORD = "";
-
 // Must match ATTENDANCE_DEVICE_SECRET in the server's environment variables exactly.
 const char* DEVICE_SECRET = "GENERATE_A_LONG_RANDOM_STRING";
