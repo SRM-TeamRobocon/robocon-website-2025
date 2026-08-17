@@ -90,13 +90,17 @@ export async function GET(request: NextRequest) {
 
         const { data: existing } = await supabase
             .from("recruit_accounts")
-            .select("id, srm_email, srm_email_verified")
+            .select("id, srm_email")
             .eq("google_uid", googleUid)
             .eq("cycle_id", cycle.id)
             .maybeSingle();
 
-        if (existing && existing.srm_email_verified) {
-            // Existing, fully-registered recruit — Google OAuth doubles as login.
+        if (existing) {
+            // Existing, fully-registered recruit — Google OAuth doubles as login. Account
+            // existence is the completeness signal here, not srm_email_verified: since the
+            // 2026-08-16 change, that verification is optional and happens later from the
+            // dashboard (EmailVerifyBanner), so every account is created with it false — gating
+            // login on it would send every real recruit back through registration forever.
             const token = await issueRecruitToken({
                 recruit_id: existing.id,
                 srm_email: existing.srm_email,
