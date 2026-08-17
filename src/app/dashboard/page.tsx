@@ -414,7 +414,7 @@ export default function AdminDashboard() {
             <div className="space-y-8">
                 {header}
                 {/* <StatGrid cards={cards} loading={loading} /> */}
-                <ActionGrid actions={[PROFILE_ACTION, ATTENDANCE_ACTION, PROPOSE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, SUBMISSIONS_ACTION, TIMETABLE_ACTION]} />
+                <ActionGrid actions={[RECRUITMENTS_ACTION, PROFILE_ACTION, ATTENDANCE_ACTION, PROPOSE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, SUBMISSIONS_ACTION, TIMETABLE_ACTION]} />
             </div>
         );
     }
@@ -429,8 +429,8 @@ export default function AdminDashboard() {
 
     const staffActions =
         role === "lead" || role === "admin"
-            ? [CONTENT_ACTION, APPROVALS_ACTION, TIMETABLE_ACTION, ATTENDANCE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, RECRUITMENTS_ACTION]
-            : [CONTENT_ACTION, TIMETABLE_ACTION, ATTENDANCE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION, RECRUITMENTS_ACTION];
+            ? [RECRUITMENTS_ACTION, CONTENT_ACTION, APPROVALS_ACTION, TIMETABLE_ACTION, ATTENDANCE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION]
+            : [RECRUITMENTS_ACTION, CONTENT_ACTION, TIMETABLE_ACTION, ATTENDANCE_ACTION, BLOG_ACTION, WRITE_BLOG_ACTION];
 
     return (
         <div className="space-y-8">

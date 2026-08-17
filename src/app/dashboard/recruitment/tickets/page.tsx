@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Ticket as TicketIcon, CheckCircle2 } from "lucide-react";
 import { useRoleGate } from "@/hooks/use-require-role";
-import { subDomainFullLabel } from "@/lib/recruit-domains";
+import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
+import Select from "@/components/ui/select";
 
 type TicketRow = {
     id: string;
@@ -25,6 +26,9 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
     const [note, setNote] = useState("");
     const [busy, setBusy] = useState(false);
     const [open, setOpen] = useState(false);
+    const isDomainChange = ticket.category === "domain_change" && !!ticket.from_sub_domain && !!ticket.requested_sub_domain;
+    const [applyDomainChange, setApplyDomainChange] = useState(isDomainChange);
+    const [targetDomain, setTargetDomain] = useState(ticket.requested_sub_domain ?? "");
 
     const resolve = async () => {
         setBusy(true);
@@ -32,11 +36,16 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
             const res = await fetch(`/api/admin/recruitment/tickets/${ticket.id}/resolve`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resolution_note: note.trim() || undefined }),
+                body: JSON.stringify({
+                    resolution_note: note.trim() || undefined,
+                    ...(isDomainChange && applyDomainChange
+                        ? { apply_domain_change: true, new_sub_domain: targetDomain }
+                        : {}),
+                }),
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                toast.success("Ticket resolved");
+                toast.success(isDomainChange && applyDomainChange ? "Ticket resolved, domain switched" : "Ticket resolved");
                 onResolved();
             } else {
                 toast.error(data.error || "Could not resolve ticket");
@@ -59,6 +68,30 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
 
     return (
         <div className="flex flex-wrap items-center gap-2">
+            {isDomainChange && (
+                <label className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                        type="checkbox"
+                        checked={applyDomainChange}
+                        onChange={(e) => setApplyDomainChange(e.target.checked)}
+                        className="border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    Switch domain to
+                </label>
+            )}
+            {isDomainChange && applyDomainChange && (
+                <div className="w-44">
+                    <Select
+                        value={targetDomain}
+                        onChange={setTargetDomain}
+                        className="h-8 bg-white/5 ring-white/10 py-0 px-2 text-xs"
+                        options={RECRUIT_SUBDOMAINS.filter((d) => d.key !== ticket.from_sub_domain).map((d) => ({
+                            value: d.key,
+                            label: d.label,
+                        }))}
+                    />
+                </div>
+            )}
             <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -67,7 +100,7 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
             />
             <button
                 onClick={resolve}
-                disabled={busy}
+                disabled={busy || (isDomainChange && applyDomainChange && !targetDomain)}
                 className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
             >
                 Confirm

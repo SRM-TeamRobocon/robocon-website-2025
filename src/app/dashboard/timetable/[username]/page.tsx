@@ -17,6 +17,12 @@ interface TimetableDetail {
     updated_at: string;
 }
 
+interface LeaveToday {
+    start_time: string | null;
+    end_time: string | null;
+    member_accounts: { email: string } | null;
+}
+
 export default function ViewTimetablePage() {
     const rawParams = useParams<{ username: string }>();
     // Next.js hasn't decoded this segment yet at this point, so decode it ourselves
@@ -28,6 +34,8 @@ export default function ViewTimetablePage() {
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
     const [isOwn, setIsOwn] = useState(false);
+    const [todayDayOrder, setTodayDayOrder] = useState<string | null>(null);
+    const [leaveToday, setLeaveToday] = useState<{ startTime: string | null; endTime: string | null } | null>(null);
 
     useEffect(() => {
         if (!ready) return;
@@ -43,6 +51,22 @@ export default function ViewTimetablePage() {
             })
             .catch(() => setNotFound(true))
             .finally(() => setLoading(false));
+
+        fetch("/api/dashboard/day-order")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && data.todayEntry) setTodayDayOrder(data.todayEntry.day_order);
+            })
+            .catch(() => {});
+
+        fetch("/api/dashboard/leave-requests/today")
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.success) return;
+                const match = (data.data as LeaveToday[]).find((row) => row.member_accounts?.email === username);
+                if (match) setLeaveToday({ startTime: match.start_time, endTime: match.end_time });
+            })
+            .catch(() => {});
 
         // Best-effort only — used to decide whether to show the "Edit" button. A
         // failure here shouldn't affect whether the fetched timetable is shown.
@@ -98,7 +122,12 @@ export default function ViewTimetablePage() {
                         )}
                     </div>
 
-                    <TimetableGrid schedule={detail.schedule || emptySchedule()} campus={detail.campus} />
+                    <TimetableGrid
+                        schedule={detail.schedule || emptySchedule()}
+                        campus={detail.campus}
+                        todayDayOrder={todayDayOrder}
+                        leaveToday={leaveToday}
+                    />
                 </>
             )}
         </div>

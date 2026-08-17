@@ -76,10 +76,10 @@ function DomainAttendance({ domains, exams }: { domains: string[]; exams: Recrui
 
 export default function RecruitsPage() {
     const { ready, role } = useRoleGate(["member", "lead", "admin"]);
-    // Editing and deleting a recruit both stay lead/admin-only — a delete cascades away
-    // their scans, marks and interview records. The API enforces this; this just hides
-    // buttons that would always 403 for a member.
-    const canManageRecruits = role === "lead" || role === "admin";
+    // Every dashboard role can view and edit recruits; deleting stays lead/admin-only — a
+    // delete cascades away their scans, marks and interview records. The API enforces
+    // this; this just hides the button that would always 403 for a member.
+    const canDeleteRecruits = role === "lead" || role === "admin";
     const [recruits, setRecruits] = useState<Recruit[]>([]);
     const [loading, setLoading] = useState(true);
     const [domain, setDomain] = useState("");
@@ -272,28 +272,24 @@ export default function RecruitsPage() {
                                                 </td>
                                                 <td className="px-5 py-3 text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        {canManageRecruits ? (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => setEditingRecruit(r)}
-                                                                    title={`Edit ${r.name}`}
-                                                                    className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white"
-                                                                >
-                                                                    <Pencil className="w-3.5 h-3.5" />
-                                                                    Edit
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => deleteRecruit(r)}
-                                                                    disabled={deletingId === r.id}
-                                                                    title={`Delete ${r.name}`}
-                                                                    className="inline-flex items-center gap-1.5 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-40"
-                                                                >
-                                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                                    {deletingId === r.id ? "Deleting..." : "Delete"}
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-xs text-gray-600">—</span>
+                                                        <button
+                                                            onClick={() => setEditingRecruit(r)}
+                                                            title={`Edit ${r.name}`}
+                                                            className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white"
+                                                        >
+                                                            <Pencil className="w-3.5 h-3.5" />
+                                                            Edit
+                                                        </button>
+                                                        {canDeleteRecruits && (
+                                                            <button
+                                                                onClick={() => deleteRecruit(r)}
+                                                                disabled={deletingId === r.id}
+                                                                title={`Delete ${r.name}`}
+                                                                className="inline-flex items-center gap-1.5 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-40"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                {deletingId === r.id ? "Deleting..." : "Delete"}
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </td>

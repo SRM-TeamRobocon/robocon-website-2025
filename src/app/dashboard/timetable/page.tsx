@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarClock, PenSquare, Search, User, Users } from "lucide-react";
-import { useRequireRole } from "@/hooks/use-require-role";
+import { ArrowLeft, CalendarClock, CalendarOff, PenSquare, Search, User, Users } from "lucide-react";
+import { useRoleGate } from "@/hooks/use-require-role";
 import WhoIsFreePanel from "@/components/timetable/WhoIsFreePanel";
+import DayOrderBanner from "@/components/timetable/DayOrderBanner";
 
 interface TimetableEntry {
     owner_username: string;
@@ -13,15 +14,21 @@ interface TimetableEntry {
     updated_at: string;
 }
 
+interface LeaveToday {
+    owner_name: string;
+    member_accounts: { email: string } | null;
+}
+
 const DOMAIN_TABS = ["All", "SAMBED", "SIESED", "SPACED", "MCSOCD"] as const;
 
 export default function TimetableDirectoryPage() {
-    const ready = useRequireRole(["member", "lead", "admin"]);
+    const { ready, role } = useRoleGate(["member", "lead", "admin"]);
     const [rows, setRows] = useState<TimetableEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [domainTab, setDomainTab] = useState<(typeof DOMAIN_TABS)[number]>("All");
     const [showFreePanel, setShowFreePanel] = useState(false);
+    const [onLeaveEmails, setOnLeaveEmails] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         fetch("/api/dashboard/timetables")
@@ -29,6 +36,19 @@ export default function TimetableDirectoryPage() {
             .then((data) => setRows(data.data || []))
             .catch(() => {})
             .finally(() => setLoading(false));
+
+        // "Approved Busy" indicator — cross-referenced by email (owner_username for
+        // member_accounts logins is their login email).
+        fetch("/api/dashboard/leave-requests/today")
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.success) return;
+                const emails = (data.data as LeaveToday[])
+                    .map((row) => row.member_accounts?.email)
+                    .filter((email): email is string => !!email);
+                setOnLeaveEmails(new Set(emails));
+            })
+            .catch(() => {});
     }, []);
 
     const filtered = useMemo(() => {
@@ -90,6 +110,8 @@ export default function TimetableDirectoryPage() {
                 </div>
             </div>
 
+            <DayOrderBanner canOverride={role === "lead" || role === "admin"} />
+
             {showFreePanel && <WhoIsFreePanel onClose={() => setShowFreePanel(false)} />}
 
             <div className="flex flex-wrap gap-2">
@@ -146,8 +168,15 @@ export default function TimetableDirectoryPage() {
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-white/10 text-gray-400">
                                     <User className="h-4 w-4" />
                                 </span>
-                                <span className="min-w-0">
-                                    <span className="block truncate font-semibold text-white">{row.owner_name}</span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="flex items-center gap-2">
+                                        <span className="block truncate font-semibold text-white">{row.owner_name}</span>
+                                        {onLeaveEmails.has(row.owner_username) && (
+                                            <span className="inline-flex shrink-0 items-center gap-1 bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold text-purple-300 ring-1 ring-inset ring-purple-500/30">
+                                                <CalendarOff className="h-2.5 w-2.5" /> APPROVED BUSY
+                                            </span>
+                                        )}
+                                    </span>
                                     <span className="block text-xs text-gray-500">
                                         {row.domain ? `${row.domain} · ` : ""}
                                         Updated {new Date(row.updated_at).toLocaleDateString()}

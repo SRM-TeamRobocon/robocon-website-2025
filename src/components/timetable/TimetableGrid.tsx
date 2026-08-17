@@ -1,9 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { CAMPUS_OPTIONS, CELL_OPTIONS, DAYS, DEFAULT_CAMPUS, TIME_SLOTS, type TimetableSchedule } from "@/lib/timetable";
+import { useEffect, useState } from "react";
+import {
+    CAMPUS_OPTIONS,
+    CELL_OPTIONS,
+    DAYS,
+    DEFAULT_CAMPUS,
+    TIME_SLOTS,
+    slotsInRange,
+    TIME_SLOT_RANGES,
+    type TimetableSchedule,
+} from "@/lib/timetable";
 
 const CELL_LABELS: Record<string, string> = Object.fromEntries(CELL_OPTIONS.map((o) => [o.value, o.label]));
+
+// Minutes-from-midnight for a slot the leave window fully or partially covers.
+function timeToMinutes(hhmm: string): number {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+}
+
+interface LeaveWindow {
+    startTime: string | null;
+    endTime: string | null;
+}
+
+// Which TIME_SLOTS indexes an approved leave for "today" covers — null start/end
+// means a full-day leave, so every slot is covered.
+function leaveSlotIndexes(leave: LeaveWindow): Set<number> {
+    if (!leave.startTime || !leave.endTime) {
+        return new Set(TIME_SLOT_RANGES.map((_, i) => i));
+    }
+    return new Set(slotsInRange(timeToMinutes(leave.startTime), timeToMinutes(leave.endTime)));
+}
 
 // Read-only badge styling (soft, tinted).
 const BADGE_STYLES: Record<string, string> = {
@@ -27,6 +56,13 @@ interface TimetableGridProps {
     editable?: boolean;
     onChange?: (day: string, slotIndex: number, value: string) => void;
     onCampusChange?: (campus: string) => void;
+    // Today's real Day Order (from /api/dashboard/day-order), if known — used to
+    // default the tab selection to "today" instead of always DO1.
+    todayDayOrder?: string | null;
+    // The viewed member's approved leave covering today, if any — overlaid as an
+    // "On Leave" badge on the affected slots, but only while the "today" tab is active
+    // (a leave is a real-date fact, not something that applies to every DO-tab).
+    leaveToday?: LeaveWindow | null;
 }
 
 // Compact view: one day-order visible at a time (tabs) with a dense row-per-slot table,
@@ -37,9 +73,22 @@ export default function TimetableGrid({
     editable = false,
     onChange,
     onCampusChange,
+    todayDayOrder = null,
+    leaveToday = null,
 }: TimetableGridProps) {
     const [activeDay, setActiveDay] = useState<(typeof DAYS)[number]>(DAYS[0]);
+
+    // One-time sync once the parent's day-order fetch resolves — doesn't fight a
+    // manual tab click afterwards since todayDayOrder only transitions null -> value once.
+    useEffect(() => {
+        if (todayDayOrder && (DAYS as readonly string[]).includes(todayDayOrder)) {
+            setActiveDay(todayDayOrder as (typeof DAYS)[number]);
+        }
+    }, [todayDayOrder]);
+
     const row = schedule[activeDay] || [];
+    const isTodayTab = !editable && todayDayOrder !== null && activeDay === todayDayOrder;
+    const onLeaveSlots = isTodayTab && leaveToday ? leaveSlotIndexes(leaveToday) : null;
 
     return (
         <div>
@@ -57,6 +106,9 @@ export default function TimetableGrid({
                             }`}
                         >
                             {day}
+                            {!editable && todayDayOrder === day && (
+                                <span className="ml-1.5 align-middle text-[10px] font-bold text-cyan-400">TODAY</span>
+                            )}
                         </button>
                     ))}
                 </div>
@@ -110,13 +162,20 @@ export default function TimetableGrid({
                                     ))}
                                 </div>
                             ) : (
-                                <span
-                                    className={`inline-flex w-fit items-center px-3 py-1.5 text-sm font-bold sm:w-auto sm:min-w-32 sm:justify-center ${
-                                        BADGE_STYLES[value] ?? BADGE_STYLES[""]
-                                    }`}
-                                >
-                                    {value ? CELL_LABELS[value] ?? value : "Free"}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                                    <span
+                                        className={`inline-flex w-fit items-center px-3 py-1.5 text-sm font-bold sm:w-auto sm:min-w-32 sm:justify-center ${
+                                            BADGE_STYLES[value] ?? BADGE_STYLES[""]
+                                        }`}
+                                    >
+                                        {value ? CELL_LABELS[value] ?? value : "Free"}
+                                    </span>
+                                    {onLeaveSlots?.has(slotIndex) && (
+                                        <span className="inline-flex w-fit items-center px-3 py-1.5 text-sm font-bold bg-purple-500/15 text-purple-300 ring-1 ring-inset ring-purple-500/30">
+                                            On Leave
+                                        </span>
+                                    )}
+                                </div>
                             )}
                         </div>
                     );

@@ -18,7 +18,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 // fix and belongs in a dedicated flow if it's ever needed).
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const session = await getSession();
-  if (!requireRole(session, ["lead", "admin"])) {
+  if (!requireRole(session, ["member", "lead", "admin"])) {
     return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 

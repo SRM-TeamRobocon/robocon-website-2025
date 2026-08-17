@@ -19,9 +19,9 @@ import {
     Sparkles,
     Newspaper,
     PenSquare,
-    GraduationCap,
     CalendarClock,
     Radio,
+    CalendarOff,
 } from "lucide-react";
 
 export type NavRole = "lead" | "admin" | "member";
@@ -40,7 +40,6 @@ const ALL_ROLES: NavRole[] = ["lead", "admin", "member"];
 export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true, roles: ALL_ROLES },
     { label: "Website Content", href: "/dashboard/content", icon: Globe2, roles: STAFF_ROLES },
-    { label: "Mentors", href: "/dashboard/mentors", icon: GraduationCap, roles: STAFF_ROLES },
     { label: "Workshops", href: "/dashboard/workshops", icon: Wrench, roles: STAFF_ROLES },
     { label: "Review & Approvals", href: "/dashboard/approvals", icon: ClipboardCheck, roles: ["lead", "admin"] },
     { label: "Recruitments", href: "/dashboard/recruitment", icon: RecruitIcon, roles: STAFF_ROLES },
@@ -48,6 +47,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Write Blog", href: "/dashboard/blogs/new", icon: PenSquare, roles: ALL_ROLES },
     { label: "Timetable", href: "/dashboard/timetable", icon: CalendarClock, roles: ALL_ROLES },
     { label: "Attendance", href: "/dashboard/attendance", icon: Radio, roles: ALL_ROLES },
+    { label: "Request Leave", href: "/dashboard/leave", icon: CalendarOff, roles: ALL_ROLES },
     { label: "Propose Content", href: "/dashboard/propose", icon: FilePlus2, roles: ["member"] },
     { label: "My Submissions", href: "/dashboard/my-submissions", icon: ListChecks, roles: ["member"] },
 ];

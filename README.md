@@ -8,7 +8,6 @@ Next.js website for SRM Team Robocon with public pages, workshop/event registrat
 - Tailwind CSS
 - Google Sheets / Apps Script for workshop/event registrations
 - Supabase-backed RFID office attendance (ESP32 + `/api/attendance/*`)
-- Razorpay for paid workshop registration
 - SMTP via Nodemailer for registration emails
 - JWT-protected admin dashboard for event operations
 - Supabase Postgres + Storage for editable website content
@@ -58,11 +57,8 @@ Office RFID attendance (Supabase-backed — see `attendance/main.ino`):
 - `ATTENDANCE_DEVICE_SECRET` — bearer secret the ESP32 scanner sends to `/api/attendance/tap`; must match `deviceSecret` in the firmware. Falls back to `"local-dev"` if unset, which is only safe for local testing.
 - `GOOGLE_SCRIPT_URL` is no longer used — the old Apps-Script-backed attendance system was replaced by Supabase (`attendance_logs`/`rfid_pairing_requests` tables, `member_accounts.rfid_uid`). Safe to remove once the old Apps Script deployment is decommissioned.
 
-Payments and email:
+Email:
 
-- `RAZORPAY_KEY_ID`
-- `RAZORPAY_KEY_SECRET`
-- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
 - `SMTP_EMAIL`
 - `SMTP_PASSWORD`
 - `ORGANIZER_EMAIL`

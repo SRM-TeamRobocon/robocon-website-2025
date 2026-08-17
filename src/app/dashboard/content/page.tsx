@@ -33,6 +33,24 @@ export default async function AdminContentHome() {
             </p>
           </Link>
         ))}
+
+        <Link
+          href="/dashboard/blogs/new"
+          className="border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
+          <h2 className="text-xl font-bold text-white">Blogs</h2>
+          <p className="mt-2 text-sm text-gray-400">Write a new blog post.</p>
+        </Link>
+
+        <Link
+          href="/dashboard/mentors"
+          className="border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
+          <h2 className="text-xl font-bold text-white">Mentors</h2>
+          <p className="mt-2 text-sm text-gray-400">Manage mentors.</p>
+        </Link>
       </div>
     </div>
   );

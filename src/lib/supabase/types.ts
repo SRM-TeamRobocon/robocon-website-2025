@@ -427,6 +427,58 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["rfid_pairing_requests"]["Insert"]>;
         Relationships: [];
       };
+      leave_requests: {
+        Row: {
+          id: string;
+          member_account_id: string;
+          owner_name: string;
+          domain: string | null;
+          start_date: string;
+          end_date: string;
+          start_time: string | null;
+          end_time: string | null;
+          reason: string;
+          status: string;
+          review_note: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_account_id: string;
+          owner_name: string;
+          domain?: string | null;
+          start_date: string;
+          end_date: string;
+          start_time?: string | null;
+          end_time?: string | null;
+          reason: string;
+          status?: string;
+          review_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["leave_requests"]["Insert"]>;
+        Relationships: [];
+      };
+      day_order_log: {
+        Row: {
+          date: string;
+          day_order: string;
+          source: string;
+          synced_at: string | null;
+        };
+        Insert: {
+          date: string;
+          day_order: string;
+          source?: string;
+          synced_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["day_order_log"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

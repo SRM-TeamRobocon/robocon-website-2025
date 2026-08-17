@@ -26,6 +26,24 @@ interface BroadcastPayload {
     action?: "IN" | "OUT";
 }
 
+interface LeaveWindow {
+    startTime: string | null;
+    endTime: string | null;
+}
+
+// null start/end = full-day leave, always "now". Otherwise compares against the
+// current IST clock time.
+function isWithinLeaveWindow(leave: LeaveWindow, nowMs: number): boolean {
+    if (!leave.startTime || !leave.endTime) return true;
+    const nowHHMM = new Date(nowMs).toLocaleTimeString("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    });
+    return nowHHMM >= leave.startTime && nowHHMM <= leave.endTime;
+}
+
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
         <div className={`border border-white/10 bg-white/[0.03] backdrop-blur-xl ${className}`} style={CARD_CLIP}>
@@ -52,6 +70,7 @@ export default function AttendanceBoardPage() {
     const [error, setError] = useState<string | null>(null);
     const [now, setNow] = useState(Date.now());
     const [selected, setSelected] = useState<MemberAttendanceStats | null>(null);
+    const [onLeaveMap, setOnLeaveMap] = useState<Map<string, LeaveWindow>>(new Map());
     const eventsRef = useRef<AttendanceEvent[]>([]);
 
     const fetchEvents = useCallback(async () => {
@@ -69,15 +88,33 @@ export default function AttendanceBoardPage() {
         }
     }, []);
 
+    const fetchLeaveToday = useCallback(async () => {
+        try {
+            const res = await fetch("/api/dashboard/leave-requests/today");
+            const data = await res.json();
+            if (!data.success) return;
+            const map = new Map<string, LeaveWindow>();
+            for (const row of data.data as Array<{ member_account_id: string; start_time: string | null; end_time: string | null }>) {
+                map.set(row.member_account_id, { startTime: row.start_time, endTime: row.end_time });
+            }
+            setOnLeaveMap(map);
+        } catch {
+            // Non-critical — the board still works without leave overlay.
+        }
+    }, []);
+
     useEffect(() => {
         fetchEvents();
+        fetchLeaveToday();
         const interval = setInterval(fetchEvents, REFRESH_MS);
+        const leaveInterval = setInterval(fetchLeaveToday, REFRESH_MS);
         const clock = setInterval(() => setNow(Date.now()), 30_000);
         return () => {
             clearInterval(interval);
+            clearInterval(leaveInterval);
             clearInterval(clock);
         };
-    }, [fetchEvents]);
+    }, [fetchEvents, fetchLeaveToday]);
 
     // Live updates: the tap route broadcasts here via Supabase Realtime's server-side
     // REST broadcast endpoint (see broadcastAttendanceEvent in src/lib/attendance.ts).
@@ -279,27 +316,37 @@ export default function AttendanceBoardPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {leaderboard.map((m) => (
-                                    <tr
-                                        key={m.memberAccountId}
-                                        onClick={() => setSelected(m)}
-                                        className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
-                                    >
-                                        <td className="py-2.5 font-semibold text-white">{m.name}</td>
-                                        <td className="py-2.5 text-gray-400">{m.domain}</td>
-                                        <td className="py-2.5">
-                                            <span
-                                                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${
-                                                    m.status === "IN" ? "bg-red/20 text-red ring-red/30" : "bg-white/5 text-gray-400 ring-white/10"
-                                                }`}
-                                            >
-                                                {m.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-2.5 font-mono text-gray-300">{formatDuration(m.totalTimeMs)}</td>
-                                        <td className="py-2.5 text-amber-400">{m.currentStreak > 0 ? `🔥 ${m.currentStreak}` : "—"}</td>
-                                    </tr>
-                                ))}
+                                {leaderboard.map((m) => {
+                                    const leave = onLeaveMap.get(m.memberAccountId);
+                                    const onLeaveNow = leave && isWithinLeaveWindow(leave, now);
+                                    return (
+                                        <tr
+                                            key={m.memberAccountId}
+                                            onClick={() => setSelected(m)}
+                                            className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
+                                        >
+                                            <td className="py-2.5 font-semibold text-white">{m.name}</td>
+                                            <td className="py-2.5 text-gray-400">{m.domain}</td>
+                                            <td className="py-2.5">
+                                                {onLeaveNow ? (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-purple-500/15 text-purple-300 ring-purple-500/30">
+                                                        On Leave
+                                                    </span>
+                                                ) : (
+                                                    <span
+                                                        className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${
+                                                            m.status === "IN" ? "bg-red/20 text-red ring-red/30" : "bg-white/5 text-gray-400 ring-white/10"
+                                                        }`}
+                                                    >
+                                                        {m.status}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-2.5 font-mono text-gray-300">{formatDuration(m.totalTimeMs)}</td>
+                                            <td className="py-2.5 text-amber-400">{m.currentStreak > 0 ? `🔥 ${m.currentStreak}` : "—"}</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

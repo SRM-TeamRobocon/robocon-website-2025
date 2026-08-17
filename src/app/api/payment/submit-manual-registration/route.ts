@@ -72,15 +72,9 @@ export async function POST(req: NextRequest) {
             `⏳ Manual UPI registration submitted — UTR: ${transactionId}, Name: ${formData.Name}`
         );
 
-        // WE NO LONGER SEND TICKETS IMMEDIATELY FOR MANUAL REGISTRATIONS
-        // The admin must verify the payment first via the /dashboard, which will trigger the official ticket email.
-        // await sendConfirmationEmails({
-        //     formData,
-        //     paymentId: `UTR-${transactionId.trim()}`,
-        //     orderId: "MANUAL_UPI",
-        // }).catch((err) =>
-        //     console.error("❌ Email sending failed:", err.message)
-        // );
+        // Tickets aren't sent immediately for manual registrations — a lead/admin must
+        // verify the payment first via the dashboard (`/api/admin/verify`), which triggers
+        // the official ticket email.
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

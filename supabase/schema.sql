@@ -292,3 +292,44 @@ create index if not exists rfid_pairing_requests_pending_idx on rfid_pairing_req
 
 alter table rfid_pairing_requests enable row level security;
 -- No public policies: service-role only.
+
+-- Member-submitted leave requests: date range (+ optional time-of-day window; null
+-- start_time/end_time = whole day), held for lead/admin approval before it counts as
+-- "approved busy" anywhere (timetable directory, attendance board). Same
+-- propose/pending/approve-or-reject shape as content_edits.
+create table if not exists leave_requests (
+  id uuid primary key default gen_random_uuid(),
+  member_account_id uuid not null references member_accounts(id),
+  owner_name text not null,
+  domain text,
+  start_date date not null,
+  end_date date not null,
+  start_time text, -- "HH:MM", null = full day
+  end_time text,   -- "HH:MM", null = full day
+  reason text not null,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  review_note text,
+  reviewed_by text,
+  reviewed_at timestamptz,
+  created_at timestamptz default now()
+);
+create index if not exists leave_requests_status_idx on leave_requests (status, start_date);
+create index if not exists leave_requests_member_idx on leave_requests (member_account_id);
+
+alter table leave_requests enable row level security;
+-- No public policies: service-role only, same pattern as content_edits.
+
+-- Cache of "what Day Order (DO1-DO5) was/is real calendar date X" — DO1-DO5 in
+-- `timetables.schedule` are otherwise just fixed weekly-template row labels with no
+-- link to a real date. Populated by a scheduled Academia-sync job (source =
+-- 'academia_sync') with a lead/admin manual-override fallback (source = 'manual') for
+-- when the sync fails or hasn't run yet for a given date.
+create table if not exists day_order_log (
+  date date primary key,
+  day_order text not null check (day_order in ('DO1', 'DO2', 'DO3', 'DO4', 'DO5')),
+  source text not null default 'academia_sync' check (source in ('academia_sync', 'manual')),
+  synced_at timestamptz default now()
+);
+
+alter table day_order_log enable row level security;
+-- No public policies: service-role only.

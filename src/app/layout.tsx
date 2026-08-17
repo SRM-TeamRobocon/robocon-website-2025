@@ -6,7 +6,6 @@ import "aos/dist/aos.css";
 import MenuContextProvider from "@/context/MenuContextProvider";
 import ConditionalParticles from "@/components/ConditionalParticles";
 import { Analytics } from "@vercel/analytics/react";
-import Script from "next/script";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -24,10 +23,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("!scroll-smooth bg-black", "font-sans", geist.variable)}>
       <body className={aldrich.className}>
-        <Script
-          src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="afterInteractive"
-        />
         <MenuContextProvider>
           <ConditionalParticles />
           <div className="relative z-10">

@@ -20,6 +20,12 @@ MFRC522 rfid(SS_PIN, RST_PIN);
 /* ── LCD ──────────────────────────────────── */
 LiquidCrystal_I2C lcd(0x3F, 16, 2);
 
+// Declared globally (not inside sendTap()) and reused across every request. A fresh
+// WiFiClientSecure means a fresh TLS handshake — the slowest part of each tap, often
+// 500ms-1s+ on ESP32 — so keeping one connection alive across taps is what actually
+// makes back-to-back taps feel instant, not just cosmetic loading text.
+WiFiClientSecure secureClient;
+
 /* ── Backend ──────────────────────────────────────────────────────────────
    Card UIDs are no longer hardcoded here — they're bound to a member's
    account via self-service pairing from the website dashboard. This device
@@ -54,6 +60,53 @@ bool extractJsonBool(const String& json, const String& key) {
   return json.indexOf("\"" + key + "\":true") != -1;
 }
 
+/* ── LCD message pools ────────────────────────────────────────────────────
+   One of each gets picked at random (ESP32's random() is hardware-seeded —
+   no randomSeed() needed). Diagnostic states (no signal / server error /
+   generic error) only randomize the flavor line — the actual code or event
+   string stays on the other line, since that's what you want to read off
+   the screen when a scanner is actually broken. */
+struct LcdMsg { const char* line1; const char* line2; };
+
+const LcdMsg IDLE_MSGS[] = {
+  {"Tap In Bestie", "SRM Robocon"},
+  {"Yo Tap That", "Lets Gooo"},
+  {"Scan Ur Card", "No Cap"},
+  {"Ready When U R", "SRM Robocon"},
+  {"Who Dis? Tap In", "Find Out"},
+};
+
+const LcdMsg CHECKING_MSGS[] = {
+  {"Checking Vibes", "hold up..."},
+  {"One Sec Bestie", "loading..."},
+  {"Hold My Beer", "checking..."},
+  {"Vibe Check", "pls wait..."},
+  {"Lemme See", "one sec..."},
+};
+
+const LcdMsg UNAUTHORIZED_MSGS[] = {
+  {"Not On The List", "Sry Bestie"},
+  {"Fuck Off Dude", "No Cap"},
+  {"Nice Try Buddy", "Try Again"},
+  {"Who Tf Is This", "Not Today"},
+};
+
+const char* NO_SIGNAL_VIBES[] = {"No Signal Fam", "Lost In Space", "Wifi Ghosted Us", "Cant Even Rn"};
+const char* SERVER_ERR_VIBES[] = {"Server Yikes", "Server Said Nah", "Big Oof Fr", "Not Vibing Rn"};
+const char* GENERIC_ERR_VIBES[] = {"Big Yikes", "Oop Error", "Not Todayyy", "Sumthin Broke"};
+
+const char* IN_VIBES[] = {
+  "Welcome Dawg", "Lesgooo", "Ur In Cutie", "Locked In Bb",
+  "Welcome Back", "Ayyy Ur In", "In The Building", "Slay Ur In",
+};
+const char* OUT_VIBES[] = {
+  "Fuck Off Dude", "Byeee Bestie", "Ghosted Lol", "Cya Nerd",
+  "Dipped Out", "Later Gator", "Peace Out", "Get Home Safe",
+};
+const char* LINKED_REVEALS[] = {"ONLINE", "LOCKED IN", "VERIFIED", "ACTIVATED", "LEGIT NOW"};
+
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 void showMessage(const String& line1, const String& line2) {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -80,8 +133,13 @@ void setup() {
   SPI.begin();
   rfid.PCD_Init();
 
+  // No certificate validation — fine for this internal endpoint, and it's what keeps
+  // the (already-expensive) TLS handshake as cheap as it can be on this hardware.
+  secureClient.setInsecure();
+
   delay(1500);
-  showMessage("Tap In Bestie", "SRM Robocon");
+  LcdMsg idle = IDLE_MSGS[random(ARRAY_LEN(IDLE_MSGS))];
+  showMessage(idle.line1, idle.line2);
 }
 
 /* ── POST one tap, return the raw JSON response body (or "" on failure) ──
@@ -91,11 +149,12 @@ void setup() {
    isn't deployed yet, 401 means deviceSecret doesn't match the server's
    ATTENDANCE_DEVICE_SECRET). */
 String sendTap(const String& uid, int& httpCode) {
-  WiFiClientSecure client;
-  client.setInsecure();
-
   HTTPClient http;
-  http.begin(client, tapURL);
+  http.begin(secureClient, tapURL);
+  // Reuse the underlying TCP+TLS connection across taps instead of tearing it down
+  // after every request — that's the single biggest win for making back-to-back
+  // taps feel instant, since it skips re-negotiating TLS each time.
+  http.setReuse(true);
   // Defensive: tapURL above should already be the canonical (non-redirecting) host,
   // but if that ever changes, STRICT mode follows 307/308 without turning the POST
   // into a GET (unlike the default, which doesn't follow redirects at all).
@@ -136,7 +195,8 @@ void loop() {
   lastUID = uid;
   lastScanTime = millis();
 
-  showMessage("Checking Vibes", "hold up...");
+  LcdMsg checking = CHECKING_MSGS[random(ARRAY_LEN(CHECKING_MSGS))];
+  showMessage(checking.line1, checking.line2);
   int httpCode = 0;
   String response = sendTap(uid, httpCode);
 
@@ -146,10 +206,18 @@ void loop() {
     // 404 = this route isn't deployed yet, 401 = wrong deviceSecret. Codes
     // stay on-screen (not just flavor text) since they're the first thing
     // you'll want to read off when debugging a scanner in the field.
-    showMessage(httpCode < 0 ? "No Signal Fam" : "Server Yikes", String(httpCode));
+    const char* vibe = httpCode < 0
+      ? NO_SIGNAL_VIBES[random(ARRAY_LEN(NO_SIGNAL_VIBES))]
+      : SERVER_ERR_VIBES[random(ARRAY_LEN(SERVER_ERR_VIBES))];
+    showMessage(vibe, String(httpCode));
   } else if (!extractJsonBool(response, "ok")) {
     String event = extractJsonString(response, "event");
-    showMessage(event == "unauthorized" ? "Not On The List" : "Big Yikes", event == "unauthorized" ? "Sry Bestie" : event);
+    if (event == "unauthorized") {
+      LcdMsg m = UNAUTHORIZED_MSGS[random(ARRAY_LEN(UNAUTHORIZED_MSGS))];
+      showMessage(m.line1, m.line2);
+    } else {
+      showMessage(GENERIC_ERR_VIBES[random(ARRAY_LEN(GENERIC_ERR_VIBES))], event);
+    }
   } else {
     String event = extractJsonString(response, "event");
     String name = extractJsonString(response, "name");
@@ -162,17 +230,21 @@ void loop() {
         showMessage(name + " is...", "syncing" + dots);
         delay(300);
       }
-      showMessage(name + " is", "ONLINE");
+      showMessage(name + " is", LINKED_REVEALS[random(ARRAY_LEN(LINKED_REVEALS))]);
     } else {
       String action = extractJsonString(response, "action");
-      String domain = extractJsonString(response, "domain");
-      String vibe = action == "IN" ? "Locked In" : "Ghosted";
-      showMessage(name, domain + " " + vibe);
+      const char* vibe = action == "IN"
+        ? IN_VIBES[random(ARRAY_LEN(IN_VIBES))]
+        : OUT_VIBES[random(ARRAY_LEN(OUT_VIBES))];
+      showMessage(vibe, name);
     }
   }
 
   Serial.println(response);
 
-  delay(2500);
-  showMessage("Tap In Bestie", "SRM Robocon");
+  // Shorter hold than before — this is dead time between "result shown" and "ready
+  // for the next tap", not something the network latency requires.
+  delay(1200);
+  LcdMsg idle = IDLE_MSGS[random(ARRAY_LEN(IDLE_MSGS))];
+  showMessage(idle.line1, idle.line2);
 }

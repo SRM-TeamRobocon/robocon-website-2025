@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2, Pencil } from "lucide-react";
+import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2, Pencil, CalendarOff } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { getContentResource } from "@/lib/content-resources";
 import { Thumb, findImageField } from "@/components/ContentImageFields";
@@ -42,6 +42,19 @@ interface Submission {
     resource: string;
     action: string;
     payload: Record<string, any>;
+    created_at: string;
+    member_accounts: { name: string; email: string } | null;
+}
+
+interface LeaveRequestRow {
+    id: string;
+    owner_name: string;
+    domain: string | null;
+    start_date: string;
+    end_date: string;
+    start_time: string | null;
+    end_time: string | null;
+    reason: string;
     created_at: string;
     member_accounts: { name: string; email: string } | null;
 }
@@ -389,6 +402,103 @@ function ContentTab() {
     );
 }
 
+function formatLeaveWindow(row: LeaveRequestRow): string {
+    const dateRange =
+        row.start_date === row.end_date
+            ? new Date(row.start_date).toLocaleDateString()
+            : `${new Date(row.start_date).toLocaleDateString()} – ${new Date(row.end_date).toLocaleDateString()}`;
+    const timeRange = row.start_time && row.end_time ? `, ${row.start_time}–${row.end_time}` : " (full day)";
+    return `${dateRange}${timeRange}`;
+}
+
+function LeaveTab() {
+    const [rows, setRows] = useState<LeaveRequestRow[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [busyId, setBusyId] = useState<string | null>(null);
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/admin/leave-requests?status=pending");
+            const data = await res.json();
+            if (data.success) setRows(data.data);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    const decide = async (id: string, decision: "approve" | "reject") => {
+        setBusyId(id);
+        try {
+            const res = await fetch("/api/admin/leave-requests", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, decision }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setRows((prev) => prev.filter((r) => r.id !== id));
+                toast.success(decision === "approve" ? "Leave approved" : "Leave rejected");
+            } else {
+                toast.error(data.error || "Could not record decision");
+            }
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    if (loading) return <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>;
+
+    return (
+        <div
+            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        >
+            {rows.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
+            ) : (
+                <ul className="divide-y divide-white/5">
+                    {rows.map((row) => (
+                        <li key={row.id} className="px-5 py-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-white font-medium">
+                                        {row.owner_name} {row.domain ? `(${row.domain})` : ""}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {formatLeaveWindow(row)} · {row.member_accounts?.email}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-300">{row.reason}</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={() => decide(row.id, "approve")}
+                                        disabled={busyId === row.id}
+                                        className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
+                                    >
+                                        <Check className="w-3.5 h-3.5" /> Approve
+                                    </button>
+                                    <button
+                                        onClick={() => decide(row.id, "reject")}
+                                        disabled={busyId === row.id}
+                                        className="inline-flex items-center gap-1.5 bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
+                                    >
+                                        <X className="w-3.5 h-3.5" /> Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
 interface BlogSubmission {
     id: string;
     title: string;
@@ -583,7 +693,7 @@ function BlogsTab() {
 
 export default function ApprovalsPage() {
     const ready = useRequireRole(["lead", "admin"]);
-    const [tab, setTab] = useState<"members" | "content" | "blogs">("members");
+    const [tab, setTab] = useState<"members" | "content" | "blogs" | "leave">("members");
 
     if (!ready) return null;
 
@@ -624,9 +734,25 @@ export default function ApprovalsPage() {
                 >
                     <Newspaper className="w-4 h-4" /> Blogs
                 </button>
+                <button
+                    onClick={() => setTab("leave")}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
+                        tab === "leave" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
+                    }`}
+                >
+                    <CalendarOff className="w-4 h-4" /> Leave
+                </button>
             </div>
 
-            {tab === "members" ? <MembersTab /> : tab === "content" ? <ContentTab /> : <BlogsTab />}
+            {tab === "members" ? (
+                <MembersTab />
+            ) : tab === "content" ? (
+                <ContentTab />
+            ) : tab === "blogs" ? (
+                <BlogsTab />
+            ) : (
+                <LeaveTab />
+            )}
         </div>
     );
 }

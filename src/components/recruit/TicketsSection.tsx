@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Select from "@/components/ui/select";
 import { RECRUIT_SUBDOMAINS, groupBySubsystem, subDomainFullLabel } from "@/lib/recruit-domains";
 
@@ -24,6 +25,7 @@ type Ticket = {
 const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
 
 export default function TicketsSection({ currentDomains }: { currentDomains: string[] }) {
+    const router = useRouter();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const [category, setCategory] = useState<TicketCategory>("general");
@@ -36,6 +38,10 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
     const load = async () => {
         try {
             const res = await fetch("/api/recruit/tickets");
+            if (res.status === 401) {
+                router.push("/recruit/login");
+                return;
+            }
             const json = await res.json();
             if (res.ok && json.success) setTickets(json.data ?? []);
         } finally {
@@ -101,6 +107,13 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                         : {}),
                 }),
             });
+            if (res.status === 401) {
+                // Session expired between page load and submit — the raw "Unauthorized
+                // access" from proxy.ts is a dead end for the recruit, so send them to log
+                // back in rather than leaving them stuck on an error they can't act on.
+                router.push("/recruit/login");
+                return;
+            }
             const json = await res.json();
             if (res.ok && json.success) {
                 setMessage("");
