@@ -2,45 +2,11 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import GalleryClient from "./GalleryClient";
 import type { Album } from "./AlbumCard";
-import type { GalleryPhoto } from "@/components/ui/expandable-gallery";
-import jsonData from "@/app/gallery/carousel-data.json";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
-interface FallbackGalleryItem {
-  src: string;
-  title: string;
-  category: string;
-}
-
-function groupFallbackIntoAlbums(rows: FallbackGalleryItem[]): Album[] {
-  const order: string[] = [];
-  const byCategory = new Map<string, GalleryPhoto[]>();
-
-  rows.forEach((row, index) => {
-    const category = row.category?.trim() || "Uncategorized";
-    if (!byCategory.has(category)) {
-      byCategory.set(category, []);
-      order.push(category);
-    }
-    byCategory.get(category)!.push({
-      id: `${category}-${index}`,
-      src: row.src,
-      alt: row.title || category,
-    });
-  });
-
-  return order.map((category) => ({
-    id: category,
-    title: category,
-    photos: byCategory.get(category) || [],
-  }));
-}
-
 async function getAlbums(): Promise<Album[]> {
-  const fallbackAlbums = groupFallbackIntoAlbums(jsonData as FallbackGalleryItem[]);
-
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return fallbackAlbums;
+  if (!supabase) return [];
 
   const [{ data: albums, error: albumsError }, { data: photos, error: photosError }] = await Promise.all([
     supabase.from("gallery_albums").select("id, title").order("display_order", { ascending: false }),
@@ -50,7 +16,7 @@ async function getAlbums(): Promise<Album[]> {
       .order("display_order", { ascending: true }),
   ]);
 
-  if (albumsError || photosError || !albums?.length || !photos?.length) return fallbackAlbums;
+  if (albumsError || photosError || !albums?.length || !photos?.length) return [];
 
   return albums
     .map((album) => ({

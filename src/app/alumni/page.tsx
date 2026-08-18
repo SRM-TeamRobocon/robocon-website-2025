@@ -1,5 +1,4 @@
 import Header from "@/components/Header";
-import alumniData from "@/../public/alumni/alumniData.json";
 import Footer from "@/components/Footer";
 import AlumniCard from "@/components/AlumniCard";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -57,14 +56,14 @@ function groupSupabaseAlumni(rows: SupabaseAlumnus[]): AlumniData {
 
 async function getAlumni(): Promise<AlumniData> {
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return alumniData as AlumniData;
+  if (!supabase) return {};
 
   const { data, error } = await supabase
     .from("alumni")
     .select("name, domain, designation, about, description, profession, batch, photo_url, linkedin_url, instagram_url, facebook_url")
     .order("batch", { ascending: false, nullsFirst: false });
 
-  if (error || !data?.length) return alumniData as AlumniData;
+  if (error || !data?.length) return {};
   return groupSupabaseAlumni(data);
 }
 

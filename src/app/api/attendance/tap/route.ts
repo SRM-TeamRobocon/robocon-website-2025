@@ -72,13 +72,15 @@ export async function POST(request: Request) {
 
         await supabase.from("rfid_pairing_requests").update({ status: "claimed" }).eq("id", pending.id);
 
-        const { data: pairedAccount } = await supabase
-            .from("member_accounts")
-            .select("name")
-            .eq("id", pending.member_account_id)
-            .maybeSingle();
+        // Resolve the same way a normal tap does — roster first, account name as
+        // fallback — so the name on the pairing screen matches the name shown on every
+        // tap afterwards instead of drifting the moment a roster entry is edited.
+        const [{ data: pairedRoster }, { data: pairedAccount }] = await Promise.all([
+            supabase.from("members").select("name").eq("member_account_id", pending.member_account_id).maybeSingle(),
+            supabase.from("member_accounts").select("name").eq("id", pending.member_account_id).maybeSingle(),
+        ]);
 
-        const name = pairedAccount?.name || "New card";
+        const name = pairedRoster?.name || pairedAccount?.name || "New card";
         await broadcastAttendanceEvent({ event: "linked", name });
         return NextResponse.json({ ok: true, event: "linked", name });
     }

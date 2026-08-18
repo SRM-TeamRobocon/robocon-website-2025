@@ -1,7 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ContentGrid, { type ContentCardItem } from "@/components/ContentGrid";
-import { achievements1 } from "@/constants/constants";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { formatDate } from "@/lib/utils";
 import type { Achievement } from "@/constants/types";
@@ -43,7 +42,7 @@ function mapSupabaseAchievements(rows: SupabaseAchievement[]): Achievement[] {
 
 async function getAchievements(): Promise<Achievement[]> {
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return achievements1;
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("achievements")
@@ -52,7 +51,7 @@ async function getAchievements(): Promise<Achievement[]> {
     )
     .order("achievement_date", { ascending: false, nullsFirst: false });
 
-  if (error || !data?.length) return achievements1;
+  if (error || !data?.length) return [];
   return mapSupabaseAchievements(data);
 }
 

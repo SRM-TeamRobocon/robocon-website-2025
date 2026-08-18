@@ -1,7 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ContentGrid, { type ContentCardItem } from "@/components/ContentGrid";
-import { projects } from "@/constants/constants";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { Project } from "@/constants/types";
 
@@ -44,7 +43,7 @@ function mapSupabaseProjects(rows: SupabaseProject[]): Project[] {
 
 async function getProjects(): Promise<Project[]> {
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return projects;
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("projects")
@@ -53,7 +52,7 @@ async function getProjects(): Promise<Project[]> {
     )
     .order("year", { ascending: false, nullsFirst: false });
 
-  if (error || !data?.length) return projects;
+  if (error || !data?.length) return [];
   return mapSupabaseProjects(data);
 }
 

@@ -1,7 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ContentGrid, { type ContentCardItem } from "@/components/ContentGrid";
-import { events } from "@/constants/constants";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { formatDate } from "@/lib/utils";
 import type { Event } from "@/constants/types";
@@ -43,7 +42,7 @@ function mapSupabaseEvents(rows: SupabaseEvent[]): Event[] {
 
 async function getEvents(): Promise<Event[]> {
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return events;
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("events")
@@ -52,7 +51,7 @@ async function getEvents(): Promise<Event[]> {
     )
     .order("event_date", { ascending: false, nullsFirst: false });
 
-  if (error || !data?.length) return events;
+  if (error || !data?.length) return [];
   return mapSupabaseEvents(data);
 }
 

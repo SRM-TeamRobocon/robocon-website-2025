@@ -1,11 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import TeamClient, { type TeamData } from "./TeamClient";
-import staticTeamData from "@/../public/team/data.json";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-
-const fetchDataUrl =
-  "https://script.google.com/macros/s/AKfycbyxSIPqvt_RxMKvEjaHUUZLt5sV9Yc1UKxOKqGLXlyDX8oKPWgg8Ci_4DiDIctmkj-kOw/exec";
 
 const PLACEHOLDER_PHOTO = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
 
@@ -43,37 +39,17 @@ function groupSupabaseMembers(members: SupabaseMember[]): TeamData {
     }, {});
 }
 
-function normalizeFallbackData(raw: TeamData): TeamData {
-  const normalized: TeamData = {};
-  for (const domain of Object.keys(raw)) {
-    normalized[domain] = raw[domain].map((member) => ({
-      ...member,
-      ImageUrl: (member as any).Image || member.ImageUrl || PLACEHOLDER_PHOTO,
-    }));
-  }
-  return normalized;
-}
-
 async function getTeamData(): Promise<TeamData> {
   const supabase = createPublicSupabaseClient();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("members")
-      .select("name, role, domain, photo_url, linkedin_url, instagram_url, facebook_url, is_active")
-      .order("display_order", { ascending: true });
+  if (!supabase) return {};
 
-    if (!error && data?.length) return groupSupabaseMembers(data);
-  }
+  const { data, error } = await supabase
+    .from("members")
+    .select("name, role, domain, photo_url, linkedin_url, instagram_url, facebook_url, is_active")
+    .order("display_order", { ascending: true });
 
-  try {
-    const res = await fetch(fetchDataUrl, { cache: "no-store" });
-    const json = await res.json();
-    if (json && Object.keys(json).length) return normalizeFallbackData(json);
-  } catch (error) {
-    console.error("Error fetching team data from Google Sheet:", error);
-  }
-
-  return normalizeFallbackData(staticTeamData as TeamData);
+  if (error || !data?.length) return {};
+  return groupSupabaseMembers(data);
 }
 
 export default async function Team() {

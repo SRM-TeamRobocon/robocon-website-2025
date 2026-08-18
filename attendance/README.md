@@ -90,6 +90,20 @@ No admin ever touches a UID by hand. From `/dashboard/attendance/me`, a member c
    route above binds it, marks the request `claimed`.
 4. The dashboard sees `claimed` on its next poll and shows success.
 
+**Only one member can pair at a time, team-wide** — `pair-start` returns 409 ("someone
+else is pairing a card right now") if any other window is open. That isn't politeness:
+the tap route has no way to tell *whose* card touched the reader, so it binds the
+oldest open window to whatever UID arrives. With two windows open, the first card
+tapped gets bound to the wrong person and fails silently — both dashboards report
+success, and every later tap logs attendance for someone else. Serialising pairing is
+what makes that impossible, so don't relax it to a per-member check unless the tap
+route gains another way to identify the tapper.
+
+The LCD showing the paired member's name is the second line of defence here, which is
+why it resolves the roster name (`members.name`) exactly like a normal tap does rather
+than the account name — the name you see when pairing is the name you'll see on every
+tap afterwards.
+
 If the window expires with no tap, the request just goes stale (`status` stays
 `pending` past its `expires_at`, treated as `expired` on read) — nothing to clean up
 by hand.
@@ -168,52 +182,24 @@ the safety net in case a broadcast ever gets dropped.
   LCD and the MFRC522 reader, then sits on an idle screen. It no longer blocks forever
   waiting for WiFi: if the network is down the scanner still boots, shows a clear
   error per tap, and keeps retrying.
-- **`ensureOnline()`** — getting this device onto the campus network is three
-  separate things that fail independently, which is why they're three functions:
+- **`ensureOnline()`** — two things have to succeed before a tap can go out, and
+  they fail independently:
 
-  1. **Associate** (`associateCampus()`). SRMIST is **WPA2-Enterprise
-     (PEAP/MSCHAPv2)**, so this is the real login — `EAP_USERNAME` being non-empty in
-     `secrets.h` is what selects that path. Joining an open or pre-shared-key SSID is
-     also supported (blank `EAP_USERNAME`, optionally set `CAMPUS_PASSWORD`), because
-     SRM runs an open guest SSID alongside the 802.1X one and moving the scanner
-     between them should be a `secrets.h` edit, not a code change. Note that the
-     enterprise API **changed in Arduino-ESP32 3.x** (`esp_eap_client.h` +
-     `esp_eap_client_set_*` vs `esp_wpa2.h` + `esp_wifi_sta_wpa2_ent_*` on 2.x);
-     `main.ino` `#if`s on `ESP_ARDUINO_VERSION_MAJOR` so it builds on either. "Not
-     declared in this scope" here is a core-version mismatch, not a bug.
+  1. **Associate** (`connectWifi()`). A plain WPA2-Personal `WiFi.begin(ssid,
+     password)` against `WIFI_SSID` / `WIFI_PASSWORD` from `secrets.h`.
 
      **There is exactly one network and no backup.** The old `SRM TEAM ROBOCON` lab
      router used to be a fallback; it's dead, and a fallback pointing at a network
      that never answers costs a 20s stall on every reconnect while buying nothing. If
-     a working backup router ever appears, re-adding it is a small change — a second
+     a working backup ever appears, re-adding it is a small change — a second
      `WiFi.begin` path in `ensureOnline()` — but don't re-add one on spec.
-  2. **Authenticate to the captive portal** (`portalLogin()`) — **currently a no-op**,
-     because `PORTAL_HOST` is empty. SRMIST has no portal: verified 2026-08-17, a
-     plain `http://` request returns 200 with no redirect and the gateway has nothing
-     listening on 8090/80/443/8080. The step exists because the *guest/hostel* SSID
-     is an open network with a browser login, and if the scanner ever has to live
-     there, association succeeding tells you nothing — the AP hands out an IP and
-     then swallows every packet until you log in. A human does that in a browser; the
-     scanner posts the same form itself.
-  3. **Set the clock** (`syncClock()`). The pinned certificate can't be validated by
-     a device that thinks it's 1970, and NTP is itself blocked until step 2 finishes
-     — so the ordering is load-bearing, not incidental.
+  2. **Set the clock** (`syncClock()`). The pinned certificate can't be validated by
+     a device that thinks it's 1970, so this is not optional — skip it and every TLS
+     handshake fails in a way that looks exactly like the network being down.
 
-  All three are re-checked before *every* tap rather than once at boot, because
-  portal sessions expire on idle and this device is idle for hours between taps. It's
-  a cheap no-op when everything's already up.
-
-- **`portalRequest()` / `portalKeepAlive()`** — SRM runs a Sophos/Cyberoam portal,
-  whose browser page posts a urlencoded form to `http://<host>:8090/login.xml`:
-  `mode=191` login, `192` keepalive, `193` logout (`a` is just a cache-buster, so
-  `millis()` is fine — this runs before the clock is set). Sessions die of idleness,
-  so `loop()` re-pings every 150s, before the "no card present" early return.
-
-  **If the portal speaks something else, `portalRequest()` is the only function that
-  changes.** Capture the real login request from a browser's network tab and match
-  it; the raw response body is always printed to Serial for that purpose. A
-  `LIMIT_REACHED` response is recognised separately because "your account is already
-  logged in on too many devices" otherwise looks identical to a wrong password.
+  Both are re-checked before *every* tap rather than once at boot, because APs reboot
+  and DHCP leases lapse while this device sits idle for hours between taps. It's a
+  cheap no-op when everything's already up.
 
 - **`wifiBadge()` / `drawBadge()`** — the last two columns of the bottom row always
   show WiFi quality as `0`-`99`, higher is better (the usual `2 × (RSSI + 100)` map,
@@ -229,9 +215,10 @@ the safety net in case a broadcast ever gets dropped.
   screen can otherwise sit for hours showing a stale number.
 
 - **Certificate pinning** — `secureClient.setCACert(ISRG_ROOT_X1)` replaced
-  `setInsecure()`. On an **open** network, no cert validation means anyone in range
-  can stand up a rogue AP, answer for our host, and be handed `DEVICE_SECRET` in the
-  `Authorization` header — enough to forge taps for the entire team. The site's chain
+  `setInsecure()`. Without validation, a rogue AP answering for our host is handed
+  `DEVICE_SECRET` in the `Authorization` header — enough to forge taps for the entire
+  team. WPA2 on the AP raises that bar but doesn't remove it: the pre-shared key is on
+  every phone in the lab, so "on our WiFi" is not a trust boundary. The site's chain
   is `leaf → YR1 → Root YR → ISRG Root X1`, so the Let's Encrypt root is what's
   pinned (valid to 2035). The cost: **if the site ever moves off Let's Encrypt, the
   scanner stops working until it's reflashed.** Verify the chain with
@@ -285,25 +272,16 @@ misbehaving in the field.
 
 This repo is public, so network credentials and the device bearer secret live in
 `attendance/secrets.h` — gitignored, never committed. `main.ino` does
-`#include "secrets.h"` and reads `CAMPUS_SSID`, `CAMPUS_PASSWORD`, `EAP_*`,
-`PORTAL_*` and `DEVICE_SECRET` from it. `attendance/secrets.example.h`
+`#include "secrets.h"` and reads `WIFI_SSID`, `WIFI_PASSWORD` and `DEVICE_SECRET`
+from it. `attendance/secrets.example.h`
 is the committed template — copy it to `secrets.h` and fill in real values before
 flashing. **Only `secrets.h` gets real values**; the example file is published on
 every push, netid included.
 
-Because the campus network is per-user, `EAP_USERNAME`/`EAP_PASSWORD` are somebody's
-**actual SRMIST login**, in plaintext on a device sitting in a shared lab that anyone
-can walk up to and re-flash over USB. Use a dedicated/service account if the
-department will issue one, and never an account that matters for anything else. The
-cleanest outcome is asking the network admins for a **device/MAC registration** for
-the scanner, so no personal credentials live on it at all.
-
-If the scanner ever moves to the guest SSID with its browser login, the same warning
-applies to `PORTAL_USERNAME`/`PORTAL_PASSWORD`, plus one more: portals cap concurrent
-logins per account, so a scanner holding a session 24/7 will either block that
-person's own laptop or get silently kicked when they log in elsewhere — and
-attendance then quietly stops working until someone notices. If taps start failing
-for no obvious reason there, check Serial for `LIMIT_REACHED` first.
+The WiFi password here is a shared network key, not anybody's personal login — but
+`DEVICE_SECRET` still is a real credential, sitting in plaintext on a device in a
+shared lab that anyone can walk up to and re-flash over USB. Treat a scanner that
+goes missing as a leaked device secret and rotate it.
 
 If a real secret ever ends up committed anyway (it happened once — an earlier
 version of this file had both baked in directly), the fix is to **rotate it**, not to
@@ -340,40 +318,27 @@ mkdir -p /tmp/main && cp attendance/main.ino attendance/secrets.h /tmp/main/
 arduino-cli compile --fqbn esp32:esp32:esp32 /tmp/main
 ```
 
-Verified building against **esp32:esp32 core 3.3.11** (2026-08-17): 83% of program
+Verified building against **esp32:esp32 core 3.3.11** (2026-08-17): 80% of program
 storage, 15% of dynamic memory. That flash figure is worth watching — there isn't
 room for much more, and the fix if it overflows is a `huge_app` partition scheme, not
 cutting features. The `LiquidCrystal I2C claims to run on avr architecture` warning is
 expected and harmless.
 
-Note that only the `ESP_ARDUINO_VERSION_MAJOR >= 3` half of the enterprise `#if` gets
-compiled on a 3.x core; the 2.x branch is carried for older cores but isn't exercised
-by this build.
-
 ## Flashing checklist
 
-1. Copy `attendance/secrets.example.h` to `attendance/secrets.h` and fill in the real
-   portal credentials and `DEVICE_SECRET` (must match `ATTENDANCE_DEVICE_SECRET` on
-   the server). Keep real values **only** in `secrets.h` — `secrets.example.h` is
-   committed to a public repo, so anything typed into it is published. In `main.ino`,
-   confirm `tapURL` points at the deployed site's canonical host (watch out for `www`
-   vs non-`www` redirects — POST doesn't survive a redirect the `HTTPClient` library
-   doesn't know to follow).
-2. Confirm which network you're targeting. On SRMIST (802.1X/PEAP) fill in `EAP_*`
-   and leave `PORTAL_HOST` empty — that's the current setup. Only if you're putting
-   the scanner on the open guest SSID do you need the portal: join it on a laptop,
-   `curl -v http://neverssl.com`, read the IP out of the `Location:` redirect header
-   into `PORTAL_HOST`, and blank the `EAP_*` fields.
-3. Flash it, open the Serial monitor at 115200 baud. A healthy boot prints
-   `Associated (campus): <ip>` (plus `Portal: authenticated.` only when a portal is
-   configured). The LCD can only tell you a tap failed, never *why* — Serial is where
-   the answer is:
-   - `WiFi association failed`: EAP credentials are the first thing to check, and
-     there's no backup network to mask it. The LCD shows the signal badge as `--`
-     whenever it's unassociated.
-   - `portal login -> HTTP …` with the raw body: the portal spoke, but didn't
-     accept. Compare the body against what a browser sends.
-   - `LIMIT_REACHED`: account already logged in elsewhere, not a wrong password.
+1. Copy `attendance/secrets.example.h` to `attendance/secrets.h` and fill in
+   `WIFI_SSID`, `WIFI_PASSWORD` and `DEVICE_SECRET` (must match
+   `ATTENDANCE_DEVICE_SECRET` on the server). Keep real values **only** in
+   `secrets.h` — `secrets.example.h` is committed to a public repo, so anything typed
+   into it is published. In `main.ino`, confirm `tapURL` points at the deployed
+   site's canonical host (watch out for `www` vs non-`www` redirects — POST doesn't
+   survive a redirect the `HTTPClient` library doesn't know to follow).
+2. Flash it, open the Serial monitor at 115200 baud. A healthy boot prints
+   `Connected: <ip>`. The LCD can only tell you a tap failed, never *why* — Serial is
+   where the answer is:
+   - `WiFi association failed`: wrong SSID/password, or out of range. There's no
+     backup network to mask it. The LCD shows the signal badge as `--` whenever it's
+     unassociated.
    - `clock: NTP sync failed`: TLS will reject every cert until this works.
    - Taps failing with a negative code *after* a clean boot: usually the pinned
      cert, i.e. the site moved off Let's Encrypt.
