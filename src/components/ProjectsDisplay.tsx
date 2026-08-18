@@ -40,7 +40,7 @@ const ProjectsDisplay = () => {
                   </div>
                   {index === 2 && (
                     <div className="h-[400px] w-[120px] absolute right-0 bottom-0 bg-red text-white p-2 opacity-60 group-hover:opacity-80 transition-opacity duration-500 cursor-pointer flex items-center justify-center font-kurat text-4xl"
-                    onClick={()=> router.push("/projectsAndAchievements")}>
+                    onClick={()=> router.push("/projects")}>
                       <div>{">>"} More</div>
                     </div>
                   )}
@@ -55,9 +55,9 @@ const ProjectsDisplay = () => {
 };
 
 const data = [
-  { img: `/projects/pyro.png` },
-  { img: `/projects/IDEX.png` },
-  { img: `/projects/SPIDER.png` },
+  { img: `/projects/pyro.webp` },
+  { img: `/projects/IDEX.webp` },
+  { img: `/projects/SPIDER.webp` },
 ];
 
 export default ProjectsDisplay;

@@ -316,6 +316,14 @@ void setup() {
    isn't deployed yet, 401 means deviceSecret doesn't match the server's
    ATTENDANCE_DEVICE_SECRET). */
 String sendTap(const String& uid, int& httpCode) {
+  // Was the TLS connection still alive from the last tap? setReuse(true) keeps it
+  // open, but a socket idle for hours gets dropped by the far end — so in practice
+  // most real taps pay a full handshake, and with a pinned root that means verifying
+  // a three-cert chain ending in RSA-4096. Knowing which case you're in is the
+  // difference between optimising the device and optimising the server.
+  bool reused = secureClient.connected();
+  unsigned long tStart = millis();
+
   HTTPClient http;
   http.begin(secureClient, tapURL);
   // Reuse the underlying TCP+TLS connection across taps instead of tearing it down
@@ -340,6 +348,8 @@ String sendTap(const String& uid, int& httpCode) {
     Serial.println("Response: " + http.getString());
   }
   http.end();
+
+  Serial.println("timing: sendTap=" + String(millis() - tStart) + "ms reusedTLS=" + String(reused ? "yes" : "no"));
   return response;
 }
 
@@ -384,9 +394,12 @@ void loop() {
   LcdMsg checking = CHECKING_MSGS[random(ARRAY_LEN(CHECKING_MSGS))];
   showMessage(checking.line1, checking.line2);
 
+  unsigned long tTapStart = millis();
   int httpCode = 0;
   String response = "";
   if (ensureOnline()) {
+    unsigned long tOnline = millis() - tTapStart;
+    Serial.println("timing: ensureOnline=" + String(tOnline) + "ms");
     response = sendTap(uid, httpCode);
   } else {
     // Negative code so the branch below reads this the same as any other
@@ -434,6 +447,7 @@ void loop() {
     }
   }
 
+  Serial.println("timing: TOTAL tap->screen=" + String(millis() - tTapStart) + "ms");
   Serial.println(response);
 
   // Hand the result screen to the timer at the top of loop() instead of blocking

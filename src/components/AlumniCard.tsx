@@ -8,6 +8,9 @@ import InstagramFillIcon from "remixicon-react/InstagramFillIcon";
 import LinkedinBoxFillIcon from "remixicon-react/LinkedinBoxFillIcon";
 import Link from "next/link";
 
+const PLACEHOLDER_PHOTO =
+  "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
+
 interface AlumniCardPropsType {
   Name: string;
   Domain: string;

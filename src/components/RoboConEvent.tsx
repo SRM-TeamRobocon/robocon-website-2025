@@ -19,7 +19,7 @@ const RoboConEvent = () => {
 
       <div className="w-full md:w-1/2 z-10 flex justify-center ">
         <img
-          src="/events/ARC.JPG"
+          src="/events/ARC.webp"
           alt="Automation & Robotics Challenge"
           className="max-w-full h-[600px] rounded-md object-contain"
         />
