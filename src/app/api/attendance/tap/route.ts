@@ -9,7 +9,20 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
     const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.ATTENDANCE_DEVICE_SECRET || "local-dev"}`) {
+    // Fail closed when the env var is missing. The old `|| "local-dev"` fallback meant
+    // an unset ATTENDANCE_DEVICE_SECRET silently turned this into a public endpoint — and for the
+    // cron in particular it was worse than that: Vercel only attaches the
+    // Authorization header when ATTENDANCE_DEVICE_SECRET exists, so an unset var meant the real
+    // caller got 401 every night while anyone sending "local-dev" got through.
+    const expected = process.env.ATTENDANCE_DEVICE_SECRET;
+    if (!expected) {
+        if (process.env.NODE_ENV === "production") {
+            console.error("ATTENDANCE_DEVICE_SECRET is not set — refusing the request.");
+            return NextResponse.json({ ok: false, event: "server_error" }, { status: 500 });
+        }
+        console.warn("ATTENDANCE_DEVICE_SECRET unset — accepting the local-dev fallback (development only).");
+    }
+    if (authHeader !== `Bearer ${expected || "local-dev"}`) {
         return NextResponse.json({ ok: false, event: "unauthorized_device" }, { status: 401 });
     }
 
@@ -85,23 +98,25 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, event: "linked", name });
     }
 
+    // Both of these need only account.id, so they go together. Run sequentially this
+    // costs an extra Supabase round trip, and a round trip here measures 300-900ms —
+    // the single biggest term in how long a member stands at the reader waiting.
+    //
     // Resolve display identity from the public roster row if this account has one
     // (canonical — avoids the per-tap domain drift the old firmware roster had).
-    const { data: roster } = await supabase
-        .from("members")
-        .select("name, domain")
-        .eq("member_account_id", account.id)
-        .maybeSingle();
+    const [{ data: roster }, { data: latest, error: latestError }] = await Promise.all([
+        supabase.from("members").select("name, domain").eq("member_account_id", account.id).maybeSingle(),
+        supabase
+            .from("attendance_logs")
+            .select("action, occurred_at")
+            .eq("member_account_id", account.id)
+            .order("occurred_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+    ]);
+
     const name = roster?.name || account.name;
     const domain = roster?.domain || account.domain || "GENERAL";
-
-    const { data: latest, error: latestError } = await supabase
-        .from("attendance_logs")
-        .select("action, occurred_at")
-        .eq("member_account_id", account.id)
-        .order("occurred_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
 
     if (latestError) {
         console.error("attendance tap: latest log lookup failed", latestError);
@@ -114,6 +129,12 @@ export async function POST(request: Request) {
 
     const action = nextAction((latest?.action as "IN" | "OUT" | undefined) ?? null);
 
+    // The broadcast only needs name/domain/action, all of which are already known, so
+    // it overlaps with the insert instead of queueing behind it. It's still awaited —
+    // a serverless function can be frozen the moment it responds, so fire-and-forget
+    // would drop the live board's update — but it no longer costs the device any time.
+    const broadcast = broadcastAttendanceEvent({ event: "tap", name, domain, action });
+
     const { error: insertError } = await supabase.from("attendance_logs").insert({
         member_account_id: account.id,
         action,
@@ -121,12 +142,12 @@ export async function POST(request: Request) {
         device_id: deviceId,
     });
 
+    await broadcast;
+
     if (insertError) {
         console.error("attendance tap: insert failed", insertError);
         return NextResponse.json({ ok: false, event: "server_error" }, { status: 500 });
     }
-
-    await broadcastAttendanceEvent({ event: "tap", name, domain, action });
 
     return NextResponse.json({ ok: true, event: "tap", action, name, domain });
 }

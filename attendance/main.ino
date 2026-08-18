@@ -165,6 +165,12 @@ const char* LINKED_REVEALS[] = {"ONLINE", "LOCKED IN", "VERIFIED", "ACTIVATED", 
    Two columns is the whole budget, hence the cap at 99 rather than 100, and
    "--" when we're not associated at all — which is meaningfully different from
    being associated with a terrible signal, and worth telling apart at a glance. */
+// How long an IN/OUT result stays readable. This is a hold, not a delay() — a card
+// tapped during it is read immediately and replaces the screen, so a longer, easier
+// to read result costs nothing in throughput for a queue of people.
+const unsigned long RESULT_HOLD_MS = 4000;
+unsigned long resultUntilMs = 0;
+
 const int BADGE_COL = 14;
 const unsigned long BADGE_REFRESH_MS = 5000;
 unsigned long lastBadgeMs = 0;
@@ -343,6 +349,14 @@ void loop() {
   // than no number, so refresh it in place.
   if (millis() - lastBadgeMs > BADGE_REFRESH_MS) drawBadge();
 
+  // Retire a finished result screen. Doing this here rather than with a delay() at
+  // the end of the tap is what lets the next person tap straight into it.
+  if (resultUntilMs != 0 && millis() > resultUntilMs) {
+    resultUntilMs = 0;
+    LcdMsg back = IDLE_MSGS[random(ARRAY_LEN(IDLE_MSGS))];
+    showMessage(back.line1, back.line2);
+  }
+
   if (!rfid.PICC_IsNewCardPresent()) return;
   if (!rfid.PICC_ReadCardSerial()) return;
 
@@ -422,9 +436,8 @@ void loop() {
 
   Serial.println(response);
 
-  // Shorter hold than before — this is dead time between "result shown" and "ready
-  // for the next tap", not something the network latency requires.
-  delay(1200);
-  LcdMsg idle = IDLE_MSGS[random(ARRAY_LEN(IDLE_MSGS))];
-  showMessage(idle.line1, idle.line2);
+  // Hand the result screen to the timer at the top of loop() instead of blocking
+  // here. The reader stays live throughout, so back-to-back taps by different people
+  // are picked up instantly.
+  resultUntilMs = millis() + RESULT_HOLD_MS;
 }
