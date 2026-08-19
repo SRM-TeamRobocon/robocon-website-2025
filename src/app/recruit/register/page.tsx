@@ -246,10 +246,6 @@ function RecruitRegisterInner() {
             setError("Passwords do not match.");
             return;
         }
-        if (!profile.portfolioUrl.trim()) {
-            setError("LinkedIn URL is required.");
-            return;
-        }
         if (profile.isHosteller && !profile.hostelBlock) {
             setError("Select your hostel block.");
             return;
@@ -646,11 +642,12 @@ function RecruitRegisterInner() {
                     </div>
 
                     <Field
-                        label="LinkedIn URL"
+                        label="LinkedIn URL (optional)"
                         id="portfolioUrl"
                         value={profile.portfolioUrl}
                         onChange={updateProfile("portfolioUrl")}
                         placeholder="https://linkedin.com/in/your-profile"
+                        required={false}
                     />
 
                     <Field

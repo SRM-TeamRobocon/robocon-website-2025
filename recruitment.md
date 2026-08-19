@@ -207,7 +207,7 @@ Validations server-side:
   email regex — 400 otherwise
 - `domains.length >= 1 && domains.length <= 2`
 - Each domain must be one of the 6 valid sub-domain keys
-- `portfolio_url` (LinkedIn) is enforced as **required by the client only** — the register page blocks submit with "LinkedIn URL is required", but the route accepts a missing value and stores `null`. If provided it must pass `safeHttpUrl()`: `http:`/`https:` scheme only, max 500 chars → 400 otherwise. That guard is not cosmetic; the value is rendered as a clickable `<a href>` in the admin shortlist and interview panels, so a `javascript:` URL would be stored XSS against a logged-in lead.
+- `portfolio_url` (LinkedIn) is **optional** — the register page labels it "LinkedIn URL (optional)" and does not block submit on it; the route accepts a missing value and stores `null`. If provided it must pass `safeHttpUrl()`: `http:`/`https:` scheme only, max 500 chars → 400 otherwise. That guard is not cosmetic; the value is rendered as a clickable `<a href>` in the admin shortlist and interview panels, so a `javascript:` URL would be stored XSS against a logged-in lead.
 - `reg_no` format: `^RA\d{13}$` (case-insensitive), normalized upper-case before storage
 - `phone` must be 10 digits
 
@@ -771,7 +771,7 @@ Recruitment Module — Pages & API Routes. All routes and pages introduced by th
 
 - Step 1: "Continue with Google" button → triggers `/api/recruit/auth/google`
 - Step 2 (after G-auth returns): SRM email input + "Send OTP" button + OTP input field (appears after send)
-- Step 3 (after OTP verified): Name (pre-filled), Reg No, Year, Department, Course, Phone, LinkedIn URL (always shown, asked of everyone), Password, Domain checkboxes (6 options)
+- Step 3 (after OTP verified): Name (pre-filled), Reg No, Year, Department, Course, Phone, LinkedIn URL (optional, always shown, asked of everyone), Password, Domain checkboxes (6 options)
 - On submit → `POST /api/recruit/auth/complete-registration` → redirects to `/recruit/dashboard`
 
 **Access:** Public (no auth required, redirects to dashboard if already logged in)
@@ -1781,7 +1781,7 @@ Webdev and VFX/GFX used to be "portfolio" domains (no written exam, manually rev
 
 - `src/lib/recruit-domains.ts` no longer has a `method: "exam" | "portfolio"` field, nor `EXAM_SUBDOMAINS`/`PORTFOLIO_SUBDOMAINS`/`isExamSubDomain`/`isPortfolioSubDomain`. Just `RECRUIT_SUBDOMAINS`/`RECRUIT_SUBDOMAIN_KEYS`/`isRecruitSubDomain` now — every consumer (scanner, cutoffs, marks, shortlist, analytics, `me` route, `scan` route) was updated to match.
 - The Shortlist admin page's "Portfolio Domains" tab was removed entirely (it would have been permanently empty) — one table, no tabs.
-- `portfolio_url` (DB column name kept as-is, no migration needed) is now a **LinkedIn URL required from every recruit at registration**, not a domain-gated portfolio link. UI labels say "LinkedIn" now; the wire/DB field name is unchanged.
+- `portfolio_url` (DB column name kept as-is, no migration needed) is now an **optional LinkedIn URL asked of every recruit at registration**, not a domain-gated portfolio link. UI labels say "LinkedIn" now; the wire/DB field name is unchanged.
 - `scripts/seed-recruitment.ts` was updated to match (exam attendance/marks/cutoffs now generated for webdev/vfx_gfx too, LinkedIn URL for everyone) — **but the currently-seeded 60 recruits predate this change**: their webdev/vfx_gfx selections have no exam attendance, marks, or cutoff data, because they were seeded under the old portfolio-only model. Re-run `npm run seed:recruitment -- --yes` for a dataset consistent with the new model if you need one for testing (it wipes and re-seeds the active cycle).
 
 ### What's built
