@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { MessageCircle, X, Send } from "lucide-react";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -30,7 +31,7 @@ function renderMessageContent(content: string, linkClassName: string) {
 // /recruit/dashboard (authenticated, /api/recruit/chat) and the inline light widget on
 // the homepage RecruitmentSection (public, /api/recruit/public-chat). Only the endpoint
 // and the JSX around it differ.
-function useDoubtChat(endpoint: string) {
+function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
@@ -54,6 +55,14 @@ function useDoubtChat(endpoint: string) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: text }),
             });
+            if (res.status === 401 && onUnauthorized) {
+                // Session expired mid-conversation — the raw "Unauthorized access" /
+                // "Not authenticated" body is a dead end here (see TicketsSection's
+                // identical 401 handling), so bounce to login instead of leaving the
+                // widget stuck on an error the recruit can't act on.
+                onUnauthorized();
+                return;
+            }
             const json = await res.json();
             if (res.ok && json.success) {
                 setMessages((prev) => [...prev, { role: "assistant", content: json.answer }]);
@@ -82,8 +91,11 @@ function useDoubtChat(endpoint: string) {
 // theme="light" to match its sharp red/white/black reskin instead of floating dark
 // glass over a white page.
 export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light" }) {
+    const router = useRouter();
     const [open, setOpen] = useState(false);
-    const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/chat");
+    const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/chat", () =>
+        router.push("/recruit/login")
+    );
     const light = theme === "light";
 
     return (

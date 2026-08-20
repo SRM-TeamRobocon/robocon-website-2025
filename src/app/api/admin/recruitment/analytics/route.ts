@@ -55,7 +55,11 @@ export async function GET() {
     trainingAttendanceRes,
   ] = await Promise.all([
     fetchAllRows<any>((from, to) =>
-      supabase.from("recruit_accounts").select("id, is_selected").eq("cycle_id", cycle.id).range(from, to)
+      supabase
+        .from("recruit_accounts")
+        .select("id, is_selected, gender, is_hosteller")
+        .eq("cycle_id", cycle.id)
+        .range(from, to)
     ),
     fetchAllRows<any>((from, to) =>
       supabase.from("recruit_domain_selections").select("recruit_id, sub_domain").eq("cycle_id", cycle.id).range(from, to)
@@ -159,6 +163,42 @@ export async function GET() {
 
   const overallOutcomes = outcomeCounts(interviews as any[]);
 
+  // gender/is_hosteller live on recruit_accounts, not recruit_domain_selections, so a
+  // recruit_id -> account lookup is needed to attribute each domain's registrants by these
+  // fields. Registered counts only (no funnel breakdown) — same "one row per domain
+  // selection" semantics as domainRecruitIds above, so a recruit who picked two domains is
+  // counted once per domain, same as everywhere else on this page.
+  const accountsById = new Map<string, any>(accounts.map((a: any) => [a.id, a]));
+
+  const byDomainGender = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
+    const domainRecruitIds = domainSelections
+      .filter((row: any) => row.sub_domain === domain)
+      .map((row: any) => row.recruit_id);
+    let male = 0;
+    let female = 0;
+    let unspecified = 0;
+    for (const id of domainRecruitIds) {
+      const gender = accountsById.get(id)?.gender;
+      if (gender === "male") male += 1;
+      else if (gender === "female") female += 1;
+      else unspecified += 1;
+    }
+    return { sub_domain: domain, male, female, unspecified };
+  });
+
+  const byDomainHosteller = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
+    const domainRecruitIds = domainSelections
+      .filter((row: any) => row.sub_domain === domain)
+      .map((row: any) => row.recruit_id);
+    let hosteller = 0;
+    let dayScholar = 0;
+    for (const id of domainRecruitIds) {
+      if (accountsById.get(id)?.is_hosteller) hosteller += 1;
+      else dayScholar += 1;
+    }
+    return { sub_domain: domain, hosteller, day_scholar: dayScholar };
+  });
+
   const byDomain = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const domainRecruitIds = new Set(
       domainSelections.filter((row: any) => row.sub_domain === domain).map((row: any) => row.recruit_id)
@@ -234,6 +274,8 @@ export async function GET() {
     cycle,
     overall: { ...overall, interview_outcomes: overallOutcomes },
     by_domain: byDomain,
+    by_domain_gender: byDomainGender,
+    by_domain_hosteller: byDomainHosteller,
     training: {
       total_trainees: totalTrainees,
       sessions: sessionStats,

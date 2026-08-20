@@ -267,7 +267,7 @@ create table if not exists attendance_logs (
   id uuid primary key default gen_random_uuid(),
   member_account_id uuid not null references member_accounts(id),
   action text not null check (action in ('IN', 'OUT')),
-  source text not null default 'rfid' check (source in ('rfid', 'manual_correction', 'auto_checkout')),
+  source text not null default 'rfid' check (source in ('rfid', 'manual_correction', 'auto_checkout', 'admin_correction')),
   device_id text,
   note text,
   occurred_at timestamptz not null default now(),

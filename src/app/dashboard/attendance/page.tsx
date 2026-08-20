@@ -10,6 +10,7 @@ import {
     buildSessions,
     generateSessionCSV,
     formatDuration,
+    toLocalDatetimeValue,
     type AttendanceEvent,
     type MemberAttendanceStats,
     type AttendanceSession,
@@ -76,6 +77,20 @@ export default function AttendanceBoardPage() {
     const [overnightIds, setOvernightIds] = useState<Set<string>>(new Set());
     const eventsRef = useRef<AttendanceEvent[]>([]);
 
+    // Viewer's own role + card-link status — role gates the admin controls in the member
+    // modal below; linked (specifically false, not just falsy) gates the "Link My Card"
+    // nav CTA. viewerHasAccount distinguishes "no card linked yet" from "this login has
+    // no member_accounts row at all" (e.g. a LEAD_ACCOUNTS-only login) — the latter has
+    // nothing to link, so it must not show the CTA.
+    const [viewerRole, setViewerRole] = useState<"member" | "lead" | "admin" | null>(null);
+    const [viewerHasAccount, setViewerHasAccount] = useState(false);
+    const [viewerLinked, setViewerLinked] = useState<boolean | null>(null);
+
+    const [correcting, setCorrecting] = useState(false);
+    const [showCorrectionForm, setShowCorrectionForm] = useState(false);
+    const [correctionType, setCorrectionType] = useState<"checked_in_at" | "checked_out_at">("checked_out_at");
+    const [correctionTime, setCorrectionTime] = useState("");
+
     const fetchEvents = useCallback(async () => {
         try {
             const res = await fetch("/api/attendance");
@@ -121,6 +136,63 @@ export default function AttendanceBoardPage() {
         };
     }, [fetchEvents, fetchLeaveToday]);
 
+    useEffect(() => {
+        fetch("/api/admin/me")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    setViewerRole(data.role);
+                    setViewerHasAccount(Boolean(data.memberAccountId));
+                }
+            })
+            .catch(() => {});
+        fetch("/api/member/attendance/me")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) setViewerLinked(data.linked);
+            })
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        setShowCorrectionForm(false);
+        setCorrectionTime(toLocalDatetimeValue(new Date()));
+    }, [selected?.memberAccountId]);
+
+    const isAdminViewer = viewerRole === "lead" || viewerRole === "admin";
+
+    const runCorrection = async (memberAccountId: string, type: "checked_in_at" | "checked_out_at", time?: string) => {
+        setCorrecting(true);
+        try {
+            const res = await fetch("/api/admin/attendance/correct", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ memberAccountId, type, ...(time ? { time } : {}) }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success("Attendance updated.");
+                setShowCorrectionForm(false);
+                fetchEvents();
+            } else {
+                toast.error(data.error || "Could not save correction.");
+            }
+        } catch {
+            toast.error("Network error while saving correction.");
+        } finally {
+            setCorrecting(false);
+        }
+    };
+
+    const forceCheckout = (memberAccountId: string) => {
+        if (!confirm("Check this person out right now?")) return;
+        runCorrection(memberAccountId, "checked_out_at");
+    };
+    const submitAdminCorrection = (memberAccountId: string) => {
+        if (!correctionTime) return;
+        runCorrection(memberAccountId, correctionType, new Date(correctionTime).toISOString());
+    };
+
     // Live updates: the tap route broadcasts here via Supabase Realtime's server-side
     // REST broadcast endpoint (see broadcastAttendanceEvent in src/lib/attendance.ts).
     // The 30s poll above is the safety net if a broadcast is ever missed.
@@ -148,6 +220,16 @@ export default function AttendanceBoardPage() {
     }, [fetchEvents]);
 
     const stats = useMemo(() => calculateStats(events, now), [events, now]);
+
+    // Keeps the open modal's status (e.g. IN -> OUT after a force-checkout) live across
+    // the 30s poll / realtime broadcast, without needing to close and reopen it.
+    useEffect(() => {
+        if (!selected) return;
+        const fresh = stats.find((s) => s.memberAccountId === selected.memberAccountId);
+        if (fresh) setSelected(fresh);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stats]);
+
     const liveIn = useMemo(() => stats.filter((s) => s.status === "IN").sort((a, b) => a.lastTapMs - b.lastTapMs), [stats]);
     const totalHours = useMemo(() => stats.reduce((sum, s) => sum + s.totalTimeMs, 0), [stats]);
     const topStreak = useMemo(() => Math.max(0, ...stats.map((s) => s.currentStreak)), [stats]);
@@ -203,10 +285,14 @@ export default function AttendanceBoardPage() {
                 <div className="flex gap-3">
                     <Link
                         href="/dashboard/attendance/me"
-                        className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white hover:bg-white/10 transition"
+                        className={
+                            viewerHasAccount && viewerLinked === false
+                                ? "flex items-center gap-2 border border-red bg-red/10 px-4 py-2 text-xs font-bold tracking-wider text-red hover:bg-red/20 transition"
+                                : "flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white hover:bg-white/10 transition"
+                        }
                         style={CARD_CLIP}
                     >
-                        <UserCircle2 className="h-4 w-4" /> My Card
+                        <UserCircle2 className="h-4 w-4" /> {viewerHasAccount && viewerLinked === false ? "Link My Card" : "My Card"}
                     </Link>
                     <button
                         onClick={handleDownload}
@@ -435,13 +521,71 @@ export default function AttendanceBoardPage() {
                     >
                         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                             <div>
-                                <p className="text-sm font-bold text-white">{selected.name}</p>
+                                <p className="flex items-center gap-2 text-sm font-bold text-white">
+                                    {selected.name}
+                                    <span
+                                        className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ring-1 ring-inset ${
+                                            selected.status === "IN"
+                                                ? "bg-red/20 text-red ring-red/30"
+                                                : "bg-white/5 text-gray-400 ring-white/10"
+                                        }`}
+                                    >
+                                        {selected.status}
+                                    </span>
+                                </p>
                                 <p className="text-[10px] uppercase tracking-widest text-gray-500">{selected.domain}</p>
                             </div>
                             <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white">
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
+                        {isAdminViewer && (
+                            <div className="border-b border-white/10 bg-amber-500/[0.04] px-5 py-4 space-y-3">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Admin controls</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selected.status === "IN" && (
+                                        <button
+                                            onClick={() => forceCheckout(selected.memberAccountId)}
+                                            disabled={correcting}
+                                            className="border border-red/40 bg-red/10 px-3 py-1.5 text-xs font-bold text-red hover:bg-red/20 transition disabled:opacity-50"
+                                        >
+                                            Force checkout now
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setShowCorrectionForm((v) => !v)}
+                                        className="border border-white/10 px-3 py-1.5 text-xs font-bold text-gray-300 hover:bg-white/10 transition"
+                                    >
+                                        {showCorrectionForm ? "Cancel" : "Edit in/out time"}
+                                    </button>
+                                </div>
+                                {showCorrectionForm && (
+                                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        <select
+                                            value={correctionType}
+                                            onChange={(e) => setCorrectionType(e.target.value as "checked_in_at" | "checked_out_at")}
+                                            className="border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white focus:outline-none"
+                                        >
+                                            <option value="checked_in_at">Check-in</option>
+                                            <option value="checked_out_at">Check-out</option>
+                                        </select>
+                                        <input
+                                            type="datetime-local"
+                                            value={correctionTime}
+                                            onChange={(e) => setCorrectionTime(e.target.value)}
+                                            className="border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white focus:outline-none"
+                                        />
+                                        <button
+                                            onClick={() => submitAdminCorrection(selected.memberAccountId)}
+                                            disabled={correcting || !correctionTime}
+                                            className="bg-red px-3 py-1.5 text-xs font-bold text-white hover:bg-red/80 transition disabled:opacity-50"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         <div className="max-h-[60vh] overflow-y-auto p-5">
                             {selectedSessions.length === 0 ? (
                                 <p className="text-sm text-gray-500">No sessions recorded.</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Soft, dismissible prompt for a recruit to verify their SRM email post-signup — SRM
 // email OTP verification was moved out of the registration wizard (see
@@ -18,6 +19,7 @@ export default function EmailVerifyBanner({
     verified: boolean;
     onVerified?: () => void;
 }) {
+    const router = useRouter();
     const [dismissed, setDismissed] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
     const [otp, setOtp] = useState("");
@@ -35,6 +37,12 @@ export default function EmailVerifyBanner({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
             });
+            if (res.status === 401) {
+                // Session expired — same dead-end as TicketsSection's raw "Unauthorized
+                // access" body; send them to log back in instead of showing it inline.
+                router.push("/recruit/login");
+                return;
+            }
             const data = await res.json();
             if (res.ok && data.sent) {
                 setOtpSent(true);
@@ -58,6 +66,10 @@ export default function EmailVerifyBanner({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ otp }),
             });
+            if (res.status === 401) {
+                router.push("/recruit/login");
+                return;
+            }
             const data = await res.json();
             if (res.ok && data.verified) {
                 onVerified?.();

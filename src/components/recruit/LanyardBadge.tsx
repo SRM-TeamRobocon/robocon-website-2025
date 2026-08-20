@@ -89,7 +89,6 @@ export default function LanyardBadge({ badgeImage, className = "" }: LanyardBadg
                     align-items: center;
                     transform-origin: top center;
                     animation: lanyard-sway 4.5s ease-in-out infinite;
-                    filter: drop-shadow(0 28px 34px rgba(0, 0, 0, 0.45));
                     cursor: pointer;
                 }
                 .lanyard-badge-strap {

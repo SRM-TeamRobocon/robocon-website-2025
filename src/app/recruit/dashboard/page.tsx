@@ -279,6 +279,32 @@ export default function RecruitDashboardPage() {
                     </div>
                 )}
 
+                {badgeImage && (
+                    <div className="p-6 md:p-8 w-full flex flex-col items-center justify-center">
+                        <LanyardBadge badgeImage={badgeImage} />
+                        <div className="text-center mt-4 pb-8">
+                            <a
+                                href={badgeImage}
+                                download={`robocon-recruit-tag-${profile?.reg_no ?? "id"}.png`}
+                                className="group relative inline-flex items-center gap-2 overflow-hidden bg-red px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
+                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
+                            >
+                                <span
+                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+                                    style={{
+                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
+                                        backgroundColor: "#D4AF37",
+                                    }}
+                                />
+                                <Download className="relative w-4 h-4 transition-colors duration-200 group-hover:text-black" />
+                                <span className="relative transition-colors duration-200 group-hover:text-black">
+                                    Download QR
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+                )}
+
                 <div className="border-2 border-black bg-white p-6 md:p-8" style={{ clipPath: CARD_CLIP }}>
                     <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// pipeline status</p>
                     <div className="space-y-3">
@@ -369,32 +395,6 @@ export default function RecruitDashboardPage() {
 
                 <FaqSection />
                 <TicketsSection currentDomains={domains.map((d) => d.sub_domain)} />
-
-                {badgeImage && (
-                    <div className="p-6 md:p-8 w-full flex flex-col items-center justify-center">
-                        <LanyardBadge badgeImage={badgeImage} />
-                        <div className="text-center mt-4 pb-8">
-                            <a
-                                href={badgeImage}
-                                download={`robocon-recruit-tag-${profile?.reg_no ?? "id"}.png`}
-                                className="group relative inline-flex items-center gap-2 overflow-hidden bg-red px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
-                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                            >
-                                <span
-                                    className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                                    style={{
-                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
-                                        backgroundColor: "#D4AF37",
-                                    }}
-                                />
-                                <Download className="relative w-4 h-4 transition-colors duration-200 group-hover:text-black" />
-                                <span className="relative transition-colors duration-200 group-hover:text-black">
-                                    Download QR
-                                </span>
-                            </a>
-                        </div>
-                    </div>
-                )}
             </div>
 
             <ChatWidget theme="light" />

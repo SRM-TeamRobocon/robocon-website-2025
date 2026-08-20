@@ -15,6 +15,17 @@ export const OVERNIGHT_PASS_TTL_MS = 26 * 60 * 60 * 1000;
 // IST is a fixed UTC+5:30 with no DST, so a plain offset is exact — no tz library.
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
+// The IST calendar date a timestamp falls on, as "YYYY-MM-DD" — independent of the
+// server process's own local timezone (Vercel runs UTC). Shifting by the offset before
+// reading UTC fields back out gives the IST date regardless of where this runs.
+// Streak/attendance-day bucketing must go through this rather than Date.prototype
+// .toDateString()/.setHours(), which read the *server's* local time — on Vercel that's
+// UTC, so anyone tapping between 00:00-05:29 IST (an ordinary time to still be in the
+// lab) got bucketed onto the wrong calendar day and their streak silently broke.
+function istDateKey(ts: number): string {
+  return new Date(ts + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 // Which "night" a pass belongs to, as an IST calendar date. Claimed at 23:00 on the
 // 17th → "…-17"; claimed at 02:00 on the 18th you're still in the same night, so it's
 // also "…-17". This is a label for the UI ("pass active for the night of X") — the
@@ -98,7 +109,7 @@ export function calculateStats(events: AttendanceEvent[], nowMs: number): Member
     stats.domain = event.domain;
 
     const ts = Date.parse(event.occurredAt);
-    stats.datesVisited.add(new Date(ts).toDateString());
+    stats.datesVisited.add(istDateKey(ts));
 
     if (event.action === "IN") {
       stats.status = "IN";
@@ -141,38 +152,34 @@ export function calculateStats(events: AttendanceEvent[], nowMs: number): Member
 function calculateStreak(datesVisited: Set<string>, nowMs: number): number {
   if (datesVisited.size === 0) return 0;
 
-  const midnights = Array.from(datesVisited)
-    .map((d) => {
-      const parsed = new Date(d);
-      parsed.setHours(0, 0, 0, 0);
-      return parsed.getTime();
-    })
-    .sort((a, b) => b - a);
-
   const ONE_DAY = 86_400_000;
-  const today = new Date(nowMs);
-  today.setHours(0, 0, 0, 0);
-  const todayMs = today.getTime();
 
-  let currentCheck: number;
-  if (midnights[0] === todayMs) {
-    currentCheck = todayMs;
-  } else if (midnights[0] === todayMs - ONE_DAY) {
-    currentCheck = todayMs - ONE_DAY;
+  // A streak still counts as "current" if today has no visit yet but yesterday does
+  // (e.g. checking the board at 9am before anyone's tapped in today) — start walking
+  // from whichever of the two is the most recent IST day actually present.
+  let cursor: number;
+  if (datesVisited.has(istDateKey(nowMs))) {
+    cursor = nowMs;
+  } else if (datesVisited.has(istDateKey(nowMs - ONE_DAY))) {
+    cursor = nowMs - ONE_DAY;
   } else {
     return 0;
   }
 
   let streak = 0;
-  for (const dayMs of midnights) {
-    if (dayMs === currentCheck) {
-      streak++;
-      currentCheck -= ONE_DAY;
-    } else if (dayMs < currentCheck) {
-      break;
-    }
+  while (datesVisited.has(istDateKey(cursor))) {
+    streak++;
+    cursor -= ONE_DAY;
   }
   return streak;
+}
+
+// Formats a Date for an <input type="datetime-local"> value, in the browser's own
+// local time (deliberately NOT IST-shifted — this reflects what the input element
+// itself expects to render/parse against the viewer's clock).
+export function toLocalDatetimeValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function formatDuration(ms: number): string {
