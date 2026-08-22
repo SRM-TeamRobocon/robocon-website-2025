@@ -91,7 +91,7 @@ export async function POST(request: Request) {
         if (!name || !regNo || !year || !gender || !department || !course || !phone || !password) {
             return NextResponse.json({ success: false, error: "Fill in all required fields." }, { status: 400 });
         }
-        if (!["1", "2", "3"].includes(year)) {
+        if (!["1", "2"].includes(year)) {
             return NextResponse.json({ success: false, error: "Invalid year of study." }, { status: 400 });
         }
         // SRM registration numbers are "RA" + 13 digits (15 chars). Validating the shape

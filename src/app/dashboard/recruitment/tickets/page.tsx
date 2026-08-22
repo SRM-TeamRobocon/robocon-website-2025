@@ -117,7 +117,8 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
 }
 
 export default function TicketsPage() {
-    const { ready } = useRoleGate(["member", "lead", "admin"]);
+    const { ready, role } = useRoleGate(["member", "lead", "admin"]);
+    const canResolve = role === "lead" || role === "admin";
     const [tickets, setTickets] = useState<TicketRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [noCycle, setNoCycle] = useState(false);
@@ -231,7 +232,7 @@ export default function TicketsPage() {
                                 </span>
                             </div>
 
-                            {t.status === "open" && (
+                            {t.status === "open" && canResolve && (
                                 <div className="mt-3">
                                     <ResolveRow ticket={t} onResolved={load} />
                                 </div>

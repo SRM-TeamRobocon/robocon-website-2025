@@ -45,11 +45,10 @@ function computeDomainStatus(params: {
     if (shortlistStatus === "shortlisted") label = "DIAGNOSTIC: PASS";
     if (shortlistStatus === "not_shortlisted") label = "DIAGNOSTIC: FAIL";
 
-    // Interview check-in tokens aren't tied to a sub_domain in the schema (a panel is a
-    // free-text label, not a sub_domain foreign key), so `hasInterviewToken` is
-    // necessarily recruit-level. Gate it on this domain actually being shortlisted so a
-    // token issued for the recruit's other domain can't flip a rejected domain to
-    // CALIBRATION.
+    // hasInterviewToken is scoped to THIS sub_domain (recruit_interview_tokens.sub_domain
+    // is a denormalized copy of the panel's domain, set at check-in — see migration 004),
+    // so a token checked into the recruit's OTHER domain can't flip this one to
+    // CALIBRATION. Also gated on this domain actually being shortlisted, same reasoning.
     if (hasInterviewToken && !interviewResult && shortlistStatus === "shortlisted") label = "CALIBRATION";
 
     // Selection is per-domain: only an interview result logged against THIS sub_domain
@@ -123,7 +122,7 @@ export async function GET() {
                 .eq("cycle_id", cycle_id),
             supabase
                 .from("recruit_interview_tokens")
-                .select("id")
+                .select("id, sub_domain")
                 .eq("recruit_id", recruit_id)
                 .eq("cycle_id", cycle_id),
             supabase
@@ -164,7 +163,14 @@ export async function GET() {
         const examAttendedSubDomains = new Set(
             ((examRows as { day: number; sub_domain: string }[] | null) ?? []).map((row) => row.sub_domain)
         );
-        const hasInterviewToken = (interviewTokenRows?.length ?? 0) > 0;
+        // Scoped per sub_domain (denormalized onto the token at check-in, migration 004) —
+        // a recruit checked into one domain's interview must not show CALIBRATION against
+        // an unrelated shortlisted domain they haven't checked into yet.
+        const interviewTokenSubDomains = new Set(
+            ((interviewTokenRows as { id: string; sub_domain: string | null }[] | null) ?? [])
+                .map((row) => row.sub_domain)
+                .filter((sd): sd is string => sd !== null)
+        );
         const isSelected = Boolean(account.is_selected);
 
         // Training is run per domain (migration 005), so the denominator must only count
@@ -201,7 +207,7 @@ export async function GET() {
                 hasOrientation,
                 hasExamAttendance: examAttendedSubDomains.has(sub_domain),
                 shortlistStatus: shortlistBySubDomain.get(sub_domain),
-                hasInterviewToken,
+                hasInterviewToken: interviewTokenSubDomains.has(sub_domain),
                 interviewResult: interviewResultBySubDomain.get(sub_domain),
                 trainingStarted,
                 attendedSessions,

@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (!name || !reg_no || !department || !course) {
     return NextResponse.json({ success: false, error: "Name, reg no, department and course are required." }, { status: 400 });
   }
-  if (!["1", "2", "3"].includes(year)) {
+  if (!["1", "2"].includes(year)) {
     return NextResponse.json({ success: false, error: "Invalid year of study." }, { status: 400 });
   }
   if (!/^\d{10}$/.test(phone)) {

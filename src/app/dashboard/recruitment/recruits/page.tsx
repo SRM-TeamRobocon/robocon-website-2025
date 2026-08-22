@@ -230,7 +230,6 @@ export default function RecruitsPage() {
                             { value: "", label: "All years" },
                             { value: "1", label: "Year 1" },
                             { value: "2", label: "Year 2" },
-                            { value: "3", label: "Year 3" },
                         ]}
                     />
                 </div>
@@ -474,7 +473,6 @@ function EditRecruitModal({
                                 options={[
                                     { value: "1", label: "Year 1" },
                                     { value: "2", label: "Year 2" },
-                                    { value: "3", label: "Year 3" },
                                 ]}
                             />
                         </div>
