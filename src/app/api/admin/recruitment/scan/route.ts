@@ -26,48 +26,118 @@ function scanResponse(
 
 // POST /api/admin/recruitment/scan
 // Requires admin_token (any of member/lead/admin — all volunteers have at least member).
-// Body: { payload, mode, sub_domain? } — see 05-QR-AND-SCANNING.md. Interview mode takes
-// a sub_domain, not a panel_id — the server auto-routes to the least-loaded open table
-// for that domain, same UX as exam mode's domain picker.
-// Training mode takes a sub_domain (not a session_id): the day's session row is created
-// on demand by the first scan, so no lead has to set one up in advance.
+// Body: { payload, mode, sub_domain? } for a QR scan, OR { recruit_id, mode, sub_domain? }
+// for the scanner page's manual-entry fallback (lost/dead phone, camera trouble) — same
+// mode-specific business logic either way, just a different source for `rid`. See
+// 05-QR-AND-SCANNING.md. Interview mode takes a sub_domain, not a panel_id — the server
+// auto-routes to the least-loaded open table for that domain, same UX as exam mode's
+// domain picker. Training mode takes a sub_domain (not a session_id): the day's session
+// row is created on demand by the first scan, so no lead has to set one up in advance.
 export async function POST(request: NextRequest) {
     const session = await getSession();
     if (!requireRole(session, ["member", "lead", "admin"])) {
         return NextResponse.json({ status: "error", name: "", message: "Forbidden" }, { status: 403 });
     }
 
-    let body: { payload?: string; mode?: string; sub_domain?: string; force?: boolean };
+    let body: { payload?: string; recruit_id?: string; mode?: string; sub_domain?: string; force?: boolean };
     try {
         body = await request.json();
     } catch {
         return scanResponse("error", "", "Invalid request body", undefined, 400);
     }
 
-    const { payload, sub_domain, force } = body;
+    const { sub_domain, force } = body;
     const mode = body.mode as ScanMode | undefined;
 
-    if (!payload || typeof payload !== "string") {
-        return scanResponse("error", "", "Missing QR payload", undefined, 400);
-    }
     if (!mode || !VALID_MODES.includes(mode)) {
         return scanResponse("error", "", "Invalid or missing scan mode", undefined, 400);
     }
 
-    const verified = verifyQR(payload);
-    if (!verified) {
-        return scanResponse("error", "", "Invalid QR", undefined, 400);
+    // Domain-scoped modes need a valid sub_domain regardless of whether this is a QR scan
+    // or a manual entry — checked up front, before any DB call.
+    if ((mode === "exam_day_1" || mode === "exam_day_2" || mode === "interview" || mode === "training") && !isRecruitSubDomain(sub_domain)) {
+        return scanResponse(
+            "error",
+            "",
+            mode === "interview" ? "Select which domain you are checking in for" : "Select a domain first",
+            undefined,
+            400
+        );
     }
-    const { rid, cid } = verified;
+
+    // `knownCid` is set from the QR payload itself when scanning (it's embedded in the
+    // HMAC-signed payload, no DB round trip needed) — null for a manual entry, which has
+    // no QR to carry a cycle id and instead just trusts whichever cycle is active.
+    const isManual = !body.payload;
+    let rid: string;
+    let knownCid: string | null = null;
+
+    if (body.payload) {
+        const verified = verifyQR(body.payload);
+        if (!verified) {
+            return scanResponse("error", "", "Invalid QR", undefined, 400);
+        }
+        rid = verified.rid;
+        knownCid = verified.cid;
+    } else if (body.recruit_id) {
+        rid = body.recruit_id;
+    } else {
+        return scanResponse("error", "", "Missing QR payload or recruit selection", undefined, 400);
+    }
 
     const supabase = createRecruitSupabaseAdminClient();
 
-    // Recruit lookup and active-cycle lookup are independent reads — running them in
-    // parallel instead of sequentially cuts one full network round trip off every single
-    // scan, which matters a lot when a volunteer is scanning a queue of people back to back.
-    const [{ data: recruit, error: recruitError }, { data: activeCycle }] = await Promise.all([
-        supabase.from("recruit_accounts").select("id, name, is_selected").eq("id", rid).maybeSingle(),
-        supabase.from("recruitment_cycles").select("id").eq("is_active", true).maybeSingle(),
+    // Mode-specific reads that don't depend on the recruit/cycle validation results can be
+    // batched into the SAME network round trip as the recruit/cycle lookup when we already
+    // know the cycle id (the QR-scan hot path) — cuts a full round trip off every
+    // exam/interview scan, which matters a lot when a volunteer is working through a queue
+    // back to back. A manual entry doesn't know cid until the cycle lookup resolves, so it
+    // pays one extra sequential hop instead; that's fine — manual entry is a deliberate,
+    // occasional fallback, not the high-volume path this is optimizing.
+    const modeReads =
+        knownCid && (mode === "exam_day_1" || mode === "exam_day_2")
+            ? Promise.all([
+                  supabase
+                      .from("recruit_domain_selections")
+                      .select("id")
+                      .eq("recruit_id", rid)
+                      .eq("cycle_id", knownCid)
+                      .eq("sub_domain", sub_domain as string)
+                      .maybeSingle(),
+                  supabase
+                      .from("recruit_exam_attendance")
+                      .select("id, day")
+                      .eq("recruit_id", rid)
+                      .eq("cycle_id", knownCid)
+                      .eq("sub_domain", sub_domain as string)
+                      .maybeSingle(),
+              ])
+            : knownCid && mode === "interview"
+              ? Promise.all([
+                    supabase
+                        .from("recruit_shortlist_status")
+                        .select("id")
+                        .eq("recruit_id", rid)
+                        .eq("cycle_id", knownCid)
+                        .eq("sub_domain", sub_domain as string)
+                        .eq("status", "shortlisted")
+                        .maybeSingle(),
+                    supabase
+                        .from("recruit_interview_tokens")
+                        .select("token_number, panel_id")
+                        .eq("recruit_id", rid)
+                        .eq("cycle_id", knownCid)
+                        .eq("sub_domain", sub_domain as string)
+                        .maybeSingle(),
+                ])
+              : Promise.resolve(null);
+
+    const [[{ data: recruit, error: recruitError }, { data: activeCycle }], modeReadsResult] = await Promise.all([
+        Promise.all([
+            supabase.from("recruit_accounts").select("id, name, is_selected").eq("id", rid).maybeSingle(),
+            supabase.from("recruitment_cycles").select("id").eq("is_active", true).maybeSingle(),
+        ]),
+        modeReads,
     ]);
 
     if (recruitError) {
@@ -77,13 +147,18 @@ export async function POST(request: NextRequest) {
     if (!recruit) {
         return scanResponse("error", "", "Recruit not found", undefined, 404);
     }
-
-    // Confirm the QR's cycle matches the currently active cycle.
     if (!activeCycle) {
         return scanResponse("error", recruit.name, "No active recruitment cycle", undefined, 503);
     }
-    if (cid !== activeCycle.id) {
-        return scanResponse("error", recruit.name, "QR is from a different cycle", undefined, 400);
+
+    let cid: string;
+    if (knownCid !== null) {
+        if (knownCid !== activeCycle.id) {
+            return scanResponse("error", recruit.name, "QR is from a different cycle", undefined, 400);
+        }
+        cid = knownCid;
+    } else {
+        cid = activeCycle.id;
     }
 
     const scannedBy = session.user;
@@ -114,43 +189,33 @@ export async function POST(request: NextRequest) {
             case "exam_day_1":
             case "exam_day_2": {
                 const day = mode === "exam_day_1" ? 1 : 2;
-
-                // Exam attendance is per sub-domain: a recruit sitting two different
-                // domain exams gets one row per exam. The volunteer picks which exam
-                // they're scanning for before scanning.
-                if (!isRecruitSubDomain(sub_domain)) {
-                    return scanResponse(
-                        "error",
-                        recruit.name,
-                        "Select which exam domain you are scanning for",
-                        undefined,
-                        400
-                    );
-                }
-
-                const domainLabel = subDomainFullLabel(sub_domain);
+                const domainLabel = subDomainFullLabel(sub_domain as string);
 
                 // The eligibility check (did they apply to this domain?) and the
                 // already-scanned check are independent reads — run them together instead
                 // of one-after-another. Only mark attendance for an exam the recruit
                 // actually applied to, otherwise a mis-set scanner mode silently creates
                 // bogus attendance.
-                const [{ data: selection }, { data: existing }] = await Promise.all([
-                    supabase
-                        .from("recruit_domain_selections")
-                        .select("id")
-                        .eq("recruit_id", rid)
-                        .eq("cycle_id", cid)
-                        .eq("sub_domain", sub_domain)
-                        .maybeSingle(),
-                    supabase
-                        .from("recruit_exam_attendance")
-                        .select("id, day")
-                        .eq("recruit_id", rid)
-                        .eq("cycle_id", cid)
-                        .eq("sub_domain", sub_domain)
-                        .maybeSingle(),
-                ]);
+                const [{ data: selection }, { data: existing }] = (modeReadsResult as [
+                    { data: { id: string } | null },
+                    { data: { id: string; day: number } | null },
+                ] | null) ??
+                    (await Promise.all([
+                        supabase
+                            .from("recruit_domain_selections")
+                            .select("id")
+                            .eq("recruit_id", rid)
+                            .eq("cycle_id", cid)
+                            .eq("sub_domain", sub_domain as string)
+                            .maybeSingle(),
+                        supabase
+                            .from("recruit_exam_attendance")
+                            .select("id, day")
+                            .eq("recruit_id", rid)
+                            .eq("cycle_id", cid)
+                            .eq("sub_domain", sub_domain as string)
+                            .maybeSingle(),
+                    ]));
 
                 if (!selection) {
                     return scanResponse(
@@ -197,31 +262,29 @@ export async function POST(request: NextRequest) {
                 // selects which domain they're checking recruits in for (same UX as exam
                 // mode), and the server sends the recruit to whichever open table for that
                 // domain currently has the shortest waiting line.
-                if (!isRecruitSubDomain(sub_domain)) {
-                    return scanResponse("error", recruit.name, "Select which domain you are checking in for", undefined, 400);
-                }
+                const domainLabel = subDomainFullLabel(sub_domain as string);
 
-                const domainLabel = subDomainFullLabel(sub_domain);
-
-                const [{ data: shortlisted }, { data: existingToken }] = await Promise.all([
-                    supabase
-                        .from("recruit_shortlist_status")
-                        .select("id")
-                        .eq("recruit_id", rid)
-                        .eq("cycle_id", cid)
-                        .eq("sub_domain", sub_domain)
-                        .eq("status", "shortlisted")
-                        .maybeSingle(),
-                    // Denormalized sub_domain on the token means this checks every table
-                    // for this domain, not just one panel_id.
-                    supabase
-                        .from("recruit_interview_tokens")
-                        .select("token_number, panel_id")
-                        .eq("recruit_id", rid)
-                        .eq("cycle_id", cid)
-                        .eq("sub_domain", sub_domain)
-                        .maybeSingle(),
-                ]);
+                const [{ data: shortlisted }, { data: existingToken }] = (modeReadsResult as [
+                    { data: { id: string } | null },
+                    { data: { token_number: number; panel_id: string } | null },
+                ] | null) ??
+                    (await Promise.all([
+                        supabase
+                            .from("recruit_shortlist_status")
+                            .select("id")
+                            .eq("recruit_id", rid)
+                            .eq("cycle_id", cid)
+                            .eq("sub_domain", sub_domain as string)
+                            .eq("status", "shortlisted")
+                            .maybeSingle(),
+                        supabase
+                            .from("recruit_interview_tokens")
+                            .select("token_number, panel_id")
+                            .eq("recruit_id", rid)
+                            .eq("cycle_id", cid)
+                            .eq("sub_domain", sub_domain as string)
+                            .maybeSingle(),
+                    ]));
 
                 if (existingToken) {
                     const { data: existingPanel } = await supabase
@@ -254,102 +317,61 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                const { data: openPanels } = await supabase
-                    .from("recruit_interview_panels")
-                    .select("id, domain_label, table_number")
-                    .eq("cycle_id", cid)
-                    .eq("sub_domain", sub_domain)
-                    .eq("is_active", true)
-                    .order("table_number", { ascending: true });
+                // Which open table for this domain has the shortest waiting line — panels
+                // and their live waiting counts in one round trip (recruit_interview_open_panels).
+                const { data: openPanels, error: openPanelsError } = await supabase.rpc("recruit_interview_open_panels", {
+                    p_cycle_id: cid,
+                    p_sub_domain: sub_domain as string,
+                });
+
+                if (openPanelsError) throw openPanelsError;
 
                 if (!openPanels || openPanels.length === 0) {
                     return scanResponse("error", recruit.name, `No open table for ${domainLabel} yet — ask a lead to open one`, undefined, 400);
                 }
 
-                const { data: waitingTokens } = await supabase
-                    .from("recruit_interview_tokens")
-                    .select("panel_id")
-                    .in(
-                        "panel_id",
-                        openPanels.map((p) => p.id)
-                    )
-                    .eq("status", "waiting");
-
-                const waitingCounts = new Map<string, number>();
-                for (const p of openPanels) waitingCounts.set(p.id, 0);
-                for (const t of waitingTokens ?? []) {
-                    waitingCounts.set(t.panel_id, (waitingCounts.get(t.panel_id) ?? 0) + 1);
-                }
-
                 // Least-loaded table for this domain; ties broken by table_number (openPanels
                 // is already ordered that way, so the first minimum found wins).
                 let targetPanel = openPanels[0];
-                let targetLoad = waitingCounts.get(targetPanel.id) ?? 0;
                 for (const p of openPanels.slice(1)) {
-                    const load = waitingCounts.get(p.id) ?? 0;
-                    if (load < targetLoad) {
-                        targetPanel = p;
-                        targetLoad = load;
-                    }
+                    if (p.waiting_count < targetPanel.waiting_count) targetPanel = p;
                 }
 
-                // Allocating token_number and queue_position is a read-then-write race (max()
-                // then insert), so retry a bounded number of times: on a unique_violation,
-                // first check whether it's the (recruit_id, cycle_id, sub_domain) constraint
-                // (this recruit truly is already checked in for this domain) vs. the
-                // (panel_id, token_number) constraint (a concurrent scan of a DIFFERENT
-                // recruit grabbed the same token number on the same table — recompute and
-                // retry rather than incorrectly reporting this recruit as already checked in).
+                // Allocating token_number and queue_position is a read-then-write race, so
+                // retry a bounded number of times: on a unique_violation, first check whether
+                // it's the (recruit_id, cycle_id, sub_domain) constraint (this recruit truly
+                // is already checked in for this domain) vs. the (panel_id, token_number)
+                // constraint (a concurrent scan of a DIFFERENT recruit grabbed the same token
+                // number on the same table — recompute and retry rather than incorrectly
+                // reporting this recruit as already checked in). recruit_allocate_interview_token
+                // does the max()-then-insert as one round trip; the retry loop's correctness
+                // is otherwise unchanged from before.
                 const MAX_TOKEN_ALLOCATION_ATTEMPTS = 5;
                 for (let attempt = 0; attempt < MAX_TOKEN_ALLOCATION_ATTEMPTS; attempt++) {
-                    const [{ data: maxTokenRow }, { data: maxPositionRow }] = await Promise.all([
-                        supabase
-                            .from("recruit_interview_tokens")
-                            .select("token_number")
-                            .eq("panel_id", targetPanel.id)
-                            .order("token_number", { ascending: false })
-                            .limit(1)
-                            .maybeSingle(),
-                        supabase
-                            .from("recruit_interview_tokens")
-                            .select("queue_position")
-                            .eq("panel_id", targetPanel.id)
-                            .order("queue_position", { ascending: false })
-                            .limit(1)
-                            .maybeSingle(),
-                    ]);
-
-                    const nextTokenNumber = (maxTokenRow?.token_number ?? 0) + 1;
-                    const nextQueuePosition = (maxPositionRow?.queue_position ?? 0) + 1000;
-
-                    const { data: inserted, error: insertError } = await supabase
-                        .from("recruit_interview_tokens")
-                        .insert({
-                            cycle_id: cid,
-                            recruit_id: rid,
-                            panel_id: targetPanel.id,
-                            sub_domain,
-                            token_number: nextTokenNumber,
-                            queue_position: nextQueuePosition,
-                            status: "waiting",
-                            is_walkin: isWalkin,
+                    const { data: allocatedRaw, error: allocError } = await supabase
+                        .rpc("recruit_allocate_interview_token", {
+                            p_panel_id: targetPanel.id,
+                            p_cycle_id: cid,
+                            p_recruit_id: rid,
+                            p_sub_domain: sub_domain as string,
+                            p_is_walkin: isWalkin,
                         })
-                        .select("token_number")
                         .single();
+                    const allocated = allocatedRaw as { token_number: number } | null;
 
-                    if (!insertError) {
+                    if (!allocError && allocated) {
                         return scanResponse(
                             "ok",
                             recruit.name,
                             isWalkin
-                                ? `Walk-in checked in for ${targetPanel.domain_label} — token #${inserted.token_number}`
-                                : `Checked in for ${targetPanel.domain_label} — token #${inserted.token_number}`,
-                            { token_number: inserted.token_number, panel_label: targetPanel.domain_label }
+                                ? `Walk-in checked in for ${targetPanel.domain_label} — token #${allocated.token_number}`
+                                : `Checked in for ${targetPanel.domain_label} — token #${allocated.token_number}`,
+                            { token_number: allocated.token_number, panel_label: targetPanel.domain_label }
                         );
                     }
 
-                    if (insertError.code !== UNIQUE_VIOLATION) {
-                        throw insertError;
+                    if (!allocError || allocError.code !== UNIQUE_VIOLATION) {
+                        throw allocError ?? new Error("recruit_allocate_interview_token returned no data and no error");
                     }
 
                     const { data: raceToken } = await supabase
@@ -357,7 +379,7 @@ export async function POST(request: NextRequest) {
                         .select("token_number, panel_id")
                         .eq("recruit_id", rid)
                         .eq("cycle_id", cid)
-                        .eq("sub_domain", sub_domain)
+                        .eq("sub_domain", sub_domain as string)
                         .maybeSingle();
 
                     if (raceToken) {
@@ -387,16 +409,12 @@ export async function POST(request: NextRequest) {
                 // Training has no lead-created "session" step any more (migration 005): a
                 // volunteer picks their domain and scans, and the day's session row is
                 // created on demand by the first scan.
-                if (!sub_domain || !isRecruitSubDomain(sub_domain)) {
-                    return scanResponse("error", recruit.name, "Select a training domain first", undefined, 400);
-                }
-
                 if (!recruit.is_selected) {
                     return scanResponse("error", recruit.name, "Not a selected recruit", undefined, 400);
                 }
 
                 const sessionDate = todayInIST();
-                const domainLabel = subDomainFullLabel(sub_domain);
+                const domainLabel = subDomainFullLabel(sub_domain as string);
                 const sessionLabel = `${domainLabel} — ${sessionDate}`;
 
                 // Find-or-create today's session for this domain — but check for it first
@@ -408,7 +426,7 @@ export async function POST(request: NextRequest) {
                     .select("id")
                     .eq("cycle_id", cid)
                     .eq("session_date", sessionDate)
-                    .eq("sub_domain", sub_domain)
+                    .eq("sub_domain", sub_domain as string)
                     .maybeSingle();
 
                 let trainingSessionId = existingSession?.id as string | undefined;
@@ -435,7 +453,7 @@ export async function POST(request: NextRequest) {
                             .select("id")
                             .eq("cycle_id", cid)
                             .eq("session_date", sessionDate)
-                            .eq("sub_domain", sub_domain)
+                            .eq("sub_domain", sub_domain as string)
                             .maybeSingle();
                         if (!raceSession) {
                             return scanResponse("error", recruit.name, "Could not open today's training session", undefined, 500);
@@ -453,7 +471,7 @@ export async function POST(request: NextRequest) {
                     cycle_id: cid,
                     recruit_id: rid,
                     session_id: trainingSessionId,
-                    method: "qr",
+                    method: isManual ? "manual" : "qr",
                     marked_by: scannedBy,
                 });
 

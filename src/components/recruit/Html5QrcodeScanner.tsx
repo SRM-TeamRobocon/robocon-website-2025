@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import {
-    Html5QrcodeScanner as Html5QrcodeScannerLib,
-    Html5QrcodeScanType,
-    Html5QrcodeSupportedFormats,
-} from "html5-qrcode";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { ScanLine, Camera, RotateCcw } from "lucide-react";
 
 interface Html5QrcodeScannerProps {
     /** Called on every successful decode. Fires once per frame that decodes cleanly —
@@ -15,68 +12,323 @@ interface Html5QrcodeScannerProps {
     elementId?: string;
 }
 
-// Thin client-only wrapper around html5-qrcode's built-in scanner UI. Mirrors the camera
-// lifecycle used by src/app/scanner/page.tsx (refs to dodge stale closures inside the
-// library's callbacks, render/clear on mount/unmount) without any of that page's
-// workshop/Sheets-specific business logic — this component only ever reports decoded text.
+type Status = "starting" | "running" | "error";
+
+// Client-only wrapper around html5-qrcode's bare Html5Qrcode class (not the library's
+// Html5QrcodeScanner) — that full-UI class injects its own camera-select/start-stop
+// controls, which render as unstyled default browser chrome that clashes badly with this
+// page's dark theme (overlapping text, plain white brackets on a raw video feed). Using
+// the bare class means zero library-injected DOM: every control and the whole HUD overlay
+// below is ours, and `onScan`'s contract is unchanged so nothing calling this component
+// needs to change.
 export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-reader" }: Html5QrcodeScannerProps) {
-    // Keep the latest onScan in a ref so the html5-qrcode success callback (registered once,
-    // on mount) always calls the current handler rather than whatever was passed in on first render.
     const onScanRef = useRef(onScan);
-    const scannerRef = useRef<Html5QrcodeScannerLib | null>(null);
+    const instanceRef = useRef<Html5Qrcode | null>(null);
+    const isRunningRef = useRef(false);
+
+    const [status, setStatus] = useState<Status>("starting");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+    const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
+    const [showCameraMenu, setShowCameraMenu] = useState(false);
 
     useEffect(() => {
         onScanRef.current = onScan;
     }, [onScan]);
 
-    useEffect(() => {
-        if (scannerRef.current) return;
-
-        const scanner = new Html5QrcodeScannerLib(
-            elementId,
-            {
-                fps: 15,
-                qrbox: { width: 250, height: 250 },
-                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-                // Recruit QR payloads are always our own QR codes — restricting the decoder
-                // to this one format (instead of the library's default of trying every
-                // barcode format on every frame) cuts real per-frame decode work.
-                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-                // Uses the browser's native, hardware-accelerated BarcodeDetector API when
-                // available (Chrome/Android) instead of the much slower pure-JS decoder —
-                // library falls back automatically where unsupported (e.g. Safari/iOS).
-                useBarCodeDetectorIfSupported: true,
-                // Skips the mirror-flip decode pass — irrelevant for a rear camera, which
-                // this is (videoConstraints below) for every real scanning device.
-                disableFlip: true,
-                videoConstraints: { facingMode: "environment" },
-            },
-            /* verbose */ false
-        );
-        scannerRef.current = scanner;
-
-        // Requests camera permission and starts continuous scanning.
-        scanner.render(
-            (decodedText) => {
-                onScanRef.current(decodedText);
-            },
-            () => {
-                // Per-frame decode failures are normal noise (no QR in view, blur, etc.) —
-                // silently ignore rather than surfacing an error for every failed frame.
+    const startWith = useCallback(async (cameraIdOrConfig: string | { facingMode: string }) => {
+        const instance = instanceRef.current;
+        if (!instance) return;
+        setStatus("starting");
+        setErrorMessage(null);
+        try {
+            if (isRunningRef.current) {
+                await instance.stop();
+                isRunningRef.current = false;
             }
-        );
+            await instance.start(
+                cameraIdOrConfig,
+                { fps: 15, qrbox: { width: 250, height: 250 }, disableFlip: true },
+                (decodedText) => onScanRef.current(decodedText),
+                () => {
+                    // Per-frame decode failures are normal noise (no QR in view, blur, etc.).
+                }
+            );
+            isRunningRef.current = true;
+            setStatus("running");
+        } catch (err) {
+            isRunningRef.current = false;
+            setStatus("error");
+            setErrorMessage(err instanceof Error ? err.message : "Could not start the camera.");
+        }
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        const instance = new Html5Qrcode(elementId, {
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            useBarCodeDetectorIfSupported: true,
+            verbose: false,
+        });
+        instanceRef.current = instance;
+
+        (async () => {
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                if (cancelled) return;
+                setCameras(devices.map((d) => ({ id: d.id, label: d.label })));
+            } catch {
+                // Permission denied or nothing enumerable — the facingMode start below has
+                // its own permission prompt and will surface a clear error if that fails too.
+            }
+            if (cancelled) return;
+            await startWith({ facingMode: "environment" });
+        })();
 
         return () => {
-            if (scannerRef.current) {
-                scannerRef.current.clear().catch(() => {
-                    // Scanner may already be stopped/torn down — ignore cleanup errors.
+            cancelled = true;
+            const inst = instanceRef.current;
+            instanceRef.current = null;
+            if (!inst) return;
+            const wasRunning = isRunningRef.current;
+            isRunningRef.current = false;
+            // Routing even the initial call through .then() means a synchronous throw from
+            // .stop() (some builds don't reliably return a rejected promise) still lands in
+            // .catch() instead of crashing the unmount — this cleanup must never throw.
+            Promise.resolve()
+                .then(() => (wasRunning ? inst.stop() : undefined))
+                .catch(() => {})
+                .finally(() => {
+                    try {
+                        inst.clear();
+                    } catch {
+                        // Element may already be torn down — ignore cleanup errors.
+                    }
                 });
-                scannerRef.current = null;
-            }
         };
         // Intentionally only re-run if the container id changes — onScan updates flow through the ref.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [elementId]);
 
-    return <div id={elementId} className="w-full [&_video]:w-full [&_video]:object-cover [&_video]:rounded-xl" />;
+    const switchCamera = (id: string) => {
+        setActiveCameraId(id);
+        setShowCameraMenu(false);
+        startWith(id);
+    };
+
+    return (
+        <div className="hud-scanner relative w-full overflow-hidden rounded-xl">
+            <div
+                id={elementId}
+                className="w-full [&_video]:w-full [&_video]:object-cover [&_video]:block"
+            />
+
+            {/* Decorative HUD layer — purely additive, never intercepts taps/clicks. */}
+            <div className="pointer-events-none absolute inset-0">
+                <div className="hud-grid absolute inset-0" />
+                <div className="hud-vignette absolute inset-0" />
+                <div className="hud-sweep absolute inset-x-0 h-1/3" />
+
+                <div className="hud-corner hud-corner-tl" />
+                <div className="hud-corner hud-corner-tr" />
+                <div className="hud-corner hud-corner-bl" />
+                <div className="hud-corner hud-corner-br" />
+
+                <div className="absolute left-3 top-3 flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-widest text-red">
+                    <span className="hud-dot" />
+                    LIVE
+                </div>
+                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-widest text-white/50">
+                    <ScanLine className="h-3 w-3" strokeWidth={2.5} />
+                    {status === "running" ? "AWAITING QR" : status === "starting" ? "SYNCING" : "OFFLINE"}
+                </div>
+            </div>
+
+            {cameras.length > 1 && (
+                <div className="pointer-events-auto absolute right-3 top-3">
+                    <button
+                        type="button"
+                        onClick={() => setShowCameraMenu((v) => !v)}
+                        className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/60 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm transition-colors hover:border-red/50 hover:text-white"
+                    >
+                        <Camera className="h-3 w-3" strokeWidth={2.5} />
+                        Camera
+                    </button>
+                    {showCameraMenu && (
+                        <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-lg border border-white/15 bg-black/90 backdrop-blur-md">
+                            {cameras.map((cam, i) => (
+                                <button
+                                    key={cam.id}
+                                    type="button"
+                                    onClick={() => switchCamera(cam.id)}
+                                    className={`block w-full truncate px-3 py-2 text-left text-xs transition-colors ${
+                                        activeCameraId === cam.id
+                                            ? "bg-red/20 text-red"
+                                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                                    }`}
+                                >
+                                    {cam.label || `Camera ${i + 1}`}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {status !== "running" && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                    {status === "starting" ? (
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="hud-spinner" />
+                            <p className="font-mono text-xs font-bold uppercase tracking-widest text-white/60">
+                                Initializing camera...
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center gap-3 px-6 text-center">
+                            <p className="font-mono text-xs font-bold uppercase tracking-widest text-red">Camera unavailable</p>
+                            <p className="max-w-xs text-xs text-white/50">{errorMessage}</p>
+                            <button
+                                type="button"
+                                onClick={() => startWith(activeCameraId ?? { facingMode: "environment" })}
+                                className="flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-white/80 hover:border-white/40 hover:text-white transition-colors"
+                            >
+                                <RotateCcw className="h-3 w-3" strokeWidth={2.5} />
+                                Retry
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <style jsx>{`
+                .hud-scanner {
+                    aspect-ratio: 3 / 4;
+                    background: #000;
+                    box-shadow:
+                        0 0 0 1px rgba(255, 255, 255, 0.08),
+                        0 0 40px rgba(194, 0, 0, 0.25),
+                        inset 0 0 60px rgba(0, 0, 0, 0.6);
+                    animation: hud-pulse-border 3s ease-in-out infinite;
+                }
+                @keyframes hud-pulse-border {
+                    0%,
+                    100% {
+                        box-shadow:
+                            0 0 0 1px rgba(255, 255, 255, 0.08),
+                            0 0 40px rgba(194, 0, 0, 0.22),
+                            inset 0 0 60px rgba(0, 0, 0, 0.6);
+                    }
+                    50% {
+                        box-shadow:
+                            0 0 0 1px rgba(255, 255, 255, 0.12),
+                            0 0 60px rgba(194, 0, 0, 0.4),
+                            inset 0 0 60px rgba(0, 0, 0, 0.6);
+                    }
+                }
+
+                .hud-grid {
+                    background-image:
+                        linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+                    background-size: 28px 28px;
+                    mix-blend-mode: screen;
+                }
+
+                .hud-vignette {
+                    background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+                }
+
+                .hud-sweep {
+                    top: -33%;
+                    background: linear-gradient(
+                        to bottom,
+                        transparent 0%,
+                        rgba(194, 0, 0, 0.35) 45%,
+                        rgba(255, 255, 255, 0.55) 50%,
+                        rgba(194, 0, 0, 0.35) 55%,
+                        transparent 100%
+                    );
+                    filter: blur(1px);
+                    animation: hud-sweep-move 3.2s linear infinite;
+                }
+                @keyframes hud-sweep-move {
+                    0% {
+                        transform: translateY(0%);
+                    }
+                    100% {
+                        transform: translateY(300%);
+                    }
+                }
+
+                .hud-corner {
+                    position: absolute;
+                    width: 26px;
+                    height: 26px;
+                    border: 2px solid rgba(194, 0, 0, 0.9);
+                    filter: drop-shadow(0 0 4px rgba(194, 0, 0, 0.7));
+                }
+                .hud-corner-tl {
+                    top: 10px;
+                    left: 10px;
+                    border-right: none;
+                    border-bottom: none;
+                    border-top-left-radius: 6px;
+                }
+                .hud-corner-tr {
+                    top: 10px;
+                    right: 10px;
+                    border-left: none;
+                    border-bottom: none;
+                    border-top-right-radius: 6px;
+                }
+                .hud-corner-bl {
+                    bottom: 10px;
+                    left: 10px;
+                    border-right: none;
+                    border-top: none;
+                    border-bottom-left-radius: 6px;
+                }
+                .hud-corner-br {
+                    bottom: 10px;
+                    right: 10px;
+                    border-left: none;
+                    border-top: none;
+                    border-bottom-right-radius: 6px;
+                }
+
+                .hud-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 9999px;
+                    background: #ef4444;
+                    box-shadow: 0 0 6px 1px rgba(239, 68, 68, 0.9);
+                    animation: hud-dot-blink 1.4s ease-in-out infinite;
+                }
+                @keyframes hud-dot-blink {
+                    0%,
+                    100% {
+                        opacity: 1;
+                    }
+                    50% {
+                        opacity: 0.25;
+                    }
+                }
+
+                .hud-spinner {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 9999px;
+                    border: 2px solid rgba(255, 255, 255, 0.15);
+                    border-top-color: #c20000;
+                    animation: hud-spin 0.8s linear infinite;
+                }
+                @keyframes hud-spin {
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
+            `}</style>
+        </div>
+    );
 }

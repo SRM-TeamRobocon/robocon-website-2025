@@ -332,7 +332,7 @@ function RecruitRegisterInner() {
             {step === 1 && (
                 <div className="space-y-5">
                     <p className="text-sm text-black/50 text-center">
-                        Start with your Google account to pull in your name and email.
+                        Start with your personal Google account
                     </p>
                     <button
                         type="button"
@@ -360,8 +360,7 @@ function RecruitRegisterInner() {
                         Continue with Google
                     </button>
                     <p className="text-xs text-red/80 text-center -mt-2">
-                        Use your <span className="font-bold">personal Email</span> here, not your SRM email — you&apos;ll
-                        enter your SRM email next, and can verify it later from your dashboard.
+                        Use your <span className="font-bold">personal Email  </span> here, not your SRM email
                     </p>
                     <ErrorBanner message={error} />
                     <p className="text-center text-sm text-black/50">

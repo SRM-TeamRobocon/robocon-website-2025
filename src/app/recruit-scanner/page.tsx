@@ -36,12 +36,33 @@ type ScanResult = {
 
 // Held while a "not shortlisted" interview check-in is waiting on a human decision — the
 // scan endpoint deliberately doesn't check anyone in until the volunteer/lead confirms a
-// walk-in, so this is what the confirm button re-sends with `force: true`.
+// walk-in, so this is what the confirm button re-sends with `force: true`. Either payload
+// (QR) or recruit_id (manual entry) is set, matching whichever path triggered the gate.
 type PendingWalkin = {
-    payload: string;
+    payload?: string;
+    recruit_id?: string;
     mode: Mode;
     sub_domain?: string;
     name: string;
+};
+
+// One row of the "who's been marked present" table below the scanner — backed by
+// GET /api/admin/recruitment/scan/roster, scoped to the currently selected mode/domain.
+type RosterEntry = {
+    recruit_id: string;
+    name: string;
+    reg_no: string;
+    at: string;
+    status?: string;
+    token_number?: number;
+    method?: string;
+};
+
+type RecruitSearchResult = {
+    id: string;
+    name: string;
+    reg_no: string;
+    department?: string;
 };
 
 // What a recorded scan can be undone as. Interview check-ins have no undo here —
@@ -113,6 +134,15 @@ export default function RecruitScannerPage() {
     const [flash, setFlash] = useState<"success" | "warn" | "error" | null>(null);
     const [recent, setRecent] = useState<RecentScan[]>([]);
 
+    // Live roster ("who's been marked present for this mode") + manual entry fallback.
+    const [roster, setRoster] = useState<RosterEntry[]>([]);
+    const [rosterLoading, setRosterLoading] = useState(false);
+    const [showManualEntry, setShowManualEntry] = useState(false);
+    const [manualQuery, setManualQuery] = useState("");
+    const [manualResults, setManualResults] = useState<RecruitSearchResult[]>([]);
+    const [manualSearching, setManualSearching] = useState(false);
+    const [manualSubmitting, setManualSubmitting] = useState(false);
+
     // Refs so the html5-qrcode onScan callback (registered once when scanning starts) always
     // reads current mode/selection state instead of a stale closure.
     const modeRef = useRef(selectedMode);
@@ -144,9 +174,7 @@ export default function RecruitScannerPage() {
                 ? Boolean(trainingSubDomain)
                 : true;
 
-    const recordScan = useCallback((decodedText: string, mode: Mode, result: ScanResult, isWalkin = false) => {
-        const recruitId = recruitIdFromPayload(decodedText);
-
+    const recordScan = useCallback((recruitId: string | null, mode: Mode, result: ScanResult, isWalkin = false) => {
         let what: string;
         let undo: UndoTarget;
 
@@ -186,6 +214,41 @@ export default function RecruitScannerPage() {
 
     const [pendingWalkin, setPendingWalkin] = useState<PendingWalkin | null>(null);
 
+    // Which sub_domain (if any) the roster/manual-entry features should scope to, matching
+    // whichever selector is active for the current mode.
+    const activeSubDomain =
+        selectedMode === "exam_day_1" || selectedMode === "exam_day_2"
+            ? examSubDomain
+            : selectedMode === "interview"
+                ? interviewSubDomain
+                : selectedMode === "training"
+                    ? trainingSubDomain
+                    : undefined;
+
+    const fetchRoster = useCallback(async () => {
+        if (!scanning) return;
+        if (selectedMode !== "orientation" && !activeSubDomain) return;
+        setRosterLoading(true);
+        try {
+            const params = new URLSearchParams({ mode: selectedMode });
+            if (activeSubDomain) params.set("sub_domain", activeSubDomain);
+            const res = await fetch(`/api/admin/recruitment/scan/roster?${params.toString()}`);
+            const data = await res.json();
+            if (data.success) setRoster(data.data);
+        } catch {
+            // Non-critical — the roster table just stays stale until the next poll.
+        } finally {
+            setRosterLoading(false);
+        }
+    }, [scanning, selectedMode, activeSubDomain]);
+
+    useEffect(() => {
+        if (!scanning) return;
+        fetchRoster();
+        const interval = setInterval(fetchRoster, 8000);
+        return () => clearInterval(interval);
+    }, [scanning, fetchRoster]);
+
     // Releases the scan lock and clears the overlay after a delay — shared by every path
     // EXCEPT "not shortlisted", which instead waits on a human decision (see below). A clean
     // "ok" is confirmed by the beep + green flash alone, so it doesn't need as long on screen
@@ -200,10 +263,12 @@ export default function RecruitScannerPage() {
         }, ms);
     }, []);
 
-    // Shared by both the initial scan and the forced walk-in retry — `force: true` on the
-    // body is what tells the server to bypass the "not shortlisted" gate for mode 'interview'.
+    // Shared by the QR scan path, the manual-entry fallback, and the forced walk-in retry —
+    // `force: true` on the body is what tells the server to bypass the "not shortlisted"
+    // gate for mode 'interview'. Exactly one of payload/recruit_id is set.
     const runScan = useCallback(
-        async (body: { payload: string; mode: Mode; sub_domain?: string; force?: boolean }) => {
+        async (body: { payload?: string; recruit_id?: string; mode: Mode; sub_domain?: string; force?: boolean }) => {
+            const recruitId = body.recruit_id ?? (body.payload ? recruitIdFromPayload(body.payload) : null);
             try {
                 const res = await fetch("/api/admin/recruitment/scan", {
                     method: "POST",
@@ -218,7 +283,13 @@ export default function RecruitScannerPage() {
                     // Hold the lock and the overlay open — nothing is checked in yet, and
                     // scanning again while this is up would be confusing. The decision
                     // buttons below (confirmWalkin/cancelWalkin) resolve it.
-                    setPendingWalkin({ payload: body.payload, mode: body.mode, sub_domain: body.sub_domain, name: json.name });
+                    setPendingWalkin({
+                        payload: body.payload,
+                        recruit_id: body.recruit_id,
+                        mode: body.mode,
+                        sub_domain: body.sub_domain,
+                        name: json.name,
+                    });
                     setFlash("warn");
                     beep();
                     return;
@@ -227,8 +298,9 @@ export default function RecruitScannerPage() {
                 if (json.status === "ok") {
                     setFlash("success");
                     beep();
-                    recordScan(body.payload, body.mode, json, body.force === true);
+                    recordScan(recruitId, body.mode, json, body.force === true);
                     scheduleReset(900);
+                    fetchRoster();
                 } else if (json.status === "already_scanned" || json.status === "already_checked_in") {
                     setFlash("warn");
                     beep();
@@ -243,7 +315,7 @@ export default function RecruitScannerPage() {
                 scheduleReset(2500);
             }
         },
-        [recordScan, scheduleReset]
+        [recordScan, scheduleReset, fetchRoster]
     );
 
     const handleScan = useCallback(
@@ -266,14 +338,60 @@ export default function RecruitScannerPage() {
         [runScan]
     );
 
-    // Volunteer/lead confirms a walk-in: re-scan the same payload with force: true so the
-    // server bypasses the shortlist gate this one time and checks the recruit in.
+    // Volunteer/lead confirms a walk-in: re-send the same payload/recruit_id with
+    // force: true so the server bypasses the shortlist gate this one time and checks the
+    // recruit in.
     const confirmWalkin = useCallback(async () => {
         if (!pendingWalkin) return;
-        const { payload, mode, sub_domain } = pendingWalkin;
+        const { payload, recruit_id, mode, sub_domain } = pendingWalkin;
         setPendingWalkin(null);
-        await runScan({ payload, mode, sub_domain, force: true });
+        await runScan({ payload, recruit_id, mode, sub_domain, force: true });
     }, [pendingWalkin, runScan]);
+
+    // Manual-entry search — debounced, only while the panel is open. Reuses the existing
+    // admin recruits list route rather than a dedicated endpoint; narrow search results
+    // make the extra fields it also returns cheap to ignore.
+    useEffect(() => {
+        if (!showManualEntry) {
+            setManualResults([]);
+            return;
+        }
+        const q = manualQuery.trim();
+        if (q.length < 2) {
+            setManualResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setManualSearching(true);
+            try {
+                const res = await fetch(`/api/admin/recruitment/recruits?search=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (data.success) setManualResults((data.data || []).slice(0, 8));
+            } catch {
+                // Non-critical — an empty results list just reads as "no matches".
+            } finally {
+                setManualSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [manualQuery, showManualEntry]);
+
+    const submitManualEntry = useCallback(
+        async (recruit: RecruitSearchResult) => {
+            if (scanLockRef.current) return;
+            scanLockRef.current = true;
+            setManualSubmitting(true);
+            try {
+                await runScan({ recruit_id: recruit.id, mode: selectedMode, sub_domain: activeSubDomain });
+                setShowManualEntry(false);
+                setManualQuery("");
+                setManualResults([]);
+            } finally {
+                setManualSubmitting(false);
+            }
+        },
+        [runScan, selectedMode, activeSubDomain]
+    );
 
     // Volunteer/lead declines — nothing was ever checked in, so there's nothing to undo,
     // just release the lock so the next QR can be scanned.
@@ -449,18 +567,67 @@ export default function RecruitScannerPage() {
                                     {selectedMode === "training" && activeTrainingLabel ? ` · ${activeTrainingLabel}` : ""}
                                 </span>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setScanning(false);
-                                    setResult(null);
-                                    setFlash(null);
-                                }}
-                                className="text-xs font-bold uppercase tracking-widest text-red hover:text-red/80 border border-red/40 rounded-lg px-3 py-1.5 transition-colors"
-                            >
-                                Change Mode
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowManualEntry((v) => !v)}
+                                    className={`text-xs font-bold uppercase tracking-widest rounded-lg px-3 py-1.5 border transition-colors ${
+                                        showManualEntry
+                                            ? "border-white/40 text-white bg-white/10"
+                                            : "border-white/15 text-white/60 hover:text-white hover:border-white/30"
+                                    }`}
+                                >
+                                    Manual Entry
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setScanning(false);
+                                        setResult(null);
+                                        setFlash(null);
+                                    }}
+                                    className="text-xs font-bold uppercase tracking-widest text-red hover:text-red/80 border border-red/40 rounded-lg px-3 py-1.5 transition-colors"
+                                >
+                                    Change Mode
+                                </button>
+                            </div>
                         </GlassCard>
+
+                        {showManualEntry && (
+                            <GlassCard contentClassName="p-4 md:p-5 space-y-3" borderRadius={20}>
+                                <p className="text-xs uppercase tracking-widest font-bold text-white/40">
+                                    Mark present without a QR — search by name or reg no
+                                </p>
+                                <input
+                                    type="text"
+                                    autoFocus
+                                    value={manualQuery}
+                                    onChange={(e) => setManualQuery(e.target.value)}
+                                    placeholder="Start typing a name or registration number..."
+                                    className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/40"
+                                />
+                                {manualSearching ? (
+                                    <p className="text-xs text-white/40">Searching...</p>
+                                ) : manualQuery.trim().length >= 2 && manualResults.length === 0 ? (
+                                    <p className="text-xs text-white/40">No matches.</p>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        {manualResults.map((r) => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                disabled={manualSubmitting}
+                                                onClick={() => submitManualEntry(r)}
+                                                className="w-full flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-left hover:border-white/25 hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                                            >
+                                                <span className="text-sm font-semibold text-white">{r.name}</span>
+                                                <span className="text-xs font-mono text-white/40">{r.reg_no}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </GlassCard>
+                        )}
 
                         <GlassCard
                             contentClassName="relative p-4 md:p-6"
@@ -535,6 +702,54 @@ export default function RecruitScannerPage() {
                             ) : null}
 
                             <Html5QrcodeScanner onScan={handleScan} />
+                        </GlassCard>
+
+                        <GlassCard contentClassName="p-4 md:p-6" borderRadius={28}>
+                            <div className="flex items-baseline justify-between gap-3 mb-3">
+                                <p className="text-xs uppercase tracking-widest font-bold text-white/40">
+                                    Checked in — {MODE_OPTIONS.find((m) => m.value === selectedMode)?.label}
+                                    {isExamMode && examSubDomain ? ` · ${subDomainFullLabel(examSubDomain)}` : ""}
+                                    {selectedMode === "interview" && activeInterviewLabel ? ` · ${activeInterviewLabel}` : ""}
+                                    {selectedMode === "training" && activeTrainingLabel ? ` · ${activeTrainingLabel}` : ""}
+                                </p>
+                                <span className="text-xs font-mono text-white/30">{roster.length}</span>
+                            </div>
+                            {rosterLoading && roster.length === 0 ? (
+                                <div className="space-y-2">
+                                    {[0, 1, 2].map((i) => (
+                                        <div key={i} className="h-9 animate-pulse bg-white/5 rounded-lg" />
+                                    ))}
+                                </div>
+                            ) : roster.length === 0 ? (
+                                <p className="text-sm text-white/40">Nobody scanned in for this mode yet.</p>
+                            ) : (
+                                <div className="max-h-80 overflow-y-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead>
+                                            <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-white/40">
+                                                <th className="pb-2 font-bold">Name</th>
+                                                <th className="pb-2 font-bold">Reg No</th>
+                                                {selectedMode === "interview" && <th className="pb-2 font-bold">Token</th>}
+                                                <th className="pb-2 font-bold">Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {roster.map((r) => (
+                                                <tr key={r.recruit_id} className="border-b border-white/5">
+                                                    <td className="py-2 font-semibold text-white">{r.name}</td>
+                                                    <td className="py-2 font-mono text-xs text-white/50">{r.reg_no}</td>
+                                                    {selectedMode === "interview" && (
+                                                        <td className="py-2 font-mono text-xs text-white/50">
+                                                            {typeof r.token_number === "number" ? `#${r.token_number}` : "—"}
+                                                        </td>
+                                                    )}
+                                                    <td className="py-2 text-xs text-white/40">{clockTime(Date.parse(r.at))}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </GlassCard>
                     </div>
                 )}
