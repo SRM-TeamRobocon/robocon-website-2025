@@ -15,7 +15,10 @@ import Footer from "@/components/Footer";
 import JoselinSection from "@/components/JoselinSection";
 import RecruitmentSection from "@/components/RecruitmentSection";
 import GlassCard from "@/components/recruit/GlassCard";
+import { useRouter } from "next/navigation";
+
 export default function Home() {
+  const router = useRouter();
   const [showJoinPopup, setShowJoinPopup] = useState(false);
 
   useEffect(() => {
@@ -79,6 +82,16 @@ export default function Home() {
             <div
               className="flex flex-col gap-5 mx-10"
             >
+            <button onClick={() => router.push("/recruit/register")} rel="noopener noreferrer"
+              className="group relative mt-8 inline-flex items-center justify-center overflow-hidden bg-red px-10 py-3 font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
+              style={{ clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)" }}
+            >
+            <span
+              className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
+              style={{clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)",backgroundColor: "#D4AF37", }}/>
+                <span className="relative transition-colors duration-200 group-hover:text-black">Click here to Register for Recruitment 2026
+            </span>
+            </button>
             <div className="text-5xl text-red font-bold">Robotics</div>
             <div className="pl-10 text-5xl font-bold text-white">Reimagined</div>
             <div className="text-xl md:pr-20 pt-5 border-t-2 border-red text-white">
