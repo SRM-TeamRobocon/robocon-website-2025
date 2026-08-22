@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MessageCircle, X, Send } from "lucide-react";
+import { recruitFetch } from "@/lib/recruit-fetch-client";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -50,7 +51,7 @@ function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
         setBusy(true);
 
         try {
-            const res = await fetch(endpoint, {
+            const res = await recruitFetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: text }),

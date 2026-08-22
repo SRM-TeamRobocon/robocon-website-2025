@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { recruitFetch } from "@/lib/recruit-fetch-client";
 
 // Soft, dismissible prompt for a recruit to verify their SRM email post-signup — SRM
 // email OTP verification was moved out of the registration wizard (see
@@ -33,7 +34,7 @@ export default function EmailVerifyBanner({
         setError("");
         setSendLoading(true);
         try {
-            const res = await fetch("/api/recruit/verify-email/send-otp", {
+            const res = await recruitFetch("/api/recruit/verify-email/send-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
             });
@@ -61,7 +62,7 @@ export default function EmailVerifyBanner({
         setError("");
         setVerifyLoading(true);
         try {
-            const res = await fetch("/api/recruit/verify-email/verify-otp", {
+            const res = await recruitFetch("/api/recruit/verify-email/verify-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ otp }),

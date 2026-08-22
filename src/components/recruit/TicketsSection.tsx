@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Select from "@/components/ui/select";
 import { RECRUIT_SUBDOMAINS, groupBySubsystem, subDomainFullLabel } from "@/lib/recruit-domains";
+import { recruitFetch } from "@/lib/recruit-fetch-client";
 
 type TicketCategory = "domain_change" | "general";
 
@@ -37,7 +38,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
 
     const load = async () => {
         try {
-            const res = await fetch("/api/recruit/tickets");
+            const res = await recruitFetch("/api/recruit/tickets");
             if (res.status === 401) {
                 router.push("/recruit/login");
                 return;
@@ -96,7 +97,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
 
         setBusy(true);
         try {
-            const res = await fetch("/api/recruit/tickets", {
+            const res = await recruitFetch("/api/recruit/tickets", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
