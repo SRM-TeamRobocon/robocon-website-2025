@@ -24,8 +24,8 @@ export default async function AdminContentHome() {
           <Link
             key={resource.table}
             href={`/dashboard/content/${resource.table}`}
-            className="border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-gray-950/70 p-5 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/10 hover:before:bg-red/60"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
           >
             <h2 className="text-xl font-bold text-white">{resource.pluralLabel}</h2>
             <p className="mt-2 text-sm text-gray-400">
@@ -36,8 +36,8 @@ export default async function AdminContentHome() {
 
         <Link
           href="/dashboard/blogs/new"
-          className="border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
-          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          className="relative isolate bg-gray-950/70 p-5 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/10 hover:before:bg-red/60"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
         >
           <h2 className="text-xl font-bold text-white">Blogs</h2>
           <p className="mt-2 text-sm text-gray-400">Write a new blog post.</p>
@@ -45,8 +45,8 @@ export default async function AdminContentHome() {
 
         <Link
           href="/dashboard/mentors"
-          className="border border-white/10 bg-gray-950/70 p-5 transition hover:border-red/60 hover:bg-white/10"
-          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          className="relative isolate bg-gray-950/70 p-5 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/10 hover:before:bg-red/60"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
         >
           <h2 className="text-xl font-bold text-white">Mentors</h2>
           <p className="mt-2 text-sm text-gray-400">Manage mentors.</p>

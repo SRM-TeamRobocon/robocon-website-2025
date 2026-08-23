@@ -233,9 +233,13 @@ export default function AdminContentManager({ config }: { config: ContentResourc
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section
-          className="overflow-hidden border border-white/10 bg-gray-950/70"
+          className="bg-white/10 p-px"
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
+          <div
+            className="h-full w-full bg-gray-950/70"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          >
           <div className="flex flex-col gap-3 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-bold text-white">
               {config.pluralLabel} <span className="text-sm font-normal text-gray-500">({filteredRows.length})</span>
@@ -311,13 +315,18 @@ export default function AdminContentManager({ config }: { config: ContentResourc
               })
             )}
           </div>
+          </div>
         </section>
 
         <form
           onSubmit={saveRow}
-          className="h-fit border border-white/10 bg-gray-950/70 p-5"
+          className="h-fit bg-white/10 p-px"
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
+          <div
+            className="h-full w-full bg-gray-950/70 p-5"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          >
           <h2 className="text-lg font-bold text-white">{activeRow.id ? `Edit ${config.label}` : `New ${config.label}`}</h2>
           <div className="mt-5 space-y-4">
             {editableFields.map((field) => {
@@ -419,6 +428,7 @@ export default function AdminContentManager({ config }: { config: ContentResourc
             >
               Clear
             </button>
+          </div>
           </div>
         </form>
       </div>

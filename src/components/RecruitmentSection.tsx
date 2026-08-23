@@ -4,6 +4,13 @@
 import { useRouter } from "next/navigation";
 import { InlineChatWidget } from "@/components/recruit/ChatWidget";
 
+// A `border` doesn't render along a clip-path's angled edge, so these panels simulate
+// their border with a ::before pseudo-element instead (see the `before:` classes below).
+const DOMAIN_CARD_CLIP = "polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)";
+const VIDEO_FRAME_CLIP = "polygon(4% 0%,100% 0%,96% 100%,0% 100%)";
+const CLIP_BORDER_CLASSES =
+    "relative isolate before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black";
+
 const recruitmentVideos = [
     {
         id: "DppLeh1YmeA",
@@ -119,11 +126,8 @@ const RecruitmentSection = () => {
                     {domains.map((domain) => (
                         <div
                             key={domain.acronym}
-                            className="border-2 border-black bg-white p-5"
-                            style={{
-                                clipPath:
-                                    "polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)",
-                            }}
+                            className={`bg-white p-5 ${CLIP_BORDER_CLASSES}`}
+                            style={{ clipPath: DOMAIN_CARD_CLIP, "--clip": DOMAIN_CARD_CLIP } as any}
                         >
                             <h3 className="text-lg font-bold tracking-tight text-black md:text-xl">
                                 {domain.acronym}
@@ -142,10 +146,8 @@ const RecruitmentSection = () => {
                         {recruitmentVideos.map((video) => (
                             <div
                                 key={video.id}
-                                className="w-[300px] shrink-0 overflow-hidden border-2 border-black bg-black md:w-[360px]"
-                                style={{
-                                    clipPath: "polygon(4% 0%,100% 0%,96% 100%,0% 100%)",
-                                }}
+                                className={`w-[300px] shrink-0 bg-black md:w-[360px] ${CLIP_BORDER_CLASSES}`}
+                                style={{ clipPath: VIDEO_FRAME_CLIP, "--clip": VIDEO_FRAME_CLIP } as any}
                             >
                                 <div className="relative w-full pt-[56.25%]">
                                     <iframe

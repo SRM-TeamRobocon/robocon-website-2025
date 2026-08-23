@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import AchievementsHistory from "@/components/AchievementsHistory";
 import ContentGrid, { type ContentCardItem } from "@/components/ContentGrid";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { formatDate } from "@/lib/utils";
@@ -80,6 +81,7 @@ export default async function AchievementsPage() {
         <h1 className="text-3xl font-bold text-white md:text-5xl">Achievements</h1>
         <p className="mx-auto mt-4 max-w-xl text-white/60">{items.length} wins the team is proud of.</p>
       </section>
+      <AchievementsHistory />
       <ContentGrid items={items} searchPlaceholder="Search achievements..." />
       <Footer />
     </div>

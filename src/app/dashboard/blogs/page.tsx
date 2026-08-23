@@ -57,8 +57,8 @@ function FeedTab({ viewerRole }: { viewerRole: string | null }) {
                 {[0, 1, 2].map((i) => (
                     <div
                         key={i}
-                        className="overflow-hidden border border-white/10 bg-white/[0.03]"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        className="relative isolate bg-white/[0.03] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
                     >
                         <div className="aspect-video w-full animate-pulse bg-white/5" />
                         <div className="space-y-2 p-5">
@@ -74,8 +74,8 @@ function FeedTab({ viewerRole }: { viewerRole: string | null }) {
     if (rows.length === 0) {
         return (
             <div
-                className="border border-white/10 bg-white/[0.03] p-10 text-center"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] p-10 text-center before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
             >
                 <Newspaper className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                 <p className="text-sm text-gray-400">No blogs published yet.</p>
@@ -146,8 +146,8 @@ function MineTab() {
     if (rows.length === 0) {
         return (
             <div
-                className="border border-white/10 bg-white/[0.03] p-10 text-center"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] p-10 text-center before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
             >
                 <PenSquare className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                 <p className="text-sm text-gray-400">You haven&apos;t written any blogs yet.</p>
@@ -163,8 +163,8 @@ function MineTab() {
             {rows.map((row) => (
                 <li
                     key={row.id}
-                    className="border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-4 backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
                 >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 gap-3">

@@ -11,6 +11,8 @@ import { recruitFetch } from "@/lib/recruit-fetch-client";
 //
 // Sharp red/white/black poster theme to match the redesigned dashboard this sits in —
 // NOT the old dark-glass look used elsewhere in this directory (GlassCard, RecruitBackdrop).
+const BANNER_CLIP = "polygon(0 0,100% 0,100% 92%,98% 100%,0 100%)";
+
 export default function EmailVerifyBanner({
     srmEmail,
     verified,
@@ -86,8 +88,8 @@ export default function EmailVerifyBanner({
 
     return (
         <div
-            className="relative w-full border-2 border-black bg-red/5 p-4 sm:p-5"
-            style={{ clipPath: "polygon(0 0,100% 0,100% 92%,98% 100%,0 100%)" }}
+            className="relative isolate w-full bg-red/5 p-4 sm:p-5 before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black"
+            style={{ clipPath: BANNER_CLIP, "--clip": BANNER_CLIP } as any}
         >
             <button
                 type="button"

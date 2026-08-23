@@ -290,9 +290,13 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
 
       <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)]">
         <section
-          className="overflow-hidden border border-white/10 bg-gray-950/70"
+          className="bg-white/10 p-px"
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
+          <div
+            className="h-full w-full bg-gray-950/70"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          >
           <div className="border-b border-white/10 px-5 py-4">
             <h2 className="text-lg font-bold text-white">
               Albums <span className="text-sm font-normal text-gray-500">({albums.length})</span>
@@ -334,12 +338,17 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
               ))
             )}
           </div>
+          </div>
         </section>
 
         <section
-          className="border border-white/10 bg-gray-950/70 p-5"
+          className="bg-white/10 p-px"
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
+          <div
+            className="h-full w-full bg-gray-950/70 p-5"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          >
           {!selectedAlbum ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center text-gray-500">
               <Images size={32} />
@@ -450,6 +459,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
               )}
             </div>
           )}
+          </div>
         </section>
       </div>
 
@@ -573,10 +583,11 @@ function PhotoCard({
   }, [photo.title, photo.album_id]);
 
   return (
-    <div
-      className="group relative overflow-hidden border border-white/10 bg-white/5"
-      style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-    >
+    <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
+      <div
+        className="h-full w-full group relative bg-white/5"
+        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+      >
       <div className="relative aspect-square w-full overflow-hidden bg-white/5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -624,6 +635,7 @@ function PhotoCard({
             </option>
           ))}
         </select>
+      </div>
       </div>
     </div>
   );

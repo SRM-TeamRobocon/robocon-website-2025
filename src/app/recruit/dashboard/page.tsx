@@ -20,6 +20,12 @@ const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), 
 // the reskinned /recruit/register + /recruit/login. Same clip-path used by CardShell on
 // those pages, reused here so every card on the dashboard reads as part of one family.
 const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
+const LOGOUT_CLIP = "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)";
+// A `border` doesn't render along a clip-path's angled edges, so these cards/buttons are
+// two nested elements instead: an outer one filled with the border color and padded by
+// the border width, and an inner one with the real fill — see CARD_OUTER/CARD_INNER below.
+const CARD_OUTER = "bg-black p-[2px]";
+const CARD_INNER = "h-full w-full bg-white p-6 md:p-8";
 
 type DomainStatus = { sub_domain: string; status: string };
 
@@ -204,10 +210,15 @@ export default function RecruitDashboardPage() {
                     </div>
                     <Link
                         href="/recruit/logout"
-                        className="inline-flex items-center gap-2 border-2 border-black bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-black transition-all hover:bg-red hover:text-white hover:border-red active:scale-[0.97]"
-                        style={{ clipPath: "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)" }}
+                        className="group inline-block bg-black p-[2px] transition-all active:scale-[0.97] hover:bg-red"
+                        style={{ clipPath: LOGOUT_CLIP }}
                     >
-                        Logout
+                        <span
+                            className="flex items-center gap-2 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-black transition-all group-hover:bg-red group-hover:text-white"
+                            style={{ clipPath: LOGOUT_CLIP }}
+                        >
+                            Logout
+                        </span>
                     </Link>
                 </div>
 
@@ -226,7 +237,8 @@ export default function RecruitDashboardPage() {
                 )}
 
                 {profile && (
-                    <div className="border-2 border-black bg-white p-6 md:p-8" style={{ clipPath: CARD_CLIP }}>
+                    <div className={CARD_OUTER} style={{ clipPath: CARD_CLIP }}>
+                    <div className={CARD_INNER} style={{ clipPath: CARD_CLIP }}>
                         <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">// profile</p>
                         <h2 className="text-xl font-bold mb-4 text-black">{profile.name}</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-sm">
@@ -277,6 +289,7 @@ export default function RecruitDashboardPage() {
                             )}
                         </div>
                     </div>
+                    </div>
                 )}
 
                 {badgeImage && (
@@ -305,7 +318,8 @@ export default function RecruitDashboardPage() {
                     </div>
                 )}
 
-                <div className="border-2 border-black bg-white p-6 md:p-8" style={{ clipPath: CARD_CLIP }}>
+                <div className={CARD_OUTER} style={{ clipPath: CARD_CLIP }}>
+                <div className={CARD_INNER} style={{ clipPath: CARD_CLIP }}>
                     <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// pipeline status</p>
                     <div className="space-y-3">
                         {domains.length === 0 && (
@@ -350,10 +364,12 @@ export default function RecruitDashboardPage() {
                         </div>
                     )}
                 </div>
+                </div>
 
                 {interview && (
+                    <div className={CARD_OUTER} style={{ clipPath: CARD_CLIP }}>
                     <div
-                        className={`border-2 border-black bg-white p-6 md:p-8 ${
+                        className={`${CARD_INNER} ${
                             interview.status === "called" ? "animate-pulse" : ""
                         }`}
                         style={{ clipPath: CARD_CLIP }}
@@ -390,6 +406,7 @@ export default function RecruitDashboardPage() {
                                 </span>
                             </div>
                         )}
+                    </div>
                     </div>
                 )}
 

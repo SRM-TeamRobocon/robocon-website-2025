@@ -155,10 +155,11 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
     }, [fullyBusy, campuses]);
 
     return (
-        <div
-            className="border border-white/10 bg-white/[0.03] p-5 sm:p-6"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-        >
+        <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
+            <div
+                className="h-full w-full bg-white/[0.03] p-5 sm:p-6"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
             <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
                     <h2 className="flex items-center gap-2 text-lg font-bold text-white">
@@ -419,6 +420,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                     )}
                 </div>
             )}
+            </div>
         </div>
     );
 }

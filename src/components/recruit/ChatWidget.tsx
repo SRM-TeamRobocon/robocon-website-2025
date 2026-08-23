@@ -9,6 +9,12 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
+// A `border` doesn't render along a clip-path's angled edge, so the light-theme panels
+// below simulate their border with a ::before pseudo-element instead (`before:` classes).
+const LIGHT_PANEL_CLIP = "polygon(0 0,100% 0,100% 96%,96% 100%,0 100%)";
+const CLIP_BORDER_CLASSES =
+    "relative isolate before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black";
+
 // Renders message text with any http(s) URLs turned into clickable links — the RAG
 // answer's Instagram fallback (see src/lib/rag/answer.ts) includes a raw URL that would
 // otherwise render as inert plain text.
@@ -105,10 +111,10 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                 <div
                     className={
                         light
-                            ? "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col border-2 border-black bg-white shadow-2xl overflow-hidden"
+                            ? `fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col bg-white shadow-2xl ${CLIP_BORDER_CLASSES}`
                             : "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
                     }
-                    style={light ? { clipPath: "polygon(0 0,100% 0,100% 96%,96% 100%,0 100%)" } : undefined}
+                    style={light ? ({ clipPath: LIGHT_PANEL_CLIP, "--clip": LIGHT_PANEL_CLIP } as any) : undefined}
                 >
                     <div
                         className={
@@ -231,8 +237,8 @@ export function InlineChatWidget() {
 
     return (
         <div
-            className="w-full border-2 border-black bg-white"
-            style={{ clipPath: "polygon(0 0,100% 0,100% 96%,96% 100%,0 100%)" }}
+            className={`w-full bg-white ${CLIP_BORDER_CLASSES}`}
+            style={{ clipPath: LIGHT_PANEL_CLIP, "--clip": LIGHT_PANEL_CLIP } as any}
         >
             <div className="flex items-center gap-2 border-b-2 border-black px-5 py-3">
                 <MessageCircle className="h-4 w-4 text-red" strokeWidth={2.5} />

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
-import { isRecruitSubDomain } from "@/lib/recruit-domains";
+import { isRecruitSubDomain, subDomainFullLabel } from "@/lib/recruit-domains";
+import { getTransporter, SMTP_EMAIL, logoAttachment } from "@/lib/mailer";
+import { buildTicketResolvedHtml } from "@/lib/recruit-ticket-resolved-email";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const { data: ticket, error: ticketError } = await supabase
         .from("recruit_tickets")
-        .select("id, category, recruit_id, cycle_id, from_sub_domain, requested_sub_domain, status")
+        .select("id, category, message, recruit_id, cycle_id, from_sub_domain, requested_sub_domain, status")
         .eq("id", id)
         .maybeSingle();
 
@@ -50,6 +52,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!ticket || ticket.status !== "open") {
         return NextResponse.json({ error: "Ticket not found or already resolved" }, { status: 404 });
     }
+
+    let appliedDomainChange: { from: string; to: string } | null = null;
 
     if (applyDomainChange) {
         if (ticket.category !== "domain_change") {
@@ -111,6 +115,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 .insert({ recruit_id: ticket.recruit_id, cycle_id: ticket.cycle_id, sub_domain: ticket.from_sub_domain });
             return NextResponse.json({ error: "Could not switch the recruit's domain." }, { status: 500 });
         }
+
+        appliedDomainChange = { from: ticket.from_sub_domain, to: targetDomain };
     }
 
     const { data, error } = await supabase
@@ -134,5 +140,78 @@ export async function POST(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: "Ticket not found or already resolved" }, { status: 404 });
     }
 
+    // Best-effort notification, but AWAITED rather than fired-and-forgotten — a serverless
+    // function's execution can be frozen the instant the response is sent, so a detached
+    // promise here risks the email silently never going out. Failure still can't turn into
+    // a 500 for an action that already went through (see the try/catch inside), and it's
+    // skipped entirely if there's nothing to say (no resolution note) or SMTP isn't
+    // configured.
+    if (resolutionNote) {
+        await sendTicketResolvedEmail({
+            ticketId: id,
+            recruitId: ticket.recruit_id,
+            message: ticket.message,
+            resolutionNote,
+            domainChange: appliedDomainChange,
+            supabase,
+        });
+    }
+
     return NextResponse.json({ success: true });
+}
+
+async function sendTicketResolvedEmail(params: {
+    ticketId: string;
+    recruitId: string;
+    message: string;
+    resolutionNote: string;
+    domainChange: { from: string; to: string } | null;
+    supabase: ReturnType<typeof createRecruitSupabaseAdminClient>;
+}) {
+    const { ticketId, recruitId, message, resolutionNote, domainChange, supabase } = params;
+    try {
+        const transporter = getTransporter();
+        if (!transporter) return;
+
+        const { data: recruit, error: recruitError } = await supabase
+            .from("recruit_accounts")
+            .select("name, srm_email, personal_email")
+            .eq("id", recruitId)
+            .maybeSingle();
+        if (recruitError || !recruit) {
+            console.error("ticket resolved email: recruit lookup failed", recruitError);
+            return;
+        }
+
+        const recipients = Array.from(
+            new Set(
+                [recruit.srm_email, recruit.personal_email]
+                    .filter((e): e is string => !!e)
+                    .map((e) => e.toLowerCase())
+            )
+        );
+        if (recipients.length === 0) return;
+
+        const domainChangeLabels = domainChange
+            ? { from: subDomainFullLabel(domainChange.from), to: subDomainFullLabel(domainChange.to) }
+            : null;
+
+        await transporter.sendMail({
+            from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
+            to: recipients,
+            subject: "Your Ticket Has Been Resolved — SRM Team Robocon",
+            text:
+                `Hi ${recruit.name},\n\nYour question:\n${message}\n\nOur answer:\n${resolutionNote}` +
+                (domainChangeLabels ? `\n\nDomain switched: ${domainChangeLabels.from} -> ${domainChangeLabels.to}` : ""),
+            html: buildTicketResolvedHtml({ name: recruit.name, message, resolutionNote, domainChange: domainChangeLabels }),
+            attachments: [logoAttachment()],
+        });
+
+        await supabase
+            .from("recruit_tickets")
+            .update({ resolution_email_sent_at: new Date().toISOString() })
+            .eq("id", ticketId);
+    } catch (err) {
+        console.error("ticket resolved email: send failed", err);
+    }
 }

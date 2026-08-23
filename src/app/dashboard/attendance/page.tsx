@@ -18,7 +18,12 @@ import {
 } from "@/lib/attendance";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
-const CARD_CLIP = { clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" };
+// A `border` doesn't render along a clip-path's angled edge, so cards are two nested
+// elements instead: an outer box painted in the border color, and an inner box (inset
+// by the border width via padding) painted in the real background — the border is just
+// the outer's color peeking out uniformly around the inner, including the diagonal cut.
+const CARD_CLIP_PATH = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+const CARD_CLIP = { clipPath: CARD_CLIP_PATH };
 const REFRESH_MS = 30_000;
 
 interface BroadcastPayload {
@@ -46,10 +51,20 @@ function isWithinLeaveWindow(leave: LeaveWindow, nowMs: number): boolean {
     return nowHHMM >= leave.startTime && nowHHMM <= leave.endTime;
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Card({
+    children,
+    className = "",
+    borderClassName = "bg-white/10",
+}: {
+    children: React.ReactNode;
+    className?: string;
+    borderClassName?: string;
+}) {
     return (
-        <div className={`border border-white/10 bg-white/[0.03] backdrop-blur-xl ${className}`} style={CARD_CLIP}>
-            {children}
+        <div className={`${borderClassName} p-px`} style={CARD_CLIP}>
+            <div className={`h-full w-full bg-white/[0.03] backdrop-blur-xl ${className}`} style={CARD_CLIP}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -285,27 +300,33 @@ export default function AttendanceBoardPage() {
                 <div className="flex gap-3">
                     <Link
                         href="/dashboard/attendance/me"
-                        className={
-                            viewerHasAccount && viewerLinked === false
-                                ? "flex items-center gap-2 border border-red bg-red/10 px-4 py-2 text-xs font-bold tracking-wider text-red hover:bg-red/20 transition"
-                                : "flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white hover:bg-white/10 transition"
-                        }
+                        className={viewerHasAccount && viewerLinked === false ? "bg-red p-px" : "bg-white/10 p-px"}
                         style={CARD_CLIP}
                     >
-                        <UserCircle2 className="h-4 w-4" /> {viewerHasAccount && viewerLinked === false ? "Link My Card" : "My Card"}
+                        <div
+                            className={
+                                viewerHasAccount && viewerLinked === false
+                                    ? "flex h-full w-full items-center gap-2 bg-red/10 px-4 py-2 text-xs font-bold tracking-wider text-red transition hover:bg-red/20"
+                                    : "flex h-full w-full items-center gap-2 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white transition hover:bg-white/10"
+                            }
+                            style={CARD_CLIP}
+                        >
+                            <UserCircle2 className="h-4 w-4" /> {viewerHasAccount && viewerLinked === false ? "Link My Card" : "My Card"}
+                        </div>
                     </Link>
-                    <button
-                        onClick={handleDownload}
-                        className="flex items-center gap-2 border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white hover:bg-white/10 transition"
-                        style={CARD_CLIP}
-                    >
-                        <Download className="h-4 w-4" /> Export CSV
+                    <button onClick={handleDownload} className="bg-white/10 p-px" style={CARD_CLIP}>
+                        <div
+                            className="flex h-full w-full items-center gap-2 bg-white/[0.03] px-4 py-2 text-xs font-bold tracking-wider text-white transition hover:bg-white/10"
+                            style={CARD_CLIP}
+                        >
+                            <Download className="h-4 w-4" /> Export CSV
+                        </div>
                     </button>
                 </div>
             </div>
 
             {error && (
-                <Card className="border-red/30 bg-red/10 p-4">
+                <Card borderClassName="bg-red/30" className="bg-red/10 p-4">
                     <p className="text-xs font-bold uppercase tracking-wider text-red">Connection error</p>
                     <p className="mt-1 text-sm text-gray-300">{error}</p>
                 </Card>
@@ -515,10 +536,11 @@ export default function AttendanceBoardPage() {
                     onClick={() => setSelected(null)}
                 >
                     <div
-                        className="max-h-[80vh] w-full max-w-lg overflow-hidden border border-white/10 bg-black/95"
+                        className="max-h-[80vh] w-full max-w-lg bg-white/10 p-px"
                         style={CARD_CLIP}
                         onClick={(e) => e.stopPropagation()}
                     >
+                    <div className="h-full w-full bg-black/95" style={CARD_CLIP}>
                         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                             <div>
                                 <p className="flex items-center gap-2 text-sm font-bold text-white">
@@ -600,6 +622,7 @@ export default function AttendanceBoardPage() {
                                 </div>
                             )}
                         </div>
+                    </div>
                     </div>
                 </motion.div>
             )}

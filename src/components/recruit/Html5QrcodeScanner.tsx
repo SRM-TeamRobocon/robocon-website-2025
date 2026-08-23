@@ -117,18 +117,14 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
     };
 
     return (
-        <div className="hud-scanner relative w-full overflow-hidden rounded-xl">
+        <div className="hud-scanner relative w-full overflow-hidden rounded-xl border border-white/10 bg-black">
             <div
                 id={elementId}
                 className="w-full [&_video]:w-full [&_video]:object-cover [&_video]:block"
             />
 
-            {/* Decorative HUD layer — purely additive, never intercepts taps/clicks. */}
+            {/* Static overlay — plain frame + status text, no motion. */}
             <div className="pointer-events-none absolute inset-0">
-                <div className="hud-grid absolute inset-0" />
-                <div className="hud-vignette absolute inset-0" />
-                <div className="hud-sweep absolute inset-x-0 h-1/3" />
-
                 <div className="hud-corner hud-corner-tl" />
                 <div className="hud-corner hud-corner-tr" />
                 <div className="hud-corner hud-corner-bl" />
@@ -149,13 +145,13 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
                     <button
                         type="button"
                         onClick={() => setShowCameraMenu((v) => !v)}
-                        className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/60 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm transition-colors hover:border-red/50 hover:text-white"
+                        className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-black px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/70 transition-colors hover:border-red/50 hover:text-white"
                     >
                         <Camera className="h-3 w-3" strokeWidth={2.5} />
                         Camera
                     </button>
                     {showCameraMenu && (
-                        <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-lg border border-white/15 bg-black/90 backdrop-blur-md">
+                        <div className="absolute right-0 mt-1.5 w-48 overflow-hidden rounded-lg border border-white/15 bg-black">
                             {cameras.map((cam, i) => (
                                 <button
                                     key={cam.id}
@@ -176,7 +172,7 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
             )}
 
             {status !== "running" && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/80">
                     {status === "starting" ? (
                         <div className="flex flex-col items-center gap-3 text-center">
                             <div className="hud-spinner" />
@@ -204,97 +200,41 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
             <style jsx>{`
                 .hud-scanner {
                     aspect-ratio: 3 / 4;
-                    background: #000;
-                    box-shadow:
-                        0 0 0 1px rgba(255, 255, 255, 0.08),
-                        0 0 40px rgba(194, 0, 0, 0.25),
-                        inset 0 0 60px rgba(0, 0, 0, 0.6);
-                    animation: hud-pulse-border 3s ease-in-out infinite;
-                }
-                @keyframes hud-pulse-border {
-                    0%,
-                    100% {
-                        box-shadow:
-                            0 0 0 1px rgba(255, 255, 255, 0.08),
-                            0 0 40px rgba(194, 0, 0, 0.22),
-                            inset 0 0 60px rgba(0, 0, 0, 0.6);
-                    }
-                    50% {
-                        box-shadow:
-                            0 0 0 1px rgba(255, 255, 255, 0.12),
-                            0 0 60px rgba(194, 0, 0, 0.4),
-                            inset 0 0 60px rgba(0, 0, 0, 0.6);
-                    }
-                }
-
-                .hud-grid {
-                    background-image:
-                        linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-                    background-size: 28px 28px;
-                    mix-blend-mode: screen;
-                }
-
-                .hud-vignette {
-                    background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
-                }
-
-                .hud-sweep {
-                    top: -33%;
-                    background: linear-gradient(
-                        to bottom,
-                        transparent 0%,
-                        rgba(194, 0, 0, 0.35) 45%,
-                        rgba(255, 255, 255, 0.55) 50%,
-                        rgba(194, 0, 0, 0.35) 55%,
-                        transparent 100%
-                    );
-                    filter: blur(1px);
-                    animation: hud-sweep-move 3.2s linear infinite;
-                }
-                @keyframes hud-sweep-move {
-                    0% {
-                        transform: translateY(0%);
-                    }
-                    100% {
-                        transform: translateY(300%);
-                    }
                 }
 
                 .hud-corner {
                     position: absolute;
-                    width: 26px;
-                    height: 26px;
-                    border: 2px solid rgba(194, 0, 0, 0.9);
-                    filter: drop-shadow(0 0 4px rgba(194, 0, 0, 0.7));
+                    width: 22px;
+                    height: 22px;
+                    border: 2px solid rgba(194, 0, 0, 0.85);
                 }
                 .hud-corner-tl {
                     top: 10px;
                     left: 10px;
                     border-right: none;
                     border-bottom: none;
-                    border-top-left-radius: 6px;
+                    border-top-left-radius: 4px;
                 }
                 .hud-corner-tr {
                     top: 10px;
                     right: 10px;
                     border-left: none;
                     border-bottom: none;
-                    border-top-right-radius: 6px;
+                    border-top-right-radius: 4px;
                 }
                 .hud-corner-bl {
                     bottom: 10px;
                     left: 10px;
                     border-right: none;
                     border-top: none;
-                    border-bottom-left-radius: 6px;
+                    border-bottom-left-radius: 4px;
                 }
                 .hud-corner-br {
                     bottom: 10px;
                     right: 10px;
                     border-left: none;
                     border-top: none;
-                    border-bottom-right-radius: 6px;
+                    border-bottom-right-radius: 4px;
                 }
 
                 .hud-dot {
@@ -302,17 +242,6 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
                     height: 6px;
                     border-radius: 9999px;
                     background: #ef4444;
-                    box-shadow: 0 0 6px 1px rgba(239, 68, 68, 0.9);
-                    animation: hud-dot-blink 1.4s ease-in-out infinite;
-                }
-                @keyframes hud-dot-blink {
-                    0%,
-                    100% {
-                        opacity: 1;
-                    }
-                    50% {
-                        opacity: 0.25;
-                    }
                 }
 
                 .hud-spinner {

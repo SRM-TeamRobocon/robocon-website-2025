@@ -144,8 +144,8 @@ export default function TimetableDirectoryPage() {
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : filtered.length === 0 ? (
                 <div
-                    className="border border-white/10 bg-white/[0.03] p-10 text-center"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-10 text-center before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
                 >
                     <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                     <p className="text-sm text-gray-400">No timetables saved yet.</p>
@@ -162,8 +162,8 @@ export default function TimetableDirectoryPage() {
                         <li key={row.owner_username}>
                             <Link
                                 href={`/dashboard/timetable/${encodeURIComponent(row.owner_username)}`}
-                                className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition hover:bg-white/[0.06]"
-                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                className="relative isolate flex items-center gap-3 bg-white/[0.03] p-4 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/[0.06]"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
                             >
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-white/10 text-gray-400">
                                     <User className="h-4 w-4" />

@@ -42,9 +42,13 @@ export default function GoogleConnectReminder() {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div
-                className="w-full max-w-sm border border-white/10 bg-gray-900 p-6 shadow-2xl"
+                className="w-full max-w-sm bg-white/10 p-px shadow-2xl"
                 style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
             >
+                <div
+                    className="h-full w-full bg-gray-900 p-6"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                >
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-white">
                         <Mail className="w-4 h-4 text-red" />
@@ -70,6 +74,7 @@ export default function GoogleConnectReminder() {
                         {connecting ? "Connecting…" : "Connect Gmail"}
                     </button>
                 </div>
+            </div>
             </div>
         </div>
     );

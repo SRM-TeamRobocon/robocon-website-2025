@@ -150,9 +150,13 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                     {blocks.map((block, index) => (
                         <div
                             key={index}
-                            className="border border-white/10 bg-white/[0.03] p-3"
+                            className="bg-white/10 p-px"
                             style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                         >
+                            <div
+                                className="h-full w-full bg-white/[0.03] p-3"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            >
                             <div className="mb-2 flex items-center justify-between">
                                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 capitalize">
                                     {block.type === "heading" && <Heading size={12} />}
@@ -225,6 +229,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                                     />
                                 </div>
                             )}
+                            </div>
                         </div>
                     ))}
 
@@ -265,17 +270,19 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
                 <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <Eye size={14} /> Live Preview
                 </div>
-                <div
-                    className="border border-white/10 bg-white/[0.03] p-4 sm:p-6"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
-                    <BlogRenderer
-                        title={title || "Untitled post"}
-                        coverImageUrl={coverImageUrl}
-                        authorName={authorName}
-                        visibility={visibility}
-                        blocks={blocks}
-                    />
+                <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
+                    <div
+                        className="h-full w-full bg-white/[0.03] p-4 sm:p-6"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    >
+                        <BlogRenderer
+                            title={title || "Untitled post"}
+                            coverImageUrl={coverImageUrl}
+                            authorName={authorName}
+                            visibility={visibility}
+                            blocks={blocks}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

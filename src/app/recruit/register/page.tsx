@@ -40,26 +40,30 @@ type ProfileForm = {
 // Sharp red/white/black poster theme — matches RecruitmentSection (homepage recruitment
 // teaser). White card, angled black border, clipped corner via inline clip-path rather
 // than rounded corners. Replaces the old dark GlassCard/RecruitBackdrop wrapper.
+// A CSS `border` doesn't render along a clip-path's angled edge (it only follows the
+// original rectangle, leaving the diagonal side gapped), so instead of a border this
+// renders as two nested elements: an outer one filled with the border color and padded
+// by the border width, and an inner one with the real fill — see the JSX below.
+const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
 function CardShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
     return (
         <div className="min-h-[100dvh] flex items-center justify-center bg-white p-5">
             <div className="w-full max-w-lg">
                 <AuthNav variant="sharp" onBack={onBack} />
-                <div
-                    className="w-full border-2 border-black bg-white p-8"
-                    style={{ clipPath: "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)" }}
-                >
-                    <div className="flex justify-center mb-6">
-                        <Image
-                            src="/LOGO.png"
-                            alt="Robocon Logo"
-                            width={120}
-                            height={120}
-                            className="object-contain"
-                            unoptimized
-                        />
+                <div className="w-full bg-black p-[2px]" style={{ clipPath: CARD_CLIP }}>
+                    <div className="h-full w-full bg-white p-8" style={{ clipPath: CARD_CLIP }}>
+                        <div className="flex justify-center mb-6">
+                            <Image
+                                src="/LOGO.png"
+                                alt="Robocon Logo"
+                                width={120}
+                                height={120}
+                                className="object-contain"
+                                unoptimized
+                            />
+                        </div>
+                        {children}
                     </div>
-                    {children}
                 </div>
             </div>
         </div>

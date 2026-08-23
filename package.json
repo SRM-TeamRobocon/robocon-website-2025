@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:email": "tsx scripts/test-email.ts",
-    "seed:recruitment": "tsx --env-file=.env.local scripts/seed-recruitment.ts"
+    "seed:recruitment": "tsx --env-file=.env.local scripts/seed-recruitment.ts",
+    "import:alumni": "tsx --env-file=.env.local scripts/import-alumni.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

@@ -135,7 +135,10 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
     if (loading) return null;
 
     return (
-        <div className="border-2 border-black bg-white p-6 md:p-8" style={{ clipPath: CARD_CLIP }}>
+        <div
+            className="relative isolate bg-white p-6 md:p-8 before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+        >
             <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// raise a ticket</p>
 
             {openTicket ? (

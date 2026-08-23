@@ -119,6 +119,11 @@ function ScannerComponent() {
     }, [fetchAnalytics]);
 
     useEffect(() => {
+        // Guard on `ready`: until the role check resolves, the component renders
+        // null and the #qr-reader div doesn't exist yet — constructing the scanner
+        // before then throws (it looks up the element synchronously).
+        if (!ready) return;
+
         if (!scannerRef.current) {
             scannerRef.current = new Html5QrcodeScanner(
                 "qr-reader",
@@ -152,7 +157,7 @@ function ScannerComponent() {
                 scannerRef.current = null;
             }
         };
-    }, [handleScan]);
+    }, [handleScan, ready]);
 
     const currentSessionLabel = SESSIONS.find(s => s.key === session)?.label ?? session;
 

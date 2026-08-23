@@ -163,8 +163,8 @@ function MembersTab() {
             <div>
                 <h2 className="text-lg font-bold text-white mb-3">Pending Signups</h2>
                 <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
                 >
                     {pending.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No pending approvals.</div>
@@ -246,8 +246,8 @@ function MembersTab() {
             <div>
                 <h2 className="text-lg font-bold text-white mb-3">Approved Accounts</h2>
                 <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
                 >
                     {approved.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No approved accounts yet.</div>
@@ -337,8 +337,8 @@ function ContentTab() {
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
         >
             {rows.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
@@ -455,8 +455,8 @@ function LeaveTab() {
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
         >
             {rows.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
@@ -593,8 +593,8 @@ function BlogsTab() {
         <div>
             {tabs}
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
