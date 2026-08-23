@@ -40,6 +40,11 @@ interface ShortlistRow {
   };
 }
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 type ShortlistSortKey = "name" | "reg_no" | "domain" | "status";
 
 function sortValueFor(row: ShortlistRow, key: ShortlistSortKey): string | number | null {
@@ -307,8 +312,8 @@ function ExamDomainsTab() {
       </div>
 
       <div
-        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+        className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
       >
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>

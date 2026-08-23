@@ -16,16 +16,8 @@ import { genderLabel } from "@/lib/gender";
 
 const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), { ssr: false });
 
-// Sharp red/white/black poster theme — matches RecruitmentSection (homepage teaser) and
-// the reskinned /recruit/register + /recruit/login. Same clip-path used by CardShell on
-// those pages, reused here so every card on the dashboard reads as part of one family.
-const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
-const LOGOUT_CLIP = "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)";
-// A `border` doesn't render along a clip-path's angled edges, so these cards/buttons are
-// two nested elements instead: an outer one filled with the border color and padded by
-// the border width, and an inner one with the real fill — see CARD_OUTER/CARD_INNER below.
-const CARD_OUTER = "bg-black p-[2px]";
-const CARD_INNER = "h-full w-full bg-white p-6 md:p-8";
+const CARD_OUTER = "border-2 border-black bg-white p-6 md:p-8";
+const CARD_INNER = "h-full w-full overflow-hidden";
 
 type DomainStatus = { sub_domain: string; status: string };
 
@@ -198,24 +190,22 @@ export default function RecruitDashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white px-4 py-8 md:py-12">
-            <div className="max-w-3xl mx-auto">
+        <div className="min-h-screen overflow-x-hidden bg-white px-4 py-8 md:py-12">
+            <div className="mx-auto w-full max-w-3xl">
                 <AuthNav variant="sharp" />
             </div>
-            <div className="max-w-3xl mx-auto space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
+            <div className="mx-auto w-full max-w-3xl space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                         <p className="font-mono text-xs uppercase tracking-widest text-red font-bold">Recruit Terminal</p>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-black">Status Dashboard</h1>
+                        <h1 className="break-words text-2xl font-black tracking-tight text-black md:text-3xl">Status Dashboard</h1>
                     </div>
                     <Link
                         href="/recruit/logout"
-                        className="group inline-block bg-black p-[2px] transition-all active:scale-[0.97] hover:bg-red"
-                        style={{ clipPath: LOGOUT_CLIP }}
+                        className="group inline-block shrink-0 border-2 border-black bg-white px-4 py-2 transition-all active:scale-[0.97] hover:border-red hover:bg-red"
                     >
                         <span
-                            className="flex items-center gap-2 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-black transition-all group-hover:bg-red group-hover:text-white"
-                            style={{ clipPath: LOGOUT_CLIP }}
+                            className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-black transition-all group-hover:text-white"
                         >
                             Logout
                         </span>
@@ -237,45 +227,45 @@ export default function RecruitDashboardPage() {
                 )}
 
                 {profile && (
-                    <div className={CARD_OUTER} style={{ clipPath: CARD_CLIP }}>
-                    <div className={CARD_INNER} style={{ clipPath: CARD_CLIP }}>
+                    <div className={CARD_OUTER}>
+                    <div className={CARD_INNER}>
                         <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">// profile</p>
-                        <h2 className="text-xl font-bold mb-4 text-black">{profile.name}</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-sm">
-                            <div>
+                        <h2 className="mb-4 break-words text-xl font-bold text-black">{profile.name}</h2>
+                        <div className="grid grid-cols-1 gap-4 font-mono text-sm sm:grid-cols-2 md:grid-cols-3">
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">SRM Email</p>
                                 <p className="text-black/80 break-all">{profile.srm_email}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">Reg No</p>
-                                <p className="text-black/80">{profile.reg_no}</p>
+                                <p className="break-all text-black/80">{profile.reg_no}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">Year</p>
                                 <p className="text-black/80">{profile.year}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">Gender</p>
                                 <p className="text-black/80">{genderLabel(profile.gender)}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">Department</p>
-                                <p className="text-black/80">{profile.department}</p>
+                                <p className="break-words text-black/80">{profile.department}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">Course</p>
-                                <p className="text-black/80">{profile.course}</p>
+                                <p className="break-words text-black/80">{profile.course}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-black/40 text-xs uppercase tracking-widest">Stay</p>
-                                <p className="text-black/80">
+                                <p className="break-words text-black/80">
                                     {profile.is_hosteller
                                         ? [profile.hostel_block, profile.hostel_room].filter(Boolean).join(" · ")
                                         : "Day Scholar"}
                                 </p>
                             </div>
                             {profile.portfolio_url && (
-                                <div>
+                                <div className="min-w-0">
                                     <p className="text-black/40 text-xs uppercase tracking-widest">LinkedIn</p>
                                     <a
                                         href={profile.portfolio_url}
@@ -300,12 +290,10 @@ export default function RecruitDashboardPage() {
                                 href={badgeImage}
                                 download={`robocon-recruit-tag-${profile?.reg_no ?? "id"}.png`}
                                 className="group relative inline-flex items-center gap-2 overflow-hidden bg-red px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
-                                style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                             >
                                 <span
                                     className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
                                     style={{
-                                        clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
                                         backgroundColor: "#D4AF37",
                                     }}
                                 />
@@ -318,8 +306,8 @@ export default function RecruitDashboardPage() {
                     </div>
                 )}
 
-                <div className={CARD_OUTER} style={{ clipPath: CARD_CLIP }}>
-                <div className={CARD_INNER} style={{ clipPath: CARD_CLIP }}>
+                <div className={CARD_OUTER}>
+                <div className={CARD_INNER}>
                     <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// pipeline status</p>
                     <div className="space-y-3">
                         {domains.length === 0 && (
@@ -328,14 +316,14 @@ export default function RecruitDashboardPage() {
                         {domains.map((d) => (
                             <div
                                 key={d.sub_domain}
-                                className="flex items-center justify-between border border-black/15 px-4 py-3 bg-black/[0.02]"
+                                className="flex min-w-0 flex-col items-start gap-2 border border-black/15 bg-black/[0.02] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                             >
-                                <span className="font-mono text-sm font-bold text-black/80">
+                                <span className="min-w-0 break-words font-mono text-sm font-bold text-black/80">
                                     <span className="text-black/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
                                     {subDomainLabel(d.sub_domain)}
                                 </span>
                                 <span
-                                    className={`font-mono text-xs font-bold uppercase tracking-widest border px-3 py-1 ${statusBadgeClass(
+                                    className={`shrink-0 font-mono text-xs font-bold uppercase tracking-widest border px-3 py-1 ${statusBadgeClass(
                                         d.status
                                     )}`}
                                 >
@@ -367,12 +355,11 @@ export default function RecruitDashboardPage() {
                 </div>
 
                 {interview && (
-                    <div className={CARD_OUTER} style={{ clipPath: CARD_CLIP }}>
+                    <div className={CARD_OUTER}>
                     <div
                         className={`${CARD_INNER} ${
                             interview.status === "called" ? "animate-pulse" : ""
                         }`}
-                        style={{ clipPath: CARD_CLIP }}
                     >
                         <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">
                             // interview queue

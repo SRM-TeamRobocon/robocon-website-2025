@@ -116,6 +116,11 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
     );
 }
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function TicketsPage() {
     const { ready, role } = useRoleGate(["member", "lead", "admin"]);
     const canResolve = role === "lead" || role === "admin";
@@ -161,8 +166,8 @@ export default function TicketsPage() {
 
             {noCycle ? (
                 <div
-                    className="border border-amber-500/30 bg-amber-500/[0.06] p-6 text-sm text-amber-300"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-amber-500/[0.06] p-6 text-sm text-amber-300 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/30"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     No active recruitment cycle.
                 </div>
@@ -170,8 +175,8 @@ export default function TicketsPage() {
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : tickets.length === 0 ? (
                 <div
-                    className="border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-gray-500"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-8 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     No tickets yet.
                 </div>
@@ -180,12 +185,12 @@ export default function TicketsPage() {
                     {tickets.map((t) => (
                         <div
                             key={t.id}
-                            className={`border p-4 ${
+                            className={`relative isolate p-4 backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] ${
                                 t.status === "open"
-                                    ? "border-amber-500/30 bg-amber-500/[0.06]"
-                                    : "border-white/10 bg-white/[0.03]"
-                            } backdrop-blur-xl`}
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                    ? "bg-amber-500/[0.06] before:bg-amber-500/30"
+                                    : "bg-white/[0.03] before:bg-white/10"
+                            }`}
+                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                         >
                             <div className="flex items-start justify-between gap-3 flex-wrap">
                                 <div>

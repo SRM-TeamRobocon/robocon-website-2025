@@ -93,6 +93,11 @@ import {
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 // Scoped to a single, already-known sub_domain — every call site now lives inside that
 // domain's own row, so there's no dropdown to pick from any more (the row IS the pick).
 // table_number/routing is still auto-allocated server-side regardless of the name typed
@@ -144,8 +149,8 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-3 space-y-2"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl p-3 space-y-2 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
         >
             <input
                 value={name}
@@ -304,8 +309,8 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] p-3"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] p-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
         >
             <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
@@ -531,8 +536,8 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 space-y-3"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 space-y-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
         >
             <div className="flex items-start justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
@@ -774,8 +779,8 @@ function SharedWaitingQueue({
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
         >
             <div className="px-4 py-2.5 border-b border-white/10">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -856,8 +861,8 @@ function SubDomainBoard({
 
             {openPanels.length === 0 && closedPanels.length === 0 && (
                 <div
-                    className="border border-white/10 bg-white/[0.03] p-5 text-center text-xs text-gray-500"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-5 text-center text-xs text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     No tables open yet.
                 </div>
@@ -1038,8 +1043,8 @@ function DomainResultsSection({
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
         >
             <button
                 type="button"
@@ -1166,15 +1171,15 @@ function InterviewResultsList() {
             </div>
             {loading ? (
                 <div
-                    className="border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-6 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     Loading...
                 </div>
             ) : rows.length === 0 ? (
                 <div
-                    className="border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-gray-500"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-6 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     No results logged yet — they&apos;ll show up here as panels call recruits in.
                 </div>
@@ -1323,8 +1328,8 @@ export default function InterviewManagementPage() {
 
             {noCycle ? (
                 <div
-                    className="border border-amber-500/30 bg-amber-500/[0.06] p-6 text-sm text-amber-300"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-amber-500/[0.06] p-6 text-sm text-amber-300 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/30"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     No active recruitment cycle. Start one from Cycles before opening interview panels.
                 </div>

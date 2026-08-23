@@ -11,6 +11,11 @@ const PROFILE_FIELDS = CONTENT_RESOURCES.members.fields.filter(
     (f) => f.name !== "is_active" && f.name !== "display_order"
 );
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 interface Candidate {
     id: string;
     name: string;
@@ -48,8 +53,8 @@ function ConnectedAccounts() {
 
     return (
         <div
-            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
         >
             <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
                 <Link2 className="w-4 h-4 text-red" />
@@ -135,8 +140,8 @@ export default function ProfilePage() {
     if (mode === "not-ready") {
         return (
             <div
-                className="border border-white/10 bg-white/[0.03] p-8 text-center text-gray-400 text-sm"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] p-8 text-center text-gray-400 text-sm before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 Your profile isn't set up yet — check back once your account has been approved.
             </div>
@@ -161,8 +166,8 @@ export default function ProfilePage() {
                     We don't have this login linked to a Team page entry yet. Is one of these you?
                 </p>
                 <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     {candidates.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No unclaimed entries found.</div>
@@ -212,8 +217,8 @@ export default function ProfilePage() {
             <div className="space-y-6 max-w-xl">
                 {header}
                 <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <ContentEditForm
                         resource="members"
@@ -233,8 +238,8 @@ export default function ProfilePage() {
             <div className="space-y-6 max-w-xl">
                 {header}
                 <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <ContentEditForm
                         resource="members"
@@ -253,8 +258,8 @@ export default function ProfilePage() {
             {header}
             <ConnectedAccounts />
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <ContentEditForm
                     resource="members"

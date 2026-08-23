@@ -48,6 +48,11 @@ const STATUS_LABELS: Record<string, string> = {
     not_shortlisted: "Not shortlisted",
 };
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 // Shortlist status is per (recruit, domain) — a recruit with two domains can be
 // shortlisted in one and pending in the other, so this renders one badge per applied
 // domain rather than a single recruit-level flag.
@@ -243,8 +248,8 @@ export default function SendMailPage() {
             </div>
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 space-y-4"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 space-y-4 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Subject</label>
@@ -329,8 +334,8 @@ export default function SendMailPage() {
             </div>
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <div className="relative flex-1">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -387,8 +392,8 @@ export default function SendMailPage() {
             )}
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>

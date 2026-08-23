@@ -18,6 +18,11 @@ const PROPOSABLE: { key: ContentResource; label: string }[] = [
 
 type Row = Record<string, any>;
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function ProposeContentPage() {
     const ready = useRequireRole(["member"]);
     const [resource, setResource] = useState<ContentResource>("projects");
@@ -107,8 +112,8 @@ export default function ProposeContentPage() {
                     {editing === "new" ? `Propose New ${config.label}` : `Propose Edit — ${editing[config.primaryField]}`}
                 </h1>
                 <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <ContentEditForm
                         fields={config.fields}
@@ -156,8 +161,8 @@ export default function ProposeContentPage() {
             </button>
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>

@@ -21,6 +21,11 @@ const STAT_CARDS = [
     { key: "checkedIn", label: "Checked In", icon: ScanLine, tone: "text-blue-400", ring: "ring-blue-500/30" },
 ] as const;
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function WorkshopsPage() {
     const ready = useRequireRole(["lead", "admin"]);
     const [loading, setLoading] = useState(true);
@@ -68,8 +73,8 @@ export default function WorkshopsPage() {
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.06, duration: 0.35, ease: "easeOut" }}
-                            className={`relative overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 sm:p-5 ring-1 ${card.ring} transition-colors`}
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            className={`relative isolate bg-white/[0.03] backdrop-blur-xl p-4 sm:p-5 ring-1 ${card.ring} transition-colors before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10`}
+                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                         >
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-gray-500">
@@ -91,8 +96,8 @@ export default function WorkshopsPage() {
 
             <Link href="/scanner" className="group block">
                 <div
-                    className="relative overflow-hidden bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 border border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-emerald-500/30"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
                         <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />

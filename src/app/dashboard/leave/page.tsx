@@ -27,6 +27,11 @@ function todayISO(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function LeaveRequestPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
     const [rows, setRows] = useState<LeaveRequest[]>([]);
@@ -103,8 +108,8 @@ export default function LeaveRequestPage() {
 
             <form
                 onSubmit={submit}
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 space-y-4"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 space-y-4 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
@@ -185,8 +190,8 @@ export default function LeaveRequestPage() {
             </form>
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>

@@ -52,6 +52,11 @@ interface RegistrationRow {
     day3Evening: string;
 }
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function EventDashboard() {
     const params = useParams();
     const eventName = typeof params.event === "string" ? params.event : "";
@@ -197,8 +202,8 @@ export default function EventDashboard() {
 
                 <div className="flex flex-wrap gap-3 items-end">
                     <div
-                        className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 flex items-center gap-3 shadow-inner"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        className="relative isolate bg-emerald-500/10 px-4 py-2 flex items-center gap-3 shadow-inner before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-emerald-500/20"
+                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                     >
                         <span className="text-emerald-500/80">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -210,8 +215,8 @@ export default function EventDashboard() {
                     </div>
 
                     <div
-                        className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 flex items-center gap-3 shadow-inner"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        className="relative isolate bg-amber-500/10 px-4 py-2 flex items-center gap-3 shadow-inner before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/20"
+                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                     >
                         <span className="text-amber-500/80">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -224,8 +229,8 @@ export default function EventDashboard() {
 
                     {sessionFilter !== "ALL" && (
                         <div
-                            className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 flex items-center gap-3 shadow-inner"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            className="relative isolate bg-indigo-500/10 px-4 py-2 flex items-center gap-3 shadow-inner before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-indigo-500/20"
+                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                         >
                             <span className="text-indigo-500/80">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -242,8 +247,8 @@ export default function EventDashboard() {
             {/* Attendance Manager Warning Bar */}
             {sessionFilter !== "ALL" && (
                 <div
-                    className="mb-4 bg-indigo-500/10 border border-indigo-500/30 p-3 flex items-center gap-3 backdrop-blur-md"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate mb-4 bg-indigo-500/10 p-3 flex items-center gap-3 backdrop-blur-md before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-indigo-500/30"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <div className="p-2 bg-indigo-500/20">
                         <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -257,8 +262,8 @@ export default function EventDashboard() {
             )}
 
             <div
-                className="bg-gray-900/50 border border-gray-800 overflow-hidden shadow-2xl backdrop-blur-sm"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-gray-900/50 shadow-2xl backdrop-blur-sm before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-gray-800"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
 
                 {/* Controls Bar */}

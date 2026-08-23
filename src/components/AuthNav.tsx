@@ -30,9 +30,9 @@ const SHAPE: Record<keyof typeof VARIANTS, string> = {
 // renders as two nested elements: an outer one filled with the border color and padded
 // by the border width, and an inner one with the real fill — see the JSX below.
 const SHARP_CLIP = "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)";
-const SHARP_OUTER = "group inline-block p-[2px] shadow-sm transition-all active:scale-[0.97] bg-black hover:bg-red";
+const SHARP_OUTER = "group inline-block max-w-[48%] p-[2px] shadow-sm transition-all active:scale-[0.97] bg-black hover:bg-red";
 const SHARP_INNER =
-    "flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all bg-white text-black group-hover:bg-red group-hover:text-white";
+    "flex min-w-0 items-center gap-2 px-4 py-2 text-sm font-semibold transition-all bg-white text-black group-hover:bg-red group-hover:text-white";
 
 /**
  * Back + Home pills that sit above an auth card. `onBack` lets multi-step pages
@@ -67,17 +67,17 @@ export default function AuthNav({
 
     if (variant === "sharp") {
         return (
-            <div className={`flex items-center justify-between mb-4 ${className}`}>
+            <div className={`flex min-w-0 items-center justify-between gap-3 mb-4 ${className}`}>
                 <button type="button" onClick={handleBack} className={SHARP_OUTER} style={{ clipPath: SHARP_CLIP }}>
                     <span className={SHARP_INNER} style={{ clipPath: SHARP_CLIP }}>
                         <ArrowLeft className="w-4 h-4" />
-                        {backLabel}
+                        <span className="truncate">{backLabel}</span>
                     </span>
                 </button>
                 <Link href="/" className={SHARP_OUTER} style={{ clipPath: SHARP_CLIP }}>
                     <span className={SHARP_INNER} style={{ clipPath: SHARP_CLIP }}>
                         <Home className="w-4 h-4" />
-                        Home
+                        <span className="truncate">Home</span>
                     </span>
                 </Link>
             </div>

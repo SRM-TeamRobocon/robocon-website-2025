@@ -23,8 +23,6 @@ type Ticket = {
 // Sharp red/white/black poster theme — matches the rest of the reskinned dashboard
 // (see src/app/recruit/dashboard/page.tsx). Only used on that page, so no dark-glass
 // remnants need to survive here.
-const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
-
 export default function TicketsSection({ currentDomains }: { currentDomains: string[] }) {
     const router = useRouter();
     const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -136,15 +134,14 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
 
     return (
         <div
-            className="relative isolate bg-white p-6 md:p-8 before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="relative min-w-0 overflow-hidden border-2 border-black bg-white p-6 md:p-8"
         >
             <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// raise a ticket</p>
 
             {openTicket ? (
                 <div className="border border-amber-600 bg-amber-50 px-4 py-3 space-y-1.5">
-                    <div className="flex items-center justify-between gap-3">
-                        <span className="font-mono text-xs font-bold uppercase tracking-widest text-amber-700">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <span className="break-words font-mono text-xs font-bold uppercase tracking-widest text-amber-700">
                             {openTicket.category === "domain_change" ? "Domain Change" : "General"} — Pending Review
                         </span>
                         <span className="text-xs text-black/40">
@@ -152,20 +149,20 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                         </span>
                     </div>
                     {openTicket.category === "domain_change" && openTicket.from_sub_domain && openTicket.requested_sub_domain && (
-                        <p className="text-sm text-black/70">
+                        <p className="break-words text-sm text-black/70">
                             {subDomainFullLabel(openTicket.from_sub_domain)} → {subDomainFullLabel(openTicket.requested_sub_domain)}
                         </p>
                     )}
-                    <p className="text-sm text-black/60 whitespace-pre-wrap">{openTicket.message}</p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-black/60">{openTicket.message}</p>
                     <p className="text-xs text-black/40">A lead will review this and get back to you.</p>
                 </div>
             ) : (
                 <div className="space-y-3">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                         <button
                             type="button"
                             onClick={() => selectCategory("general")}
-                            className={`flex-1 border px-3 py-2 text-xs font-bold uppercase tracking-widest transition ${
+                            className={`min-w-0 flex-1 border px-3 py-2 text-xs font-bold uppercase tracking-widest transition ${
                                 category === "general"
                                     ? "border-red bg-red/10 text-red"
                                     : "border-black/15 bg-white text-black/50 hover:border-black/30"
@@ -178,7 +175,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                             onClick={() => canRequestDomainChange && selectCategory("domain_change")}
                             disabled={!canRequestDomainChange}
                             title={canRequestDomainChange ? undefined : "You have no domains registered yet"}
-                            className={`flex-1 border px-3 py-2 text-xs font-bold uppercase tracking-widest transition ${
+                            className={`min-w-0 flex-1 border px-3 py-2 text-xs font-bold uppercase tracking-widest transition ${
                                 category === "domain_change"
                                     ? "border-red bg-red/10 text-red"
                                     : "border-black/15 bg-white text-black/50 hover:border-black/30"
@@ -223,7 +220,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                                 : "What do you need help with?"
                         }
                         rows={3}
-                        className="w-full border-2 border-black/15 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
+                        className="w-full min-w-0 border-2 border-black/15 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
                     />
 
                     {error && <p className="text-xs text-red font-bold">{error}</p>}
@@ -244,8 +241,8 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                     <p className="text-xs font-bold uppercase tracking-widest text-black/30 mb-2">Past Tickets</p>
                     {history.map((t) => (
                         <div key={t.id} className="border border-black/15 px-4 py-3 bg-black/[0.02]">
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-black/50">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                <span className="break-words text-xs font-bold uppercase tracking-widest text-black/50">
                                     {t.category === "domain_change" ? "Domain Change" : "General"}
                                 </span>
                                 <span className="text-xs font-bold uppercase tracking-widest text-emerald-700">
@@ -253,13 +250,13 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                                 </span>
                             </div>
                             {t.category === "domain_change" && t.from_sub_domain && t.requested_sub_domain && (
-                                <p className="mt-1 text-xs text-black/60">
+                                <p className="mt-1 break-words text-xs text-black/60">
                                     {subDomainFullLabel(t.from_sub_domain)} → {subDomainFullLabel(t.requested_sub_domain)}
                                 </p>
                             )}
-                            <p className="mt-1 text-sm text-black/50 whitespace-pre-wrap">{t.message}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-black/50">{t.message}</p>
                             {t.resolution_note && (
-                                <p className="mt-1.5 text-sm text-black/70 border-l-2 border-black/20 pl-2">
+                                <p className="mt-1.5 break-words border-l-2 border-black/20 pl-2 text-sm text-black/70">
                                     {t.resolution_note}
                                 </p>
                             )}

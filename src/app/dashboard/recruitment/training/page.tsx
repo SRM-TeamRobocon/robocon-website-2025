@@ -84,6 +84,11 @@ function formatTime(value: string) {
     }
 }
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function TrainingAttendancePage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
 
@@ -279,8 +284,8 @@ export default function TrainingAttendancePage() {
             {/* Start attendance */}
             <form
                 onSubmit={startAttendance}
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-400">
                     <CalendarPlus className="h-4 w-4 text-red" /> Start Attendance
@@ -333,8 +338,8 @@ export default function TrainingAttendancePage() {
             <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
                 {/* Sessions list */}
                 <section
-                    className="h-fit overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate h-fit bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <div className="border-b border-white/10 px-4 py-3">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">
@@ -379,24 +384,24 @@ export default function TrainingAttendancePage() {
                 <section className="space-y-4">
                     {!selectedSessionId ? (
                         <div
-                            className="border border-white/10 bg-white/[0.03] p-10 text-center"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            className="relative isolate bg-white/[0.03] p-10 text-center before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                         >
                             <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                             <p className="text-sm text-gray-400">Create or select a session to view attendance.</p>
                         </div>
                     ) : loadingDetail || !detail ? (
                         <div
-                            className="border border-white/10 bg-white/[0.03] p-10 text-center text-sm text-gray-500"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            className="relative isolate bg-white/[0.03] p-10 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                         >
                             Loading attendance...
                         </div>
                     ) : (
                         <>
                             <div
-                                className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-white/[0.03] p-5"
-                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                className="relative isolate flex flex-wrap items-center justify-between gap-3 bg-white/[0.03] p-5 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                             >
                                 <div>
                                     <p className="text-lg font-bold text-white">{domainLabel(detail.session.sub_domain)}</p>
@@ -433,8 +438,8 @@ export default function TrainingAttendancePage() {
                             <div className="grid gap-4 md:grid-cols-2">
                                 {/* Attended */}
                                 <div
-                                    className="overflow-hidden border border-white/10 bg-white/[0.03]"
-                                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                    className="relative isolate bg-white/[0.03] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                                 >
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
@@ -480,8 +485,8 @@ export default function TrainingAttendancePage() {
 
                                 {/* Pending / manual mark */}
                                 <div
-                                    className="overflow-hidden border border-white/10 bg-white/[0.03]"
-                                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                                    className="relative isolate bg-white/[0.03] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                                 >
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
@@ -521,8 +526,8 @@ export default function TrainingAttendancePage() {
 
             {/* Overall attendance % per recruit */}
             <section
-                className="overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <div className="border-b border-white/10 px-5 py-4">
                     <h2 className="text-lg font-bold text-white">Attendance % Across All Sessions</h2>

@@ -13,6 +13,11 @@ type KbDocument = {
     chunk_count: number;
 };
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function KnowledgeBasePage() {
     const { ready } = useRoleGate(["lead", "admin"]);
     const [documents, setDocuments] = useState<KbDocument[]>([]);
@@ -121,8 +126,8 @@ export default function KnowledgeBasePage() {
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : documents.length === 0 ? (
                 <div
-                    className="border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-gray-500"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] p-8 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     No files uploaded yet.
                 </div>
@@ -131,8 +136,8 @@ export default function KnowledgeBasePage() {
                     {documents.map((doc) => (
                         <div
                             key={doc.id}
-                            className="flex items-center justify-between gap-3 border border-white/10 bg-white/[0.03] px-4 py-3"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                            className="relative isolate flex items-center justify-between gap-3 bg-white/[0.03] px-4 py-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                         >
                             <div className="flex items-center gap-3 min-w-0">
                                 <FileText className="h-5 w-5 text-gray-500 shrink-0" />

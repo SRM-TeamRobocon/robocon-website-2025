@@ -83,8 +83,11 @@ export default function Home() {
               className="flex flex-col gap-5 mx-10"
             >
             <button onClick={() => router.push("/recruit/register")} rel="noopener noreferrer"
-              className="group relative mt-8 inline-flex items-center justify-center overflow-hidden bg-red px-10 py-3 font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
-              style={{ clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)" }}
+              className="group relative mt-8 inline-flex appearance-none items-center justify-center overflow-hidden bg-red px-10 py-3 font-bold text-white shadow-lg shadow-red/30 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
+              style={{
+                clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)",
+                WebkitTapHighlightColor: "transparent",
+              }}
             >
             <span
               className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"

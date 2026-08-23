@@ -14,8 +14,6 @@ type FaqRow = {
 // Sharp red/white/black poster theme — matches the rest of the reskinned dashboard
 // (see src/app/recruit/dashboard/page.tsx). Only used on that page, so no dark-glass
 // remnants need to survive here.
-const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
-
 export default function FaqSection() {
     const [faqs, setFaqs] = useState<FaqRow[]>([]);
     const [openId, setOpenId] = useState<string | null>(null);
@@ -46,8 +44,7 @@ export default function FaqSection() {
 
     return (
         <div
-            className="relative isolate bg-white p-6 md:p-8 before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="relative border-2 border-black bg-white p-6 md:p-8"
         >
             <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// faq</p>
             <div className="space-y-2">

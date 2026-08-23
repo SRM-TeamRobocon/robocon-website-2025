@@ -632,17 +632,17 @@ export default function RecruitScannerPage() {
                         <GlassCard
                             contentClassName="relative p-4 md:p-6"
                             borderRadius={28}
-                            className={`transition-all duration-200 ${flash === "success"
-                                ? "ring-2 ring-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+                            className={`transition-colors duration-150 ${flash === "success"
+                                ? "ring-2 ring-emerald-500"
                                 : flash === "warn"
-                                    ? "ring-2 ring-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.3)]"
+                                    ? "ring-2 ring-amber-500"
                                     : flash === "error"
-                                        ? "ring-2 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                                        ? "ring-2 ring-red-500"
                                         : ""
                                 }`}
                         >
                             {result && result.status === "not_shortlisted" && pendingWalkin ? (
-                                <div className="absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md" style={{ backgroundColor: "rgba(3, 7, 18, 0.95)" }}>
+                                <div className="absolute inset-0 z-50 flex items-center justify-center p-6" style={{ backgroundColor: "rgba(3, 7, 18, 0.97)" }}>
                                     <div className="text-center max-w-sm w-full">
                                         <h2 className="text-2xl font-black mb-2" style={{ color: "#fbbf24" }}>
                                             Not Shortlisted
@@ -668,7 +668,7 @@ export default function RecruitScannerPage() {
                                     </div>
                                 </div>
                             ) : result ? (
-                                <div className="absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-md" style={{ backgroundColor: "rgba(3, 7, 18, 0.95)" }}>
+                                <div className="absolute inset-0 z-50 flex items-center justify-center p-6" style={{ backgroundColor: "rgba(3, 7, 18, 0.97)" }}>
                                     <div className="text-center max-w-sm w-full">
                                         <h2
                                             className="text-2xl font-black mb-2"

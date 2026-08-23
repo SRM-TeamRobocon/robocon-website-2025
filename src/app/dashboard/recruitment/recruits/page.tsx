@@ -14,6 +14,11 @@ import Select from "@/components/ui/select";
 
 const DOMAIN_GROUPS = groupBySubsystem();
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 type SortKey = "name" | "reg_no";
 
 interface Recruit {
@@ -193,8 +198,8 @@ export default function RecruitsPage() {
             </div>
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <div className="relative flex-1">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -236,8 +241,8 @@ export default function RecruitsPage() {
             </div>
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -441,8 +446,8 @@ function EditRecruitModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             <div
-                className="w-full max-w-lg border border-white/10 bg-gray-950 p-6 max-h-[90vh] overflow-y-auto"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate w-full max-w-lg bg-gray-950 p-6 max-h-[90vh] overflow-y-auto before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 <h2 className="text-xl font-bold text-white mb-4">Edit Recruit</h2>
 

@@ -18,6 +18,11 @@ import { useRequireRole } from "@/hooks/use-require-role";
 
 import { subDomainLabel, subDomainSubsystem, RECRUIT_SUBDOMAIN_KEYS } from "@/lib/recruit-domains";
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 // Only registration is live for this cycle — orientation/exam/shortlist/interview/training
 // haven't started, so those sections are commented out below (not deleted) rather than
 // removed. Re-enable them once those stages have real data; the API already computes all
@@ -108,6 +113,17 @@ function ChartTooltip({ active, payload, label }: TooltipContentProps) {
 const axisTick = { fill: "#9ca3af", fontSize: 11 };
 const legendStyle = { fontSize: 11, color: "#9ca3af" };
 
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+    return (
+        <div
+            className={`relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 ${className}`}
+            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+        >
+            {children}
+        </div>
+    );
+}
+
 function FunnelBar({
     label,
     value,
@@ -194,39 +210,25 @@ export default function RecruitmentAnalyticsPage() {
             </div>
 
             {loading ? (
-                <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
-                    Loading...
-                </div>
+                <Card className="p-8 text-center text-gray-500 text-sm">Loading...</Card>
             ) : error || !data ? (
-                <div
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm flex flex-col items-center gap-2"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
+                <Card className="p-8 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                     {error || "No data available."}
-                </div>
+                </Card>
             ) : (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div
-                            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                        >
+                        <Card className="p-6">
                             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Active Cycle</p>
                             <p className="text-xl font-bold text-white">
                                 {data.cycle.name} <span className="text-gray-500 font-normal">({data.cycle.year})</span>
                             </p>
-                        </div>
-                        <div
-                            className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                        >
+                        </Card>
+                        <Card className="p-6">
                             <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Total Registered</p>
                             <p className="text-2xl font-black text-white">{data.overall.registered}</p>
-                        </div>
+                        </Card>
                     </div>
 
                     {/* Overall Funnel — commented out, only "registered" is meaningful right now.
@@ -312,10 +314,7 @@ export default function RecruitmentAnalyticsPage() {
                     </div>
                     */}
 
-                    <div
-                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 space-y-4"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                    >
+                    <Card className="p-6 space-y-4">
                         <h2 className="text-lg font-bold text-white">Registration Share by Domain</h2>
                         <div style={{ width: "100%", height: 280 }}>
                             <ResponsiveContainer>
@@ -342,7 +341,7 @@ export default function RecruitmentAnalyticsPage() {
                                 />
                             ))}
                         </div>
-                    </div>
+                    </Card>
 
                     {/* Selection Yield by Domain — commented out, no selections yet.
                     <div
@@ -361,10 +360,7 @@ export default function RecruitmentAnalyticsPage() {
                     </div>
                     */}
 
-                    <div
-                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                    >
+                    <Card>
                         <div className="p-5 pb-0">
                             <h2 className="text-lg font-bold text-white">Registrations by Gender, per Domain</h2>
                             <p className="mt-1 text-xs text-gray-500">Registered recruits only. &quot;Unspecified&quot; covers accounts predating the gender field.</p>
@@ -412,12 +408,9 @@ export default function RecruitmentAnalyticsPage() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </Card>
 
-                    <div
-                        className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                    >
+                    <Card>
                         <div className="p-5 pb-0">
                             <h2 className="text-lg font-bold text-white">Registrations by Residence, per Domain</h2>
                             <p className="mt-1 text-xs text-gray-500">Registered recruits only — hosteller vs day scholar.</p>
@@ -462,7 +455,7 @@ export default function RecruitmentAnalyticsPage() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </Card>
 
                     {/* Training Attendance — commented out, training hasn't started.
                     <div

@@ -11,8 +11,6 @@ import { recruitFetch } from "@/lib/recruit-fetch-client";
 //
 // Sharp red/white/black poster theme to match the redesigned dashboard this sits in —
 // NOT the old dark-glass look used elsewhere in this directory (GlassCard, RecruitBackdrop).
-const BANNER_CLIP = "polygon(0 0,100% 0,100% 92%,98% 100%,0 100%)";
-
 export default function EmailVerifyBanner({
     srmEmail,
     verified,
@@ -88,8 +86,7 @@ export default function EmailVerifyBanner({
 
     return (
         <div
-            className="relative isolate w-full bg-red/5 p-4 sm:p-5 before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black"
-            style={{ clipPath: BANNER_CLIP, "--clip": BANNER_CLIP } as any}
+            className="relative w-full border-2 border-black bg-red/5 p-4 sm:p-5"
         >
             <button
                 type="button"
@@ -125,11 +122,10 @@ export default function EmailVerifyBanner({
                     className={`group relative mt-3 flex items-center justify-center overflow-hidden px-6 py-2 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] ${
                         sendLoading ? "bg-red/40 cursor-not-allowed" : "bg-red hover:bg-red/90"
                     }`}
-                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                 >
                     <span
                         className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)", backgroundColor: "#D4AF37" }}
+                        style={{ backgroundColor: "#D4AF37" }}
                     />
                     <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
                         {sendLoading ? "Sending..." : "Send OTP"}
@@ -153,11 +149,10 @@ export default function EmailVerifyBanner({
                         className={`group relative flex items-center justify-center overflow-hidden px-6 py-2 text-xs font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] ${
                             verifyLoading || otp.length !== 6 ? "bg-red/40 cursor-not-allowed" : "bg-red hover:bg-red/90"
                         }`}
-                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
                         <span
                             className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                            style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)", backgroundColor: "#D4AF37" }}
+                            style={{ backgroundColor: "#D4AF37" }}
                         />
                         <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
                             {verifyLoading ? "Verifying..." : "Verify"}

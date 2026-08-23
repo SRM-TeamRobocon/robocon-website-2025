@@ -25,6 +25,11 @@ interface PendingAction {
     run: () => Promise<void>;
 }
 
+// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
+// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
+// uniformly around the real box, including along the diagonal cut corner.
+const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
+
 export default function RecruitmentCyclesPage() {
     const ready = useRequireRole(["lead", "admin"]);
     const [role, setRole] = useState<string | null>(null);
@@ -212,8 +217,8 @@ export default function RecruitmentCyclesPage() {
 
             {isAdmin && !activeCycle && !loading && cycles.length > 0 && (
                 <div
-                    className="border border-amber-500/30 bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/30"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-200/90">
@@ -227,8 +232,8 @@ export default function RecruitmentCyclesPage() {
             {isAdmin && (
                 <form
                     onSubmit={createCycle}
-                    className="border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                 >
                     <div className="flex-1">
                         <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">
@@ -273,8 +278,8 @@ export default function RecruitmentCyclesPage() {
             )}
 
             <div
-                className="border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -355,8 +360,8 @@ export default function RecruitmentCyclesPage() {
             {pending && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
                     <div
-                        className="w-full max-w-md border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+                        className="relative isolate w-full max-w-md bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
                     >
                         <h2 className="flex items-center gap-2 text-lg font-bold text-white">
                             <AlertTriangle className="h-5 w-5 text-red" />

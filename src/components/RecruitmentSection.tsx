@@ -10,6 +10,7 @@ const DOMAIN_CARD_CLIP = "polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)";
 const VIDEO_FRAME_CLIP = "polygon(4% 0%,100% 0%,96% 100%,0% 100%)";
 const CLIP_BORDER_CLASSES =
     "relative isolate before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black";
+const DOMAIN_CARD_CLASSES = "relative bg-black p-[2px]";
 
 const recruitmentVideos = [
     {
@@ -70,7 +71,7 @@ const RecruitmentSection = () => {
             <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-14 md:gap-20">
                 {/* Headline */}
                 <div className="max-w-3xl text-center">
-                    <div className="mb-6 inline-block bg-red px-4 py-1.5 text-xs font-bold tracking-[0.3em] text-white md:text-sm">
+                    <div className="mb-6 inline-block max-w-full bg-red px-4 py-1.5 text-xs font-bold tracking-[0.24em] text-white md:text-sm md:tracking-[0.3em]">
                         RECRUITMENT
                     </div>
                     <h1 className="text-black text-5xl font-bold leading-[1.02] tracking-tight md:text-7xl">
@@ -106,15 +107,15 @@ const RecruitmentSection = () => {
                 </div>
 
                 {/* Tagline */}
-                <div className="w-full border-y-2 border-black/10 py-8 text-center">
+                <div className="w-full max-w-full overflow-hidden border-y-2 border-black/10 py-8 text-center">
                     <div
-                        className="text-4xl font-bold uppercase tracking-tight md:text-7xl"
+                        className="break-words text-[clamp(2.2rem,8vw,4.5rem)] font-bold uppercase leading-none tracking-normal"
                         style={{ color: "#D4AF37" }}
                     >
                         Make. Break. Innovate.
                     </div>
                     <div
-                        className="text-4xl font-bold uppercase tracking-tight md:text-7xl"
+                        className="mt-2 break-words text-[clamp(2rem,7vw,4.5rem)] font-bold uppercase leading-none tracking-normal"
                         style={{ color: "#D4AF37" }}
                     >
                        DD ROBOCON 2026 AIR 5
@@ -126,16 +127,18 @@ const RecruitmentSection = () => {
                     {domains.map((domain) => (
                         <div
                             key={domain.acronym}
-                            className={`bg-white p-5 ${CLIP_BORDER_CLASSES}`}
+                            className={`min-w-0 ${DOMAIN_CARD_CLASSES}`}
                             style={{ clipPath: DOMAIN_CARD_CLIP, "--clip": DOMAIN_CARD_CLIP } as any}
                         >
-                            <h3 className="text-lg font-bold tracking-tight text-black md:text-xl">
-                                {domain.acronym}
-                            </h3>
-                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-red">
-                                {domain.full}
-                            </p>
-                            <p className="mt-3 text-sm text-black/70">{domain.blurb}</p>
+                            <div className="h-full w-full bg-white p-5" style={{ clipPath: DOMAIN_CARD_CLIP }}>
+                                <h3 className="break-words text-lg font-bold tracking-tight text-black md:text-xl">
+                                    {domain.acronym}
+                                </h3>
+                                <p className="mt-1 break-words text-[11px] font-semibold uppercase tracking-wide text-red">
+                                    {domain.full}
+                                </p>
+                                <p className="mt-3 break-words text-sm text-black/70">{domain.blurb}</p>
+                            </div>
                         </div>
                     ))}
                 </div>

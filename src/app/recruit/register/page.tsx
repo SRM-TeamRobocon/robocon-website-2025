@@ -47,11 +47,11 @@ type ProfileForm = {
 const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
 function CardShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
     return (
-        <div className="min-h-[100dvh] flex items-center justify-center bg-white p-5">
-            <div className="w-full max-w-lg">
+        <div className="flex min-h-[100dvh] items-center justify-center overflow-x-hidden bg-white p-4 sm:p-5">
+            <div className="w-full max-w-lg min-w-0">
                 <AuthNav variant="sharp" onBack={onBack} />
                 <div className="w-full bg-black p-[2px]" style={{ clipPath: CARD_CLIP }}>
-                    <div className="h-full w-full bg-white p-8" style={{ clipPath: CARD_CLIP }}>
+                    <div className="h-full w-full overflow-hidden bg-white p-6 sm:p-8" style={{ clipPath: CARD_CLIP }}>
                         <div className="flex justify-center mb-6">
                             <Image
                                 src="/LOGO.png"
@@ -327,7 +327,7 @@ function RecruitRegisterInner() {
     return (
         <CardShell onBack={stepBack}>
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold tracking-tight text-black sm:text-3xl">Recruit Registration</h2>
+                <h2 className="break-words text-2xl font-bold tracking-tight text-black sm:text-3xl">Recruit Registration</h2>
                 <p className="mt-2 text-sm text-black/50">SRM Team Robocon — {new Date().getFullYear()} recruitment</p>
             </div>
 
@@ -398,7 +398,7 @@ function RecruitRegisterInner() {
                                     value={srmEmail}
                                     onChange={(e) => setSrmEmail(e.target.value)}
                                     placeholder="ab1234@srmist.edu.in"
-                                    className="block w-full border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
+                                    className="block w-full min-w-0 border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
                                 />
                             </div>
                             <p className="mt-2 text-xs text-black/40">
@@ -439,7 +439,7 @@ function RecruitRegisterInner() {
                         placeholder="RA2211026010001"
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label htmlFor="year" className="block text-sm font-medium leading-6 text-black/70">
                                 Year
@@ -463,7 +463,7 @@ function RecruitRegisterInner() {
 
                     <div>
                         <label className="block text-sm font-medium leading-6 text-black/70 mb-2">Gender</label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {GENDERS.map((opt) => {
                                 const checked = profile.gender === opt.key;
                                 return (
@@ -471,7 +471,7 @@ function RecruitRegisterInner() {
                                         key={opt.key}
                                         type="button"
                                         onClick={() => setProfile((prev) => ({ ...prev, gender: opt.key }))}
-                                        className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                        className={`min-w-0 break-words border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
                                                 ? "bg-red/10 border-2 border-red text-black"
                                                 : "bg-white border-black/15 text-black/60 hover:border-black/40"
@@ -499,7 +499,7 @@ function RecruitRegisterInner() {
                         <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
                             Do you stay in a hostel?
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[
                                 { label: "Hosteller", value: true },
                                 { label: "Day Scholar", value: false },
@@ -524,7 +524,7 @@ function RecruitRegisterInner() {
                                                 travelMethod: opt.value ? "" : prev.travelMethod,
                                             }))
                                         }
-                                        className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                        className={`min-w-0 break-words border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
                                                 ? "bg-red/10 border-2 border-red text-black"
                                                 : "bg-white border-black/15 text-black/60 hover:border-black/40"
@@ -538,7 +538,7 @@ function RecruitRegisterInner() {
                     </div>
 
                     {profile.isHosteller && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
                                 <label htmlFor="hostelBlock" className="block text-sm font-medium leading-6 text-black/70">
                                     Hostel Block
@@ -577,7 +577,7 @@ function RecruitRegisterInner() {
                                 <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
                                     How do you travel to college?
                                 </label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     {TRAVEL_METHODS.map((opt) => {
                                         const checked = profile.travelMethod === opt.key;
                                         return (
@@ -587,7 +587,7 @@ function RecruitRegisterInner() {
                                                 onClick={() =>
                                                     setProfile((prev) => ({ ...prev, travelMethod: opt.key }))
                                                 }
-                                                className={`border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
+                                                className={`min-w-0 break-words border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                                     checked
                                                         ? "bg-red/10 border-2 border-red text-black"
                                                         : "bg-white border-black/15 text-black/60 hover:border-black/40"
@@ -612,14 +612,14 @@ function RecruitRegisterInner() {
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 mb-1.5">
                                         {group.subsystem}
                                     </p>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         {group.domains.map((opt) => {
                                             const checked = domains.includes(opt.key);
                                             const disabled = !checked && domains.length >= 2;
                                             return (
                                                 <label
                                                     key={opt.key}
-                                                    className={`flex items-center gap-2 border px-3 py-2.5 text-sm transition-all cursor-pointer ${
+                                                    className={`flex min-w-0 items-start gap-2 border px-3 py-2.5 text-sm transition-all cursor-pointer ${
                                                         checked
                                                             ? "bg-red/10 border-red/60 text-black"
                                                             : disabled
@@ -634,7 +634,7 @@ function RecruitRegisterInner() {
                                                         disabled={disabled}
                                                         onChange={() => toggleDomain(opt.key)}
                                                     />
-                                                    {opt.label}
+                                                    <span className="min-w-0 break-words">{opt.label}</span>
                                                 </label>
                                             );
                                         })}
@@ -737,7 +737,7 @@ function Field({
                     onChange={onChange}
                     placeholder={placeholder}
                     autoComplete={autoComplete}
-                    className={`block w-full border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all ${
+                    className={`block w-full min-w-0 border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}
                 />

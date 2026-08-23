@@ -9,14 +9,8 @@ const TIMELINE: TimelineEntry[] = [
   { years: "2015" },
   { years: "2016-17", highlight: "National Rank 13 of 110" },
   { years: "2018" },
-];
-
-// Reflects the old team website's numbers as of its last update, not necessarily current totals —
-// update these if the team has newer figures.
-const STATS = [
-  { value: "18", label: "Members" },
-  { value: "11", label: "Robots Built" },
-  { value: "6", label: "Competitions" },
+  { years: "2023", highlight: "Back on the national stage" },
+  { years: "2026", highlight: "AIR 5 — DD Robocon" },
 ];
 
 export default function AchievementsHistory() {
@@ -25,7 +19,7 @@ export default function AchievementsHistory() {
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
         <h2 className="text-xl font-bold text-white md:text-2xl">Our ABU Robocon Journey</h2>
         <p className="mt-1 text-sm text-white/60">
-          Six years on the national stage, from our first entry to a top-13 finish.
+          From our first national entry in 2013 to AIR 5 in 2026.
         </p>
 
         <div className="relative mt-8">
@@ -51,15 +45,6 @@ export default function AchievementsHistory() {
               </li>
             ))}
           </ol>
-        </div>
-
-        <div className="mt-10 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-2xl font-bold text-white md:text-3xl">{stat.value}</div>
-              <div className="mt-1 text-xs text-white/60 md:text-sm">{stat.label}</div>
-            </div>
-          ))}
         </div>
       </div>
     </section>

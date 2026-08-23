@@ -9,12 +9,12 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
-// A `border` doesn't render along a clip-path's angled edge, so the light-theme panels
-// below simulate their border with a ::before pseudo-element instead (`before:` classes).
-const LIGHT_PANEL_CLIP = "polygon(0 0,100% 0,100% 96%,96% 100%,0 100%)";
-const CLIP_BORDER_CLASSES =
-    "relative isolate before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black";
-
+// A `border` doesn't render along a clip-path's angled edge (and a `::before` pseudo with
+// a negative z-index doesn't work either — it still paints on top of this element's own
+// background, just below its children, so it blacks out any part of the card without its
+// own opaque content). The light-theme panels below simulate their border with two nested
+// elements instead: an outer one filled with the border color and padded by the border
+// width, and an inner one with the real fill.
 // Renders message text with any http(s) URLs turned into clickable links — the RAG
 // answer's Instagram fallback (see src/lib/rag/answer.ts) includes a raw URL that would
 // otherwise render as inert plain text.
@@ -111,10 +111,16 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                 <div
                     className={
                         light
-                            ? `fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col bg-white shadow-2xl ${CLIP_BORDER_CLASSES}`
-                            : "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] flex flex-col rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+                            ? "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] bg-black p-[2px]"
+                            : "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem]"
                     }
-                    style={light ? ({ clipPath: LIGHT_PANEL_CLIP, "--clip": LIGHT_PANEL_CLIP } as any) : undefined}
+                >
+                <div
+                    className={
+                        light
+                            ? "flex h-full w-full flex-col bg-white shadow-2xl"
+                            : "flex flex-col h-full rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+                    }
                 >
                     <div
                         className={
@@ -216,6 +222,7 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                         </button>
                     </div>
                 </div>
+                </div>
             )}
 
             <button
@@ -230,16 +237,13 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
 }
 
 // Inline sharp red/white/black widget — always-open card matching RecruitmentSection's
-// poster aesthetic (angled clip-path corner, black border, no glass/blur). Public
+// poster aesthetic (black border, no glass/blur). Public
 // endpoint: no recruit_token, works for homepage visitors who haven't registered yet.
 export function InlineChatWidget() {
     const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/public-chat");
 
     return (
-        <div
-            className={`w-full bg-white ${CLIP_BORDER_CLASSES}`}
-            style={{ clipPath: LIGHT_PANEL_CLIP, "--clip": LIGHT_PANEL_CLIP } as any}
-        >
+        <div className="w-full border-2 border-black bg-white">
             <div className="flex items-center gap-2 border-b-2 border-black px-5 py-3">
                 <MessageCircle className="h-4 w-4 text-red" strokeWidth={2.5} />
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-black">Ask a Doubt</p>

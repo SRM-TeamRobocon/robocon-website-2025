@@ -149,7 +149,7 @@ export default function Select({
     }
 
     return (
-        <div ref={rootRef} className="relative">
+        <div ref={rootRef} className="relative min-w-0">
             <button
                 ref={buttonRef}
                 type="button"
@@ -161,8 +161,8 @@ export default function Select({
                 onClick={() => setOpen((o) => !o)}
                 className={cn(
                     accent === "sharp"
-                        ? `flex w-full items-center justify-between gap-2 border-2 border-black/15 bg-white py-3 px-4 text-left text-black shadow-sm outline-none transition-all focus:border-red focus:ring-2 ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`
-                        : `flex w-full items-center justify-between gap-2 rounded-xl border-0 bg-white/10 py-3 px-4 text-left text-white shadow-sm ring-1 ring-inset ring-white/15 outline-none transition-all focus:ring-2 focus:ring-inset ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`,
+                        ? `flex w-full min-w-0 items-center justify-between gap-2 border-2 border-black/15 bg-white py-3 px-4 text-left text-black shadow-sm outline-none transition-all focus:border-red focus:ring-2 ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`
+                        : `flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border-0 bg-white/10 py-3 px-4 text-left text-white shadow-sm ring-1 ring-inset ring-white/15 outline-none transition-all focus:ring-2 focus:ring-inset ${colors.ring} disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm sm:leading-6`,
                     className
                 )}
             >

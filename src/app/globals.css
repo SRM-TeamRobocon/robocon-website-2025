@@ -279,6 +279,25 @@
     color: var(--foreground);
   }
 
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  img,
+  video,
+  canvas,
+  iframe {
+    max-width: 100%;
+  }
+
   .robocon-theme-bg {
     position: relative;
     background: transparent !important;
