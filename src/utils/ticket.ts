@@ -1,5 +1,5 @@
-import nodemailer from 'nodemailer';
 import QRCode from 'qrcode';
+import { getTransporter, SMTP_EMAIL } from '@/lib/mailer';
 
 export async function generateTicketId(name: string, phone: string): Promise<string> {
     const prefix = "ROBO";
@@ -35,20 +35,13 @@ export async function sendConfirmationEmail(
     ticketId: string,
     qrDataUrl: string
 ) {
-    if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
+    const transporter = getTransporter();
+    if (!transporter || !SMTP_EMAIL) {
         console.warn("SMTP credentials missing. Email not sent, but process continues.");
         return false;
     }
 
     try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.SMTP_EMAIL,
-                pass: process.env.SMTP_PASSWORD,
-            },
-        });
-
         const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; color: #333; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
         <div style="background-color: #1a1a2e; color: white; padding: 30px 20px; text-align: center;">
@@ -86,7 +79,7 @@ export async function sendConfirmationEmail(
     `;
 
         await transporter.sendMail({
-            from: `"SRM Team Robocon" <${process.env.SMTP_EMAIL}>`,
+            from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
             to: toEmail,
             subject: `Your Ticket: ${workshopName} Workshop`,
             html: htmlContent,

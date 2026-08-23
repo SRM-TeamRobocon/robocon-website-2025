@@ -1,9 +1,9 @@
 import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
 
-import { generateTicketId, generateQrCode, sendConfirmationEmail } from "../src/utils/ticket";
-
 async function run() {
+    const { generateTicketId, generateQrCode, sendConfirmationEmail } = await import("../src/utils/ticket");
+
     console.log("Generating ticket...");
     const ticketId = await generateTicketId("Daksh Kothari", "9876543210");
     const qrData = await generateQrCode(ticketId);
