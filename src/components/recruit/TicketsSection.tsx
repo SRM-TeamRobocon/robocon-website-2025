@@ -134,9 +134,9 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
 
     return (
         <div
-            className="relative min-w-0 overflow-hidden border-2 border-black bg-white p-6 md:p-8"
+            className="relative min-w-0 overflow-hidden border-2 border-red bg-black p-6 md:p-8"
         >
-            <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// raise a ticket</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4">// raise a ticket</p>
 
             {openTicket ? (
                 <div className="border border-amber-600 bg-amber-50 px-4 py-3 space-y-1.5">
@@ -165,7 +165,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                             className={`min-w-0 flex-1 border px-3 py-2 text-xs font-bold uppercase tracking-widest transition ${
                                 category === "general"
                                     ? "border-red bg-red/10 text-red"
-                                    : "border-black/15 bg-white text-black/50 hover:border-black/30"
+                                    : "border-white/15 bg-black text-white/50 hover:border-white/30"
                             }`}
                         >
                             General
@@ -178,7 +178,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                             className={`min-w-0 flex-1 border px-3 py-2 text-xs font-bold uppercase tracking-widest transition ${
                                 category === "domain_change"
                                     ? "border-red bg-red/10 text-red"
-                                    : "border-black/15 bg-white text-black/50 hover:border-black/30"
+                                    : "border-white/15 bg-black text-white/50 hover:border-white/30"
                             } disabled:opacity-40 disabled:cursor-not-allowed`}
                         >
                             Domain Change
@@ -188,7 +188,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                     {category === "domain_change" && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-black/40">From</p>
+                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-white/40">From</p>
                                 <Select
                                     accent="sharp"
                                     value={fromSubDomain}
@@ -198,7 +198,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                                 />
                             </div>
                             <div>
-                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-black/40">To</p>
+                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-white/40">To</p>
                                 <Select
                                     accent="sharp"
                                     value={requestedSubDomain}
@@ -220,7 +220,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                                 : "What do you need help with?"
                         }
                         rows={3}
-                        className="w-full min-w-0 border-2 border-black/15 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
+                        className="w-full min-w-0 border-2 border-white/15 bg-black py-2 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
                     />
 
                     {error && <p className="text-xs text-red font-bold">{error}</p>}
@@ -237,26 +237,26 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
             )}
 
             {history.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-black/10 space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-widest text-black/30 mb-2">Past Tickets</p>
+                <div className="mt-6 pt-6 border-t border-white/10 space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2">Past Tickets</p>
                     {history.map((t) => (
-                        <div key={t.id} className="border border-black/15 px-4 py-3 bg-black/[0.02]">
+                        <div key={t.id} className="border border-white/15 px-4 py-3 bg-white/[0.05]">
                             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                                <span className="break-words text-xs font-bold uppercase tracking-widest text-black/50">
+                                <span className="break-words text-xs font-bold uppercase tracking-widest text-white/50">
                                     {t.category === "domain_change" ? "Domain Change" : "General"}
                                 </span>
-                                <span className="text-xs font-bold uppercase tracking-widest text-emerald-700">
+                                <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
                                     Resolved
                                 </span>
                             </div>
                             {t.category === "domain_change" && t.from_sub_domain && t.requested_sub_domain && (
-                                <p className="mt-1 break-words text-xs text-black/60">
+                                <p className="mt-1 break-words text-xs text-white/60">
                                     {subDomainFullLabel(t.from_sub_domain)} → {subDomainFullLabel(t.requested_sub_domain)}
                                 </p>
                             )}
-                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-black/50">{t.message}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-white/50">{t.message}</p>
                             {t.resolution_note && (
-                                <p className="mt-1.5 break-words border-l-2 border-black/20 pl-2 text-sm text-black/70">
+                                <p className="mt-1.5 break-words border-l-2 border-white/20 pl-2 text-sm text-white/70">
                                     {t.resolution_note}
                                 </p>
                             )}

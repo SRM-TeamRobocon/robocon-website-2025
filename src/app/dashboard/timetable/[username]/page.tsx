@@ -92,14 +92,9 @@ export default function ViewTimetablePage() {
             {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : notFound || !detail ? (
-                <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-                    <div
-                        className="h-full w-full bg-white/[0.03] p-10 text-center"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                    >
-                        <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
-                        <p className="text-sm text-gray-400">This member hasn&apos;t saved a timetable yet.</p>
-                    </div>
+                <div className="border border-white/10 bg-black p-10 text-center">
+                    <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
+                    <p className="text-sm text-gray-400">This member hasn&apos;t saved a timetable yet.</p>
                 </div>
             ) : (
                 <>

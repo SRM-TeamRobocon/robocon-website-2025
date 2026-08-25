@@ -15,16 +15,11 @@ interface Metric {
 }
 
 const STAT_CARDS = [
-    { key: "total", label: "Total Registrations", icon: Users, tone: "text-white", ring: "ring-white/10" },
-    { key: "pending", label: "Pending Payment", icon: Clock3, tone: "text-amber-400", ring: "ring-amber-500/30" },
-    { key: "verified", label: "Verified", icon: ShieldCheck, tone: "text-emerald-400", ring: "ring-emerald-500/30" },
-    { key: "checkedIn", label: "Checked In", icon: ScanLine, tone: "text-blue-400", ring: "ring-blue-500/30" },
+    { key: "total", label: "Total Registrations", icon: Users, tone: "text-white", border: "border-white/10" },
+    { key: "pending", label: "Pending Payment", icon: Clock3, tone: "text-amber-400", border: "border-amber-500/30" },
+    { key: "verified", label: "Verified", icon: ShieldCheck, tone: "text-emerald-400", border: "border-emerald-500/30" },
+    { key: "checkedIn", label: "Checked In", icon: ScanLine, tone: "text-blue-400", border: "border-blue-500/30" },
 ] as const;
-
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
 
 export default function WorkshopsPage() {
     const ready = useRequireRole(["lead", "admin"]);
@@ -73,26 +68,20 @@ export default function WorkshopsPage() {
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.06, duration: 0.35, ease: "easeOut" }}
-                            className="bg-white/10 p-px"
-                            style={{ clipPath: CARD_CLIP }}
+                            className={`border ${card.border} bg-black backdrop-blur-xl p-4 sm:p-5 transition-colors`}
                         >
-                            <div
-                                className={`h-full w-full bg-white/[0.03] backdrop-blur-xl p-4 sm:p-5 ring-1 ${card.ring} transition-colors`}
-                                style={{ clipPath: CARD_CLIP }}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                                        {card.label}
-                                    </span>
-                                    <Icon className={`w-4 h-4 ${card.tone} opacity-70`} />
-                                </div>
-                                <div className={`mt-3 text-2xl sm:text-3xl font-black ${card.tone}`}>
-                                    {loading ? (
-                                        <span className="inline-block h-8 w-12 bg-white/5 animate-pulse" />
-                                    ) : (
-                                        <CountUp end={value} duration={1.1} />
-                                    )}
-                                </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                                    {card.label}
+                                </span>
+                                <Icon className={`w-4 h-4 ${card.tone} opacity-70`} />
+                            </div>
+                            <div className={`mt-3 text-2xl sm:text-3xl font-black ${card.tone}`}>
+                                {loading ? (
+                                    <span className="inline-block h-8 w-12 bg-white/5 animate-pulse" />
+                                ) : (
+                                    <CountUp end={value} duration={1.1} />
+                                )}
                             </div>
                         </motion.div>
                     );
@@ -100,26 +89,21 @@ export default function WorkshopsPage() {
             </div>
 
             <Link href="/scanner" className="group block">
-                <div className="bg-emerald-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
-                    <div
-                        className="relative h-full w-full bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]"
-                        style={{ clipPath: CARD_CLIP }}
-                    >
-                        <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
-                            <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />
-                        </div>
-                        <div className="relative z-10">
-                            <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold mb-4 ring-1 ring-inset bg-emerald-500/20 text-emerald-400 ring-emerald-500/30">
-                                Live Check-in
-                            </span>
-                            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Scanner</h3>
-                            <p className="text-gray-300 mb-6 text-sm leading-relaxed">
-                                Scan attendee QR codes for fast, on-the-spot check-in.
-                            </p>
-                            <div className="flex items-center text-sm font-medium text-gray-300 group-hover:text-emerald-400">
-                                Open
-                                <ArrowUpRight className="w-4 h-4 ml-1.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                            </div>
+                <div className="relative border border-emerald-500/30 bg-black hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01]">
+                    <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
+                        <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />
+                    </div>
+                    <div className="relative z-10">
+                        <span className="inline-flex w-fit items-center gap-1.5 px-3 py-1 text-xs font-bold mb-4 ring-1 ring-inset bg-emerald-500/20 text-emerald-400 ring-emerald-500/30">
+                            Live Check-in
+                        </span>
+                        <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Scanner</h3>
+                        <p className="text-gray-300 mb-6 text-sm leading-relaxed">
+                            Scan attendee QR codes for fast, on-the-spot check-in.
+                        </p>
+                        <div className="flex items-center text-sm font-medium text-gray-300 group-hover:text-emerald-400">
+                            Open
+                            <ArrowUpRight className="w-4 h-4 ml-1.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                         </div>
                     </div>
                 </div>
