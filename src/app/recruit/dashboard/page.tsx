@@ -16,7 +16,7 @@ import { genderLabel } from "@/lib/gender";
 
 const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), { ssr: false });
 
-const CARD_OUTER = "border-2 border-red bg-black p-6 md:p-8";
+const CARD_OUTER = "border-2 border-red bg-white p-6 md:p-8";
 const CARD_INNER = "h-full w-full overflow-hidden";
 
 type DomainStatus = { sub_domain: string; status: string };
@@ -57,16 +57,12 @@ import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 // Hidden for now — flip back on when attendance is ready to be shown to recruits.
 const SHOW_TRAINING_ATTENDANCE = false;
 
-// Recolored for the sharp white-card theme: these badges now sit on a solid white
-// surface, so they need the darker/saturated weights a light surface calls for
-// (tinted bg + solid border + dark-enough text for contrast) instead of the
-// dark-glass-tuned `text-*-300 border-*-500/40 bg-*-500/10` pattern. Same semantic
-// distinctions as before, just recolored — POWER ON/DEPLOYED/etc. below unchanged.
+// Keep status badges readable on the light dashboard cards while preserving their meanings.
 function statusBadgeClass(label: string): string {
     if (label.startsWith("RUNTIME")) return "text-[#D4AF37] border-[#D4AF37] bg-[#D4AF37]/10";
     switch (label) {
         case "POWER ON":
-            return "text-white/50 border-white/20 bg-white/5";
+            return "text-black/50 border-black/20 bg-black/5";
         case "SYSTEM CHECK: PASS":
             return "text-blue-700 border-blue-600 bg-blue-50";
         case "DIAGNOSTIC RUNNING":
@@ -80,7 +76,7 @@ function statusBadgeClass(label: string): string {
         case "DEPLOYED":
             return "text-white border-emerald-600 bg-emerald-600";
         default:
-            return "text-white/50 border-white/20 bg-white/5";
+            return "text-black/50 border-black/20 bg-black/5";
     }
 }
 
@@ -229,36 +225,36 @@ export default function RecruitDashboardPage() {
                 {profile && (
                     <div className={CARD_OUTER}>
                     <div className={CARD_INNER}>
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-1">// profile</p>
-                        <h2 className="mb-4 break-words text-xl font-bold text-white">{profile.name}</h2>
+                        <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">// profile</p>
+                        <h2 className="mb-4 break-words text-xl font-bold text-black">{profile.name}</h2>
                         <div className="grid grid-cols-1 gap-4 font-mono text-sm sm:grid-cols-2 md:grid-cols-3">
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">SRM Email</p>
-                                <p className="text-white/80 break-all">{profile.srm_email}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">SRM Email</p>
+                                <p className="text-black/80 break-all">{profile.srm_email}</p>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Reg No</p>
-                                <p className="break-all text-white/80">{profile.reg_no}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Reg No</p>
+                                <p className="break-all text-black/80">{profile.reg_no}</p>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Year</p>
-                                <p className="text-white/80">{profile.year}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Year</p>
+                                <p className="text-black/80">{profile.year}</p>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Gender</p>
-                                <p className="text-white/80">{genderLabel(profile.gender)}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Gender</p>
+                                <p className="text-black/80">{genderLabel(profile.gender)}</p>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Department</p>
-                                <p className="break-words text-white/80">{profile.department}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Department</p>
+                                <p className="break-words text-black/80">{profile.department}</p>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Course</p>
-                                <p className="break-words text-white/80">{profile.course}</p>
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Course</p>
+                                <p className="break-words text-black/80">{profile.course}</p>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-white/40 text-xs uppercase tracking-widest">Stay</p>
-                                <p className="break-words text-white/80">
+                                <p className="text-black/40 text-xs uppercase tracking-widest">Stay</p>
+                                <p className="break-words text-black/80">
                                     {profile.is_hosteller
                                         ? [profile.hostel_block, profile.hostel_room].filter(Boolean).join(" · ")
                                         : "Day Scholar"}
@@ -308,18 +304,18 @@ export default function RecruitDashboardPage() {
 
                 <div className={CARD_OUTER}>
                 <div className={CARD_INNER}>
-                    <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4">// pipeline status</p>
+                    <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// pipeline status</p>
                     <div className="space-y-3">
                         {domains.length === 0 && (
-                            <p className="text-sm text-white/40 font-mono">No domain selections found.</p>
+                            <p className="text-sm text-black/40 font-mono">No domain selections found.</p>
                         )}
                         {domains.map((d) => (
                             <div
                                 key={d.sub_domain}
-                                className="flex min-w-0 flex-col items-start gap-2 border border-white/15 bg-white/[0.05] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                className="flex min-w-0 flex-col items-start gap-2 border border-black/15 bg-black/[0.03] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                             >
-                                <span className="min-w-0 break-words font-mono text-sm font-bold text-white/80">
-                                    <span className="text-white/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
+                                <span className="min-w-0 break-words font-mono text-sm font-bold text-black/80">
+                                    <span className="text-black/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
                                     {subDomainLabel(d.sub_domain)}
                                 </span>
                                 <span
@@ -361,30 +357,30 @@ export default function RecruitDashboardPage() {
                             interview.status === "called" ? "animate-pulse" : ""
                         }`}
                     >
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-1">
+                        <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">
                             // interview queue
                         </p>
-                        <h2 className="text-xl font-bold mb-4 text-white">{interview.panel_label}</h2>
+                        <h2 className="text-xl font-bold mb-4 text-black">{interview.panel_label}</h2>
                         {interview.status === "called" ? (
                             <div className="flex items-center gap-3">
                                 <span className="font-mono text-xs font-bold uppercase tracking-widest border border-purple-600 bg-purple-50 text-purple-700 px-3 py-1 animate-pulse">
                                     You&apos;re being called now
                                 </span>
-                                <span className="text-sm text-white/60">Head to the panel!</span>
+                                <span className="text-sm text-black/60">Head to the panel!</span>
                             </div>
                         ) : interview.status === "deferred" ? (
                             <div className="flex items-center gap-3">
                                 <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-600 bg-amber-50 text-amber-700 px-3 py-1">
                                     Table closed for the day
                                 </span>
-                                <span className="text-sm text-white/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
+                                <span className="text-sm text-black/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">
                                 <span className="font-mono text-2xl font-black text-red">
                                     #{interview.waiting_ahead + 1}
                                 </span>
-                                <span className="text-sm text-white/60">
+                                <span className="text-sm text-black/60">
                                     {interview.waiting_ahead === 0
                                         ? "You're next!"
                                         : `${interview.waiting_ahead} recruit${

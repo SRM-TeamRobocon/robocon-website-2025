@@ -86,13 +86,13 @@ export default function EmailVerifyBanner({
 
     return (
         <div
-            className="relative w-full border-2 border-red bg-black p-4 sm:p-5"
+            className="relative w-full border-2 border-red bg-white p-4 sm:p-5"
         >
             <button
                 type="button"
                 onClick={() => setDismissed(true)}
                 aria-label="Dismiss"
-                className="absolute right-3 top-3 text-white/40 hover:text-white transition-colors"
+                className="absolute right-3 top-3 text-black/40 hover:text-black transition-colors"
             >
                 &times;
             </button>
@@ -101,15 +101,15 @@ export default function EmailVerifyBanner({
                 <div className="mb-1 inline-block bg-red px-2.5 py-0.5 text-[10px] font-bold tracking-[0.25em] text-white">
                     ACTION AVAILABLE
                 </div>
-                <h3 className="text-sm font-bold text-white sm:text-base">Verify your SRM email</h3>
-                <p className="mt-1 text-xs text-white/60 sm:text-sm">
-                    <span className="font-semibold text-white">{srmEmail}</span> hasn&apos;t been verified yet. This is
+                <h3 className="text-sm font-bold text-black sm:text-base">Verify your SRM email</h3>
+                <p className="mt-1 text-xs text-black/60 sm:text-sm">
+                    <span className="font-semibold text-black">{srmEmail}</span> hasn&apos;t been verified yet. This is
                     optional but recommended.
                 </p>
             </div>
 
             {error && (
-                <div className="mt-3 border-2 border-red/30 bg-black p-2.5 text-center">
+                <div className="mt-3 border-2 border-red/30 bg-white p-2.5 text-center">
                     <p className="text-xs font-bold text-red">{error}</p>
                 </div>
             )}
@@ -141,7 +141,7 @@ export default function EmailVerifyBanner({
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                         placeholder="123456"
-                        className="w-28 border-2 border-white/15 bg-black px-3 py-2 text-center text-sm tracking-[0.3em] text-white placeholder:text-white/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
+                        className="w-28 border-2 border-black/15 bg-white px-3 py-2 text-center text-sm tracking-[0.3em] text-black placeholder:text-black/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
                     />
                     <button
                         type="submit"
@@ -165,7 +165,7 @@ export default function EmailVerifyBanner({
                             setOtp("");
                             setError("");
                         }}
-                        className="text-xs font-semibold text-white/50 hover:text-white transition-colors"
+                        className="text-xs font-semibold text-black/50 hover:text-black transition-colors"
                     >
                         Resend
                     </button>
