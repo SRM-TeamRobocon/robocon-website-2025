@@ -4,14 +4,6 @@
 import { useRouter } from "next/navigation";
 import { InlineChatWidget } from "@/components/recruit/ChatWidget";
 
-// A `border` doesn't render along a clip-path's angled edge, so these panels simulate
-// their border with two nested elements instead: an outer box painted in the border
-// color and padded by the border width, and an inner box painted in the real
-// background — the border is just the outer's color peeking out uniformly around the
-// inner, including the diagonal cut.
-const DOMAIN_CARD_CLIP = "polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)";
-const VIDEO_FRAME_CLIP = "polygon(4% 0%,100% 0%,96% 100%,0% 100%)";
-const DOMAIN_CARD_CLASSES = "relative bg-black p-[2px]";
 
 const recruitmentVideos = [
     {
@@ -128,18 +120,15 @@ const RecruitmentSection = () => {
                     {domains.map((domain) => (
                         <div
                             key={domain.acronym}
-                            className={`min-w-0 ${DOMAIN_CARD_CLASSES}`}
-                            style={{ clipPath: DOMAIN_CARD_CLIP, "--clip": DOMAIN_CARD_CLIP } as any}
+                            className="min-w-0 border-2 border-red bg-black p-5"
                         >
-                            <div className="h-full w-full bg-white p-5" style={{ clipPath: DOMAIN_CARD_CLIP }}>
-                                <h3 className="break-words text-lg font-bold tracking-tight text-black md:text-xl">
-                                    {domain.acronym}
-                                </h3>
-                                <p className="mt-1 break-words text-[11px] font-semibold uppercase tracking-wide text-red">
-                                    {domain.full}
-                                </p>
-                                <p className="mt-3 break-words text-sm text-black/70">{domain.blurb}</p>
-                            </div>
+                            <h3 className="break-words text-lg font-bold tracking-tight text-white md:text-xl">
+                                {domain.acronym}
+                            </h3>
+                            <p className="mt-1 break-words text-[11px] font-semibold uppercase tracking-wide text-red">
+                                {domain.full}
+                            </p>
+                            <p className="mt-3 break-words text-sm text-white/70">{domain.blurb}</p>
                         </div>
                     ))}
                 </div>
@@ -150,10 +139,9 @@ const RecruitmentSection = () => {
                         {recruitmentVideos.map((video) => (
                             <div
                                 key={video.id}
-                                className="w-[300px] shrink-0 bg-black p-[2px] md:w-[360px]"
-                                style={{ clipPath: VIDEO_FRAME_CLIP }}
+                                className="w-[300px] shrink-0 border-2 border-red bg-black md:w-[360px]"
                             >
-                                <div className="relative w-full pt-[56.25%]" style={{ clipPath: VIDEO_FRAME_CLIP }}>
+                                <div className="relative w-full pt-[56.25%]">
                                     <iframe
                                         className="absolute inset-0 h-full w-full"
                                         src={`https://www.youtube.com/embed/${video.id}`}

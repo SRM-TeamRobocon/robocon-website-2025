@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
     LayoutDashboard,
     Globe2,
@@ -18,7 +17,6 @@ import {
     X,
     Sparkles,
     Newspaper,
-    PenSquare,
     CalendarClock,
     Radio,
     CalendarOff,
@@ -44,7 +42,6 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Review & Approvals", href: "/dashboard/approvals", icon: ClipboardCheck, roles: ["lead", "admin"] },
     { label: "Recruitments", href: "/dashboard/recruitment", icon: RecruitIcon, roles: STAFF_ROLES },
     { label: "Blog", href: "/dashboard/blogs", icon: Newspaper, roles: ALL_ROLES },
-    { label: "Write Blog", href: "/dashboard/blogs/new", icon: PenSquare, roles: ALL_ROLES },
     { label: "Timetable", href: "/dashboard/timetable", icon: CalendarClock, roles: ALL_ROLES },
     { label: "Attendance", href: "/dashboard/attendance", icon: Radio, roles: ALL_ROLES },
     { label: "Request Leave", href: "/dashboard/leave", icon: CalendarOff, roles: ALL_ROLES },
@@ -85,14 +82,20 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
                 />
             )}
 
-            <motion.aside
-                initial={false}
-                animate={{ width: collapsed ? 84 : 264 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
+            {/* Plain (non-motion) element: `position: sticky` only works while the element
+                has no `transform` at all — Framer Motion's `motion.*` components always
+                apply their own inline transform (even an identity one, for otherwise
+                unrelated animations like this width change), and any non-"none" transform
+                value on the element itself breaks sticky by giving it a new containing
+                block. The width animation below is plain CSS instead for the same reason —
+                `lg:translate-x-0` would have set an explicit (if zero) transform at desktop
+                sizes too, so that's `lg:transform-none` now, not a translate utility. */}
+            <aside
                 className={[
                     "fixed inset-y-0 left-0 z-50 flex flex-col",
                     "border-r border-white/10 bg-black/95 backdrop-blur-xl",
-                    "transition-transform duration-300 lg:translate-x-0",
+                    "transition-[width,transform] duration-300 ease-in-out lg:transform-none",
+                    collapsed ? "w-[84px]" : "w-[264px]",
                     "lg:sticky lg:top-0 lg:h-screen lg:z-30",
                     mobileOpen ? "translate-x-0" : "-translate-x-full",
                 ].join(" ")}
@@ -175,7 +178,7 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
                         {collapsed ? <ChevronsRight className="w-4 h-4" /> : <><ChevronsLeft className="w-4 h-4" /> Collapse</>}
                     </button>
                 </div>
-            </motion.aside>
+            </aside>
         </>
     );
 }

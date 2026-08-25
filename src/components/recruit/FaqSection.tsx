@@ -44,20 +44,20 @@ export default function FaqSection() {
 
     return (
         <div
-            className="relative border-2 border-black bg-white p-6 md:p-8"
+            className="relative border-2 border-red bg-black p-6 md:p-8"
         >
-            <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-4">// faq</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-4">// faq</p>
             <div className="space-y-2">
                 {faqs.map((faq) => {
                     const isOpen = openId === faq.id;
                     return (
-                        <div key={faq.id} className="border border-black/15 bg-black/[0.02] overflow-hidden">
+                        <div key={faq.id} className="border border-white/15 bg-white/[0.05] overflow-hidden">
                             <button
                                 type="button"
                                 onClick={() => setOpenId(isOpen ? null : faq.id)}
                                 className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
                             >
-                                <span className="text-sm font-bold text-black/80">{faq.question}</span>
+                                <span className="text-sm font-bold text-white/80">{faq.question}</span>
                                 <ChevronDown
                                     className={`h-4 w-4 shrink-0 text-red transition-transform ${
                                         isOpen ? "rotate-180" : ""
@@ -65,7 +65,7 @@ export default function FaqSection() {
                                 />
                             </button>
                             {isOpen && (
-                                <div className="px-4 pb-4 text-sm text-black/60 whitespace-pre-wrap">
+                                <div className="px-4 pb-4 text-sm text-white/60 whitespace-pre-wrap">
                                     {faq.answer}
                                 </div>
                             )}

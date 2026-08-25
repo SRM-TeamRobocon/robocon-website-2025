@@ -9,12 +9,6 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
-// A `border` doesn't render along a clip-path's angled edge (and a `::before` pseudo with
-// a negative z-index doesn't work either — it still paints on top of this element's own
-// background, just below its children, so it blacks out any part of the card without its
-// own opaque content). The light-theme panels below simulate their border with two nested
-// elements instead: an outer one filled with the border color and padded by the border
-// width, and an inner one with the real fill.
 // Renders message text with any http(s) URLs turned into clickable links — the RAG
 // answer's Instagram fallback (see src/lib/rag/answer.ts) includes a raw URL that would
 // otherwise render as inert plain text.
@@ -107,40 +101,13 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
 
     return (
         <>
-            {open && (
-                <div
-                    className={
-                        light
-                            ? "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem] bg-black p-[2px]"
-                            : "fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem]"
-                    }
-                >
-                <div
-                    className={
-                        light
-                            ? "flex h-full w-full flex-col bg-white shadow-2xl"
-                            : "flex flex-col h-full rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden"
-                    }
-                >
-                    <div
-                        className={
-                            light
-                                ? "flex items-center justify-between px-4 py-3 border-b-2 border-black"
-                                : "flex items-center justify-between px-4 py-3 border-b border-white/10"
-                        }
-                    >
-                        <p
-                            className={
-                                light
-                                    ? "font-mono text-xs uppercase tracking-widest text-black/60"
-                                    : "font-mono text-xs uppercase tracking-widest text-white/60"
-                            }
-                        >
-                            Ask a Doubt
-                        </p>
+            {open && light && (
+                <div className="fixed bottom-24 right-6 z-50 flex h-[28rem] w-[calc(100vw-3rem)] max-w-sm flex-col border-2 border-red bg-black shadow-2xl">
+                    <div className="flex items-center justify-between px-4 py-3 border-b-2 border-red">
+                        <p className="font-mono text-xs uppercase tracking-widest text-white/60">Ask a Doubt</p>
                         <button
                             onClick={() => setOpen(false)}
-                            className={light ? "text-black/40 hover:text-black transition" : "text-white/40 hover:text-white transition"}
+                            className="text-white/40 hover:text-white transition"
                         >
                             <X className="h-4 w-4" />
                         </button>
@@ -148,75 +115,102 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
 
                     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                         {messages.length === 0 && (
-                            <p className={light ? "text-sm text-black/50" : "text-sm text-white/40 font-mono"}>
+                            <p className="text-sm text-white/50">
                                 Ask anything about recruitment — I can only answer from what the team has shared here.
                             </p>
                         )}
                         {messages.map((m, i) => (
                             <div
                                 key={i}
-                                className={
-                                    light
-                                        ? `max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
-                                              m.role === "user"
-                                                  ? "ml-auto bg-red text-white"
-                                                  : "border border-black/15 bg-black/[0.03] text-black/80"
-                                          }`
-                                        : `max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                                              m.role === "user"
-                                                  ? "ml-auto bg-red/20 text-white"
-                                                  : "bg-white/10 text-white/80"
-                                          }`
-                                }
+                                className={`max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
+                                    m.role === "user"
+                                        ? "ml-auto bg-red text-white"
+                                        : "border border-white/15 bg-white/[0.05] text-white/80"
+                                }`}
                             >
-                                {renderMessageContent(
-                                    m.content,
-                                    light
-                                        ? "underline text-red hover:text-red/80 break-all font-semibold"
-                                        : "underline text-red-300 hover:text-red-200 break-all"
-                                )}
+                                {renderMessageContent(m.content, "underline text-red hover:text-red/80 break-all font-semibold")}
                             </div>
                         ))}
                         {busy && (
-                            <div
-                                className={
-                                    light
-                                        ? "border border-black/15 bg-black/[0.03] text-black/40 px-3 py-2 text-sm w-fit"
-                                        : "bg-white/10 text-white/50 rounded-xl px-3 py-2 text-sm w-fit font-mono"
-                                }
-                            >
+                            <div className="border border-white/15 bg-white/[0.05] text-white/40 px-3 py-2 text-sm w-fit">
                                 thinking...
                             </div>
                         )}
                     </div>
 
-                    <div
-                        className={
-                            light
-                                ? "flex items-center gap-2 p-3 border-t-2 border-black"
-                                : "flex items-center gap-2 p-3 border-t border-white/10"
-                        }
-                    >
+                    <div className="flex items-center gap-2 p-3 border-t-2 border-red">
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && send()}
                             placeholder="Type your question..."
                             disabled={busy}
-                            className={
-                                light
-                                    ? "flex-1 border border-black/20 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-red disabled:opacity-50"
-                                    : "flex-1 rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-white/30 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red/50 disabled:opacity-50"
-                            }
+                            className="flex-1 border border-white/20 bg-black py-2 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-red disabled:opacity-50"
                         />
                         <button
                             onClick={send}
                             disabled={busy || !input.trim()}
-                            className={
-                                light
-                                    ? "shrink-0 bg-red p-2 text-white transition hover:bg-red/90 disabled:opacity-40"
-                                    : "shrink-0 rounded-lg bg-red/20 p-2 text-red transition hover:bg-red/30 disabled:opacity-40"
-                            }
+                            className="shrink-0 bg-red p-2 text-white transition hover:bg-red/90 disabled:opacity-40"
+                        >
+                            <Send className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {open && !light && (
+                <div className="fixed bottom-24 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm h-[28rem]">
+                <div className="flex flex-col h-full rounded-2xl border border-white/15 bg-[#0a0a0d]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                        <p className="font-mono text-xs uppercase tracking-widest text-white/60">
+                            Ask a Doubt
+                        </p>
+                        <button
+                            onClick={() => setOpen(false)}
+                            className="text-white/40 hover:text-white transition"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                        {messages.length === 0 && (
+                            <p className="text-sm text-white/40 font-mono">
+                                Ask anything about recruitment — I can only answer from what the team has shared here.
+                            </p>
+                        )}
+                        {messages.map((m, i) => (
+                            <div
+                                key={i}
+                                className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                                    m.role === "user"
+                                        ? "ml-auto bg-red/20 text-white"
+                                        : "bg-white/10 text-white/80"
+                                }`}
+                            >
+                                {renderMessageContent(m.content, "underline text-red-300 hover:text-red-200 break-all")}
+                            </div>
+                        ))}
+                        {busy && (
+                            <div className="bg-white/10 text-white/50 rounded-xl px-3 py-2 text-sm w-fit font-mono">
+                                thinking...
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 p-3 border-t border-white/10">
+                        <input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && send()}
+                            placeholder="Type your question..."
+                            disabled={busy}
+                            className="flex-1 rounded-lg border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-white/30 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red/50 disabled:opacity-50"
+                        />
+                        <button
+                            onClick={send}
+                            disabled={busy || !input.trim()}
+                            className="shrink-0 rounded-lg bg-red/20 p-2 text-red transition hover:bg-red/30 disabled:opacity-40"
                         >
                             <Send className="h-4 w-4" />
                         </button>
@@ -243,15 +237,15 @@ export function InlineChatWidget() {
     const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/public-chat");
 
     return (
-        <div className="w-full border-2 border-black bg-white">
-            <div className="flex items-center gap-2 border-b-2 border-black px-5 py-3">
+        <div className="w-full border-2 border-red bg-black">
+            <div className="flex items-center gap-2 border-b-2 border-red px-5 py-3">
                 <MessageCircle className="h-4 w-4 text-red" strokeWidth={2.5} />
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-black">Ask a Doubt</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-white">Ask a Doubt</p>
             </div>
 
             <div ref={scrollRef} className="h-64 overflow-y-auto px-5 py-4 space-y-3">
                 {messages.length === 0 && (
-                    <p className="text-sm text-black/50">
+                    <p className="text-sm text-white/50">
                         Got a question about recruitment? Ask here — answers come only from what the team has shared.
                     </p>
                 )}
@@ -261,27 +255,27 @@ export function InlineChatWidget() {
                         className={`max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
                             m.role === "user"
                                 ? "ml-auto bg-red text-white"
-                                : "border border-black/15 bg-black/[0.03] text-black/80"
+                                : "border border-white/15 bg-white/[0.05] text-white/80"
                         }`}
                     >
                         {renderMessageContent(m.content, "underline text-red hover:text-red/80 break-all font-semibold")}
                     </div>
                 ))}
                 {busy && (
-                    <div className="border border-black/15 bg-black/[0.03] text-black/40 px-3 py-2 text-sm w-fit">
+                    <div className="border border-white/15 bg-white/[0.05] text-white/40 px-3 py-2 text-sm w-fit">
                         thinking...
                     </div>
                 )}
             </div>
 
-            <div className="flex items-center gap-2 border-t-2 border-black p-3">
+            <div className="flex items-center gap-2 border-t-2 border-red p-3">
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && send()}
                     placeholder="Type your question..."
                     disabled={busy}
-                    className="flex-1 border border-black/20 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-red disabled:opacity-50"
+                    className="flex-1 border border-white/20 bg-black py-2 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-red disabled:opacity-50"
                 />
                 <button
                     onClick={send}
