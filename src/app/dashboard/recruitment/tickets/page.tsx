@@ -116,11 +116,6 @@ function ResolveRow({ ticket, onResolved }: { ticket: TicketRow; onResolved: () 
     );
 }
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function TicketsPage() {
     const { ready, role } = useRoleGate(["member", "lead", "admin"]);
     const canResolve = role === "lead" || role === "admin";
@@ -165,32 +160,23 @@ export default function TicketsPage() {
             </div>
 
             {noCycle ? (
-                <div className="bg-amber-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
-                    <div className="h-full w-full bg-amber-500/[0.06] p-6 text-sm text-amber-300" style={{ clipPath: CARD_CLIP }}>
-                        No active recruitment cycle.
-                    </div>
+                <div className="border border-amber-500/30 bg-black p-6 text-sm text-amber-300">
+                    No active recruitment cycle.
                 </div>
             ) : loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : tickets.length === 0 ? (
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                    <div className="h-full w-full bg-white/[0.03] p-8 text-center text-sm text-gray-500" style={{ clipPath: CARD_CLIP }}>
-                        No tickets yet.
-                    </div>
+                <div className="border border-white/10 bg-black p-8 text-center text-sm text-gray-500">
+                    No tickets yet.
                 </div>
             ) : (
                 <div className="space-y-3">
                     {tickets.map((t) => (
                         <div
                             key={t.id}
-                            className={t.status === "open" ? "bg-amber-500/30 p-px" : "bg-white/10 p-px"}
-                            style={{ clipPath: CARD_CLIP }}
-                        >
-                        <div
-                            className={`h-full w-full p-4 backdrop-blur-xl ${
-                                t.status === "open" ? "bg-amber-500/[0.06]" : "bg-white/[0.03]"
+                            className={`border bg-black p-4 ${
+                                t.status === "open" ? "border-amber-500/30" : "border-white/10"
                             }`}
-                            style={{ clipPath: CARD_CLIP }}
                         >
                             <div className="flex items-start justify-between gap-3 flex-wrap">
                                 <div>
@@ -242,7 +228,6 @@ export default function TicketsPage() {
                                     <ResolveRow ticket={t} onResolved={load} />
                                 </div>
                             )}
-                        </div>
                         </div>
                     ))}
                 </div>

@@ -18,11 +18,6 @@ const PROPOSABLE: { key: ContentResource; label: string }[] = [
 
 type Row = Record<string, any>;
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function ProposeContentPage() {
     const ready = useRequireRole(["member"]);
     const [resource, setResource] = useState<ContentResource>("projects");
@@ -109,13 +104,9 @@ export default function ProposeContentPage() {
                     <ArrowLeft className="w-4 h-4" /> Back
                 </button>
                 <h1 className="text-2xl font-bold text-white">
-                    {editing === "new" ? `Propose New ${config.label}` : `Propose Edit — ${editing[config.primaryField]}`}
+                    {editing === "new" ? `Propose New ${config.label}` : `Propose Edit: ${editing[config.primaryField]}`}
                 </h1>
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black backdrop-blur-xl p-6">
                     <ContentEditForm
                         fields={config.fields}
                         initialValues={editing === "new" ? {} : editing}
@@ -124,7 +115,6 @@ export default function ProposeContentPage() {
                         resource={resource}
                         onSubmit={handleSubmit}
                     />
-                </div>
                 </div>
             </div>
         );
@@ -138,7 +128,7 @@ export default function ProposeContentPage() {
                     Propose Content
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Suggest a new project, achievement, event, or gallery photo — or edit an existing one. A lead
+                    Suggest a new project, achievement, event, or gallery photo, or edit an existing one. A lead
                     reviews every proposal before it goes live.
                 </p>
             </div>
@@ -162,11 +152,7 @@ export default function ProposeContentPage() {
                 </span>
             </button>
 
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <div
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                style={{ clipPath: CARD_CLIP }}
-            >
+            <div className="border border-white/10 bg-black backdrop-blur-xl">
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : rows.length === 0 ? (
@@ -191,7 +177,6 @@ export default function ProposeContentPage() {
                         ))}
                     </ul>
                 )}
-            </div>
             </div>
         </div>
     );

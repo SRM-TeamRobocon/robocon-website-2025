@@ -84,11 +84,6 @@ function formatTime(value: string) {
     }
 }
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function TrainingAttendancePage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
 
@@ -282,12 +277,7 @@ export default function TrainingAttendancePage() {
             </div>
 
             {/* Start attendance */}
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <form
-                onSubmit={startAttendance}
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5"
-                style={{ clipPath: CARD_CLIP }}
-            >
+            <form onSubmit={startAttendance} className="border border-white/10 bg-black p-5">
                 <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-400">
                     <CalendarPlus className="h-4 w-4 text-red" /> Start Attendance
                 </h2>
@@ -335,15 +325,10 @@ export default function TrainingAttendancePage() {
                     </button>
                 </div>
             </form>
-            </div>
 
             <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
                 {/* Sessions list */}
-                <div className="h-fit bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <section
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <section className="h-fit border border-white/10 bg-black">
                     <div className="border-b border-white/10 px-4 py-3">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">
                             Sessions <span className="text-gray-600">({sessions.length})</span>
@@ -382,39 +367,21 @@ export default function TrainingAttendancePage() {
                         )}
                     </div>
                 </section>
-                </div>
 
                 {/* Selected session detail */}
                 <section className="space-y-4">
                     {!selectedSessionId ? (
-                        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                        <div
-                            className="h-full w-full bg-white/[0.03] p-10 text-center"
-                            style={{ clipPath: CARD_CLIP }}
-                        >
+                        <div className="border border-white/10 bg-black p-10 text-center">
                             <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                             <p className="text-sm text-gray-400">Create or select a session to view attendance.</p>
                         </div>
-                        </div>
                     ) : loadingDetail || !detail ? (
-                        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                        <div
-                            className="h-full w-full bg-white/[0.03] p-10 text-center text-sm text-gray-500"
-                            style={{ clipPath: CARD_CLIP }}
-                        >
+                        <div className="border border-white/10 bg-black p-10 text-center text-sm text-gray-500">
                             Loading attendance...
-                        </div>
                         </div>
                     ) : (
                         <>
-                            <div
-                                className="bg-white/10 p-px"
-                                style={{ clipPath: CARD_CLIP }}
-                            >
-                            <div
-                                className="h-full w-full flex flex-wrap items-center justify-between gap-3 bg-white/[0.03] p-5"
-                                style={{ clipPath: CARD_CLIP }}
-                            >
+                            <div className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-black p-5">
                                 <div>
                                     <p className="text-lg font-bold text-white">{domainLabel(detail.session.sub_domain)}</p>
                                     <p className="text-sm text-gray-400">{formatDate(detail.session.session_date)}</p>
@@ -433,7 +400,6 @@ export default function TrainingAttendancePage() {
                                     </span>
                                 </div>
                             </div>
-                            </div>
 
                             <div className="relative max-w-sm">
                                 <Search
@@ -450,11 +416,7 @@ export default function TrainingAttendancePage() {
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 {/* Attended */}
-                                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                                <div
-                                    className="h-full w-full bg-white/[0.03]"
-                                    style={{ clipPath: CARD_CLIP }}
-                                >
+                                <div className="border border-white/10 bg-black">
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                                             <Check className="h-4 w-4 text-emerald-400" /> Attended (
@@ -496,14 +458,9 @@ export default function TrainingAttendancePage() {
                                         )}
                                     </div>
                                 </div>
-                                </div>
 
                                 {/* Pending / manual mark */}
-                                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                                <div
-                                    className="h-full w-full bg-white/[0.03]"
-                                    style={{ clipPath: CARD_CLIP }}
-                                >
+                                <div className="border border-white/10 bg-black">
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                                             <Users className="h-4 w-4 text-gray-400" /> Not Marked Yet (
@@ -534,7 +491,6 @@ export default function TrainingAttendancePage() {
                                         )}
                                     </div>
                                 </div>
-                                </div>
                             </div>
                         </>
                     )}
@@ -542,11 +498,7 @@ export default function TrainingAttendancePage() {
             </div>
 
             {/* Overall attendance % per recruit */}
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <section
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                style={{ clipPath: CARD_CLIP }}
-            >
+            <section className="border border-white/10 bg-black">
                 <div className="border-b border-white/10 px-5 py-4">
                     <h2 className="text-lg font-bold text-white">Attendance % Across All Sessions</h2>
                     <p className="mt-1 text-xs text-gray-500">
@@ -605,7 +557,6 @@ export default function TrainingAttendancePage() {
                     </div>
                 )}
             </section>
-            </div>
         </div>
     );
 }

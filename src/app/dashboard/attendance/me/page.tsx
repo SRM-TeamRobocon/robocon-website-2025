@@ -6,10 +6,6 @@ import toast from "react-hot-toast";
 import { CreditCard, ArrowLeft, AlertTriangle, LogOut, LogIn, Moon } from "lucide-react";
 import { formatDuration, type AttendanceSession } from "@/lib/attendance";
 
-// A `border` doesn't render along a clip-path's angled edge, so cards simulate the
-// border with a ::before pseudo-element instead (see the `before:` classes below).
-const CARD_CLIP_PATH = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-const CARD_CLIP = { clipPath: CARD_CLIP_PATH };
 const PAIRING_POLL_MS = 2000;
 const PAIRING_WINDOW_S = 60;
 
@@ -20,14 +16,16 @@ interface OvernightPass {
     expiresAt: string;
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-    return (
-        <div className="bg-white/10 p-px" style={CARD_CLIP}>
-            <div className={`h-full w-full bg-white/[0.03] backdrop-blur-xl ${className}`} style={CARD_CLIP}>
-                {children}
-            </div>
-        </div>
-    );
+function Card({
+    children,
+    className = "",
+    borderClassName = "border-white/10",
+}: {
+    children: React.ReactNode;
+    className?: string;
+    borderClassName?: string;
+}) {
+    return <div className={`border ${borderClassName} bg-black ${className}`}>{children}</div>;
 }
 
 function toLocalDatetimeValue(date: Date) {
@@ -105,7 +103,7 @@ export default function MyAttendancePage() {
                     load();
                 } else if (statusData.status === "expired" || statusData.status === "cancelled") {
                     stopPairing();
-                    toast.error("Pairing window closed — no card was tapped in time. Try again.");
+                    toast.error("Pairing window closed, no card was tapped in time. Try again.");
                 }
             }, PAIRING_POLL_MS);
         } catch {
@@ -137,7 +135,7 @@ export default function MyAttendancePage() {
             if (res.ok && data.success) {
                 setOvernight(data.pass);
                 setOvernightReason("");
-                toast.success("Overnight pass on — you won't be auto-checked out tonight.");
+                toast.success("Overnight pass on, you won't be auto-checked out tonight.");
             } else {
                 toast.error(data.error || "Could not start your overnight pass.");
             }
@@ -239,7 +237,7 @@ export default function MyAttendancePage() {
                 )}
             </Card>
 
-            <Card className={`p-5 sm:p-6 ${overnight ? "before:bg-indigo-400/30 bg-indigo-500/10" : ""}`}>
+            <Card className="p-5 sm:p-6" borderClassName={overnight ? "border-indigo-400/30" : "border-white/10"}>
                 <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white">
                     <Moon className="h-4 w-4 text-indigo-400" /> Staying overnight
                 </h2>
@@ -253,7 +251,7 @@ export default function MyAttendancePage() {
                                 Pass active for the night of {new Date(`${overnight.nightOf}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}.
                             </p>
                             <p className="mt-0.5 text-xs text-gray-400">
-                                Midnight auto-checkout will skip you tonight{overnight.reason ? ` — ${overnight.reason}` : ""}. Remember to tap out when you actually leave.
+                                Midnight auto-checkout will skip you tonight{overnight.reason ? ` (${overnight.reason})` : ""}. Remember to tap out when you actually leave.
                             </p>
                         </div>
                         <button
@@ -267,7 +265,7 @@ export default function MyAttendancePage() {
                 ) : (
                     <div className="space-y-3">
                         <p className="text-sm text-gray-400">
-                            Pulling an all-nighter? Turn this on and the midnight sweep won&apos;t check you out — good for exactly one night.
+                            Pulling an all-nighter? Turn this on and the midnight sweep won&apos;t check you out. Good for exactly one night.
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <input
@@ -291,12 +289,12 @@ export default function MyAttendancePage() {
             </Card>
 
             {openSince && (
-                <Card className="before:bg-amber-500/30 bg-amber-500/10 p-5">
+                <Card className="p-5" borderClassName="border-amber-500/30">
                     <div className="flex items-start gap-3">
                         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
                         <div className="flex-1">
                             <p className="text-sm font-bold text-amber-300">
-                                Still checked in since {new Date(openSince).toLocaleString()} — forgot to tap out?
+                                Still checked in since {new Date(openSince).toLocaleString()}. Forgot to tap out?
                             </p>
                             <button
                                 onClick={() => openCorrection("checked_out_at")}
@@ -324,11 +322,9 @@ export default function MyAttendancePage() {
             {showCorrection && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4" onClick={() => setShowCorrection(null)}>
                     <div
-                        className="w-full max-w-sm bg-white/10 p-px"
-                        style={CARD_CLIP}
+                        className="w-full max-w-sm border border-white/10 bg-black p-5"
                         onClick={(e) => e.stopPropagation()}
                     >
-                    <div className="h-full w-full bg-black/95 p-5" style={CARD_CLIP}>
                         <h3 className="mb-3 text-sm font-bold text-white">
                             {showCorrection === "checked_out_at" ? "What time did you leave?" : "What time did you arrive?"}
                         </h3>
@@ -350,7 +346,6 @@ export default function MyAttendancePage() {
                                 {submittingCorrection ? "Saving…" : "Save"}
                             </button>
                         </div>
-                    </div>
                     </div>
                 </div>
             )}

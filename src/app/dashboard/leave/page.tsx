@@ -27,11 +27,6 @@ function todayISO(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function LeaveRequestPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
     const [rows, setRows] = useState<LeaveRequest[]>([]);
@@ -106,11 +101,9 @@ export default function LeaveRequestPage() {
                 </p>
             </div>
 
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <form
                 onSubmit={submit}
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5 space-y-4"
-                style={{ clipPath: CARD_CLIP }}
+                className="border border-white/10 bg-black backdrop-blur-xl p-5 space-y-4"
             >
                 <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
@@ -189,13 +182,8 @@ export default function LeaveRequestPage() {
                     {submitting ? "Submitting..." : "Submit request"}
                 </button>
             </form>
-            </div>
 
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <div
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                style={{ clipPath: CARD_CLIP }}
-            >
+            <div className="border border-white/10 bg-black backdrop-blur-xl">
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : rows.length === 0 ? (
@@ -240,7 +228,6 @@ export default function LeaveRequestPage() {
                         </table>
                     </div>
                 )}
-            </div>
             </div>
         </div>
     );

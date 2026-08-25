@@ -13,11 +13,6 @@ type KbDocument = {
     chunk_count: number;
 };
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function KnowledgeBasePage() {
     const { ready } = useRoleGate(["lead", "admin"]);
     const [documents, setDocuments] = useState<KbDocument[]>([]);
@@ -125,22 +120,15 @@ export default function KnowledgeBasePage() {
             {loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : documents.length === 0 ? (
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                    <div className="h-full w-full bg-white/[0.03] p-8 text-center text-sm text-gray-500" style={{ clipPath: CARD_CLIP }}>
-                        No files uploaded yet.
-                    </div>
+                <div className="border border-white/10 bg-black p-8 text-center text-sm text-gray-500">
+                    No files uploaded yet.
                 </div>
             ) : (
                 <div className="space-y-2">
                     {documents.map((doc) => (
                         <div
                             key={doc.id}
-                            className="bg-white/10 p-px"
-                            style={{ clipPath: CARD_CLIP }}
-                        >
-                        <div
-                            className="h-full w-full flex items-center justify-between gap-3 bg-white/[0.03] px-4 py-3"
-                            style={{ clipPath: CARD_CLIP }}
+                            className="border border-white/10 bg-black flex items-center justify-between gap-3 px-4 py-3"
                         >
                             <div className="flex items-center gap-3 min-w-0">
                                 <FileText className="h-5 w-5 text-gray-500 shrink-0" />
@@ -161,7 +149,6 @@ export default function KnowledgeBasePage() {
                             >
                                 <Trash2 className="h-3.5 w-3.5" /> Delete
                             </button>
-                        </div>
                         </div>
                     ))}
                 </div>

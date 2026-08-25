@@ -11,11 +11,6 @@ const PROFILE_FIELDS = CONTENT_RESOURCES.members.fields.filter(
     (f) => f.name !== "is_active" && f.name !== "display_order"
 );
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 interface Candidate {
     id: string;
     name: string;
@@ -52,11 +47,7 @@ function ConnectedAccounts() {
     if (status === null) return null;
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
-            style={{ clipPath: CARD_CLIP }}
-        >
+        <div className="border border-white/10 bg-black p-6">
             <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
                 <Link2 className="w-4 h-4 text-red" />
                 Connected accounts
@@ -69,7 +60,7 @@ function ConnectedAccounts() {
                             Connected as <span className="text-white">{status.email}</span>
                         </span>
                     ) : (
-                        <span className="text-gray-400">Not connected — sign in with Google in one click.</span>
+                        <span className="text-gray-400">Not connected. Sign in with Google in one click.</span>
                     )}
                 </div>
                 {!status.connected && (
@@ -82,7 +73,6 @@ function ConnectedAccounts() {
                     </button>
                 )}
             </div>
-        </div>
         </div>
     );
 }
@@ -141,13 +131,8 @@ export default function ProfilePage() {
 
     if (mode === "not-ready") {
         return (
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <div
-                className="h-full w-full bg-white/[0.03] p-8 text-center text-gray-400 text-sm"
-                style={{ clipPath: CARD_CLIP }}
-            >
-                Your profile isn't set up yet — check back once your account has been approved.
-            </div>
+            <div className="border border-white/10 bg-black p-8 text-center text-gray-400 text-sm">
+                Your profile isn't set up yet. Check back once your account has been approved.
             </div>
         );
     }
@@ -169,11 +154,7 @@ export default function ProfilePage() {
                 <p className="text-sm text-gray-400">
                     We don't have this login linked to a Team page entry yet. Is one of these you?
                 </p>
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black">
                     {candidates.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No unclaimed entries found.</div>
                     ) : (
@@ -181,7 +162,7 @@ export default function ProfilePage() {
                             {candidates.map((c) => (
                                 <li key={c.id} className="flex items-center justify-between px-5 py-3">
                                     <span className="text-white text-sm">
-                                        {c.name} <span className="text-gray-500">— {c.role}</span>
+                                        {c.name} <span className="text-gray-500">({c.role})</span>
                                     </span>
                                     <button
                                         onClick={() => {
@@ -197,7 +178,6 @@ export default function ProfilePage() {
                         </ul>
                     )}
                 </div>
-                </div>
                 <button
                     onClick={() => setMode("creating")}
                     className="group relative overflow-hidden px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/40 active:translate-y-0 active:scale-[0.97]"
@@ -211,7 +191,7 @@ export default function ProfilePage() {
                         }}
                     />
                     <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
-                        None of these are me — create a new entry
+                        None of these are me, create a new entry
                     </span>
                 </button>
             </div>
@@ -222,11 +202,7 @@ export default function ProfilePage() {
         return (
             <div className="space-y-6 max-w-xl">
                 {header}
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black p-6">
                     <ContentEditForm
                         resource="members"
                         fields={PROFILE_FIELDS}
@@ -236,7 +212,6 @@ export default function ProfilePage() {
                         onSubmit={(payload) => handleSubmit(payload, { claimRowId: selected.id })}
                     />
                 </div>
-                </div>
             </div>
         );
     }
@@ -245,11 +220,7 @@ export default function ProfilePage() {
         return (
             <div className="space-y-6 max-w-xl">
                 {header}
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black p-6">
                     <ContentEditForm
                         resource="members"
                         fields={PROFILE_FIELDS}
@@ -257,7 +228,6 @@ export default function ProfilePage() {
                         submitting={submitting}
                         onSubmit={(payload) => handleSubmit(payload, { createNew: true })}
                     />
-                </div>
                 </div>
             </div>
         );
@@ -267,11 +237,7 @@ export default function ProfilePage() {
         <div className="space-y-6 max-w-xl">
             {header}
             <ConnectedAccounts />
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <div
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
-                style={{ clipPath: CARD_CLIP }}
-            >
+            <div className="border border-white/10 bg-black p-6">
                 <ContentEditForm
                     resource="members"
                     fields={PROFILE_FIELDS}
@@ -280,7 +246,6 @@ export default function ProfilePage() {
                     submitting={submitting}
                     onSubmit={(payload) => handleSubmit(payload)}
                 />
-            </div>
             </div>
         </div>
     );

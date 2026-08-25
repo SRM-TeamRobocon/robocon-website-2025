@@ -55,20 +55,11 @@ function FeedTab({ viewerRole }: { viewerRole: string | null }) {
         return (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {[0, 1, 2].map((i) => (
-                    <div
-                        key={i}
-                        className="bg-white/10 p-px"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                    >
-                        <div
-                            className="h-full w-full bg-white/[0.03]"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                        >
-                            <div className="aspect-video w-full animate-pulse bg-white/5" />
-                            <div className="space-y-2 p-5">
-                                <div className="h-4 w-3/4 animate-pulse bg-white/5" />
-                                <div className="h-3 w-full animate-pulse bg-white/5" />
-                            </div>
+                    <div key={i} className="border border-white/10 bg-black">
+                        <div className="aspect-video w-full animate-pulse bg-white/5" />
+                        <div className="space-y-2 p-5">
+                            <div className="h-4 w-3/4 animate-pulse bg-white/5" />
+                            <div className="h-3 w-full animate-pulse bg-white/5" />
                         </div>
                     </div>
                 ))}
@@ -78,17 +69,12 @@ function FeedTab({ viewerRole }: { viewerRole: string | null }) {
 
     if (rows.length === 0) {
         return (
-            <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] p-10 text-center"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
-                    <Newspaper className="mx-auto mb-3 h-8 w-8 text-gray-700" />
-                    <p className="text-sm text-gray-400">No blogs published yet.</p>
-                    <Link href="/dashboard/blogs/new" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline">
-                        <PenSquare className="h-4 w-4" /> Write the first one
-                    </Link>
-                </div>
+            <div className="border border-white/10 bg-black p-10 text-center">
+                <Newspaper className="mx-auto mb-3 h-8 w-8 text-gray-700" />
+                <p className="text-sm text-gray-400">No blogs published yet.</p>
+                <Link href="/dashboard/blogs/new" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline">
+                    <PenSquare className="h-4 w-4" /> Write the first one
+                </Link>
             </div>
         );
     }
@@ -152,17 +138,12 @@ function MineTab() {
 
     if (rows.length === 0) {
         return (
-            <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] p-10 text-center"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
-                    <PenSquare className="mx-auto mb-3 h-8 w-8 text-gray-700" />
-                    <p className="text-sm text-gray-400">You haven&apos;t written any blogs yet.</p>
-                    <Link href="/dashboard/blogs/new" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline">
-                        <PenSquare className="h-4 w-4" /> Write your first blog
-                    </Link>
-                </div>
+            <div className="border border-white/10 bg-black p-10 text-center">
+                <PenSquare className="mx-auto mb-3 h-8 w-8 text-gray-700" />
+                <p className="text-sm text-gray-400">You haven&apos;t written any blogs yet.</p>
+                <Link href="/dashboard/blogs/new" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline">
+                    <PenSquare className="h-4 w-4" /> Write your first blog
+                </Link>
             </div>
         );
     }
@@ -170,11 +151,7 @@ function MineTab() {
     return (
         <ul className="space-y-3">
             {rows.map((row) => (
-                <div key={row.id} className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-                <li
-                    className="h-full w-full bg-white/[0.03] p-4 backdrop-blur-xl"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
+                <li key={row.id} className="border border-white/10 bg-black p-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 gap-3">
                             <Thumb src={row.cover_image_url} alt={row.title} size={56} />
@@ -224,7 +201,6 @@ function MineTab() {
                         </div>
                     </div>
                 </li>
-                </div>
             ))}
         </ul>
     );
@@ -262,7 +238,7 @@ function BlogsPageContent() {
                         Blog
                     </h1>
                     <p className="mt-2 max-w-xl text-sm text-gray-400">
-                        Stories from the team — public posts and members-only posts, all in one feed.
+                        Stories from the team: public posts and members-only posts, all in one feed.
                     </p>
                 </div>
                 <Link

@@ -93,11 +93,6 @@ import {
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 // Scoped to a single, already-known sub_domain — every call site now lives inside that
 // domain's own row, so there's no dropdown to pick from any more (the row IS the pick).
 // table_number/routing is still auto-allocated server-side regardless of the name typed
@@ -148,11 +143,7 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
     }
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-3 space-y-2"
-            style={{ clipPath: CARD_CLIP }}
-        >
+        <div className="border border-white/10 bg-black p-3 space-y-2">
             <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -181,7 +172,6 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
                 </button>
             </div>
         </div>
-        </div>
     );
 }
 
@@ -194,7 +184,7 @@ function usePanelActions(panel: Panel, onChanged: () => void) {
     // Reversible pause — Reopen brings back any stranded `waiting` tokens exactly as they
     // were. Nobody is moved anywhere.
     const closePanel = async () => {
-        if (!confirm(`Pause "${panel.domain_label}"? Remaining waiting tokens are left as-is — Reopen brings them back.`)) return;
+        if (!confirm(`Pause "${panel.domain_label}"? Remaining waiting tokens are left as-is. Reopen brings them back.`)) return;
         setBusy(true);
         try {
             const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/close`, { method: "PATCH" });
@@ -227,7 +217,7 @@ function usePanelActions(panel: Panel, onChanged: () => void) {
                 const parts = [];
                 if (data.moved > 0) parts.push(`${data.moved} moved to another table`);
                 if (data.deferred > 0) parts.push(`${data.deferred} deferred to another day`);
-                toast.success(parts.length > 0 ? `Table closed — ${parts.join(", ")}` : "Table closed for the day");
+                toast.success(parts.length > 0 ? `Table closed: ${parts.join(", ")}` : "Table closed for the day");
                 onChanged();
             } else {
                 toast.error(data.error || "Could not close this table");
@@ -245,7 +235,7 @@ function usePanelActions(panel: Panel, onChanged: () => void) {
         const queued = panel.counts.waiting + panel.counts.called;
         const warning =
             queued > 0
-                ? `\n\n${queued} recruit(s) are still queued on this table — they'll be redistributed to another open table for the same domain, or deferred to another day if none is open.`
+                ? `\n\n${queued} recruit(s) are still queued on this table. They'll be redistributed to another open table for the same domain, or deferred to another day if none is open.`
                 : "";
         if (!confirm(`Permanently delete the "${panel.domain_label}" table?${warning}\n\nThis cannot be undone.`)) return;
         setBusy(true);
@@ -256,7 +246,7 @@ function usePanelActions(panel: Panel, onChanged: () => void) {
                 const parts = [];
                 if (data.moved > 0) parts.push(`${data.moved} moved`);
                 if (data.deferred > 0) parts.push(`${data.deferred} deferred`);
-                toast.success(`Deleted "${panel.domain_label}"${parts.length > 0 ? ` — ${parts.join(", ")}` : ""}`);
+                toast.success(`Deleted "${panel.domain_label}"${parts.length > 0 ? `: ${parts.join(", ")}` : ""}`);
                 onChanged();
             } else {
                 toast.error(data.error || "Could not delete table");
@@ -310,11 +300,7 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
     const { busy, closePanel, closeForDay, deletePanel } = usePanelActions(panel, onChanged);
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-        <div
-            className="h-full w-full bg-white/[0.03] p-3"
-            style={{ clipPath: CARD_CLIP }}
-        >
+        <div className="border border-white/10 bg-black p-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
                     <span className={`h-2 w-2 shrink-0 ${panel.is_active ? "bg-emerald-400" : "bg-gray-600"}`} />
@@ -365,7 +351,6 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
                 </button>
             </div>
         </div>
-        </div>
     );
 }
 
@@ -377,7 +362,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-lg font-black text-white">
-                            #{token.token_number} — {r.name}
+                            #{token.token_number} · {r.name}
                         </p>
                         {token.is_walkin && (
                             <span className="inline-flex items-center gap-1 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30">
@@ -396,7 +381,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                     </p>
                     {token.is_walkin && (
                         <p className="mt-1 text-xs text-amber-400/80">
-                            Not shortlisted for this domain — let in as a walk-in on interview day.
+                            Not shortlisted for this domain, let in as a walk-in on interview day.
                         </p>
                     )}
                 </div>
@@ -478,7 +463,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
             } else if (data.status === "queue_empty") {
                 toast("Queue is empty", { icon: "📭" });
             } else {
-                toast.success(`Called #${data.token_number} — ${data.recruit?.name ?? ""}`);
+                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
             }
         } finally {
             setBusy(false);
@@ -489,7 +474,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
     const logResult = async (result: "selected" | "rejected" | "waitlisted") => {
         if (!called) return;
         if (!panel.sub_domain) {
-            toast.error("This table has no domain set — cannot log a result");
+            toast.error("This table has no domain set, cannot log a result");
             return;
         }
         setBusy(true);
@@ -520,7 +505,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
 
     const markNoShow = async () => {
         if (!called) return;
-        if (!confirm(`Mark #${called.token_number} — ${called.recruit.name} as no-show?`)) return;
+        if (!confirm(`Mark #${called.token_number}: ${called.recruit.name} as no-show?`)) return;
         setBusy(true);
         try {
             const res = await fetch(`/api/admin/recruitment/panels/tokens/${called.token_id}/no-show`, {
@@ -539,11 +524,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
     };
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-4 space-y-3"
-            style={{ clipPath: CARD_CLIP }}
-        >
+        <div className="border border-white/10 bg-black p-4 space-y-3">
             <div className="flex items-start justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                     <h3 className="truncate font-bold text-white">{panel.domain_label}</h3>
@@ -628,7 +609,6 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
                     </span>
                 </button>
             )}
-        </div>
         </div>
     );
 }
@@ -784,11 +764,7 @@ function SharedWaitingQueue({
     };
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-            style={{ clipPath: CARD_CLIP }}
-        >
+        <div className="border border-white/10 bg-black">
             <div className="px-4 py-2.5 border-b border-white/10">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <Users className="h-4 w-4 text-gray-400" /> Waiting — {subDomainLabel(subDomain)} ({totalWaiting})
@@ -837,7 +813,6 @@ function SharedWaitingQueue({
                 </div>
             )}
         </div>
-        </div>
     );
 }
 
@@ -868,13 +843,8 @@ function SubDomainBoard({
             </div>
 
             {openPanels.length === 0 && closedPanels.length === 0 && (
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] p-5 text-center text-xs text-gray-500"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black p-5 text-center text-xs text-gray-500">
                     No tables open yet.
-                </div>
                 </div>
             )}
 
@@ -1052,11 +1022,7 @@ function DomainResultsSection({
     for (const r of rows) counts[r.result]++;
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-            style={{ clipPath: CARD_CLIP }}
-        >
+        <div className="border border-white/10 bg-black">
             <button
                 type="button"
                 onClick={() => setCollapsed((c) => !c)}
@@ -1149,7 +1115,6 @@ function DomainResultsSection({
                 </div>
             )}
         </div>
-        </div>
     );
 }
 
@@ -1182,22 +1147,12 @@ function InterviewResultsList() {
                 <span className="text-xs text-gray-500">({rows.length} total)</span>
             </div>
             {loading ? (
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] p-6 text-center text-sm text-gray-500"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black p-6 text-center text-sm text-gray-500">
                     Loading...
                 </div>
-                </div>
             ) : rows.length === 0 ? (
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] p-6 text-center text-sm text-gray-500"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-white/10 bg-black p-6 text-center text-sm text-gray-500">
                     No results logged yet — they&apos;ll show up here as panels call recruits in.
-                </div>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -1343,13 +1298,8 @@ export default function InterviewManagementPage() {
             </div>
 
             {noCycle ? (
-                <div className="bg-amber-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-amber-500/[0.06] p-6 text-sm text-amber-300"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-amber-500/30 bg-black p-6 text-sm text-amber-300">
                     No active recruitment cycle. Start one from Cycles before opening interview panels.
-                </div>
                 </div>
             ) : loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading tables...</div>

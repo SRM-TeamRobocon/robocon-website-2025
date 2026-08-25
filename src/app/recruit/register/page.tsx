@@ -37,33 +37,25 @@ type ProfileForm = {
     portfolioUrl: string;
 };
 
-// Sharp red/white/black poster theme — matches RecruitmentSection (homepage recruitment
-// teaser). White card, angled black border, clipped corner via inline clip-path rather
-// than rounded corners. Replaces the old dark GlassCard/RecruitBackdrop wrapper.
-// A CSS `border` doesn't render along a clip-path's angled edge (it only follows the
-// original rectangle, leaving the diagonal side gapped), so instead of a border this
-// renders as two nested elements: an outer one filled with the border color and padded
-// by the border width, and an inner one with the real fill — see the JSX below.
-const CARD_CLIP = "polygon(0 0,100% 0,100% 97%,97% 100%,0 100%)";
+// Sharp red/black poster theme — matches RecruitmentSection (homepage recruitment
+// teaser) and the dashboard's black/red look. Plain rectangle card (no clip-path).
 function CardShell({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
     return (
-        <div className="flex min-h-[100dvh] items-center justify-center overflow-x-hidden bg-white p-4 sm:p-5">
+        <div className="flex min-h-[100dvh] items-center justify-center overflow-x-hidden bg-black p-4 sm:p-5">
             <div className="w-full max-w-lg min-w-0">
                 <AuthNav variant="sharp" onBack={onBack} />
-                <div className="w-full bg-black p-[2px]" style={{ clipPath: CARD_CLIP }}>
-                    <div className="h-full w-full overflow-hidden bg-white p-6 sm:p-8" style={{ clipPath: CARD_CLIP }}>
-                        <div className="flex justify-center mb-6">
-                            <Image
-                                src="/LOGO.png"
-                                alt="Robocon Logo"
-                                width={120}
-                                height={120}
-                                className="object-contain"
-                                unoptimized
-                            />
-                        </div>
-                        {children}
+                <div className="w-full overflow-hidden border-2 border-red bg-black p-6 sm:p-8">
+                    <div className="flex justify-center mb-6">
+                        <Image
+                            src="/LOGO.png"
+                            alt="Robocon Logo"
+                            width={120}
+                            height={120}
+                            className="object-contain"
+                            unoptimized
+                        />
                     </div>
+                    {children}
                 </div>
             </div>
         </div>
@@ -77,7 +69,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
                 <div
                     key={s}
                     className={`h-1.5 transition-all ${
-                        s === step ? "w-8 bg-red" : s < step ? "w-8 bg-red/40" : "w-8 bg-black/10"
+                        s === step ? "w-8 bg-red" : s < step ? "w-8 bg-red/40" : "w-8 bg-white/10"
                     }`}
                 />
             ))}
@@ -327,21 +319,21 @@ function RecruitRegisterInner() {
     return (
         <CardShell onBack={stepBack}>
             <div className="text-center mb-6">
-                <h2 className="break-words text-2xl font-bold tracking-tight text-black sm:text-3xl">Recruit Registration</h2>
-                <p className="mt-2 text-sm text-black/50">SRM Team Robocon — {new Date().getFullYear()} recruitment</p>
+                <h2 className="break-words text-2xl font-bold tracking-tight text-white sm:text-3xl">Recruit Registration</h2>
+                <p className="mt-2 text-sm text-white/50">SRM Team Robocon — {new Date().getFullYear()} recruitment</p>
             </div>
 
             <StepIndicator step={step} />
 
             {step === 1 && (
                 <div className="space-y-5">
-                    <p className="text-sm text-black/50 text-center">
+                    <p className="text-sm text-white/50 text-center">
                         Start with your personal Google account
                     </p>
                     <button
                         type="button"
                         onClick={handleGoogleContinue}
-                        className="flex w-full items-center justify-center gap-3 border-2 border-black bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-red hover:text-white hover:border-red active:scale-[0.99] shadow-sm transition-all"
+                        className="flex w-full items-center justify-center gap-3 border-2 border-red bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-red hover:text-white hover:border-red active:scale-[0.99] shadow-sm transition-all"
                     >
                         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                             <path
@@ -367,7 +359,7 @@ function RecruitRegisterInner() {
                         Use your <span className="font-bold">personal Email  </span> here, not your SRM email
                     </p>
                     <ErrorBanner message={error} />
-                    <p className="text-center text-sm text-black/50">
+                    <p className="text-center text-sm text-white/50">
                         Already registered?{" "}
                         <Link href="/recruit/login" className="text-red hover:text-red/80 font-semibold">
                             Log in
@@ -379,14 +371,14 @@ function RecruitRegisterInner() {
             {step === 2 && (
                 <div className="space-y-5">
                     {googleName && (
-                        <p className="text-sm text-black/50 text-center">
-                            Welcome, <span className="text-black font-semibold">{googleName}</span>. Enter your SRM email to
+                        <p className="text-sm text-white/50 text-center">
+                            Welcome, <span className="text-white font-semibold">{googleName}</span>. Enter your SRM email to
                             continue.
                         </p>
                     )}
                     <form onSubmit={handleContinueFromEmail} className="space-y-5">
                         <div>
-                            <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-black/70">
+                            <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-white/70">
                                 SRM Email
                             </label>
                             <div className="mt-2">
@@ -398,10 +390,10 @@ function RecruitRegisterInner() {
                                     value={srmEmail}
                                     onChange={(e) => setSrmEmail(e.target.value)}
                                     placeholder="ab1234@srmist.edu.in"
-                                    className="block w-full min-w-0 border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
+                                    className="block w-full min-w-0 border-2 border-white/15 bg-black py-3 px-4 text-white placeholder:text-white/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
                                 />
                             </div>
-                            <p className="mt-2 text-xs text-black/40">
+                            <p className="mt-2 text-xs text-white/40">
                                 You can verify this address later from your dashboard — no OTP needed right now.
                             </p>
                         </div>
@@ -428,7 +420,7 @@ function RecruitRegisterInner() {
 
             {step === 3 && (
                 <form onSubmit={handleCompleteRegistration} className="space-y-5">
-                    <p className="text-sm text-black/50 text-center">Complete your profile.</p>
+                    <p className="text-sm text-white/50 text-center">Complete your profile.</p>
 
                     <Field label="Full Name" id="name" value={profile.name} onChange={updateProfile("name")} placeholder="Full name" />
                     <Field
@@ -441,7 +433,7 @@ function RecruitRegisterInner() {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label htmlFor="year" className="block text-sm font-medium leading-6 text-black/70">
+                            <label htmlFor="year" className="block text-sm font-medium leading-6 text-white/70">
                                 Year
                             </label>
                             <div className="mt-2">
@@ -462,7 +454,7 @@ function RecruitRegisterInner() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium leading-6 text-black/70 mb-2">Gender</label>
+                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">Gender</label>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {GENDERS.map((opt) => {
                                 const checked = profile.gender === opt.key;
@@ -473,8 +465,8 @@ function RecruitRegisterInner() {
                                         onClick={() => setProfile((prev) => ({ ...prev, gender: opt.key }))}
                                         className={`min-w-0 break-words border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
-                                                ? "bg-red/10 border-2 border-red text-black"
-                                                : "bg-white border-black/15 text-black/60 hover:border-black/40"
+                                                ? "bg-red/10 border-2 border-red text-white"
+                                                : "bg-black border-white/15 text-white/60 hover:border-white/40"
                                         }`}
                                     >
                                         {opt.label}
@@ -496,7 +488,7 @@ function RecruitRegisterInner() {
                     />
 
                     <div>
-                        <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
+                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
                             Do you stay in a hostel?
                         </label>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -526,8 +518,8 @@ function RecruitRegisterInner() {
                                         }
                                         className={`min-w-0 break-words border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                             checked
-                                                ? "bg-red/10 border-2 border-red text-black"
-                                                : "bg-white border-black/15 text-black/60 hover:border-black/40"
+                                                ? "bg-red/10 border-2 border-red text-white"
+                                                : "bg-black border-white/15 text-white/60 hover:border-white/40"
                                         }`}
                                     >
                                         {opt.label}
@@ -540,7 +532,7 @@ function RecruitRegisterInner() {
                     {profile.isHosteller && (
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                                <label htmlFor="hostelBlock" className="block text-sm font-medium leading-6 text-black/70">
+                                <label htmlFor="hostelBlock" className="block text-sm font-medium leading-6 text-white/70">
                                     Hostel Block
                                 </label>
                                 <div className="mt-2">
@@ -574,7 +566,7 @@ function RecruitRegisterInner() {
                                 placeholder="e.g. Tambaram"
                             />
                             <div>
-                                <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
+                                <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
                                     How do you travel to college?
                                 </label>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -589,8 +581,8 @@ function RecruitRegisterInner() {
                                                 }
                                                 className={`min-w-0 break-words border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.99] ${
                                                     checked
-                                                        ? "bg-red/10 border-2 border-red text-black"
-                                                        : "bg-white border-black/15 text-black/60 hover:border-black/40"
+                                                        ? "bg-red/10 border-2 border-red text-white"
+                                                        : "bg-black border-white/15 text-white/60 hover:border-white/40"
                                                 }`}
                                             >
                                                 {opt.label}
@@ -603,13 +595,13 @@ function RecruitRegisterInner() {
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
-                            Domains <span className="text-black/40">(choose 1–2)</span>
+                        <label className="block text-sm font-medium leading-6 text-white/70 mb-2">
+                            Domains <span className="text-white/40">(choose 1–2)</span>
                         </label>
                         <div className="space-y-3">
                             {DOMAIN_GROUPS.map((group) => (
                                 <div key={group.subsystem}>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 mb-1.5">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-1.5">
                                         {group.subsystem}
                                     </p>
                                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -621,10 +613,10 @@ function RecruitRegisterInner() {
                                                     key={opt.key}
                                                     className={`flex min-w-0 items-start gap-2 border px-3 py-2.5 text-sm transition-all cursor-pointer ${
                                                         checked
-                                                            ? "bg-red/10 border-red/60 text-black"
+                                                            ? "bg-red/10 border-red/60 text-white"
                                                             : disabled
-                                                            ? "bg-black/[0.02] border-black/10 text-black/30 cursor-not-allowed"
-                                                            : "bg-white border-black/15 text-black/70 hover:border-black/30"
+                                                            ? "bg-white/[0.04] border-white/10 text-white/30 cursor-not-allowed"
+                                                            : "bg-black border-white/15 text-white/70 hover:border-white/30"
                                                     }`}
                                                 >
                                                     <input
@@ -724,7 +716,7 @@ function Field({
     const isPassword = type === "password";
     return (
         <div>
-            <label htmlFor={id} className="block text-sm font-medium leading-6 text-black/70">
+            <label htmlFor={id} className="block text-sm font-medium leading-6 text-white/70">
                 {label}
             </label>
             <div className="mt-2 relative">
@@ -737,7 +729,7 @@ function Field({
                     onChange={onChange}
                     placeholder={placeholder}
                     autoComplete={autoComplete}
-                    className={`block w-full min-w-0 border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all ${
+                    className={`block w-full min-w-0 border-2 border-white/15 bg-black py-3 px-4 text-white placeholder:text-white/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all ${
                         isPassword ? "pr-11" : ""
                     }`}
                 />
@@ -745,7 +737,7 @@ function Field({
                     <PasswordToggle
                         shown={showPassword}
                         onToggle={() => setShowPassword((s) => !s)}
-                        className="text-black/40 hover:text-black/70"
+                        className="text-white/40 hover:text-white/70"
                     />
                 )}
             </div>
@@ -755,7 +747,7 @@ function Field({
 
 export default function RecruitRegisterPage() {
     return (
-        <Suspense fallback={<div className="min-h-[100dvh] bg-white" />}>
+        <Suspense fallback={<div className="min-h-[100dvh] bg-black" />}>
             <RecruitRegisterInner />
         </Suspense>
     );

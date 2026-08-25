@@ -162,11 +162,7 @@ function MembersTab() {
         <div className="space-y-8">
             <div>
                 <h2 className="text-lg font-bold text-white mb-3">Pending Signups</h2>
-                <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
+                <div className="border border-white/10 bg-black">
                     {pending.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No pending approvals.</div>
                     ) : (
@@ -202,7 +198,7 @@ function MembersTab() {
                                                     <option value="" className="bg-gray-900">Not on old roster</option>
                                                     {unlinked.map((u) => (
                                                         <option key={u.id} value={u.id} className="bg-gray-900">
-                                                            {u.name} — {u.role}
+                                                            {u.name} ({u.role})
                                                         </option>
                                                     ))}
                                                 </select>
@@ -242,16 +238,11 @@ function MembersTab() {
                         </div>
                     )}
                 </div>
-                </div>
             </div>
 
             <div>
                 <h2 className="text-lg font-bold text-white mb-3">Approved Accounts</h2>
-                <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-                <div
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                >
+                <div className="border border-white/10 bg-black">
                     {approved.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No approved accounts yet.</div>
                     ) : (
@@ -289,7 +280,6 @@ function MembersTab() {
                             </table>
                         </div>
                     )}
-                </div>
                 </div>
             </div>
         </div>
@@ -340,11 +330,7 @@ function ContentTab() {
     if (loading) return <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>;
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-        >
+        <div className="border border-white/10 bg-black">
             {rows.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
             ) : (
@@ -361,7 +347,7 @@ function ContentTab() {
                                     {imageUrl && <Thumb src={imageUrl} alt={`${row.resource} preview`} />}
                                     <div className="min-w-0">
                                         <p className="text-white font-medium capitalize">
-                                            {row.action} — {row.resource}
+                                            {row.action} {row.resource}
                                         </p>
                                         <p className="text-xs text-gray-500">
                                             {row.member_accounts?.name} ({row.member_accounts?.email}) ·{" "}
@@ -403,7 +389,6 @@ function ContentTab() {
                     })}
                 </ul>
             )}
-        </div>
         </div>
     );
 }
@@ -460,11 +445,7 @@ function LeaveTab() {
     if (loading) return <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>;
 
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-        <div
-            className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-        >
+        <div className="border border-white/10 bg-black">
             {rows.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Nothing pending.</div>
             ) : (
@@ -502,7 +483,6 @@ function LeaveTab() {
                     ))}
                 </ul>
             )}
-        </div>
         </div>
     );
 }
@@ -554,7 +534,7 @@ function BlogsTab() {
                 toast.success(
                     decision === "approve" ? "Approved and published"
                         : decision === "reject" ? "Rejected"
-                        : "Unpublished — back in the pending queue"
+                        : "Unpublished, back in the pending queue"
                 );
             } else {
                 toast.error(data.error || "Could not record decision");
@@ -600,11 +580,7 @@ function BlogsTab() {
     return (
         <div>
             {tabs}
-            <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
-            <div
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-            >
+            <div className="border border-white/10 bg-black">
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : rows.length === 0 ? (
@@ -696,7 +672,6 @@ function BlogsTab() {
                     </ul>
                 )}
             </div>
-            </div>
         </div>
     );
 }
@@ -715,7 +690,7 @@ export default function ApprovalsPage() {
                     Review &amp; Approvals
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    New member signups, role changes, proposed content, and blog posts — all in one place.
+                    New member signups, role changes, proposed content, and blog posts, all in one place.
                 </p>
             </div>
 

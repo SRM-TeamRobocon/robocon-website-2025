@@ -6,7 +6,6 @@ import { Undo2 } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
 import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
-import GlassCard from "@/components/recruit/GlassCard";
 import Select from "@/components/ui/select";
 
 const Html5QrcodeScanner = dynamic(() => import("@/components/recruit/Html5QrcodeScanner"), {
@@ -467,14 +466,14 @@ export default function RecruitScannerPage() {
                 </div>
 
                 {!scanning ? (
-                    <GlassCard contentClassName="p-6 md:p-8 space-y-6" borderRadius={28}>
+                    <div className="border-2 border-red bg-black p-6 md:p-8 space-y-6">
                         <p className="text-xs uppercase tracking-widest font-bold text-white/40">Select scan mode</p>
 
                         <div className="space-y-3">
                             {MODE_OPTIONS.map((opt) => (
                                 <label
                                     key={opt.value}
-                                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedMode === opt.value
+                                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${selectedMode === opt.value
                                         ? "border-red bg-red/10"
                                         : "border-white/15 hover:border-white/30"
                                         }`}
@@ -550,14 +549,14 @@ export default function RecruitScannerPage() {
                             type="button"
                             disabled={!canStart}
                             onClick={() => setScanning(true)}
-                            className="w-full rounded-xl px-4 py-3 font-bold text-sm text-white bg-red hover:bg-red/90 active:scale-[0.99] disabled:bg-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-red/25"
+                            className="w-full px-4 py-3 font-bold text-sm text-white bg-red hover:bg-red/90 active:scale-[0.99] disabled:bg-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-red/25"
                         >
                             Start Scanning
                         </button>
-                    </GlassCard>
+                    </div>
                 ) : (
                     <div className="space-y-4">
-                        <GlassCard contentClassName="px-4 py-3 flex items-center justify-between" borderRadius={20}>
+                        <div className="border-2 border-red bg-black px-4 py-3 flex items-center justify-between">
                             <div className="text-sm">
                                 <span className="text-white/40 uppercase tracking-widest text-xs font-bold mr-2">Mode</span>
                                 <span className="font-bold text-white">
@@ -571,7 +570,7 @@ export default function RecruitScannerPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowManualEntry((v) => !v)}
-                                    className={`text-xs font-bold uppercase tracking-widest rounded-lg px-3 py-1.5 border transition-colors ${
+                                    className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${
                                         showManualEntry
                                             ? "border-white/40 text-white bg-white/10"
                                             : "border-white/15 text-white/60 hover:text-white hover:border-white/30"
@@ -586,15 +585,15 @@ export default function RecruitScannerPage() {
                                         setResult(null);
                                         setFlash(null);
                                     }}
-                                    className="text-xs font-bold uppercase tracking-widest text-red hover:text-red/80 border border-red/40 rounded-lg px-3 py-1.5 transition-colors"
+                                    className="text-xs font-bold uppercase tracking-widest text-red hover:text-red/80 border border-red/40 px-3 py-1.5 transition-colors"
                                 >
                                     Change Mode
                                 </button>
                             </div>
-                        </GlassCard>
+                        </div>
 
                         {showManualEntry && (
-                            <GlassCard contentClassName="p-4 md:p-5 space-y-3" borderRadius={20}>
+                            <div className="border-2 border-red bg-black p-4 md:p-5 space-y-3">
                                 <p className="text-xs uppercase tracking-widest font-bold text-white/40">
                                     Mark present without a QR — search by name or reg no
                                 </p>
@@ -604,7 +603,7 @@ export default function RecruitScannerPage() {
                                     value={manualQuery}
                                     onChange={(e) => setManualQuery(e.target.value)}
                                     placeholder="Start typing a name or registration number..."
-                                    className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/40"
+                                    className="w-full border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/40"
                                 />
                                 {manualSearching ? (
                                     <p className="text-xs text-white/40">Searching...</p>
@@ -618,7 +617,7 @@ export default function RecruitScannerPage() {
                                                 type="button"
                                                 disabled={manualSubmitting}
                                                 onClick={() => submitManualEntry(r)}
-                                                className="w-full flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-left hover:border-white/25 hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                                                className="w-full flex items-center justify-between border border-white/10 bg-white/[0.03] px-3 py-2 text-left hover:border-white/25 hover:bg-white/[0.06] transition-colors disabled:opacity-50"
                                             >
                                                 <span className="text-sm font-semibold text-white">{r.name}</span>
                                                 <span className="text-xs font-mono text-white/40">{r.reg_no}</span>
@@ -626,20 +625,19 @@ export default function RecruitScannerPage() {
                                         ))}
                                     </div>
                                 )}
-                            </GlassCard>
+                            </div>
                         )}
 
-                        <GlassCard
-                            contentClassName="relative p-4 md:p-6"
-                            borderRadius={28}
-                            className={`transition-colors duration-150 ${flash === "success"
-                                ? "ring-2 ring-emerald-500"
-                                : flash === "warn"
-                                    ? "ring-2 ring-amber-500"
-                                    : flash === "error"
-                                        ? "ring-2 ring-red-500"
-                                        : ""
-                                }`}
+                        <div
+                            className={`relative border-2 bg-black p-4 md:p-6 transition-colors duration-150 ${
+                                flash === "success"
+                                    ? "border-emerald-500"
+                                    : flash === "warn"
+                                        ? "border-amber-500"
+                                        : flash === "error"
+                                            ? "border-red-500"
+                                            : "border-red"
+                            }`}
                         >
                             {result && result.status === "not_shortlisted" && pendingWalkin ? (
                                 <div className="absolute inset-0 z-50 flex items-center justify-center p-6" style={{ backgroundColor: "rgba(3, 7, 18, 0.97)" }}>
@@ -653,14 +651,14 @@ export default function RecruitScannerPage() {
                                             <button
                                                 type="button"
                                                 onClick={cancelWalkin}
-                                                className="rounded-xl border border-white/20 px-4 py-2.5 text-sm font-bold text-white/70 hover:border-white/40 hover:text-white transition-colors"
+                                                className="border border-white/20 px-4 py-2.5 text-sm font-bold text-white/70 hover:border-white/40 hover:text-white transition-colors"
                                             >
                                                 Turn Away
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={confirmWalkin}
-                                                className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-400 transition-colors"
+                                                className="bg-amber-500 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-400 transition-colors"
                                             >
                                                 Allow Walk-in
                                             </button>
@@ -692,7 +690,7 @@ export default function RecruitScannerPage() {
                                         {result.name && <p className="text-white font-bold text-lg">{result.name}</p>}
                                         <p className="text-gray-300 text-sm mt-1">{result.message}</p>
                                         {typeof result.token_number === "number" && (
-                                            <p className="mt-3 inline-block bg-black/50 border border-gray-700 rounded-xl px-4 py-2 font-mono text-lg font-bold text-white">
+                                            <p className="mt-3 inline-block bg-black/50 border border-gray-700 px-4 py-2 font-mono text-lg font-bold text-white">
                                                 Token #{result.token_number}
                                                 {result.panel_label ? ` — ${result.panel_label}` : ""}
                                             </p>
@@ -702,9 +700,9 @@ export default function RecruitScannerPage() {
                             ) : null}
 
                             <Html5QrcodeScanner onScan={handleScan} />
-                        </GlassCard>
+                        </div>
 
-                        <GlassCard contentClassName="p-4 md:p-6" borderRadius={28}>
+                        <div className="border-2 border-red bg-black p-4 md:p-6">
                             <div className="flex items-baseline justify-between gap-3 mb-3">
                                 <p className="text-xs uppercase tracking-widest font-bold text-white/40">
                                     Checked in — {MODE_OPTIONS.find((m) => m.value === selectedMode)?.label}
@@ -717,7 +715,7 @@ export default function RecruitScannerPage() {
                             {rosterLoading && roster.length === 0 ? (
                                 <div className="space-y-2">
                                     {[0, 1, 2].map((i) => (
-                                        <div key={i} className="h-9 animate-pulse bg-white/5 rounded-lg" />
+                                        <div key={i} className="h-9 animate-pulse bg-white/5" />
                                     ))}
                                 </div>
                             ) : roster.length === 0 ? (
@@ -750,12 +748,12 @@ export default function RecruitScannerPage() {
                                     </table>
                                 </div>
                             )}
-                        </GlassCard>
+                        </div>
                     </div>
                 )}
 
                 {recent.length > 0 && (
-                    <GlassCard contentClassName="p-4 md:p-6" borderRadius={28}>
+                    <div className="border-2 border-red bg-black p-4 md:p-6">
                         <div className="flex items-baseline justify-between gap-3 mb-3">
                             <p className="text-xs uppercase tracking-widest font-bold text-white/40">
                                 Recent scans (this device)
@@ -793,7 +791,7 @@ export default function RecruitScannerPage() {
                                             type="button"
                                             onClick={() => undoScan(entry)}
                                             disabled={entry.state === "undoing"}
-                                            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white hover:border-white/30 disabled:opacity-50 transition-colors"
+                                            className="shrink-0 inline-flex items-center gap-1.5 border border-white/15 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white hover:border-white/30 disabled:opacity-50 transition-colors"
                                         >
                                             <Undo2 className="w-3.5 h-3.5" />
                                             {entry.state === "undoing" ? "Undoing" : "Undo"}
@@ -811,7 +809,7 @@ export default function RecruitScannerPage() {
                             Only scans made on this device are listed, and only until the page is reloaded. Undo requires a
                             lead or admin login.
                         </p>
-                    </GlassCard>
+                    </div>
                 )}
             </div>
         </div>
