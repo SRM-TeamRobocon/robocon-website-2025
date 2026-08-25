@@ -25,11 +25,6 @@ interface PendingAction {
     run: () => Promise<void>;
 }
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function RecruitmentCyclesPage() {
     const ready = useRequireRole(["lead", "admin"]);
     const [role, setRole] = useState<string | null>(null);
@@ -129,7 +124,7 @@ export default function RecruitmentCyclesPage() {
                 title: "Replace the active cycle?",
                 warning: `“${activeCycle.name}” is currently active and has ${activeCycle.total_recruits} recruit${
                     activeCycle.total_recruits === 1 ? "" : "s"
-                }. Creating “${name.trim()}” will stand it down — its recruits keep their data, but they will no longer be able to sign in, scan, or see results until it is re-activated.`,
+                }. Creating “${name.trim()}” will stand it down. Its recruits keep their data, but they will no longer be able to sign in, scan, or see results until it is re-activated.`,
                 confirmName: activeCycle.name,
                 actionLabel: "Create & Activate",
                 run: doCreate,
@@ -145,7 +140,7 @@ export default function RecruitmentCyclesPage() {
             const res = await fetch(`/api/admin/recruitment/cycles/${id}/close`, { method: "PATCH" });
             const data = await res.json();
             if (res.ok && data.success) {
-                toast.success("Cycle closed — the recruitment module is now offline for students");
+                toast.success("Cycle closed, the recruitment module is now offline for students");
                 load();
             } else {
                 toast.error(data.error || "Could not close cycle");
@@ -159,7 +154,7 @@ export default function RecruitmentCyclesPage() {
 
     const closeCycle = (cycle: Cycle) => {
         const warning =
-            "Closing the active cycle takes the entire recruitment module OFFLINE for students — signup, the recruit dashboard, every QR scanner, marks entry and interview queues all stop working until some cycle is active again. Nothing is deleted, and you can re-activate this cycle at any time.";
+            "Closing the active cycle takes the entire recruitment module OFFLINE for students: signup, the recruit dashboard, every QR scanner, marks entry and interview queues all stop working until some cycle is active again. Nothing is deleted, and you can re-activate this cycle at any time.";
         if (cycle.total_recruits > 0) {
             askConfirm({
                 title: "Close this cycle?",
@@ -210,33 +205,26 @@ export default function RecruitmentCyclesPage() {
                     Recruitment Cycles
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Manage recruitment seasons. Only one cycle is active at a time — all student-facing pages and
+                    Manage recruitment seasons. Only one cycle is active at a time; all student-facing pages and
                     admin tools scope to it automatically.
                 </p>
             </div>
 
             {isAdmin && !activeCycle && !loading && cycles.length > 0 && (
-                <div className="bg-amber-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
-                <div
-                    className="h-full w-full bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3"
-                    style={{ clipPath: CARD_CLIP }}
-                >
+                <div className="border border-amber-500/30 bg-black p-4 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-200/90">
                         <span className="font-bold">No cycle is active.</span> The recruitment module is offline for
-                        students — signup, scanners and the recruit dashboard will all error until you activate a
+                        students: signup, scanners and the recruit dashboard will all error until you activate a
                         cycle below or create a new one.
                     </p>
-                </div>
                 </div>
             )}
 
             {isAdmin && (
-                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <form
                     onSubmit={createCycle}
-                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end"
-                    style={{ clipPath: CARD_CLIP }}
+                    className="border border-white/10 bg-black p-5 flex flex-col sm:flex-row gap-3 sm:items-end"
                 >
                     <div className="flex-1">
                         <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">
@@ -278,14 +266,9 @@ export default function RecruitmentCyclesPage() {
                         </span>
                     </button>
                 </form>
-                </div>
             )}
 
-            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <div
-                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
-                style={{ clipPath: CARD_CLIP }}
-            >
+            <div className="border border-white/10 bg-black">
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
                 ) : cycles.length === 0 ? (
@@ -361,15 +344,10 @@ export default function RecruitmentCyclesPage() {
                     </div>
                 )}
             </div>
-            </div>
 
             {pending && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-md bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-                    <div
-                        className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl"
-                        style={{ clipPath: CARD_CLIP }}
-                    >
+                    <div className="w-full max-w-md border border-white/10 bg-black p-6 shadow-2xl">
                         <h2 className="flex items-center gap-2 text-lg font-bold text-white">
                             <AlertTriangle className="h-5 w-5 text-red" />
                             {pending.title}
@@ -418,7 +396,6 @@ export default function RecruitmentCyclesPage() {
                                 </span>
                             </button>
                         </div>
-                    </div>
                     </div>
                 </div>
             )}

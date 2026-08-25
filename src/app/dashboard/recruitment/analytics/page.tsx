@@ -18,11 +18,6 @@ import { useRequireRole } from "@/hooks/use-require-role";
 
 import { subDomainLabel, subDomainSubsystem, RECRUIT_SUBDOMAIN_KEYS } from "@/lib/recruit-domains";
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 // Only registration is live for this cycle — orientation/exam/shortlist/interview/training
 // haven't started, so those sections are commented out below (not deleted) rather than
 // removed. Re-enable them once those stages have real data; the API already computes all
@@ -115,10 +110,8 @@ const legendStyle = { fontSize: 11, color: "#9ca3af" };
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
-            <div className={`h-full w-full bg-white/[0.03] backdrop-blur-xl ${className}`} style={{ clipPath: CARD_CLIP }}>
-                {children}
-            </div>
+        <div className={`border border-white/10 bg-black ${className}`}>
+            {children}
         </div>
     );
 }
@@ -412,7 +405,7 @@ export default function RecruitmentAnalyticsPage() {
                     <Card>
                         <div className="p-5 pb-0">
                             <h2 className="text-lg font-bold text-white">Registrations by Residence, per Domain</h2>
-                            <p className="mt-1 text-xs text-gray-500">Registered recruits only — hosteller vs day scholar.</p>
+                            <p className="mt-1 text-xs text-gray-500">Registered recruits only: hosteller vs day scholar.</p>
                         </div>
                         <div className="px-5 pt-4" style={{ width: "100%", height: 280 }}>
                             <ResponsiveContainer>
