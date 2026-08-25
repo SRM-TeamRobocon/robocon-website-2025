@@ -9,7 +9,7 @@ import { formatDuration, type AttendanceSession } from "@/lib/attendance";
 // A `border` doesn't render along a clip-path's angled edge, so cards simulate the
 // border with a ::before pseudo-element instead (see the `before:` classes below).
 const CARD_CLIP_PATH = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-const CARD_CLIP = { clipPath: CARD_CLIP_PATH, "--clip": CARD_CLIP_PATH } as any;
+const CARD_CLIP = { clipPath: CARD_CLIP_PATH };
 const PAIRING_POLL_MS = 2000;
 const PAIRING_WINDOW_S = 60;
 
@@ -22,11 +22,10 @@ interface OvernightPass {
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <div
-            className={`relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 ${className}`}
-            style={CARD_CLIP}
-        >
-            {children}
+        <div className="bg-white/10 p-px" style={CARD_CLIP}>
+            <div className={`h-full w-full bg-white/[0.03] backdrop-blur-xl ${className}`} style={CARD_CLIP}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -325,10 +324,11 @@ export default function MyAttendancePage() {
             {showCorrection && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4" onClick={() => setShowCorrection(null)}>
                     <div
-                        className="relative isolate w-full max-w-sm bg-black/95 p-5 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
+                        className="w-full max-w-sm bg-white/10 p-px"
                         style={CARD_CLIP}
                         onClick={(e) => e.stopPropagation()}
                     >
+                    <div className="h-full w-full bg-black/95 p-5" style={CARD_CLIP}>
                         <h3 className="mb-3 text-sm font-bold text-white">
                             {showCorrection === "checked_out_at" ? "What time did you leave?" : "What time did you arrive?"}
                         </h3>
@@ -350,6 +350,7 @@ export default function MyAttendancePage() {
                                 {submittingCorrection ? "Saving…" : "Save"}
                             </button>
                         </div>
+                    </div>
                     </div>
                 </div>
             )}

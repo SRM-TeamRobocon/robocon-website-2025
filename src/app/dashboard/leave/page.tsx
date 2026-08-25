@@ -106,10 +106,11 @@ export default function LeaveRequestPage() {
                 </p>
             </div>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <form
                 onSubmit={submit}
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 space-y-4 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5 space-y-4"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
@@ -188,10 +189,12 @@ export default function LeaveRequestPage() {
                     {submitting ? "Submitting..." : "Submit request"}
                 </button>
             </form>
+            </div>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: CARD_CLIP }}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -237,6 +240,7 @@ export default function LeaveRequestPage() {
                         </table>
                     </div>
                 )}
+            </div>
             </div>
         </div>
     );

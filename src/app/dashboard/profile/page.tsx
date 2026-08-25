@@ -52,9 +52,10 @@ function ConnectedAccounts() {
     if (status === null) return null;
 
     return (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-            className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
+            style={{ clipPath: CARD_CLIP }}
         >
             <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
                 <Link2 className="w-4 h-4 text-red" />
@@ -81,6 +82,7 @@ function ConnectedAccounts() {
                     </button>
                 )}
             </div>
+        </div>
         </div>
     );
 }
@@ -139,11 +141,13 @@ export default function ProfilePage() {
 
     if (mode === "not-ready") {
         return (
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] p-8 text-center text-gray-400 text-sm before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] p-8 text-center text-gray-400 text-sm"
+                style={{ clipPath: CARD_CLIP }}
             >
                 Your profile isn't set up yet — check back once your account has been approved.
+            </div>
             </div>
         );
     }
@@ -165,9 +169,10 @@ export default function ProfilePage() {
                 <p className="text-sm text-gray-400">
                     We don't have this login linked to a Team page entry yet. Is one of these you?
                 </p>
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     {candidates.length === 0 ? (
                         <div className="p-6 text-center text-gray-500 text-sm">No unclaimed entries found.</div>
@@ -191,6 +196,7 @@ export default function ProfilePage() {
                             ))}
                         </ul>
                     )}
+                </div>
                 </div>
                 <button
                     onClick={() => setMode("creating")}
@@ -216,9 +222,10 @@ export default function ProfilePage() {
         return (
             <div className="space-y-6 max-w-xl">
                 {header}
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     <ContentEditForm
                         resource="members"
@@ -229,6 +236,7 @@ export default function ProfilePage() {
                         onSubmit={(payload) => handleSubmit(payload, { claimRowId: selected.id })}
                     />
                 </div>
+                </div>
             </div>
         );
     }
@@ -237,9 +245,10 @@ export default function ProfilePage() {
         return (
             <div className="space-y-6 max-w-xl">
                 {header}
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     <ContentEditForm
                         resource="members"
@@ -249,6 +258,7 @@ export default function ProfilePage() {
                         onSubmit={(payload) => handleSubmit(payload, { createNew: true })}
                     />
                 </div>
+                </div>
             </div>
         );
     }
@@ -257,9 +267,10 @@ export default function ProfilePage() {
         <div className="space-y-6 max-w-xl">
             {header}
             <ConnectedAccounts />
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <ContentEditForm
                     resource="members"
@@ -269,6 +280,7 @@ export default function ProfilePage() {
                     submitting={submitting}
                     onSubmit={(payload) => handleSubmit(payload)}
                 />
+            </div>
             </div>
         </div>
     );

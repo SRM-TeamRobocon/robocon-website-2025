@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { InlineChatWidget } from "@/components/recruit/ChatWidget";
 
 // A `border` doesn't render along a clip-path's angled edge, so these panels simulate
-// their border with a ::before pseudo-element instead (see the `before:` classes below).
+// their border with two nested elements instead: an outer box painted in the border
+// color and padded by the border width, and an inner box painted in the real
+// background — the border is just the outer's color peeking out uniformly around the
+// inner, including the diagonal cut.
 const DOMAIN_CARD_CLIP = "polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)";
 const VIDEO_FRAME_CLIP = "polygon(4% 0%,100% 0%,96% 100%,0% 100%)";
-const CLIP_BORDER_CLASSES =
-    "relative isolate before:content-[''] before:absolute before:-inset-[2px] before:-z-10 before:[clip-path:var(--clip)] before:bg-black";
 const DOMAIN_CARD_CLASSES = "relative bg-black p-[2px]";
 
 const recruitmentVideos = [
@@ -149,10 +150,10 @@ const RecruitmentSection = () => {
                         {recruitmentVideos.map((video) => (
                             <div
                                 key={video.id}
-                                className={`w-[300px] shrink-0 bg-black md:w-[360px] ${CLIP_BORDER_CLASSES}`}
-                                style={{ clipPath: VIDEO_FRAME_CLIP, "--clip": VIDEO_FRAME_CLIP } as any}
+                                className="w-[300px] shrink-0 bg-black p-[2px] md:w-[360px]"
+                                style={{ clipPath: VIDEO_FRAME_CLIP }}
                             >
-                                <div className="relative w-full pt-[56.25%]">
+                                <div className="relative w-full pt-[56.25%]" style={{ clipPath: VIDEO_FRAME_CLIP }}>
                                     <iframe
                                         className="absolute inset-0 h-full w-full"
                                         src={`https://www.youtube.com/embed/${video.id}`}

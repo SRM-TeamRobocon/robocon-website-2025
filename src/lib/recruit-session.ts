@@ -26,6 +26,8 @@ export function recruitJwtSecret(): Uint8Array {
 }
 
 const secret = recruitJwtSecret;
+const RECRUIT_SESSION_TTL = "30d";
+const RECRUIT_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 
 // --- OAuth state cookie (shared by the Google callback, verify-otp and
 // complete-registration so the `purpose` claim is enforced in exactly one place) ---
@@ -104,7 +106,7 @@ export async function issueRecruitToken(payload: RecruitSession): Promise<string
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(RECRUIT_SESSION_TTL)
     .sign(secret());
 }
 
@@ -118,5 +120,5 @@ export const RECRUIT_COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: "/",
-  maxAge: 60 * 60 * 24 * 7,
+  maxAge: RECRUIT_SESSION_MAX_AGE,
 };

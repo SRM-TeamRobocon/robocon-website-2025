@@ -157,9 +157,10 @@ export default function RecruitmentCutoffsPage() {
         </p>
       </div>
 
+      <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
       <div
-        className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+        className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+        style={{ clipPath: CARD_CLIP }}
       >
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -232,6 +233,7 @@ export default function RecruitmentCutoffsPage() {
           </div>
         )}
       </div>
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <button
@@ -271,9 +273,10 @@ export default function RecruitmentCutoffsPage() {
       </div>
 
       {stats && (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-          className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-          style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+          className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
+          style={{ clipPath: CARD_CLIP }}
         >
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4">
             Shortlist Engine Results — {lastRunLabel}
@@ -297,6 +300,7 @@ export default function RecruitmentCutoffsPage() {
               Skipped (male + female cutoff not both set): {skippedDomains.map((d) => subDomainLabel(d)).join(", ")}
             </p>
           )}
+        </div>
         </div>
       )}
     </div>

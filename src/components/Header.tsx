@@ -48,58 +48,58 @@ export default function Header() {
 
         {/* Desktop NavBar */}
         <div
-          className="hidden xl:flex items-center bg-white text-[#3B3B3B] nav-bar-clip font-semibold"
+          className="hidden xl:flex min-w-0 flex-1 max-w-[52rem] ml-8 mr-6 items-center justify-between gap-1 pl-14 pr-6 bg-white text-[#3B3B3B] nav-bar-clip font-semibold"
         >
           <button
-            className="ml-12 px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/")}
           >
             Home
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/team")}
           >
             Team
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/projects")}
           >
             Projects
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/achievements")}
           >
             Achievements
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/gallery")}
           >
             Gallery
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/events")}
           >
             Events
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/blog")}
           >
             Blog
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/alumni")}
           >
             Alumni
           </button>
           <button
-            className="px-3 hover:text-red hover:scale-105"
+            className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
             onClick={() => router.push("/login")}
           >
             Login

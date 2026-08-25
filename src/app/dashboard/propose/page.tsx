@@ -111,9 +111,10 @@ export default function ProposeContentPage() {
                 <h1 className="text-2xl font-bold text-white">
                     {editing === "new" ? `Propose New ${config.label}` : `Propose Edit — ${editing[config.primaryField]}`}
                 </h1>
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     <ContentEditForm
                         fields={config.fields}
@@ -123,6 +124,7 @@ export default function ProposeContentPage() {
                         resource={resource}
                         onSubmit={handleSubmit}
                     />
+                </div>
                 </div>
             </div>
         );
@@ -160,9 +162,10 @@ export default function ProposeContentPage() {
                 </span>
             </button>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: CARD_CLIP }}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -188,6 +191,7 @@ export default function ProposeContentPage() {
                         ))}
                     </ul>
                 )}
+            </div>
             </div>
         </div>
     );

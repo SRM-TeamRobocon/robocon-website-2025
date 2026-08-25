@@ -21,36 +21,51 @@ export default async function AdminContentHome() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {resources.map((resource) => (
-          <Link
+          <div
             key={resource.table}
-            href={`/dashboard/content/${resource.table}`}
-            className="relative isolate bg-gray-950/70 p-5 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/10 hover:before:bg-red/60"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
+            className="bg-white/10 p-px transition hover:bg-red/60"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
           >
-            <h2 className="text-xl font-bold text-white">{resource.pluralLabel}</h2>
-            <p className="mt-2 text-sm text-gray-400">
-              {resource.readonly ? "Review and update status." : `Manage ${resource.pluralLabel.toLowerCase()}.`}
-            </p>
-          </Link>
+            <Link
+              href={`/dashboard/content/${resource.table}`}
+              className="block h-full w-full bg-gray-950/70 p-5 transition hover:bg-white/10"
+              style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+            >
+              <h2 className="text-xl font-bold text-white">{resource.pluralLabel}</h2>
+              <p className="mt-2 text-sm text-gray-400">
+                {resource.readonly ? "Review and update status." : `Manage ${resource.pluralLabel.toLowerCase()}.`}
+              </p>
+            </Link>
+          </div>
         ))}
 
-        <Link
-          href="/dashboard/blogs/new"
-          className="relative isolate bg-gray-950/70 p-5 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/10 hover:before:bg-red/60"
-          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
+        <div
+          className="bg-white/10 p-px transition hover:bg-red/60"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
-          <h2 className="text-xl font-bold text-white">Blogs</h2>
-          <p className="mt-2 text-sm text-gray-400">Write a new blog post.</p>
-        </Link>
+          <Link
+            href="/dashboard/blogs/new"
+            className="block h-full w-full bg-gray-950/70 p-5 transition hover:bg-white/10"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          >
+            <h2 className="text-xl font-bold text-white">Blogs</h2>
+            <p className="mt-2 text-sm text-gray-400">Write a new blog post.</p>
+          </Link>
+        </div>
 
-        <Link
-          href="/dashboard/mentors"
-          className="relative isolate bg-gray-950/70 p-5 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/10 hover:before:bg-red/60"
-          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
+        <div
+          className="bg-white/10 p-px transition hover:bg-red/60"
+          style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
         >
-          <h2 className="text-xl font-bold text-white">Mentors</h2>
-          <p className="mt-2 text-sm text-gray-400">Manage mentors.</p>
-        </Link>
+          <Link
+            href="/dashboard/mentors"
+            className="block h-full w-full bg-gray-950/70 p-5 transition hover:bg-white/10"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
+          >
+            <h2 className="text-xl font-bold text-white">Mentors</h2>
+            <p className="mt-2 text-sm text-gray-400">Manage mentors.</p>
+          </Link>
+        </div>
       </div>
     </div>
   );

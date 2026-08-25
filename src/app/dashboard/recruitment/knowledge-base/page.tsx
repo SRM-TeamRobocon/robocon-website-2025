@@ -125,19 +125,22 @@ export default function KnowledgeBasePage() {
             {loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : documents.length === 0 ? (
-                <div
-                    className="relative isolate bg-white/[0.03] p-8 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
-                    No files uploaded yet.
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
+                    <div className="h-full w-full bg-white/[0.03] p-8 text-center text-sm text-gray-500" style={{ clipPath: CARD_CLIP }}>
+                        No files uploaded yet.
+                    </div>
                 </div>
             ) : (
                 <div className="space-y-2">
                     {documents.map((doc) => (
                         <div
                             key={doc.id}
-                            className="relative isolate flex items-center justify-between gap-3 bg-white/[0.03] px-4 py-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                            className="bg-white/10 p-px"
+                            style={{ clipPath: CARD_CLIP }}
+                        >
+                        <div
+                            className="h-full w-full flex items-center justify-between gap-3 bg-white/[0.03] px-4 py-3"
+                            style={{ clipPath: CARD_CLIP }}
                         >
                             <div className="flex items-center gap-3 min-w-0">
                                 <FileText className="h-5 w-5 text-gray-500 shrink-0" />
@@ -158,6 +161,7 @@ export default function KnowledgeBasePage() {
                             >
                                 <Trash2 className="h-3.5 w-3.5" /> Delete
                             </button>
+                        </div>
                         </div>
                     ))}
                 </div>

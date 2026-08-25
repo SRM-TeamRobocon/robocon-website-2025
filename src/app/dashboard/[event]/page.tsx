@@ -201,43 +201,49 @@ export default function EventDashboard() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-end">
-                    <div
-                        className="relative isolate bg-emerald-500/10 px-4 py-2 flex items-center gap-3 shadow-inner before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-emerald-500/20"
-                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                    >
-                        <span className="text-emerald-500/80">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        </span>
-                        <div>
-                            <p className="text-xs text-emerald-400/80 uppercase font-bold tracking-wider">Verified</p>
-                            <p className="text-lg text-white font-bold">{verifiedCount}</p>
+                    <div className="bg-emerald-500/20 p-px" style={{ clipPath: CARD_CLIP }}>
+                        <div
+                            className="h-full w-full bg-emerald-500/10 px-4 py-2 flex items-center gap-3 shadow-inner"
+                            style={{ clipPath: CARD_CLIP }}
+                        >
+                            <span className="text-emerald-500/80">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </span>
+                            <div>
+                                <p className="text-xs text-emerald-400/80 uppercase font-bold tracking-wider">Verified</p>
+                                <p className="text-lg text-white font-bold">{verifiedCount}</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div
-                        className="relative isolate bg-amber-500/10 px-4 py-2 flex items-center gap-3 shadow-inner before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/20"
-                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                    >
-                        <span className="text-amber-500/80">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        </span>
-                        <div>
-                            <p className="text-xs text-amber-400/80 uppercase font-bold tracking-wider">Pending</p>
-                            <p className="text-lg text-white font-bold">{pendingCount}</p>
+                    <div className="bg-amber-500/20 p-px" style={{ clipPath: CARD_CLIP }}>
+                        <div
+                            className="h-full w-full bg-amber-500/10 px-4 py-2 flex items-center gap-3 shadow-inner"
+                            style={{ clipPath: CARD_CLIP }}
+                        >
+                            <span className="text-amber-500/80">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </span>
+                            <div>
+                                <p className="text-xs text-amber-400/80 uppercase font-bold tracking-wider">Pending</p>
+                                <p className="text-lg text-white font-bold">{pendingCount}</p>
+                            </div>
                         </div>
                     </div>
 
                     {sessionFilter !== "ALL" && (
-                        <div
-                            className="relative isolate bg-indigo-500/10 px-4 py-2 flex items-center gap-3 shadow-inner before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-indigo-500/20"
-                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                        >
-                            <span className="text-indigo-500/80">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            </span>
-                            <div>
-                                <p className="text-xs text-indigo-400/80 uppercase font-bold tracking-wider">Present</p>
-                                <p className="text-lg text-white font-bold">{checkedInCount}</p>
+                        <div className="bg-indigo-500/20 p-px" style={{ clipPath: CARD_CLIP }}>
+                            <div
+                                className="h-full w-full bg-indigo-500/10 px-4 py-2 flex items-center gap-3 shadow-inner"
+                                style={{ clipPath: CARD_CLIP }}
+                            >
+                                <span className="text-indigo-500/80">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                </span>
+                                <div>
+                                    <p className="text-xs text-indigo-400/80 uppercase font-bold tracking-wider">Present</p>
+                                    <p className="text-lg text-white font-bold">{checkedInCount}</p>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -246,25 +252,28 @@ export default function EventDashboard() {
 
             {/* Attendance Manager Warning Bar */}
             {sessionFilter !== "ALL" && (
-                <div
-                    className="relative isolate mb-4 bg-indigo-500/10 p-3 flex items-center gap-3 backdrop-blur-md before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-indigo-500/30"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
-                    <div className="p-2 bg-indigo-500/20">
-                        <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </div>
-                    <div>
-                        <p className="text-sm text-indigo-200 font-medium">
-                            <strong className="text-indigo-300">Attendance Manager Mode:</strong> You are viewing <span className="font-bold underline">{SESSION_LABELS[sessionFilter]}</span>. You can now manually check people in and out below.
-                        </p>
+                <div className="mb-4 bg-indigo-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
+                    <div
+                        className="h-full w-full bg-indigo-500/10 p-3 flex items-center gap-3 backdrop-blur-md"
+                        style={{ clipPath: CARD_CLIP }}
+                    >
+                        <div className="p-2 bg-indigo-500/20">
+                            <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <div>
+                            <p className="text-sm text-indigo-200 font-medium">
+                                <strong className="text-indigo-300">Attendance Manager Mode:</strong> You are viewing <span className="font-bold underline">{SESSION_LABELS[sessionFilter]}</span>. You can now manually check people in and out below.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
 
-            <div
-                className="relative isolate bg-gray-900/50 shadow-2xl backdrop-blur-sm before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-gray-800"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-            >
+            <div className="bg-gray-800 p-px" style={{ clipPath: CARD_CLIP }}>
+              <div
+                className="h-full w-full bg-gray-900/50 shadow-2xl backdrop-blur-sm"
+                style={{ clipPath: CARD_CLIP }}
+              >
 
                 {/* Controls Bar */}
                 <div className="p-4 border-b border-gray-800 flex flex-col xl:flex-row gap-4 justify-between bg-gray-900/80">
@@ -499,6 +508,7 @@ export default function EventDashboard() {
                         </tbody>
                     </table>
                 </div>
+              </div>
             </div>
 
         </div>

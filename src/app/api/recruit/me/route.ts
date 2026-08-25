@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getRecruitSession } from "@/lib/recruit-session";
+import {
+    getRecruitSession,
+    issueRecruitToken,
+    RECRUIT_COOKIE_NAME,
+    RECRUIT_COOKIE_OPTIONS,
+} from "@/lib/recruit-session";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { todayInIST } from "@/lib/recruit-dates";
 import { subDomainFullLabel } from "@/lib/recruit-domains";
@@ -286,7 +291,7 @@ export async function GET() {
             };
         }
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             recruit: {
                 name: account.name,
@@ -315,6 +320,11 @@ export async function GET() {
             },
             interview,
         });
+        // Keep an active dashboard session alive while the recruit is using it. This
+        // prevents a token expiring between page load and a later ticket/chat submit.
+        const refreshedToken = await issueRecruitToken(session);
+        response.cookies.set({ name: RECRUIT_COOKIE_NAME, value: refreshedToken, ...RECRUIT_COOKIE_OPTIONS });
+        return response;
     } catch (error) {
         console.error("Error in /api/recruit/me:", error);
         return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

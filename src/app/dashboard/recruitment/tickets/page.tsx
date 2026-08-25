@@ -165,32 +165,32 @@ export default function TicketsPage() {
             </div>
 
             {noCycle ? (
-                <div
-                    className="relative isolate bg-amber-500/[0.06] p-6 text-sm text-amber-300 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/30"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
-                    No active recruitment cycle.
+                <div className="bg-amber-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
+                    <div className="h-full w-full bg-amber-500/[0.06] p-6 text-sm text-amber-300" style={{ clipPath: CARD_CLIP }}>
+                        No active recruitment cycle.
+                    </div>
                 </div>
             ) : loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
             ) : tickets.length === 0 ? (
-                <div
-                    className="relative isolate bg-white/[0.03] p-8 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
-                    No tickets yet.
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
+                    <div className="h-full w-full bg-white/[0.03] p-8 text-center text-sm text-gray-500" style={{ clipPath: CARD_CLIP }}>
+                        No tickets yet.
+                    </div>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {tickets.map((t) => (
                         <div
                             key={t.id}
-                            className={`relative isolate p-4 backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] ${
-                                t.status === "open"
-                                    ? "bg-amber-500/[0.06] before:bg-amber-500/30"
-                                    : "bg-white/[0.03] before:bg-white/10"
+                            className={t.status === "open" ? "bg-amber-500/30 p-px" : "bg-white/10 p-px"}
+                            style={{ clipPath: CARD_CLIP }}
+                        >
+                        <div
+                            className={`h-full w-full p-4 backdrop-blur-xl ${
+                                t.status === "open" ? "bg-amber-500/[0.06]" : "bg-white/[0.03]"
                             }`}
-                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                            style={{ clipPath: CARD_CLIP }}
                         >
                             <div className="flex items-start justify-between gap-3 flex-wrap">
                                 <div>
@@ -242,6 +242,7 @@ export default function TicketsPage() {
                                     <ResolveRow ticket={t} onResolved={load} />
                                 </div>
                             )}
+                        </div>
                         </div>
                     ))}
                 </div>

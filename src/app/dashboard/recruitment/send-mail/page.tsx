@@ -247,9 +247,10 @@ export default function SendMailPage() {
                 </p>
             </div>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 space-y-4 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5 space-y-4"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <div>
                     <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500 mb-1">Subject</label>
@@ -332,10 +333,12 @@ export default function SendMailPage() {
                     </div>
                 )}
             </div>
+            </div>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <div className="relative flex-1">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -383,6 +386,7 @@ export default function SendMailPage() {
                     />
                 </div>
             </div>
+            </div>
             {!domain && (
                 <p className="-mt-3 text-xs text-gray-500">
                     Filtering by shortlist status without a domain matches a recruit if{" "}
@@ -391,9 +395,10 @@ export default function SendMailPage() {
                 </p>
             )}
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: CARD_CLIP }}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -452,6 +457,7 @@ export default function SendMailPage() {
                         </table>
                     </div>
                 )}
+            </div>
             </div>
         </div>
     );

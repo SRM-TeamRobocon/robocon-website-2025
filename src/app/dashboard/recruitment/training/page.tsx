@@ -282,10 +282,11 @@ export default function TrainingAttendancePage() {
             </div>
 
             {/* Start attendance */}
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <form
                 onSubmit={startAttendance}
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-400">
                     <CalendarPlus className="h-4 w-4 text-red" /> Start Attendance
@@ -334,12 +335,14 @@ export default function TrainingAttendancePage() {
                     </button>
                 </div>
             </form>
+            </div>
 
             <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
                 {/* Sessions list */}
+                <div className="h-fit bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <section
-                    className="relative isolate h-fit bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     <div className="border-b border-white/10 px-4 py-3">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">
@@ -379,29 +382,38 @@ export default function TrainingAttendancePage() {
                         )}
                     </div>
                 </section>
+                </div>
 
                 {/* Selected session detail */}
                 <section className="space-y-4">
                     {!selectedSessionId ? (
+                        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                         <div
-                            className="relative isolate bg-white/[0.03] p-10 text-center before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                            className="h-full w-full bg-white/[0.03] p-10 text-center"
+                            style={{ clipPath: CARD_CLIP }}
                         >
                             <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
                             <p className="text-sm text-gray-400">Create or select a session to view attendance.</p>
                         </div>
+                        </div>
                     ) : loadingDetail || !detail ? (
+                        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                         <div
-                            className="relative isolate bg-white/[0.03] p-10 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                            className="h-full w-full bg-white/[0.03] p-10 text-center text-sm text-gray-500"
+                            style={{ clipPath: CARD_CLIP }}
                         >
                             Loading attendance...
+                        </div>
                         </div>
                     ) : (
                         <>
                             <div
-                                className="relative isolate flex flex-wrap items-center justify-between gap-3 bg-white/[0.03] p-5 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                                className="bg-white/10 p-px"
+                                style={{ clipPath: CARD_CLIP }}
+                            >
+                            <div
+                                className="h-full w-full flex flex-wrap items-center justify-between gap-3 bg-white/[0.03] p-5"
+                                style={{ clipPath: CARD_CLIP }}
                             >
                                 <div>
                                     <p className="text-lg font-bold text-white">{domainLabel(detail.session.sub_domain)}</p>
@@ -421,6 +433,7 @@ export default function TrainingAttendancePage() {
                                     </span>
                                 </div>
                             </div>
+                            </div>
 
                             <div className="relative max-w-sm">
                                 <Search
@@ -437,9 +450,10 @@ export default function TrainingAttendancePage() {
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 {/* Attended */}
+                                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                                 <div
-                                    className="relative isolate bg-white/[0.03] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                                    className="h-full w-full bg-white/[0.03]"
+                                    style={{ clipPath: CARD_CLIP }}
                                 >
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
@@ -482,11 +496,13 @@ export default function TrainingAttendancePage() {
                                         )}
                                     </div>
                                 </div>
+                                </div>
 
                                 {/* Pending / manual mark */}
+                                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                                 <div
-                                    className="relative isolate bg-white/[0.03] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                                    className="h-full w-full bg-white/[0.03]"
+                                    style={{ clipPath: CARD_CLIP }}
                                 >
                                     <div className="border-b border-white/10 px-4 py-3">
                                         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
@@ -518,6 +534,7 @@ export default function TrainingAttendancePage() {
                                         )}
                                     </div>
                                 </div>
+                                </div>
                             </div>
                         </>
                     )}
@@ -525,9 +542,10 @@ export default function TrainingAttendancePage() {
             </div>
 
             {/* Overall attendance % per recruit */}
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <section
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <div className="border-b border-white/10 px-5 py-4">
                     <h2 className="text-lg font-bold text-white">Attendance % Across All Sessions</h2>
@@ -587,6 +605,7 @@ export default function TrainingAttendancePage() {
                     </div>
                 )}
             </section>
+            </div>
         </div>
     );
 }

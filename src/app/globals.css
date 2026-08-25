@@ -30,6 +30,48 @@
   clip-path: polygon(3% 3%, 91% 0, 100% 93%, 10% 94%);
 }
 
+@keyframes recruitCtaElectric {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+
+.recruit-cta-electric {
+  background: #d4af37;
+  clip-path: polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%);
+}
+
+.recruit-cta-electric-edge,
+.recruit-cta-electric-fill {
+  position: absolute;
+  pointer-events: none;
+  clip-path: polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%);
+}
+
+.recruit-cta-electric-edge {
+  inset: 0;
+  background: repeating-linear-gradient(
+    115deg,
+    #fff7ba 0 2px,
+    #d4af37 2px 5px,
+    #ff3b20 5px 8px,
+    #fff7ba 8px 10px
+  );
+  background-size: 180% 100%;
+  filter: drop-shadow(0 0 3px rgba(255, 214, 64, 0.95));
+  animation: recruitCtaElectric 1.15s linear infinite;
+}
+
+.recruit-cta-electric-fill {
+  inset: 2px;
+  background: #e00000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recruit-cta-electric-edge {
+    animation: none;
+  }
+}
+
 ::selection {
   background: red;
 }

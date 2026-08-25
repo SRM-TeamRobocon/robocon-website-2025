@@ -196,9 +196,10 @@ export default function RecruitmentMarksPage() {
         />
       </div>
 
+      <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
       <div
-        className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+        className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+        style={{ clipPath: CARD_CLIP }}
       >
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -274,6 +275,7 @@ export default function RecruitmentMarksPage() {
             </table>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

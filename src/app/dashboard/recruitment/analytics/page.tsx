@@ -115,11 +115,10 @@ const legendStyle = { fontSize: 11, color: "#9ca3af" };
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
-        <div
-            className={`relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 ${className}`}
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-        >
-            {children}
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
+            <div className={`h-full w-full bg-white/[0.03] backdrop-blur-xl ${className}`} style={{ clipPath: CARD_CLIP }}>
+                {children}
+            </div>
         </div>
     );
 }

@@ -148,9 +148,10 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
     }
 
     return (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-            className="relative isolate bg-white/[0.03] backdrop-blur-xl p-3 space-y-2 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-3 space-y-2"
+            style={{ clipPath: CARD_CLIP }}
         >
             <input
                 value={name}
@@ -179,6 +180,7 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
                     Cancel
                 </button>
             </div>
+        </div>
         </div>
     );
 }
@@ -308,9 +310,10 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
     const { busy, closePanel, closeForDay, deletePanel } = usePanelActions(panel, onChanged);
 
     return (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-            className="relative isolate bg-white/[0.03] p-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="h-full w-full bg-white/[0.03] p-3"
+            style={{ clipPath: CARD_CLIP }}
         >
             <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
@@ -361,6 +364,7 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
                     <Trash2 className="h-3 w-3" /> Delete
                 </button>
             </div>
+        </div>
         </div>
     );
 }
@@ -535,9 +539,10 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
     };
 
     return (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-            className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 space-y-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-4 space-y-3"
+            style={{ clipPath: CARD_CLIP }}
         >
             <div className="flex items-start justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
@@ -623,6 +628,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
                     </span>
                 </button>
             )}
+        </div>
         </div>
     );
 }
@@ -778,9 +784,10 @@ function SharedWaitingQueue({
     };
 
     return (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-            className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+            style={{ clipPath: CARD_CLIP }}
         >
             <div className="px-4 py-2.5 border-b border-white/10">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -830,6 +837,7 @@ function SharedWaitingQueue({
                 </div>
             )}
         </div>
+        </div>
     );
 }
 
@@ -860,11 +868,13 @@ function SubDomainBoard({
             </div>
 
             {openPanels.length === 0 && closedPanels.length === 0 && (
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] p-5 text-center text-xs text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] p-5 text-center text-xs text-gray-500"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     No tables open yet.
+                </div>
                 </div>
             )}
 
@@ -1042,9 +1052,10 @@ function DomainResultsSection({
     for (const r of rows) counts[r.result]++;
 
     return (
+        <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
         <div
-            className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-            style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+            className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+            style={{ clipPath: CARD_CLIP }}
         >
             <button
                 type="button"
@@ -1138,6 +1149,7 @@ function DomainResultsSection({
                 </div>
             )}
         </div>
+        </div>
     );
 }
 
@@ -1170,18 +1182,22 @@ function InterviewResultsList() {
                 <span className="text-xs text-gray-500">({rows.length} total)</span>
             </div>
             {loading ? (
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] p-6 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] p-6 text-center text-sm text-gray-500"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     Loading...
                 </div>
+                </div>
             ) : rows.length === 0 ? (
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-white/[0.03] p-6 text-center text-sm text-gray-500 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] p-6 text-center text-sm text-gray-500"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     No results logged yet — they&apos;ll show up here as panels call recruits in.
+                </div>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -1327,11 +1343,13 @@ export default function InterviewManagementPage() {
             </div>
 
             {noCycle ? (
+                <div className="bg-amber-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-amber-500/[0.06] p-6 text-sm text-amber-300 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/30"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-amber-500/[0.06] p-6 text-sm text-amber-300"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     No active recruitment cycle. Start one from Cycles before opening interview panels.
+                </div>
                 </div>
             ) : loading ? (
                 <div className="p-8 text-center text-gray-500 text-sm">Loading tables...</div>

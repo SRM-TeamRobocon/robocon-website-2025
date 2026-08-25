@@ -73,11 +73,6 @@ const STAT_CARDS: { key: keyof FunnelCounts; label: string }[] = [
     { key: "selected", label: "Selected" },
 ];
 
-// A `border` doesn't render along a clip-path's angled edge, so the border is faked with
-// a `::before` pseudo-element instead: same clip-path, inset -1px so its color peeks out
-// uniformly around the real box, including along the diagonal cut corner.
-const CARD_CLIP = "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)";
-
 export default function RecruitmentOverviewPage() {
     const { ready, role } = useRoleGate(["member", "lead", "admin"]);
     const isLead = role === "lead" || role === "admin";
@@ -113,17 +108,11 @@ export default function RecruitmentOverviewPage() {
             </div>
 
             {loading ? (
-                <div
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-500 text-sm before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
+                <div className="border border-red bg-black p-8 text-center text-gray-500 text-sm">
                     Loading...
                 </div>
             ) : error || !data ? (
-                <div
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-8 text-center text-gray-400 text-sm flex flex-col items-center gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
+                <div className="border border-red bg-black p-8 text-center text-gray-400 text-sm flex flex-col items-center gap-3">
                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                     <p>{error || "No active recruitment cycle."}</p>
                     {/* Only leads can open a cycle — pointing a member at /cycles would just
@@ -141,10 +130,7 @@ export default function RecruitmentOverviewPage() {
                 </div>
             ) : (
                 <>
-                    <div
-                        className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                    >
+                    <div className="border border-red bg-black p-6">
                         <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Active Cycle</p>
                         <p className="text-xl font-bold text-white">
                             {data.cycle.name} <span className="text-gray-500 font-normal">({data.cycle.year})</span>
@@ -153,21 +139,14 @@ export default function RecruitmentOverviewPage() {
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                         {STAT_CARDS.map((stat) => (
-                            <div
-                                key={stat.key}
-                                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                            >
+                            <div key={stat.key} className="border border-red bg-black p-4">
                                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{stat.label}</p>
                                 <p className="text-2xl font-black text-white">{data.overall[stat.key]}</p>
                             </div>
                         ))}
                     </div>
 
-                    <div
-                        className="relative isolate bg-white/[0.03] backdrop-blur-xl p-6 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                    >
+                    <div className="border border-red bg-black p-6">
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Domain-wise Registration</p>
                             <Link
@@ -210,10 +189,7 @@ export default function RecruitmentOverviewPage() {
             )}
 
             <Link href="/recruit-scanner" className="group block">
-                <div
-                    className="relative isolate bg-gradient-to-br from-emerald-600/20 via-emerald-900/20 to-gray-900 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] p-6 sm:p-7 transition-all hover:scale-[1.01] before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-emerald-500/30"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
-                >
+                <div className="relative border border-red bg-black p-6 sm:p-7 transition-all hover:scale-[1.01] hover:shadow-[0_0_30px_rgba(194,0,0,0.25)]">
                     <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
                         <QrCode className="w-20 h-20 text-emerald-400" strokeWidth={1} />
                     </div>
@@ -243,8 +219,7 @@ export default function RecruitmentOverviewPage() {
                             <Link
                                 key={section.href}
                                 href={section.href}
-                                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 hover:bg-white/[0.06] transition group before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                                className="block border border-red bg-black p-5 hover:bg-red/10 transition group"
                             >
                                 <Icon className="w-6 h-6 text-red mb-3" />
                                 <p className="font-bold text-white group-hover:text-red transition">{section.label}</p>

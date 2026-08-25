@@ -197,9 +197,10 @@ export default function RecruitsPage() {
                 </a>
             </div>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-4 flex flex-col sm:flex-row gap-3"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <div className="relative flex-1">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -239,10 +240,12 @@ export default function RecruitsPage() {
                     />
                 </div>
             </div>
+            </div>
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: CARD_CLIP }}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -335,6 +338,7 @@ export default function RecruitsPage() {
                         </table>
                     </div>
                 )}
+            </div>
             </div>
 
             {editingRecruit && (
@@ -445,9 +449,10 @@ function EditRecruitModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg bg-white/10 p-px max-h-[90vh]" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate w-full max-w-lg bg-gray-950 p-6 max-h-[90vh] overflow-y-auto before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-gray-950 p-6 max-h-[90vh] overflow-y-auto"
+                style={{ clipPath: CARD_CLIP }}
             >
                 <h2 className="text-xl font-bold text-white mb-4">Edit Recruit</h2>
 
@@ -636,6 +641,7 @@ function EditRecruitModal({
                         </span>
                     </button>
                 </div>
+            </div>
             </div>
         </div>
     );

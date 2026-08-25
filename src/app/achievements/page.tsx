@@ -79,9 +79,9 @@ export default async function AchievementsPage() {
       <Header />
       <section className="px-4 pb-10 pt-28 text-center md:pt-36">
         <h1 className="text-3xl font-bold text-white md:text-5xl">Achievements</h1>
-        <p className="mx-auto mt-4 max-w-xl text-white/60">{items.length} wins the team is proud of.</p>
+        {/* <p className="mx-auto mt-4 max-w-xl text-white/60">{items.length} wins the team is proud of.</p> */}
       </section>
-      <AchievementsHistory />
+      {/* <AchievementsHistory /> */}
       <ContentGrid items={items} searchPlaceholder="Search achievements..." />
       <Footer />
     </div>

@@ -216,9 +216,10 @@ export default function RecruitmentCyclesPage() {
             </div>
 
             {isAdmin && !activeCycle && !loading && cycles.length > 0 && (
+                <div className="bg-amber-500/30 p-px" style={{ clipPath: CARD_CLIP }}>
                 <div
-                    className="relative isolate bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3 before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-amber-500/30"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-amber-500/[0.07] backdrop-blur-xl p-4 flex items-start gap-3"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-200/90">
@@ -227,13 +228,15 @@ export default function RecruitmentCyclesPage() {
                         cycle below or create a new one.
                     </p>
                 </div>
+                </div>
             )}
 
             {isAdmin && (
+                <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                 <form
                     onSubmit={createCycle}
-                    className="relative isolate bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                    className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-5 flex flex-col sm:flex-row gap-3 sm:items-end"
+                    style={{ clipPath: CARD_CLIP }}
                 >
                     <div className="flex-1">
                         <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">
@@ -275,11 +278,13 @@ export default function RecruitmentCyclesPage() {
                         </span>
                     </button>
                 </form>
+                </div>
             )}
 
+            <div className="bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
             <div
-                className="relative isolate bg-white/[0.03] backdrop-blur-xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                className="h-full w-full bg-white/[0.03] backdrop-blur-xl"
+                style={{ clipPath: CARD_CLIP }}
             >
                 {loading ? (
                     <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -356,12 +361,14 @@ export default function RecruitmentCyclesPage() {
                     </div>
                 )}
             </div>
+            </div>
 
             {pending && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white/10 p-px" style={{ clipPath: CARD_CLIP }}>
                     <div
-                        className="relative isolate w-full max-w-md bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                        style={{ clipPath: CARD_CLIP, "--clip": CARD_CLIP } as any}
+                        className="h-full w-full bg-white/[0.03] backdrop-blur-xl p-6 shadow-2xl"
+                        style={{ clipPath: CARD_CLIP }}
                     >
                         <h2 className="flex items-center gap-2 text-lg font-bold text-white">
                             <AlertTriangle className="h-5 w-5 text-red" />
@@ -411,6 +418,7 @@ export default function RecruitmentCyclesPage() {
                                 </span>
                             </button>
                         </div>
+                    </div>
                     </div>
                 </div>
             )}

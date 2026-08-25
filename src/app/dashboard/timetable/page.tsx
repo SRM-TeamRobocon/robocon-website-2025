@@ -143,27 +143,30 @@ export default function TimetableDirectoryPage() {
             {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
             ) : filtered.length === 0 ? (
-                <div
-                    className="relative isolate bg-white/[0.03] p-10 text-center before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10"
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
-                >
-                    <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
-                    <p className="text-sm text-gray-400">No timetables saved yet.</p>
-                    <Link
-                        href="/dashboard/timetable/me"
-                        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline"
+                <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
+                    <div
+                        className="h-full w-full bg-white/[0.03] p-10 text-center"
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                     >
-                        <PenSquare className="h-4 w-4" /> Add yours
-                    </Link>
+                        <CalendarClock className="mx-auto mb-3 h-8 w-8 text-gray-700" />
+                        <p className="text-sm text-gray-400">No timetables saved yet.</p>
+                        <Link
+                            href="/dashboard/timetable/me"
+                            className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-red hover:underline"
+                        >
+                            <PenSquare className="h-4 w-4" /> Add yours
+                        </Link>
+                    </div>
                 </div>
             ) : (
                 <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {filtered.map((row) => (
                         <li key={row.owner_username}>
+                            <div className="bg-white/10 p-px" style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}>
                             <Link
                                 href={`/dashboard/timetable/${encodeURIComponent(row.owner_username)}`}
-                                className="relative isolate flex items-center gap-3 bg-white/[0.03] p-4 transition before:content-[''] before:absolute before:-inset-px before:-z-10 before:[clip-path:var(--clip)] before:bg-white/10 hover:bg-white/[0.06]"
-                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)", "--clip": "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" } as any}
+                                className="flex h-full w-full items-center gap-3 bg-white/[0.03] p-4 transition hover:bg-white/[0.06]"
+                                style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
                             >
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-white/10 text-gray-400">
                                     <User className="h-4 w-4" />
@@ -183,6 +186,7 @@ export default function TimetableDirectoryPage() {
                                     </span>
                                 </span>
                             </Link>
+                            </div>
                         </li>
                     ))}
                 </ul>
