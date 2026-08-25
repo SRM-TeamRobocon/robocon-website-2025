@@ -321,10 +321,18 @@
     color: var(--foreground);
   }
 
-  html,
-  body {
+  /* Only `html` gets `overflow-x: hidden` — putting it on `body` too used to force
+     `overflow-y` to `auto` on BOTH (per the CSS Overflow spec: pairing a non-"visible"
+     overflow-x with a default "visible" overflow-y promotes that "visible" to "auto"),
+     making body a second, competing scroll container that never actually scrolls. Any
+     `position: sticky` descendant bound to the nearest scrolling ancestor picked body's
+     dead scrollTop over html's real one and never stuck to anything. */
+  html {
     max-width: 100%;
     overflow-x: hidden;
+  }
+  body {
+    max-width: 100%;
   }
 
   *,
