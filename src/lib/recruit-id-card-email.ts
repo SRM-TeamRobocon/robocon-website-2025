@@ -44,7 +44,7 @@ export function buildIdCardHtml(params: IdCardEmailParams): string {
           <tr>
             <td style="padding:36px 40px 12px;">
               <p style="color:#cfcfcf;font-size:14px;line-height:1.6;margin:0 0 28px;text-align:center;">
-                Your recruitment account has been created. This is your official ID card — present the QR code at any recruitment checkpoint.
+                Your recruitment account has been created. This is your official ID card; present the QR code at any recruitment checkpoint.
               </p>
 
               <!-- ID Card -->
@@ -90,7 +90,7 @@ export function buildIdCardHtml(params: IdCardEmailParams): string {
               </table>
 
               <p style="color:#666;font-size:12px;line-height:1.6;margin:0 0 24px;text-align:center;">
-                Keep this email safe — the QR code above is unique to your account and will be scanned at every stage of recruitment.
+                Keep this email safe; the QR code above is unique to your account and will be scanned at every stage of recruitment.
               </p>
             </td>
           </tr>

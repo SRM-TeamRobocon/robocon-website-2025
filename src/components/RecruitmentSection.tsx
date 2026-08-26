@@ -29,7 +29,7 @@ const domains = [
     {
         acronym: "SPACED",
         full: "Systems Programming, Analysis & Computation Engineering",
-        blurb: "Code the brain — Arduino to Jetson, sensors to autonomous navigation.",
+        blurb: "Code the brain: Arduino to Jetson, sensors to autonomous navigation.",
     },
     {
         acronym: "SIESED",
@@ -39,7 +39,7 @@ const domains = [
     {
         acronym: "MCSOCD",
         full: "Media Creation & Social Outreach Creatives",
-        blurb: "Own the story — content, design, events, sponsors. No robot wins unseen.",
+        blurb: "Own the story: content, design, events, sponsors. No robot wins unseen.",
     },
 ];
 
@@ -120,15 +120,15 @@ const RecruitmentSection = () => {
                     {domains.map((domain) => (
                         <div
                             key={domain.acronym}
-                            className="min-w-0 border-2 border-red bg-black p-5"
+                            className="min-w-0 border-2 border-red bg-white p-5"
                         >
-                            <h3 className="break-words text-lg font-bold tracking-tight text-white md:text-xl">
+                            <h3 className="break-words text-lg font-bold tracking-tight text-black md:text-xl">
                                 {domain.acronym}
                             </h3>
                             <p className="mt-1 break-words text-[11px] font-semibold uppercase tracking-wide text-red">
                                 {domain.full}
                             </p>
-                            <p className="mt-3 break-words text-sm text-white/70">{domain.blurb}</p>
+                            <p className="mt-3 break-words text-sm text-black/70">{domain.blurb}</p>
                         </div>
                     ))}
                 </div>

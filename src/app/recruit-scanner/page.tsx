@@ -16,8 +16,8 @@ type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "trainin
 
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
     { value: "orientation", label: "Orientation" },
-    { value: "exam_day_1", label: "Exam — Day 1" },
-    { value: "exam_day_2", label: "Exam — Day 2" },
+    { value: "exam_day_1", label: "Exam: Day 1" },
+    { value: "exam_day_2", label: "Exam: Day 2" },
     { value: "interview", label: "Interview Check-In" },
     { value: "training", label: "Training" },
 ];
@@ -182,15 +182,15 @@ export default function RecruitScannerPage() {
             undo = { type: "orientation" };
         } else if (mode === "exam_day_1" || mode === "exam_day_2") {
             const sub = examSubDomainRef.current;
-            what = `${subDomainFullLabel(sub)} exam — Day ${mode === "exam_day_1" ? 1 : 2}`;
+            what = `${subDomainFullLabel(sub)} exam: Day ${mode === "exam_day_1" ? 1 : 2}`;
             undo = { type: "exam", sub_domain: sub };
         } else if (mode === "training") {
-            what = `Training — ${subDomainFullLabel(trainingSubDomainRef.current)}`;
+            what = `Training: ${subDomainFullLabel(trainingSubDomainRef.current)}`;
             // The session is created server-side, so its id only exists in the response.
             // Without it there's nothing to undo against, hence the null fallback.
             undo = result.session_id ? { type: "training", session_id: result.session_id } : null;
         } else {
-            what = `Interview check-in — ${subDomainFullLabel(interviewSubDomainRef.current)}${isWalkin ? " (walk-in)" : ""}`;
+            what = `Interview check-in: ${subDomainFullLabel(interviewSubDomainRef.current)}${isWalkin ? " (walk-in)" : ""}`;
             undo = null;
         }
 
@@ -204,7 +204,7 @@ export default function RecruitScannerPage() {
                     at: Date.now(),
                     undo,
                     state: "done" as const,
-                    note: recruitId ? null : "Could not read the QR id — undo from the dashboard.",
+                    note: recruitId ? null : "Could not read the QR id. Undo from the dashboard.",
                 },
                 ...prev,
             ].slice(0, MAX_RECENT)
@@ -417,7 +417,7 @@ export default function RecruitScannerPage() {
                 setRecent((prev) =>
                     prev.map((r) =>
                         r.key === entry.key
-                            ? { ...r, state: "done", note: "Undo needs a lead or admin — ask a lead to undo this." }
+                            ? { ...r, state: "done", note: "Undo needs a lead or admin. Ask a lead to undo this." }
                             : r
                     )
                 );
@@ -446,7 +446,7 @@ export default function RecruitScannerPage() {
             );
         } catch {
             setRecent((prev) =>
-                prev.map((r) => (r.key === entry.key ? { ...r, state: "done", note: "Network error — try again." } : r))
+                prev.map((r) => (r.key === entry.key ? { ...r, state: "done", note: "Network error, try again." } : r))
             );
         }
     }, []);
@@ -500,7 +500,7 @@ export default function RecruitScannerPage() {
                                     value={examSubDomain}
                                     onChange={setExamSubDomain}
                                     placeholder="Select the exam domain..."
-                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` }))}
+                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem}: ${d.label}` }))}
                                 />
                                 <p className="mt-2 text-xs text-white/40">
                                     Attendance is recorded per exam, so a recruit sitting two different domain exams is
@@ -518,10 +518,10 @@ export default function RecruitScannerPage() {
                                     value={interviewSubDomain}
                                     onChange={setInterviewSubDomain}
                                     placeholder="Select the interview domain..."
-                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` }))}
+                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem}: ${d.label}` }))}
                                 />
                                 <p className="mt-2 text-xs text-white/40">
-                                    Each scan is sent to whichever open table for this domain has the shortest line —
+                                    Each scan is sent to whichever open table for this domain has the shortest line,
                                     no need to pick a specific table.
                                 </p>
                             </div>
@@ -536,11 +536,11 @@ export default function RecruitScannerPage() {
                                     value={trainingSubDomain}
                                     onChange={setTrainingSubDomain}
                                     placeholder="Select the training domain..."
-                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` }))}
+                                    options={RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem}: ${d.label}` }))}
                                 />
                                 <p className="mt-2 text-xs text-white/40">
                                     Everyone you scan is marked present for this domain&apos;s training today. Nothing to
-                                    set up first — today&apos;s session opens automatically on the first scan.
+                                    set up first. Today&apos;s session opens automatically on the first scan.
                                 </p>
                             </div>
                         )}
@@ -595,7 +595,7 @@ export default function RecruitScannerPage() {
                         {showManualEntry && (
                             <div className="border-2 border-red bg-black p-4 md:p-5 space-y-3">
                                 <p className="text-xs uppercase tracking-widest font-bold text-white/40">
-                                    Mark present without a QR — search by name or reg no
+                                    Mark present without a QR: search by name or reg no
                                 </p>
                                 <input
                                     type="text"
@@ -692,7 +692,7 @@ export default function RecruitScannerPage() {
                                         {typeof result.token_number === "number" && (
                                             <p className="mt-3 inline-block bg-black/50 border border-gray-700 px-4 py-2 font-mono text-lg font-bold text-white">
                                                 Token #{result.token_number}
-                                                {result.panel_label ? ` — ${result.panel_label}` : ""}
+                                                {result.panel_label ? ` · ${result.panel_label}` : ""}
                                             </p>
                                         )}
                                     </div>
@@ -705,7 +705,7 @@ export default function RecruitScannerPage() {
                         <div className="border-2 border-red bg-black p-4 md:p-6">
                             <div className="flex items-baseline justify-between gap-3 mb-3">
                                 <p className="text-xs uppercase tracking-widest font-bold text-white/40">
-                                    Checked in — {MODE_OPTIONS.find((m) => m.value === selectedMode)?.label}
+                                    Checked in: {MODE_OPTIONS.find((m) => m.value === selectedMode)?.label}
                                     {isExamMode && examSubDomain ? ` · ${subDomainFullLabel(examSubDomain)}` : ""}
                                     {selectedMode === "interview" && activeInterviewLabel ? ` · ${activeInterviewLabel}` : ""}
                                     {selectedMode === "training" && activeTrainingLabel ? ` · ${activeTrainingLabel}` : ""}

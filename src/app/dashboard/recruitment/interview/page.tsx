@@ -657,7 +657,7 @@ function SortableSharedRow({
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
             {token.is_walkin && (
                 <span
-                    title="Not shortlisted — walk-in"
+                    title="Not shortlisted, walk-in"
                     className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
                 >
                     <Footprints className="h-3 w-3" /> Walk-in
@@ -721,7 +721,7 @@ function SharedWaitingQueue({
             });
             const data = await res.json();
             if (res.ok) {
-                toast.success(`Called #${data.token_number} — ${data.recruit?.name ?? ""}`);
+                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
             } else {
                 toast.error(data.error || "Could not call this recruit");
             }
@@ -767,7 +767,7 @@ function SharedWaitingQueue({
         <div className="border border-white/10 bg-black">
             <div className="px-4 py-2.5 border-b border-white/10">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" /> Waiting — {subDomainLabel(subDomain)} ({totalWaiting})
+                    <Users className="h-4 w-4 text-gray-400" /> Waiting: {subDomainLabel(subDomain)} ({totalWaiting})
                 </h3>
                 <p className="mt-0.5 text-xs text-gray-500">
                     Click a table button to call that recruit there. Drag to reorder within a table&apos;s own line.
@@ -957,7 +957,7 @@ function EditResultRow({ row, onSaved, onCancel }: { row: InterviewResultRow; on
             <td colSpan={6} className="px-5 py-4">
                 <div className="flex flex-wrap items-center gap-3">
                     <span className="text-sm text-gray-400">
-                        Correcting <span className="text-white font-semibold">{row.name}</span> — {subDomainFullLabel(row.sub_domain)}
+                        Correcting <span className="text-white font-semibold">{row.name}</span>: {subDomainFullLabel(row.sub_domain)}
                     </span>
                     <input
                         value={notes}
@@ -1076,7 +1076,7 @@ function DomainResultsSection({
                                                 <span className="font-medium text-white">{row.name}</span>
                                                 {row.is_walkin && (
                                                     <span
-                                                        title="Not shortlisted — let in as a walk-in"
+                                                        title="Not shortlisted, let in as a walk-in"
                                                         className="inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
                                                     >
                                                         <Footprints className="h-3 w-3" /> Walk-in
@@ -1143,7 +1143,7 @@ function InterviewResultsList() {
         <div className="space-y-4">
             <div className="flex items-center gap-2 px-1">
                 <ClipboardList className="h-4 w-4 text-gray-400" />
-                <h2 className="text-base font-bold text-white">Interview Results — by Domain</h2>
+                <h2 className="text-base font-bold text-white">Interview Results by Domain</h2>
                 <span className="text-xs text-gray-500">({rows.length} total)</span>
             </div>
             {loading ? (
@@ -1152,7 +1152,7 @@ function InterviewResultsList() {
                 </div>
             ) : rows.length === 0 ? (
                 <div className="border border-white/10 bg-black p-6 text-center text-sm text-gray-500">
-                    No results logged yet — they&apos;ll show up here as panels call recruits in.
+                    No results logged yet. They&apos;ll show up here as panels call recruits in.
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -1274,7 +1274,7 @@ export default function InterviewManagementPage() {
                         Interview Day
                     </h1>
                     <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                        Every subsystem&apos;s tables at once — call recruits in, pull anyone from a shared domain
+                        Every subsystem&apos;s tables at once: call recruits in, pull anyone from a shared domain
                         queue to your own table, and log results. Walk-in, no time slots.
                     </p>
                 </div>

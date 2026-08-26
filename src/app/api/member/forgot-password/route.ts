@@ -20,7 +20,7 @@ function buildOtpEmailHtml(name: string, otp: string): string {
         <tr>
           <td style="background:linear-gradient(135deg,#e11d48,#be123c);padding:28px 36px;text-align:center;">
             <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">Reset your password</h1>
-            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">SRM Team Robocon — Member Login</p>
+            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">SRM Team Robocon · Member Login</p>
           </td>
         </tr>
         <tr>
@@ -35,7 +35,7 @@ function buildOtpEmailHtml(name: string, otp: string): string {
               </td></tr>
             </table>
             <p style="color:#888;font-size:12px;line-height:1.6;margin:0;">
-              If you didn't request this, ignore this email — your password won't change.
+              If you didn't request this, ignore this email; your password won't change.
             </p>
           </td>
         </tr>
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
                     .sendMail({
                         from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
                         to: account.email,
-                        subject: "Password reset code — SRM Team Robocon",
+                        subject: "Password reset code: SRM Team Robocon",
                         html: buildOtpEmailHtml(account.name, otp),
                     })
                     .catch((err) => console.error("otp email failed", err));

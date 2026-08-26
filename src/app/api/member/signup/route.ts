@@ -22,7 +22,7 @@ function buildVerificationEmailHtml(name: string, link: string): string {
         <tr>
           <td style="background:linear-gradient(135deg,#e11d48,#be123c);padding:28px 36px;text-align:center;">
             <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">Verify your email</h1>
-            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">SRM Team Robocon — Member Login</p>
+            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">SRM Team Robocon · Member Login</p>
           </td>
         </tr>
         <tr>
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
                 .sendMail({
                     from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
                     to: email,
-                    subject: "Verify your email — SRM Team Robocon Member Login",
+                    subject: "Verify your email: SRM Team Robocon Member Login",
                     html: buildVerificationEmailHtml(name, verifyLink),
                 })
                 .catch((err) => console.error("verification email failed", err));

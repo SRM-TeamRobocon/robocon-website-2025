@@ -255,7 +255,7 @@ function ExamDomainsTab() {
           )
         );
       } else if (res.status === 409) {
-        toast.error("Already marked as called — refreshing");
+        toast.error("Already marked as called, refreshing");
         load();
       } else {
         toast.error(data.error || "Could not mark as called");
@@ -278,7 +278,7 @@ function ExamDomainsTab() {
             className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
             options={[
               { value: "all", label: "All Domains" },
-              ...RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem} — ${d.label}` })),
+              ...RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: `${d.subsystem}: ${d.label}` })),
             ]}
           />
         </div>

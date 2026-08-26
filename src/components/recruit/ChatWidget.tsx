@@ -70,13 +70,13 @@ function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
             } else {
                 setMessages((prev) => [
                     ...prev,
-                    { role: "assistant", content: json.error || "Something went wrong — try again in a moment." },
+                    { role: "assistant", content: json.error || "Something went wrong, try again in a moment." },
                 ]);
             }
         } catch {
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: "Network error — try again in a moment." },
+                { role: "assistant", content: "Network error, try again in a moment." },
             ]);
         } finally {
             setBusy(false);
@@ -102,12 +102,12 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
     return (
         <>
             {open && light && (
-                <div className="fixed bottom-24 right-6 z-50 flex h-[28rem] w-[calc(100vw-3rem)] max-w-sm flex-col border-2 border-red bg-black shadow-2xl">
+                <div className="fixed bottom-24 right-6 z-50 flex h-[28rem] w-[calc(100vw-3rem)] max-w-sm flex-col border-2 border-red bg-white shadow-2xl">
                     <div className="flex items-center justify-between px-4 py-3 border-b-2 border-red">
-                        <p className="font-mono text-xs uppercase tracking-widest text-white/60">Ask a Doubt</p>
+                        <p className="font-mono text-xs uppercase tracking-widest text-black/60">Ask a Doubt</p>
                         <button
                             onClick={() => setOpen(false)}
-                            className="text-white/40 hover:text-white transition"
+                            className="text-black/40 hover:text-black transition"
                         >
                             <X className="h-4 w-4" />
                         </button>
@@ -115,8 +115,8 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
 
                     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                         {messages.length === 0 && (
-                            <p className="text-sm text-white/50">
-                                Ask anything about recruitment — I can only answer from what the team has shared here.
+                            <p className="text-sm text-black/50">
+                                Ask anything about recruitment. I can only answer from what the team has shared here.
                             </p>
                         )}
                         {messages.map((m, i) => (
@@ -125,14 +125,14 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                                 className={`max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
                                     m.role === "user"
                                         ? "ml-auto bg-red text-white"
-                                        : "border border-white/15 bg-white/[0.05] text-white/80"
+                                        : "border border-black/15 bg-black/[0.03] text-black/80"
                                 }`}
                             >
                                 {renderMessageContent(m.content, "underline text-red hover:text-red/80 break-all font-semibold")}
                             </div>
                         ))}
                         {busy && (
-                            <div className="border border-white/15 bg-white/[0.05] text-white/40 px-3 py-2 text-sm w-fit">
+                            <div className="border border-black/15 bg-black/[0.03] text-black/40 px-3 py-2 text-sm w-fit">
                                 thinking...
                             </div>
                         )}
@@ -145,7 +145,7 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                             onKeyDown={(e) => e.key === "Enter" && send()}
                             placeholder="Type your question..."
                             disabled={busy}
-                            className="flex-1 border border-white/20 bg-black py-2 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-red disabled:opacity-50"
+                            className="flex-1 border border-black/20 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-red disabled:opacity-50"
                         />
                         <button
                             onClick={send}
@@ -176,7 +176,7 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                         {messages.length === 0 && (
                             <p className="text-sm text-white/40 font-mono">
-                                Ask anything about recruitment — I can only answer from what the team has shared here.
+                                Ask anything about recruitment. I can only answer from what the team has shared here.
                             </p>
                         )}
                         {messages.map((m, i) => (
@@ -237,16 +237,16 @@ export function InlineChatWidget() {
     const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/public-chat");
 
     return (
-        <div className="w-full border-2 border-red bg-black">
+        <div className="w-full border-2 border-red bg-white">
             <div className="flex items-center gap-2 border-b-2 border-red px-5 py-3">
                 <MessageCircle className="h-4 w-4 text-red" strokeWidth={2.5} />
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-white">Ask a Doubt</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-black">Ask a Doubt</p>
             </div>
 
             <div ref={scrollRef} className="h-64 overflow-y-auto px-5 py-4 space-y-3">
                 {messages.length === 0 && (
-                    <p className="text-sm text-white/50">
-                        Got a question about recruitment? Ask here — answers come only from what the team has shared.
+                    <p className="text-sm text-black/50">
+                        Got a question about recruitment? Ask here. Answers come only from what the team has shared.
                     </p>
                 )}
                 {messages.map((m, i) => (
@@ -255,14 +255,14 @@ export function InlineChatWidget() {
                         className={`max-w-[85%] px-3 py-2 text-sm whitespace-pre-wrap ${
                             m.role === "user"
                                 ? "ml-auto bg-red text-white"
-                                : "border border-white/15 bg-white/[0.05] text-white/80"
+                                : "border border-black/15 bg-black/[0.03] text-black/80"
                         }`}
                     >
                         {renderMessageContent(m.content, "underline text-red hover:text-red/80 break-all font-semibold")}
                     </div>
                 ))}
                 {busy && (
-                    <div className="border border-white/15 bg-white/[0.05] text-white/40 px-3 py-2 text-sm w-fit">
+                    <div className="border border-black/15 bg-black/[0.03] text-black/40 px-3 py-2 text-sm w-fit">
                         thinking...
                     </div>
                 )}
@@ -275,7 +275,7 @@ export function InlineChatWidget() {
                     onKeyDown={(e) => e.key === "Enter" && send()}
                     placeholder="Type your question..."
                     disabled={busy}
-                    className="flex-1 border border-white/20 bg-black py-2 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-red disabled:opacity-50"
+                    className="flex-1 border border-black/20 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 focus:outline-none focus:border-red disabled:opacity-50"
                 />
                 <button
                     onClick={send}

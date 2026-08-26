@@ -198,7 +198,7 @@ export default function RecruitDashboardPage() {
                     </div>
                     <Link
                         href="/recruit/logout"
-                        className="group inline-block shrink-0 border-2 border-black bg-white px-4 py-2 transition-all active:scale-[0.97] hover:border-red hover:bg-red"
+                        className="group inline-block shrink-0 border-2 border-red bg-white px-4 py-2 transition-all active:scale-[0.97] hover:bg-red"
                     >
                         <span
                             className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-black transition-all group-hover:text-white"
@@ -262,7 +262,7 @@ export default function RecruitDashboardPage() {
                             </div>
                             {profile.portfolio_url && (
                                 <div className="min-w-0">
-                                    <p className="text-white/40 text-xs uppercase tracking-widest">LinkedIn</p>
+                                    <p className="text-black/40 text-xs uppercase tracking-widest">LinkedIn</p>
                                     <a
                                         href={profile.portfolio_url}
                                         target="_blank"
@@ -330,12 +330,12 @@ export default function RecruitDashboardPage() {
                     </div>
 
                     {SHOW_TRAINING_ATTENDANCE && training?.started && (
-                        <div className="mt-6 pt-6 border-t border-white/10">
-                            <p className="font-mono text-xs uppercase tracking-widest text-white/40 mb-2">
+                        <div className="mt-6 pt-6 border-t border-black/10">
+                            <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-2">
                                 Training Attendance
                             </p>
                             <div className="flex items-center gap-4">
-                                <div className="flex-1 h-2.5 bg-white/10 overflow-hidden">
+                                <div className="flex-1 h-2.5 bg-black/10 overflow-hidden">
                                     <div
                                         className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
                                         style={{ width: `${training.percentage ?? 0}%` }}
@@ -373,7 +373,7 @@ export default function RecruitDashboardPage() {
                                 <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-600 bg-amber-50 text-amber-700 px-3 py-1">
                                     Table closed for the day
                                 </span>
-                                <span className="text-sm text-black/60">You&apos;ll be interviewed on another day — watch for an announcement.</span>
+                                <span className="text-sm text-black/60">You&apos;ll be interviewed on another day. Watch for an announcement.</span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">

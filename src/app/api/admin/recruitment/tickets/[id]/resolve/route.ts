@@ -199,7 +199,7 @@ async function sendTicketResolvedEmail(params: {
         await transporter.sendMail({
             from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
             to: recipients,
-            subject: "Your Ticket Has Been Resolved — SRM Team Robocon",
+            subject: "Your Ticket Has Been Resolved: SRM Team Robocon",
             text:
                 `Hi ${recruit.name},\n\nYour question:\n${message}\n\nOur answer:\n${resolutionNote}` +
                 (domainChangeLabels ? `\n\nDomain switched: ${domainChangeLabels.from} -> ${domainChangeLabels.to}` : ""),

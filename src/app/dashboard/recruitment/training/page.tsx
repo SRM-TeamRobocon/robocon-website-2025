@@ -270,9 +270,9 @@ export default function TrainingAttendancePage() {
                     Training Sessions
                 </h1>
                 <p className="mt-2 max-w-xl text-sm text-gray-400">
-                    Choose a domain and start attendance — the day&apos;s session is opened on demand, exactly like a
+                    Choose a domain and start attendance. The day&apos;s session is opened on demand, exactly like a
                     volunteer&apos;s first QR scan of the day. A day with no session for a domain simply isn&apos;t
-                    counted against anyone — treat it as a holiday, not an absence.
+                    counted against anyone, treat it as a holiday, not an absence.
                 </p>
             </div>
 

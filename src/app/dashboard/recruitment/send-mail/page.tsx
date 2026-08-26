@@ -238,7 +238,7 @@ export default function SendMailPage() {
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
                     Compose an email and send it to selected recruits in the active cycle. Add a date &amp; time if the
-                    email is about a specific slot (e.g. an interview or deadline) — it&apos;s included in the email.
+                    email is about a specific slot (e.g. an interview or deadline); it&apos;s included in the email.
                 </p>
             </div>
 
@@ -375,7 +375,7 @@ export default function SendMailPage() {
             {!domain && (
                 <p className="-mt-3 text-xs text-gray-500">
                     Filtering by shortlist status without a domain matches a recruit if{" "}
-                    <span className="text-gray-400">any</span> of their applied domains have that status — pick a
+                    <span className="text-gray-400">any</span> of their applied domains have that status. Pick a
                     domain above to filter by that domain&apos;s status specifically.
                 </p>
             )}

@@ -30,7 +30,7 @@ const SHAPE: Record<keyof typeof VARIANTS, string> = {
 // renders as two nested elements: an outer one filled with the border color and padded
 // by the border width, and an inner one with the real fill — see the JSX below.
 const SHARP_CLIP = "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)";
-const SHARP_OUTER = "group inline-block max-w-[48%] p-[2px] shadow-sm transition-all active:scale-[0.97] bg-black hover:bg-red";
+const SHARP_OUTER = "group inline-block max-w-[48%] p-[2px] shadow-sm transition-all active:scale-[0.97] bg-red";
 const SHARP_INNER =
     "flex min-w-0 items-center gap-2 px-4 py-2 text-sm font-semibold transition-all bg-white text-black group-hover:bg-red group-hover:text-white";
 

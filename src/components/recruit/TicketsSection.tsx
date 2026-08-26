@@ -142,7 +142,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                 <div className="border border-amber-600 bg-amber-50 px-4 py-3 space-y-1.5">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <span className="break-words font-mono text-xs font-bold uppercase tracking-widest text-amber-700">
-                            {openTicket.category === "domain_change" ? "Domain Change" : "General"} — Pending Review
+                            {openTicket.category === "domain_change" ? "Domain Change" : "General"}: Pending Review
                         </span>
                         <span className="text-xs text-black/40">
                             {new Date(openTicket.created_at).toLocaleDateString()}

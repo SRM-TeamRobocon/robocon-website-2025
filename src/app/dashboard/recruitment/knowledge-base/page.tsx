@@ -44,7 +44,7 @@ export default function KnowledgeBasePage() {
             const res = await fetch("/api/admin/recruitment/kb/documents", { method: "POST", body: formData });
             const data = await res.json();
             if (res.ok) {
-                toast.success(data.warning ? data.warning : `Uploaded — ${data.data.chunk_count} chunks`);
+                toast.success(data.warning ? data.warning : `Uploaded: ${data.data.chunk_count} chunks`);
                 await load();
             } else {
                 toast.error(data.error || "Could not upload file");
@@ -81,7 +81,7 @@ export default function KnowledgeBasePage() {
                     Knowledge Base
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Upload .txt files — the recruit dashboard chatbot answers questions using only what's here.
+                    Upload .txt files. The recruit dashboard chatbot answers questions using only what's here.
                 </p>
             </div>
 

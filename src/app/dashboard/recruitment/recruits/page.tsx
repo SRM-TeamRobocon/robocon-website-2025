@@ -181,7 +181,7 @@ export default function RecruitsPage() {
                     </h1>
                     <p className="mt-2 text-gray-400 text-sm max-w-xl">
                         All registrations for the active recruitment cycle. Each domain chip shows
-                        whether that recruit sat <em>that domain&apos;s</em> exam — hover a chip for the day.
+                        whether that recruit sat <em>that domain&apos;s</em> exam. Hover a chip for the day.
                     </p>
                 </div>
                 <a

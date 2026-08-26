@@ -65,7 +65,7 @@ export function buildOtpHtml(otp: string, srmEmail: string): string {
               </table>
 
               <p style="color:#666;font-size:12px;line-height:1.6;margin:24px 0 0;text-align:center;">
-                Didn't request this? You can safely ignore this email — no account changes were made.
+                Didn't request this? You can safely ignore this email; no account changes were made.
               </p>
             </td>
           </tr>

@@ -159,7 +159,7 @@ export default function RecruitmentMarksPage() {
           Marks Entry
         </h1>
         <p className="mt-2 text-gray-400 text-sm max-w-xl">
-          Enter written-exam marks per recruit. Attendance is shown for reference only — marks
+          Enter written-exam marks per recruit. Attendance is shown for reference only; marks
           can be entered regardless of whether a recruit's QR was scanned.
         </p>
       </div>

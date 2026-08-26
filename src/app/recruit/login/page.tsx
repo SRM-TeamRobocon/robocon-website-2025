@@ -24,7 +24,7 @@ function RecruitLoginInner() {
             : googleError === "no_active_cycle"
             ? "Recruitment isn't open right now."
             : googleError === "google_state_mismatch"
-            ? "Google sign-in session expired or was opened twice — please try again."
+            ? "Google sign-in session expired or was opened twice. Please try again."
             : ""
     );
 

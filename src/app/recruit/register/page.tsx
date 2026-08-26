@@ -319,14 +319,14 @@ function RecruitRegisterInner() {
         <CardShell onBack={stepBack}>
             <div className="text-center mb-6">
                 <h2 className="break-words text-2xl font-bold tracking-tight text-black sm:text-3xl">Recruit Registration</h2>
-                <p className="mt-2 text-sm text-black/50">SRM Team Robocon — {new Date().getFullYear()} recruitment</p>
+                <p className="mt-2 text-sm text-black/50">SRM Team Robocon · {new Date().getFullYear()} recruitment</p>
             </div>
 
             <StepIndicator step={step} />
 
             {step === 1 && (
                 <div className="space-y-5">
-                    <p className="text-sm text-white/50 text-center">
+                    <p className="text-sm text-black/50 text-center">
                         Start with your personal Google account
                     </p>
                     <button
@@ -393,7 +393,7 @@ function RecruitRegisterInner() {
                                 />
                             </div>
                             <p className="mt-2 text-xs text-black/40">
-                                You can verify this address later from your dashboard — no OTP needed right now.
+                                You can verify this address later from your dashboard. No OTP needed right now.
                             </p>
                         </div>
                         <ErrorBanner message={error} />
