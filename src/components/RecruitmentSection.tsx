@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useRouter } from "next/navigation";
 import { InlineChatWidget } from "@/components/recruit/ChatWidget";
+import SocialSection from "@/components/recruit/SocialSection";
 
 
 const recruitmentVideos = [
@@ -155,6 +156,13 @@ const RecruitmentSection = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                {/* Join WhatsApp / follow Instagram — same card used on the recruit
+                    dashboard (src/components/recruit/SocialSection.tsx), reused here
+                    so visitors who haven't registered yet can still find these. */}
+                <div className="w-full max-w-xl">
+                    <SocialSection />
                 </div>
 
                 {/* Ask a Doubt — inline chatbot, sharp red/white/black to match the

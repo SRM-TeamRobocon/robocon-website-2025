@@ -9,6 +9,7 @@ import { generateBadgeImage } from "@/components/recruit/generateBadgeImage";
 import AuthNav from "@/components/AuthNav";
 import EmailVerifyBanner from "@/components/recruit/EmailVerifyBanner";
 import FaqSection from "@/components/recruit/FaqSection";
+import SocialSection from "@/components/recruit/SocialSection";
 import TicketsSection from "@/components/recruit/TicketsSection";
 import ChatWidget from "@/components/recruit/ChatWidget";
 import { travelMethodLabel } from "@/lib/travel-method";
@@ -393,6 +394,7 @@ export default function RecruitDashboardPage() {
                     </div>
                 )}
 
+                <SocialSection />
                 <FaqSection />
                 <TicketsSection currentDomains={domains.map((d) => d.sub_domain)} />
             </div>

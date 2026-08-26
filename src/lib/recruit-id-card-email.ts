@@ -6,6 +6,8 @@ interface IdCardEmailParams {
     domainLabels: string[];
 }
 
+const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/D8HWhwL3vjj5xsgPxJTcmr";
+
 export function buildIdCardHtml(params: IdCardEmailParams): string {
     const { name, regNo, year, department, domainLabels } = params;
 
@@ -85,6 +87,16 @@ export function buildIdCardHtml(params: IdCardEmailParams): string {
                     <table width="100%" cellpadding="0" cellspacing="0">
                       ${domainRows}
                     </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td align="center">
+                    <a href="${WHATSAPP_GROUP_LINK}" target="_blank" style="display:inline-block;background:#25D366;color:#0a0a0a;font-size:15px;font-weight:800;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:0.3px;">
+                      Join WhatsApp Group
+                    </a>
                   </td>
                 </tr>
               </table>
