@@ -31,6 +31,27 @@ export function getTransporter() {
   });
 }
 
+// --- Recruitment mass-mail (Gmail SMTP, not Brevo) ---
+// Scoped to the recruitment "Send Mail" bulk-BCC feature only. Every other email in the
+// app (OTP, member approvals, ticket resolution) keeps using getTransporter() / Brevo above —
+// don't repoint those here.
+const RECRUIT_BULK_GMAIL_USER = process.env.SMTP_EMAIL;
+const RECRUIT_BULK_GMAIL_PASSWORD = process.env.SMTP_PASSWORD_GOOGLE;
+
+export const RECRUIT_BULK_MAIL_FROM = RECRUIT_BULK_GMAIL_USER;
+
+export function getRecruitmentBulkMailTransporter() {
+  if (!RECRUIT_BULK_GMAIL_USER || !RECRUIT_BULK_GMAIL_PASSWORD) return null;
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: RECRUIT_BULK_GMAIL_USER,
+      pass: RECRUIT_BULK_GMAIL_PASSWORD,
+    },
+  });
+}
+
 // Inline attachment for the "cid:robocon_logo" reference used by the red/black
 // email templates — most mail clients strip/block remote <img> src by default,
 // so the logo is shipped as a cid attachment rather than a public URL.

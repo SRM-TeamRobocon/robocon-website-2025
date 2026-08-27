@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
-import { getTransporter, SMTP_EMAIL, logoAttachment } from "@/lib/mailer";
+import { getRecruitmentBulkMailTransporter, RECRUIT_BULK_MAIL_FROM, logoAttachment } from "@/lib/mailer";
 import { buildBulkMailHtml } from "@/lib/recruit-bulk-mail-email";
 import { boundedText } from "@/lib/recruit-validation";
 
@@ -13,9 +13,11 @@ const MAX_BODY_LENGTH = 5000;
 // should be sent as a few filtered batches rather than one request that risks a serverless
 // function timeout mid-send.
 const MAX_RECIPIENTS = 3000;
-// Gmail SMTP throttles bursts — sending the whole batch via Promise.all would open
-// thousands of sockets at once. Small concurrent chunks keep this well under that.
-const SEND_CONCURRENCY = 5;
+// A plain Gmail account caps recipients (to+cc+bcc) at ~500 per message. Recipients are
+// batched into BCC-only sends of this size, sequentially — no personalization, everyone in
+// a chunk gets the identical email, so this is purely a Gmail-limit workaround, not a
+// per-recruit send.
+const BCC_CHUNK_SIZE = 450;
 
 // POST /api/admin/recruitment/send-mail — bulk-email selected recruits in the active cycle
 // with an admin-composed subject/body and an optional date & time (e.g. an interview slot
@@ -60,9 +62,9 @@ export async function POST(request: NextRequest) {
         eventAt = parsed;
     }
 
-    const transporter = getTransporter();
-    if (!transporter) {
-        return NextResponse.json({ success: false, error: "Email is not configured on this server." }, { status: 503 });
+    const transporter = getRecruitmentBulkMailTransporter();
+    if (!transporter || !RECRUIT_BULK_MAIL_FROM) {
+        return NextResponse.json({ success: false, error: "Recruitment mass-mail Gmail SMTP is not configured on this server." }, { status: 503 });
     }
 
     const supabase = createRecruitSupabaseAdminClient();
@@ -93,38 +95,58 @@ export async function POST(request: NextRequest) {
         : null;
 
     const failures: { recruit_id: string; name: string; error: string }[] = [];
-    let sent = 0;
 
-    for (let i = 0; i < recruits.length; i += SEND_CONCURRENCY) {
-        const batch = recruits.slice(i, i + SEND_CONCURRENCY);
-        const results = await Promise.allSettled(
-            batch.map(async (r: { id: string; name: string; srm_email: string | null; personal_email: string | null }) => {
-                const recipients = Array.from(
-                    new Set([r.srm_email, r.personal_email].filter((e): e is string => !!e).map((e) => e.toLowerCase()))
-                );
-                if (recipients.length === 0) throw new Error("No email on file");
-
-                await transporter.sendMail({
-                    from: `"SRM Team Robocon" <${SMTP_EMAIL}>`,
-                    to: recipients,
-                    subject,
-                    text: message + (eventLabel ? `\n\nDate & Time: ${eventLabel}` : ""),
-                    html: buildBulkMailHtml({ name: r.name, subject, message, eventLabel }),
-                    attachments: [logoAttachment()],
-                });
-            })
+    // Everyone selected goes into one shared BCC blast (no personalization) — split only to
+    // stay under Gmail's per-message recipient cap, never per recruit.
+    const emailToRecruitIds = new Map<string, Set<string>>();
+    for (const r of recruits as { id: string; name: string; srm_email: string | null; personal_email: string | null }[]) {
+        const emails = Array.from(
+            new Set([r.srm_email, r.personal_email].filter((e): e is string => !!e).map((e) => e.toLowerCase()))
         );
-
-        results.forEach((result, idx) => {
-            if (result.status === "fulfilled") {
-                sent += 1;
-            } else {
-                const r = batch[idx];
-                const reason = result.reason instanceof Error ? result.reason.message : "Send failed";
-                failures.push({ recruit_id: r.id, name: r.name, error: reason });
-            }
-        });
+        if (emails.length === 0) {
+            failures.push({ recruit_id: r.id, name: r.name, error: "No email on file" });
+            continue;
+        }
+        for (const email of emails) {
+            if (!emailToRecruitIds.has(email)) emailToRecruitIds.set(email, new Set());
+            emailToRecruitIds.get(email)!.add(r.id);
+        }
     }
 
+    const recruitById = new Map(recruits.map((r: { id: string; name: string }) => [r.id, r.name]));
+    const allEmails = Array.from(emailToRecruitIds.keys());
+    const sentRecruitIds = new Set<string>();
+    const errorByRecruitId = new Map<string, string>();
+
+    for (let i = 0; i < allEmails.length; i += BCC_CHUNK_SIZE) {
+        const chunk = allEmails.slice(i, i + BCC_CHUNK_SIZE);
+        try {
+            await transporter.sendMail({
+                from: `"SRM Team Robocon Recruitment" <${RECRUIT_BULK_MAIL_FROM}>`,
+                to: RECRUIT_BULK_MAIL_FROM,
+                bcc: chunk,
+                subject,
+                text: message + (eventLabel ? `\n\nDate & Time: ${eventLabel}` : ""),
+                html: buildBulkMailHtml({ subject, message, eventLabel }),
+                attachments: [logoAttachment()],
+            });
+            chunk.forEach((email) => {
+                emailToRecruitIds.get(email)!.forEach((id) => sentRecruitIds.add(id));
+            });
+        } catch (err) {
+            const reason = err instanceof Error ? err.message : "Send failed";
+            chunk.forEach((email) => {
+                emailToRecruitIds.get(email)!.forEach((id) => errorByRecruitId.set(id, reason));
+            });
+        }
+    }
+
+    errorByRecruitId.forEach((error, id) => {
+        if (!sentRecruitIds.has(id)) {
+            failures.push({ recruit_id: id, name: recruitById.get(id) || id, error });
+        }
+    });
+
+    const sent = sentRecruitIds.size;
     return NextResponse.json({ success: true, sent, failed: failures.length, failures });
 }

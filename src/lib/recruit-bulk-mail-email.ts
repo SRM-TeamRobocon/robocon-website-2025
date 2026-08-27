@@ -11,15 +11,17 @@ function escapeHtml(input: string): string {
         .replace(/'/g, "&#39;");
 }
 
+const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/D8HWhwL3vjj5xsgPxJTcmr";
+const WEBSITE_URL = "https://www.srmteamrobocon.com";
+
 interface BulkMailParams {
-    name: string;
     subject: string;
     message: string;
     eventLabel: string | null;
 }
 
 export function buildBulkMailHtml(params: BulkMailParams): string {
-    const { name, subject, message, eventLabel } = params;
+    const { subject, message, eventLabel } = params;
     const bodyHtml = escapeHtml(message).replace(/\n/g, "<br/>");
 
     const eventBlock = eventLabel
@@ -59,15 +61,28 @@ export function buildBulkMailHtml(params: BulkMailParams): string {
           <!-- Body -->
           <tr>
             <td style="padding:36px 40px 12px;">
-              <p style="color:#cfcfcf;font-size:14px;line-height:1.6;margin:0 0 20px;">Hi ${escapeHtml(name)},</p>
+              <p style="color:#cfcfcf;font-size:14px;line-height:1.6;margin:0 0 20px;">Dear Applicant,</p>
               <p style="color:#cfcfcf;font-size:14px;line-height:1.6;margin:0 0 24px;">${bodyHtml}</p>
               ${eventBlock}
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+                <tr>
+                  <td align="center">
+                    <a href="${WHATSAPP_GROUP_LINK}" target="_blank" style="display:inline-block;background:#25D366;color:#0a0a0a;font-size:15px;font-weight:800;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:0.3px;">
+                      Join WhatsApp Group
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
             <td style="padding:20px 40px;border-top:1px solid #2a2a2a;text-align:center;">
+              <p style="margin:0 0 8px;">
+                <a href="${WEBSITE_URL}" target="_blank" style="color:#C20000;font-size:12px;font-weight:700;text-decoration:none;letter-spacing:0.3px;">www.srmteamrobocon.com</a>
+              </p>
               <p style="color:#555;font-size:11px;margin:0;">© ${new Date().getFullYear()} SRM Team Robocon. All rights reserved.</p>
             </td>
           </tr>
