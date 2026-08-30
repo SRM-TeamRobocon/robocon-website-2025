@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { MessageCircle, X, Send } from "lucide-react";
 import { recruitFetch } from "@/lib/recruit-fetch-client";
 
@@ -32,10 +31,11 @@ function renderMessageContent(content: string, linkClassName: string) {
 // /recruit/dashboard (authenticated, /api/recruit/chat) and the inline light widget on
 // the homepage RecruitmentSection (public, /api/recruit/public-chat). Only the endpoint
 // and the JSX around it differ.
-function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
+function useDoubtChat(endpoint: string) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
+    const [sessionExpired, setSessionExpired] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -56,12 +56,13 @@ function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: text }),
             });
-            if (res.status === 401 && onUnauthorized) {
-                // Session expired mid-conversation — the raw "Unauthorized access" /
-                // "Not authenticated" body is a dead end here (see TicketsSection's
-                // identical 401 handling), so bounce to login instead of leaving the
-                // widget stuck on an error the recruit can't act on.
-                onUnauthorized();
+            if (res.status === 401) {
+                // Confirmed-dead session (recruitFetch only surfaces a 401 after its probe
+                // has verified that). Show a sign-in prompt inside the widget rather than
+                // navigating away mid-conversation — the transcript stays on screen, and
+                // their question goes back into the input so it survives logging back in.
+                setSessionExpired(true);
+                setInput(text);
                 return;
             }
             const json = await res.json();
@@ -83,7 +84,33 @@ function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
         }
     };
 
-    return { messages, input, setInput, busy, send, scrollRef };
+    return { messages, input, setInput, busy, send, scrollRef, sessionExpired };
+}
+
+// Shown inside the widget when the recruit's session is confirmed gone, in place of the
+// old redirect-to-login. Opens in a new tab so the conversation (and the question restored
+// to the input) is still here when they come back.
+function SessionExpiredNotice({ light }: { light: boolean }) {
+    return (
+        <div
+            className={
+                light
+                    ? "border border-amber-600 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700"
+                    : "border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300"
+            }
+        >
+            You&apos;ve been signed out.{" "}
+            <a
+                href="/recruit/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+            >
+                Log in again
+            </a>{" "}
+            to keep asking &mdash; your question is saved below.
+        </div>
+    );
 }
 
 // Floating widget — used on /recruit/dashboard. `theme` defaults to the original
@@ -92,11 +119,9 @@ function useDoubtChat(endpoint: string, onUnauthorized?: () => void) {
 // theme="light" to match its sharp red/white/black reskin instead of floating dark
 // glass over a white page.
 export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light" }) {
-    const router = useRouter();
     const [open, setOpen] = useState(false);
-    const { messages, input, setInput, busy, send, scrollRef } = useDoubtChat("/api/recruit/chat", () =>
-        router.push("/recruit/login")
-    );
+    const { messages, input, setInput, busy, send, scrollRef, sessionExpired } =
+        useDoubtChat("/api/recruit/chat");
     const light = theme === "light";
 
     return (
@@ -137,6 +162,12 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                             </div>
                         )}
                     </div>
+
+                    {sessionExpired && (
+                        <div className="px-3 pt-3">
+                            <SessionExpiredNotice light />
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-2 p-3 border-t-2 border-red">
                         <input
@@ -197,6 +228,12 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
                             </div>
                         )}
                     </div>
+
+                    {sessionExpired && (
+                        <div className="px-3 pt-3">
+                            <SessionExpiredNotice light={false} />
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-2 p-3 border-t border-white/10">
                         <input

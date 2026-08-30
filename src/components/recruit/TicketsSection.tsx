@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Select from "@/components/ui/select";
 import { RECRUIT_SUBDOMAINS, groupBySubsystem, subDomainFullLabel } from "@/lib/recruit-domains";
 import { recruitFetch } from "@/lib/recruit-fetch-client";
@@ -24,7 +23,6 @@ type Ticket = {
 // (see src/app/recruit/dashboard/page.tsx). Only used on that page, so no dark-glass
 // remnants need to survive here.
 export default function TicketsSection({ currentDomains }: { currentDomains: string[] }) {
-    const router = useRouter();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const [category, setCategory] = useState<TicketCategory>("general");
@@ -33,12 +31,13 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
     const [message, setMessage] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [sessionExpired, setSessionExpired] = useState(false);
 
     const load = async () => {
         try {
             const res = await recruitFetch("/api/recruit/tickets");
             if (res.status === 401) {
-                router.push("/recruit/login");
+                setSessionExpired(true);
                 return;
             }
             const json = await res.json();
@@ -107,10 +106,11 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                 }),
             });
             if (res.status === 401) {
-                // Session expired between page load and submit — the raw "Unauthorized
-                // access" from proxy.ts is a dead end for the recruit, so send them to log
-                // back in rather than leaving them stuck on an error they can't act on.
-                router.push("/recruit/login");
+                // Confirmed-dead session (recruitFetch only surfaces a 401 once its probe has
+                // verified that) — but navigating to /recruit/login here would discard the
+                // message they just typed. Show the prompt inline instead and leave every
+                // field untouched, so logging back in and hitting Submit again is all it takes.
+                setSessionExpired(true);
                 return;
             }
             const json = await res.json();
@@ -222,6 +222,18 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
                         rows={3}
                         className="w-full min-w-0 border-2 border-black/15 bg-white py-2 px-3 text-sm text-black placeholder:text-black/30 outline-none focus:border-red focus:ring-2 focus:ring-red/20 transition-all"
                     />
+
+                    {sessionExpired && (
+                        <div className="border border-amber-600 bg-amber-50 px-3 py-2.5">
+                            <p className="text-xs font-bold text-amber-700">
+                                You&apos;ve been signed out. Your message below is saved &mdash;{" "}
+                                <a href="/recruit/login" className="underline hover:text-amber-900">
+                                    log in again
+                                </a>{" "}
+                                in a new tab, then press Submit.
+                            </p>
+                        </div>
+                    )}
 
                     {error && <p className="text-xs text-red font-bold">{error}</p>}
 

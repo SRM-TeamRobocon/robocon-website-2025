@@ -14,6 +14,7 @@ import TicketsSection from "@/components/recruit/TicketsSection";
 import ChatWidget from "@/components/recruit/ChatWidget";
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
+import { recruitFetch } from "@/lib/recruit-fetch-client";
 
 const LanyardBadge = dynamic(() => import("@/components/recruit/LanyardBadge"), { ssr: false });
 
@@ -98,7 +99,13 @@ export default function RecruitDashboardPage() {
 
         (async () => {
             try {
-                const [meRes, qrRes] = await Promise.all([fetch("/api/recruit/me"), fetch("/api/recruit/qr")]);
+                // recruitFetch, not raw fetch: a transient 401 here used to bounce the recruit
+                // straight to /recruit/login on page load. It now only reports 401 once a
+                // session probe has confirmed the session is actually gone.
+                const [meRes, qrRes] = await Promise.all([
+                    recruitFetch("/api/recruit/me"),
+                    fetch("/api/recruit/qr"),
+                ]);
                 const meJson = await meRes.json();
                 const qrJson = await qrRes.json();
 

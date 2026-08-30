@@ -62,6 +62,7 @@ Email:
 - `SMTP_EMAIL`
 - `SMTP_PASSWORD`
 - `ORGANIZER_EMAIL`
+- `SMTP_PASSWORD_GOOGLE` — Gmail App Password for the recruitment "Send Mail" bulk-BCC feature (`src/lib/mailer.ts`'s `getRecruitmentBulkMailTransporter()`); pairs with `SMTP_EMAIL` as the Gmail account, kept separate from the Brevo SMTP config above.
 
 Existing admin auth:
 

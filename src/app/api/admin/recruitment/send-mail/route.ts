@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
+import { selectInChunks } from "@/lib/supabase/query-helpers";
 import { getSession, requireRole } from "@/lib/session";
 import { getRecruitmentBulkMailTransporter, RECRUIT_BULK_MAIL_FROM, logoAttachment } from "@/lib/mailer";
 import { buildBulkMailHtml } from "@/lib/recruit-bulk-mail-email";
@@ -33,8 +34,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Invalid request body." }, { status: 400 });
     }
 
-    const recruitIds = Array.isArray(body.recruit_ids)
-        ? Array.from(new Set(body.recruit_ids.map((id: unknown) => String(id))))
+    const recruitIds: string[] = Array.isArray(body.recruit_ids)
+        ? Array.from(new Set<string>(body.recruit_ids.map((id: unknown) => String(id))))
         : [];
     const subject = boundedText(body.subject, MAX_SUBJECT_LENGTH);
     const message = boundedText(body.body, MAX_BODY_LENGTH);
@@ -75,12 +76,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Scoped to the active cycle so an id list can't be reused to mail recruits from a
-    // past/inactive cycle.
-    const { data: recruits, error: recruitsError } = await supabase
-        .from("recruit_accounts")
-        .select("id, name, srm_email, personal_email")
-        .eq("cycle_id", cycle.id)
-        .in("id", recruitIds);
+    // past/inactive cycle. Chunked via selectInChunks because a large selection's .in() id
+    // list would otherwise blow past reverse-proxy URL-length limits (see query-helpers.ts).
+    const { data: recruits, error: recruitsError } = await selectInChunks<{
+        id: string;
+        name: string;
+        srm_email: string | null;
+        personal_email: string | null;
+    }>(recruitIds, (chunk) =>
+        supabase
+            .from("recruit_accounts")
+            .select("id, name, srm_email, personal_email")
+            .eq("cycle_id", cycle.id)
+            .in("id", chunk)
+    );
 
     if (recruitsError) {
         console.error("send-mail recruits lookup error", recruitsError);
