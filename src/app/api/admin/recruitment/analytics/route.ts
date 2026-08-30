@@ -57,7 +57,7 @@ export async function GET() {
     fetchAllRows<any>((from, to) =>
       supabase
         .from("recruit_accounts")
-        .select("id, is_selected, gender, is_hosteller")
+        .select("id, is_selected, gender, is_hosteller, year")
         .eq("cycle_id", cycle.id)
         .range(from, to)
     ),
@@ -186,6 +186,25 @@ export async function GET() {
     return { sub_domain: domain, male, female, unspecified };
   });
 
+  // Year is free text on recruit_accounts ("1"/"2" in practice), so anything that isn't a
+  // recognised year falls into `other` rather than being dropped — a silently missing recruit
+  // would make this table disagree with the registration counts right above it.
+  const byDomainYear = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
+    const domainRecruitIds = domainSelections
+      .filter((row: any) => row.sub_domain === domain)
+      .map((row: any) => row.recruit_id);
+    let year1 = 0;
+    let year2 = 0;
+    let other = 0;
+    for (const id of domainRecruitIds) {
+      const year = String(accountsById.get(id)?.year ?? "");
+      if (year === "1") year1 += 1;
+      else if (year === "2") year2 += 1;
+      else other += 1;
+    }
+    return { sub_domain: domain, year_1: year1, year_2: year2, other };
+  });
+
   const byDomainHosteller = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const domainRecruitIds = domainSelections
       .filter((row: any) => row.sub_domain === domain)
@@ -275,6 +294,7 @@ export async function GET() {
     overall: { ...overall, interview_outcomes: overallOutcomes },
     by_domain: byDomain,
     by_domain_gender: byDomainGender,
+    by_domain_year: byDomainYear,
     by_domain_hosteller: byDomainHosteller,
     training: {
       total_trainees: totalTrainees,

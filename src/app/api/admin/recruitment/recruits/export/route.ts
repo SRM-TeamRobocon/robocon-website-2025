@@ -30,12 +30,14 @@ const HEADER = [
   "Department",
   "Course",
   "SRM Email",
+  "Phone",
   "Hostel",
   "Block",
   "Room",
   "Area",
   "Travel Method",
-  "Domain(s)",
+  "Domain 1",
+  "Domain 2",
   "Orientation",
   "Exam Day 1",
   "Exam Day 2",
@@ -107,7 +109,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_accounts")
       .select(
-        "id, name, reg_no, year, gender, department, course, srm_email, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, created_at"
+        "id, name, reg_no, year, gender, department, course, srm_email, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, created_at"
       )
       .eq("cycle_id", cycleId)
       .order("created_at", { ascending: false });
@@ -134,7 +136,11 @@ export async function GET(request: NextRequest) {
 
   const [selectionsRes, orientationRes, examRes] = await Promise.all([
     selectInChunks<{ recruit_id: string; sub_domain: string }>(recruitIds, (chunk) =>
-      supabase.from("recruit_domain_selections").select("recruit_id, sub_domain").in("recruit_id", chunk)
+      supabase
+        .from("recruit_domain_selections")
+        .select("recruit_id, sub_domain")
+        .in("recruit_id", chunk)
+        .order("created_at", { ascending: true })
     ),
     selectInChunks<{ recruit_id: string }>(recruitIds, (chunk) =>
       supabase.from("recruit_orientation_attendance").select("recruit_id").in("recruit_id", chunk)
@@ -154,24 +160,29 @@ export async function GET(request: NextRequest) {
   const orientationSet = new Set((orientationRes.data || []).map((row: any) => row.recruit_id));
   const examDaySet = new Set((examRes.data || []).map((row: any) => `${row.recruit_id}:${row.day}`));
 
-  const rows = (recruits || []).map((r: any) => [
-    r.name,
-    r.reg_no,
-    r.year,
-    genderLabel(r.gender),
-    r.department,
-    r.course,
-    r.srm_email,
-    r.is_hosteller ? "Hosteller" : "Day Scholar",
-    r.hostel_block || "",
-    r.hostel_room || "",
-    r.day_scholar_area || "",
-    travelMethodLabel(r.travel_method),
-    (domainsByRecruit.get(r.id) || []).map(subDomainFullLabel).join(" | "),
-    orientationSet.has(r.id) ? "Yes" : "No",
-    examDaySet.has(`${r.id}:1`) ? "Yes" : "No",
-    examDaySet.has(`${r.id}:2`) ? "Yes" : "No",
-  ]);
+  const rows = (recruits || []).map((r: any) => {
+    const domains = domainsByRecruit.get(r.id) || [];
+    return [
+      r.name,
+      r.reg_no,
+      r.year,
+      genderLabel(r.gender),
+      r.department,
+      r.course,
+      r.srm_email,
+      r.phone || "",
+      r.is_hosteller ? "Hosteller" : "Day Scholar",
+      r.hostel_block || "",
+      r.hostel_room || "",
+      r.day_scholar_area || "",
+      travelMethodLabel(r.travel_method),
+      domains[0] ? subDomainFullLabel(domains[0]) : "",
+      domains[1] ? subDomainFullLabel(domains[1]) : "",
+      orientationSet.has(r.id) ? "Yes" : "No",
+      examDaySet.has(`${r.id}:1`) ? "Yes" : "No",
+      examDaySet.has(`${r.id}:2`) ? "Yes" : "No",
+    ];
+  });
 
   return csvResponse(rows);
 }

@@ -50,6 +50,15 @@ interface DomainGenderStats {
     unspecified: number;
 }
 
+interface DomainYearStats {
+    sub_domain: string;
+    year_1: number;
+    year_2: number;
+    // Anything the API couldn't read as year 1 or 2 — kept so this table always reconciles
+    // with the registration counts rather than quietly losing a recruit.
+    other: number;
+}
+
 interface DomainHostellerStats {
     sub_domain: string;
     hosteller: number;
@@ -70,6 +79,7 @@ interface AnalyticsData {
     overall: FunnelCounts;
     by_domain: DomainStats[];
     by_domain_gender: DomainGenderStats[];
+    by_domain_year: DomainYearStats[];
     by_domain_hosteller: DomainHostellerStats[];
     training: {
         total_trainees: number;
@@ -90,6 +100,9 @@ const DOMAIN_COLOR: Record<string, string> = Object.fromEntries(
 );
 const GENDER_COLOR = { male: "#3987e5", female: "#d95886", unspecified: "#6b6b68" };
 const RESIDENCE_COLOR = { hosteller: "#3987e5", day_scholar: "#199e70" };
+// Same "first series is blue, unknown bucket is the neutral grey" convention as the two
+// palettes above, so the cards read as one system rather than three unrelated charts.
+const YEAR_COLOR = { year_1: "#3987e5", year_2: "#c98500", other: "#6b6b68" };
 
 function ChartTooltip({ active, payload, label }: TooltipContentProps) {
     if (!active || !payload || !payload.length) return null;
@@ -177,6 +190,19 @@ export default function RecruitmentAnalyticsPage() {
               Male: row.male,
               Female: row.female,
               Unspecified: row.unspecified,
+          }))
+        : [];
+
+    // `other` is almost always 0, so its bar/column is only rendered when something actually
+    // lands in it — an always-visible empty series just adds legend noise.
+    const hasOtherYear = data ? data.by_domain_year.some((row) => row.other > 0) : false;
+
+    const yearChartData = data
+        ? data.by_domain_year.map((row) => ({
+              name: subDomainLabel(row.sub_domain),
+              "Year 1": row.year_1,
+              "Year 2": row.year_2,
+              ...(hasOtherYear ? { Other: row.other } : {}),
           }))
         : [];
 
@@ -397,6 +423,68 @@ export default function RecruitmentAnalyticsPage() {
                                             <td className="px-5 py-3 text-gray-300">{row.male + row.female + row.unspecified}</td>
                                         </tr>
                                     ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <div className="p-5 pb-0">
+                            <h2 className="text-lg font-bold text-white">Registrations by Year, per Domain</h2>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Registered recruits only: first years vs second years. A recruit who picked two
+                                domains is counted in both, so these totals sum to more than the headline figure.
+                            </p>
+                        </div>
+                        <div className="px-5 pt-4" style={{ width: "100%", height: 280 }}>
+                            <ResponsiveContainer>
+                                <BarChart data={yearChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+                                    <XAxis dataKey="name" tick={axisTick} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} tickLine={false} />
+                                    <YAxis tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
+                                    <Tooltip content={ChartTooltip} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                    <Legend wrapperStyle={legendStyle} iconType="circle" iconSize={8} />
+                                    <Bar dataKey="Year 1" fill={YEAR_COLOR.year_1} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                    <Bar dataKey="Year 2" fill={YEAR_COLOR.year_2} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                    {hasOtherYear && (
+                                        <Bar dataKey="Other" fill={YEAR_COLOR.other} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                    )}
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="overflow-x-auto mt-4">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
+                                        <th className="px-5 py-3">Domain</th>
+                                        <th className="px-5 py-3">Year 1</th>
+                                        <th className="px-5 py-3">Year 2</th>
+                                        {hasOtherYear && <th className="px-5 py-3">Other</th>}
+                                        <th className="px-5 py-3">Total</th>
+                                        <th className="px-5 py-3">Year 1 Share</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.by_domain_year.map((row) => {
+                                        const total = row.year_1 + row.year_2 + row.other;
+                                        return (
+                                            <tr key={row.sub_domain} className="border-b border-white/5 last:border-0">
+                                                <td className="px-5 py-3 text-white font-medium">
+                                                    {subDomainLabel(row.sub_domain)}
+                                                    <span className="ml-1.5 text-xs font-normal text-gray-500">
+                                                        {subDomainSubsystem(row.sub_domain)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3 text-gray-300">{row.year_1}</td>
+                                                <td className="px-5 py-3 text-gray-300">{row.year_2}</td>
+                                                {hasOtherYear && <td className="px-5 py-3 text-gray-300">{row.other}</td>}
+                                                <td className="px-5 py-3 text-gray-300">{total}</td>
+                                                <td className="px-5 py-3 text-gray-300">
+                                                    {total > 0 ? `${Math.round((row.year_1 / total) * 100)}%` : "—"}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
