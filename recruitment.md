@@ -849,6 +849,10 @@ Features:
 - Search by name or reg no
 - Export as CSV → `GET /api/admin/recruitment/recruits/export`
 
+#### `/dashboard/recruitment/exam-checkin` (new, 2026-08-31)
+
+**What:** Live exam check-in board — six columns, one per domain, listing who has been scanned in for that domain's written exam. Meant for a screen at the exam hall so recruits can verify their own check-in. Day 1 / Day 2 / All toggle (default Day 1), cross-domain search, 5s poll. Backed by `GET /api/admin/recruitment/exam-checkin`. Read-only — nothing on this page writes. Full rationale in [Exam & Shortlisting](#6-exam--shortlisting).
+
 #### `/dashboard/recruitment/marks`
 
 **What:** Marks entry portal for evaluators.
@@ -859,6 +863,7 @@ Layout:
 - Columns: Name, Reg No, Year, Dept, Day 1 ✓/✗, Day 2 ✓/✗, Marks (editable number input 0–100), Save button per row
 - The Day 1 / Day 2 ticks are scoped to the selected domain's exam, so they show whether the recruit sat *this* exam
 - Shows existing marks if already entered
+- Under each marks input, a **"Saved by &lt;name&gt; · &lt;date, time&gt;"** line (2026-08-31) — `evaluator_username` resolved to a display name via `resolveDisplayNames`, plus `updated_at`. The POST echoes both back so this updates the instant you save, rather than staying stale (or absent, on a first entry) until a reload. This is the only visible signal that someone else already marked a row, since the upsert is silently last-write-wins
 
 Calls: `POST /api/admin/recruitment/marks` (upsert)
 
@@ -973,7 +978,13 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 | Method | Route | What |
 |--------|-------|------|
 | GET | `/api/admin/recruitment/marks?domain=coding` | Get marks for a domain |
-| POST | `/api/admin/recruitment/marks` | Upsert marks. Body: `{ recruit_id, sub_domain, marks }` |
+| POST | `/api/admin/recruitment/marks` | Upsert marks. Body: `{ recruit_id, sub_domain, marks }`. Returns `{ saved, recruit_id, sub_domain, marks, evaluator_username, updated_at }` — the attribution is echoed back (2026-08-31) so the marks page can update its "Saved by …" line in place instead of going stale until a reload |
+
+#### Admin — Exam Check-In (2026-08-31)
+
+| Method | Route | What |
+|--------|-------|------|
+| GET | `/api/admin/recruitment/exam-checkin?day=1\|2\|all` | All six domains in one call: per domain, the count who selected it plus every recruit scanned in for its exam (name, reg no, day, scan time), newest first. Backs the `/dashboard/recruitment/exam-checkin` board. Role `member`/`lead`/`admin`. Paged via `fetchAllRows` — one exam day across six domains can exceed PostgREST's silent 1000-row cap |
 
 #### Admin — Cutoffs + Shortlist
 
@@ -1288,6 +1299,16 @@ Tracked via QR scan (see [QR & Scanning](#5-qr--scanning)). Rows land in `recrui
 A recruit who did NOT attend either exam day can still have marks entered by the evaluator (evaluator's discretion). The shortlist engine treats zero-mark recruits normally — they get compared against the cutoff like everyone else.
 
 The Day 1 / Day 2 ticks shown in the marks table are **scoped to the domain you are marking**, so they tell you whether the recruit sat *this* exam, not some other domain's.
+
+#### Update 2026-08-31 — exam check-in board
+
+There is now a read-only live board at `/dashboard/recruitment/exam-checkin` (`GET /api/admin/recruitment/exam-checkin?day=1|2|all`), the exam-day counterpart to the interview board: six columns, one per domain, each listing who has been scanned in for that domain's exam (name, reg no, scan time) newest first, with a `<checked in> of <registered>` count in the header. Day 1 / Day 2 / All toggle, default Day 1. Polls every 5s.
+
+Why it exists: the scanner's own roster panel is only visible to the volunteer holding the scanner. A recruit who isn't sure their scan registered had no way to check without asking someone to re-scan them (which returns `already_scanned` and looks like a failure). The board is meant to be put on a screen at the hall so they can confirm themselves.
+
+The search box filters **all six columns at once** — a recruit sitting two domain exams needs to find themselves without knowing which column to look in. A search matching nobody in any domain renders an explicit "no check-in found" banner: that negative is the answer the recruit came for, and six empty columns don't say it clearly.
+
+Unlike the `/recruit/tables` interview kiosk, this is **not public** — it's behind `admin_token` (any role, including `member`) and returns full names *and* reg numbers, which is deliberate: a first name alone can't disambiguate at 1000+ recruits, and the whole point is unambiguous self-identification.
 
 ### Marks Entry
 
@@ -1847,6 +1868,16 @@ Three related changes shipped together in one session, built by parallel backgro
 
 **Recruitment 2026 KB re-ingested** the same session after a manual edit added "bring your recruitment QR code" to the exam checklist (`scripts/kb/recruitment-2026.txt` → `recruit_kb_documents`/`recruit_kb_chunks`, re-chunked via `scripts/ingest-recruit-kb.ts`). The `faq` table and `recruit_kb_documents`/`recruit_kb_chunks`/`recruit_tickets` were also truncated this session ahead of a new recruitment cycle starting — if you're reading this before a new cycle has been created via `/dashboard/recruitment/cycles`, expect `recruitment_cycles` to be empty and most recruit-facing routes to 503.
 
+### Exam day 1 changes (2026-08-31)
+
+Shipped the morning of exam day 1. No schema change, no migration.
+
+1. **Scanner mode lock (TEMPORARY — must be reverted).** `src/app/recruit-scanner/page.tsx` has every entry of `MODE_OPTIONS` except `exam_day_1` commented out, so a volunteer cannot pick the wrong mode and silently write attendance into the wrong table. The server still accepts all five modes — this is UI only. The picker hides itself and the start screen states the mode as a fact whenever the array has exactly one entry (`modeIsLocked`), and `selectedMode` defaults to `MODE_OPTIONS[0].value`, so **restoring is a single edit: uncomment the four lines.** Do that before orientation/interview/training day, or the scanner will be useless for them.
+2. **Marks attribution.** `POST /api/admin/recruitment/marks` now returns `evaluator_username` (display-name resolved) and `updated_at`, and the marks page shows "Saved by … · …" under each input, updated in place on save. Fixes a real staleness bug: the page already rendered a `by <name>` line, but its post-save state update only wrote `marks`, so your own entry showed no attribution until a reload.
+3. **Exam check-in board.** New `/dashboard/recruitment/exam-checkin` + `GET /api/admin/recruitment/exam-checkin` — see [Exam & Shortlisting](#6-exam--shortlisting) for the design and why it's admin-gated rather than public like the interview kiosk.
+
+Worth knowing for whoever runs marks entry: `recruit_marks` is unique on `(recruit_id, sub_domain, cycle_id)`, so a recruit sitting two exams gets **two independent rows** — the Coding evaluator and the Web Dev evaluator cannot overwrite each other. The only clobber risk is two people marking the *same* recruit in the *same* domain, which is still silently last-write-wins; the new "Saved by" line is the only warning of it.
+
 ### Known remaining gaps (not fixed yet)
 
 - **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) — but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel. The 2026-08-13 auto-routing/redistribution logic inherits the same caveat — verified by reading the code and by manual testing against seeded data (via Supabase MCP + a Playwright screenshot of the kiosk screen), not load-tested.
@@ -1877,7 +1908,7 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 - `src/app/api/recruit/**` — student-facing API (auth, me, qr), the public kiosk API (`tables/route.ts`, 2026-08-13), the new public chat API (`public-chat/route.ts`, 2026-08-16 — the other exception carved out of the `recruit_token` gate), and the new session-gated post-signup verification routes (`verify-email/send-otp`, `verify-email/verify-otp`, 2026-08-16)
 - `src/app/api/admin/recruitment/**` — staff-facing API (~25 routes as of 2026-08-16: +call-token; the old panel-scoped queue-display page's route is gone, it never had its own API)
 - `src/app/recruit/**` (incl. `tables/page.tsx`, 2026-08-13 — the public kiosk page), `src/app/recruit-scanner/**` — student/public pages + scanner. `register`/`login`/`dashboard` moved to the sharp red/white/black theme 2026-08-16, `tables`/`recruit-scanner` did not.
-- `src/app/dashboard/recruitment/**` — admin pages (`interview/panel/[panelId]` removed 2026-08-13 — superseded by `/recruit/tables`; `interview/page.tsx` rebuilt into a 4-column board 2026-08-16)
+- `src/app/dashboard/recruitment/**` — admin pages (`interview/panel/[panelId]` removed 2026-08-13 — superseded by `/recruit/tables`; `interview/page.tsx` rebuilt into a 4-column board 2026-08-16; `exam-checkin/page.tsx` added 2026-08-31 — the live exam check-in board)
 - `src/components/recruit/EmailVerifyBanner.tsx` (new, 2026-08-16) — dismissible post-signup SRM-email verify prompt, used on `/recruit/dashboard`
 - `src/components/recruit/GlassCard.tsx` (rewritten 2026-08-16) — flat CSS panel, replaced the old SVG-filter `GlassSurface` (deleted) for performance; same prop API
 - `src/components/ConditionalParticles.tsx` (new, 2026-08-16) — skips `Particles.tsx` on `/recruit/register`/`/recruit/login` only
