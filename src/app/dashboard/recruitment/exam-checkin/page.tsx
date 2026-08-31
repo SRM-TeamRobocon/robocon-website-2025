@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MonitorCheck, Search, X } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
+import { phoneSearchTerm } from "@/lib/recruit-validation";
 
 type DayFilter = "1" | "2" | "all";
 
@@ -27,6 +28,10 @@ interface CheckIn {
     name: string;
     reg_no: string;
     year: string;
+    // SEARCH-ONLY — NEVER RENDER THIS. The board is projected on a screen at the exam hall
+    // in front of the whole queue; a recruit's phone number must not appear in a row. It
+    // exists solely so someone can find themselves by typing their own number.
+    phone: string | null;
     day: number;
     at: string;
 }
@@ -85,13 +90,19 @@ export default function ExamCheckInBoardPage() {
     }, [ready, load]);
 
     const term = search.trim().toLowerCase();
+    // Name/reg_no match the raw term; phone matches a digits-only copy, since numbers are
+    // stored bare and someone typing "+91 98765 43210" still has to find "9876543210".
+    // Null under 3 digits, so a stray digit in a name search can't match every phone.
+    const phoneTerm = phoneSearchTerm(search);
 
     // The search deliberately filters all six columns (and both year sections) at once rather
     // than scoping to one: "am I checked in?" is the question this board exists to answer, and
     // someone sitting two exams needs both answers without knowing where to look.
     const filtered = useMemo(() => {
         const match = (c: CheckIn) =>
-            c.name.toLowerCase().includes(term) || c.reg_no.toLowerCase().includes(term);
+            c.name.toLowerCase().includes(term) ||
+            c.reg_no.toLowerCase().includes(term) ||
+            (phoneTerm !== null && (c.phone ?? "").includes(phoneTerm));
         return domains.map((d) => ({
             ...d,
             visible: {
@@ -100,7 +111,7 @@ export default function ExamCheckInBoardPage() {
                 other: term ? d.checked_in.other.filter(match) : d.checked_in.other,
             } as Record<YearBucket, CheckIn[]>,
         }));
-    }, [domains, term]);
+    }, [domains, term, phoneTerm]);
 
     const totalCheckedIn = domains.reduce((sum, d) => sum + d.total_checked_in, 0);
     const matchCount = filtered.reduce(
@@ -155,7 +166,7 @@ export default function ExamCheckInBoardPage() {
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Find yourself — name or reg no..."
+                        placeholder="Find yourself — name, reg no or phone..."
                         className="w-full border-0 bg-white/5 py-2 pl-9 pr-9 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-600"
                     />
                     {search && (

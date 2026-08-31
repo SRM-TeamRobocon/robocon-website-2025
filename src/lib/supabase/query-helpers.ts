@@ -1,5 +1,7 @@
 import "server-only";
 
+import { phoneSearchTerm } from "@/lib/recruit-validation";
+
 // Supabase/PostgREST caps any single response at 1000 rows by default (the project's
 // db_max_rows setting), applied silently: a query that would match 1500 rows just comes
 // back with the first 1000 and no error, no warning. At the recruitment module's target
@@ -63,4 +65,32 @@ export async function selectInChunks<T>(
     const all = results.flatMap((r) => r.data ?? []);
 
     return { data: all, error: firstError };
+}
+
+// Escapes characters that would otherwise break PostgREST's .or() filter syntax
+// (comma separates conditions, parentheses group them).
+function escapeOrValue(input: string) {
+    return input.replace(/[\\,()]/g, (c) => `\\${c}`);
+}
+
+/**
+ * Builds the PostgREST `.or()` filter behind the recruit search box, or null for an empty
+ * term. Shared by the recruits list and its CSV export so a download can never contain a
+ * different set of rows than the table it was triggered from.
+ */
+export function recruitSearchOrFilter(search: string): string | null {
+    const trimmed = search.trim();
+    if (!trimmed) return null;
+
+    const raw = escapeOrValue(trimmed);
+    const clauses = [`name.ilike.%${raw}%`, `reg_no.ilike.%${raw}%`];
+
+    // Phone is stored as bare digits, so a pasted "+91 98765 43210" only matches once the
+    // separators are stripped — but stripping them from the name/reg_no terms would break
+    // those, hence two different terms off the one input. phoneSearchTerm() returns null
+    // under 3 digits so a lone digit inside a name search can't match hundreds of numbers.
+    const phone = phoneSearchTerm(trimmed);
+    if (phone) clauses.push(`phone.ilike.%${escapeOrValue(phone)}%`);
+
+    return clauses.join(",");
 }

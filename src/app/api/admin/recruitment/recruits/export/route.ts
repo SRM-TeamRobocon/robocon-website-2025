@@ -2,17 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS, subDomainFullLabel } from "@/lib/recruit-domains";
-import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
+import { fetchAllRows, recruitSearchOrFilter, selectInChunks } from "@/lib/supabase/query-helpers";
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
 
 export const dynamic = "force-dynamic";
 
 const VALID_DOMAINS = RECRUIT_SUBDOMAIN_KEYS as string[];
-
-function escapeOrValue(input: string) {
-  return input.replace(/[\\,()]/g, (c) => `\\${c}`);
-}
 
 function csvCell(value: string | number | boolean | null | undefined): string {
   const str = value === null || value === undefined ? "" : String(value);
@@ -105,6 +101,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Same helper the list route uses, so the CSV can never hold a different set of rows than
+  // the table the download was triggered from — including the phone-search normalization.
+  const searchOrFilter = recruitSearchOrFilter(search);
+
   function buildExportQuery(from: number, to: number) {
     let query = supabase
       .from("recruit_accounts")
@@ -116,10 +116,7 @@ export async function GET(request: NextRequest) {
 
     if (year) query = query.eq("year", year);
     if (recruitIdFilter) query = query.in("id", recruitIdFilter);
-    if (search) {
-      const s = escapeOrValue(search);
-      query = query.or(`name.ilike.%${s}%,reg_no.ilike.%${s}%`);
-    }
+    if (searchOrFilter) query = query.or(searchOrFilter);
     return query.range(from, to);
   }
 

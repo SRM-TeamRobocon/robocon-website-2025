@@ -14,7 +14,7 @@ import { isRecruitSubDomain, subDomainFullLabel } from "@/lib/recruit-domains";
 import { isHostelBlock } from "@/lib/hostel-blocks";
 import { isTravelMethod } from "@/lib/travel-method";
 import { isGender } from "@/lib/gender";
-import { safeHttpUrl, boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
+import { safeHttpUrl, boundedText, FIELD_LIMITS, PHONE_RE } from "@/lib/recruit-validation";
 import { signQR } from "@/lib/recruit-qr";
 import { getTransporter, SMTP_EMAIL, logoAttachment } from "@/lib/mailer";
 import { buildIdCardHtml } from "@/lib/recruit-id-card-email";
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         // on this — the unique index in migration 006 is on upper(reg_no) — but it keeps
         // exports and searches from showing the same number in two different spellings.
         const normalizedRegNo = regNo.toUpperCase();
-        if (!/^\d{10}$/.test(phone)) {
+        if (!PHONE_RE.test(phone)) {
             return NextResponse.json({ success: false, error: "Phone must be a 10-digit number." }, { status: 400 });
         }
         // Block name is checked against the canonical list rather than stored as free text:

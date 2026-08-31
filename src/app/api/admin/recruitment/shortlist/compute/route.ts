@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS, isRecruitSubDomain } from "@/lib/recruit-domains";
+import { GENDERS } from "@/lib/gender";
+import { RECRUIT_YEARS } from "@/lib/recruit-year";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +17,8 @@ async function getActiveCycleId(supabase: ReturnType<typeof createRecruitSupabas
   return (data as { id: string } | null)?.id ?? null;
 }
 
-function cutoffKey(sub_domain: string, gender: string) {
-  return `${sub_domain}:${gender}`;
+function cutoffKey(sub_domain: string, gender: string, year: string) {
+  return `${sub_domain}:${gender}:${year}`;
 }
 
 // POST /api/admin/recruitment/shortlist/compute
@@ -24,10 +26,13 @@ function cutoffKey(sub_domain: string, gender: string) {
 // all 6. Omit the body (or send `{}`) to run every domain, same as before.
 //
 // Idempotent and safe to re-run: rows with method = 'manual_override' are left untouched.
-// Cutoffs are gender-scoped (originally migration 013) — a domain now needs BOTH a male
-// AND a female cutoff set before it runs at all; if either is missing, the whole domain is
-// skipped (not just the recruits of the missing gender), same "skip, don't fail the batch"
-// behavior as a domain with no cutoff at all had before gender-scoping existed.
+// Cutoffs are scoped by BOTH gender (migration 013) and year (migration 018), so a domain
+// has four of them — male/year1, male/year2, female/year1, female/year2. A domain needs ALL
+// FOUR set before it runs at all; if any is missing the whole domain is skipped (not just
+// the recruits of the missing combination), same "skip, don't fail the batch" behavior a
+// domain with no cutoff at all had before any of this scoping existed. Running
+// half-configured would silently mark a whole year "not_shortlisted" against a cutoff meant
+// for the other year, which is far worse than not running.
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["lead", "admin"])) {
@@ -56,7 +61,7 @@ export async function POST(request: NextRequest) {
 
   const { data: cutoffRows, error: cutoffError } = await supabase
     .from("recruit_cutoffs")
-    .select("sub_domain, gender, cutoff_marks")
+    .select("sub_domain, gender, year, cutoff_marks")
     .eq("cycle_id", cycleId)
     .in("sub_domain", domainsToRun);
 
@@ -66,7 +71,7 @@ export async function POST(request: NextRequest) {
   }
 
   const cutoffMap = new Map(
-    (cutoffRows ?? []).map((row: any) => [cutoffKey(row.sub_domain, row.gender), row.cutoff_marks as number])
+    (cutoffRows ?? []).map((row: any) => [cutoffKey(row.sub_domain, row.gender, row.year), row.cutoff_marks as number])
   );
 
   const stats = { shortlisted_count: 0, not_shortlisted_count: 0, pending_count: 0 };
@@ -80,11 +85,14 @@ export async function POST(request: NextRequest) {
   }
 
   for (const domain of domainsToRun) {
-    const maleCutoff = cutoffMap.get(cutoffKey(domain, "male"));
-    const femaleCutoff = cutoffMap.get(cutoffKey(domain, "female"));
-    if (maleCutoff === undefined || femaleCutoff === undefined) {
-      // Either gender's cutoff isn't set for this domain yet — skip the WHOLE domain
-      // rather than only the recruits of the missing gender, so a domain never runs
+    // All four (gender, year) cutoffs must be present. Derived from GENDERS x RECRUIT_YEARS
+    // rather than hardcoded, so adding a third year is a one-line change in recruit-year.ts.
+    const missingCutoff = GENDERS.some((g) =>
+      RECRUIT_YEARS.some((y) => cutoffMap.get(cutoffKey(domain, g.key, y.key)) === undefined)
+    );
+    if (missingCutoff) {
+      // Some (gender, year) cutoff isn't set for this domain yet — skip the WHOLE domain
+      // rather than only the recruits of the missing combination, so a domain never runs
       // half-configured.
       skippedDomains.push(domain);
       continue;
@@ -107,7 +115,7 @@ export async function POST(request: NextRequest) {
     const [
       { data: marksRows, error: marksError },
       { data: existingRows, error: existingError },
-      { data: genderRows, error: genderError },
+      { data: accountRows, error: accountError },
     ] = await Promise.all([
       selectInChunks<{ recruit_id: string; marks: number }>(recruitIds, (chunk) =>
         supabase.from("recruit_marks").select("recruit_id, marks").eq("cycle_id", cycleId).eq("sub_domain", domain).in("recruit_id", chunk)
@@ -120,13 +128,13 @@ export async function POST(request: NextRequest) {
           .eq("sub_domain", domain)
           .in("recruit_id", chunk)
       ),
-      selectInChunks<{ id: string; gender: string | null }>(recruitIds, (chunk) =>
-        supabase.from("recruit_accounts").select("id, gender").in("id", chunk)
+      selectInChunks<{ id: string; gender: string | null; year: string | null }>(recruitIds, (chunk) =>
+        supabase.from("recruit_accounts").select("id, gender, year").in("id", chunk)
       ),
     ]);
 
-    if (marksError || existingError || genderError) {
-      console.error(`shortlist compute marks/existing/gender error (${domain})`, marksError || existingError || genderError);
+    if (marksError || existingError || accountError) {
+      console.error(`shortlist compute marks/existing/account error (${domain})`, marksError || existingError || accountError);
       return NextResponse.json({ success: false, error: `Could not load marks for ${domain}` }, { status: 500 });
     }
 
@@ -134,7 +142,8 @@ export async function POST(request: NextRequest) {
     const existingMap = new Map(
       (existingRows ?? []).map((r: any) => [r.recruit_id, r as { status: string; method: string }])
     );
-    const genderMap = new Map((genderRows ?? []).map((r: any) => [r.id, r.gender as string | null]));
+    const genderMap = new Map((accountRows ?? []).map((r: any) => [r.id, r.gender as string | null]));
+    const yearMap = new Map((accountRows ?? []).map((r: any) => [r.id, r.year as string | null]));
 
     const upserts: Array<{
       cycle_id: string;
@@ -157,14 +166,18 @@ export async function POST(request: NextRequest) {
 
       const marks = marksMap.get(recruitId);
       const gender = genderMap.get(recruitId);
+      const year = yearMap.get(recruitId);
       // A recruit with no gender on file (registered before migration 013, or an admin
       // cleared it) has no cutoff to compare against — same "can't decide yet" treatment
-      // as missing marks, not an error that blocks the rest of the domain.
-      const cutoffForGender = gender === "male" ? maleCutoff : gender === "female" ? femaleCutoff : undefined;
+      // as missing marks, not an error that blocks the rest of the domain. `year` is NOT
+      // NULL in the schema so it should always resolve, but an unexpected value gets the
+      // same treatment rather than being silently compared against the wrong year's bar.
+      const applicableCutoff =
+        gender && year ? cutoffMap.get(cutoffKey(domain, gender, year)) : undefined;
       const status =
-        marks === undefined || cutoffForGender === undefined
+        marks === undefined || applicableCutoff === undefined
           ? "pending"
-          : marks >= cutoffForGender
+          : marks >= applicableCutoff
             ? "shortlisted"
             : "not_shortlisted";
       tally(status);

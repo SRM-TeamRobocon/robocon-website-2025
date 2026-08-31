@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const { data: rows, error: selectionsError } = await fetchAllRows<SelectionRow>((from, to) =>
     supabase
       .from("recruit_domain_selections")
-      .select("recruit_id, recruit_accounts(id, name, reg_no, year, department, course)")
+      .select("recruit_id, recruit_accounts(id, name, reg_no, phone, year, department, course)")
       .eq("cycle_id", cycleId)
       .eq("sub_domain", domain)
       .range(from, to)
@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
   // Supabase's untyped client can't confirm this is a to-one relationship, so it may type
   // recruit_accounts as an array even though recruit_domain_selections.recruit_id -> recruit_accounts.id
   // is many-to-one. Normalize defensively either way.
-  const accountOf = (row: SelectionRow): { id: string; name: string; reg_no: string; year: string; department: string; course: string } | null =>
+  // phone is nullable on recruit_accounts — typed honestly so callers can't assume a string.
+  const accountOf = (row: SelectionRow): { id: string; name: string; reg_no: string; phone: string | null; year: string; department: string; course: string } | null =>
     (Array.isArray(row.recruit_accounts) ? row.recruit_accounts[0] : row.recruit_accounts) as any;
   const recruitIds = rows.map((r) => r.recruit_id);
 
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
     selectInChunks(recruitIds, (chunk) =>
       supabase
         .from("recruit_marks")
-        .select("recruit_id, marks, evaluator_username, updated_at, entered_at")
+        .select("recruit_id, marks, note, evaluator_username, updated_at, entered_at")
         .eq("cycle_id", cycleId)
         .eq("sub_domain", domain)
         .in("recruit_id", chunk)
@@ -118,19 +119,29 @@ export async function GET(request: NextRequest) {
     .filter((x): x is { r: SelectionRow; acc: NonNullable<ReturnType<typeof accountOf>> } => x.acc !== null)
     .map(({ r, acc }) => {
       const marks = marksMap.get(r.recruit_id) as
-        | { marks: number; evaluator_username: string; updated_at: string | null; entered_at: string | null }
+        | {
+            marks: number;
+            note: string | null;
+            evaluator_username: string;
+            updated_at: string | null;
+            entered_at: string | null;
+          }
         | undefined;
       const attendance = attendanceMap.get(r.recruit_id) ?? { day1: false, day2: false };
       return {
         recruit_id: acc.id,
         name: acc.name,
         reg_no: acc.reg_no,
+        // Searchable-only on the marks page (never rendered) — it's the fastest handle an
+        // evaluator has when a recruit turns up without their reg no.
+        phone: acc.phone,
         year: acc.year,
         department: acc.department,
         course: acc.course,
         day1: attendance.day1,
         day2: attendance.day2,
         marks: marks?.marks ?? null,
+        note: marks?.note ?? null,
         evaluator_username: marks?.evaluator_username ? evaluatorNames.get(marks.evaluator_username) ?? marks.evaluator_username : null,
         updated_at: marks?.updated_at ?? marks?.entered_at ?? null,
       };
@@ -173,6 +184,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "marks must be an integer between 0 and 100" }, { status: 400 });
   }
 
+  // Optional free-text note ("answered 3 of 5"). Absent and blank both mean "no note" and
+  // must persist as NULL, not "" — otherwise clearing a note leaves an empty string behind
+  // that reads as a saved-but-empty comment. The 500 cap mirrors the column's CHECK, so a
+  // too-long note fails here with a readable message instead of a Postgres constraint error.
+  const noteRaw = body?.note;
+  if (noteRaw !== undefined && noteRaw !== null && typeof noteRaw !== "string") {
+    return NextResponse.json({ success: false, error: "note must be a string" }, { status: 400 });
+  }
+  const noteTrimmed = typeof noteRaw === "string" ? noteRaw.trim() : "";
+  if (noteTrimmed.length > 500) {
+    return NextResponse.json({ success: false, error: "note must be 500 characters or less" }, { status: 400 });
+  }
+  const note = noteTrimmed === "" ? null : noteTrimmed;
+
   const supabase = createRecruitSupabaseAdminClient();
   const cycleId = await getActiveCycleId(supabase);
   if (!cycleId) {
@@ -207,6 +232,7 @@ export async function POST(request: NextRequest) {
       recruit_id,
       sub_domain,
       marks,
+      note,
       evaluator_username: session.user,
       updated_at: updatedAt,
     },
@@ -228,6 +254,7 @@ export async function POST(request: NextRequest) {
     recruit_id,
     sub_domain,
     marks,
+    note,
     evaluator_username: evaluatorNames.get(session.user) ?? session.user,
     updated_at: updatedAt,
   });

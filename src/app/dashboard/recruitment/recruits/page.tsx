@@ -198,7 +198,7 @@ export default function RecruitsPage() {
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by name or reg no..."
+                        placeholder="Search by name, reg no or phone..."
                         className="h-10 w-full border-0 bg-white/5 pl-9 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-red placeholder:text-gray-600"
                     />
                 </div>

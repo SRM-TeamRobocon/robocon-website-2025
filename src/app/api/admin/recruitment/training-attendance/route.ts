@@ -29,6 +29,9 @@ interface RecruitRow {
   id: string;
   name: string;
   reg_no: string;
+  // Returned on the per-session roster only, so the mark-present search box can match a
+  // number. Not rendered anywhere, and deliberately left off the overview summary shape.
+  phone: string | null;
 }
 
 // Today's date in IST as YYYY-MM-DD, to compare against the `date`-typed session_date.
@@ -75,7 +78,7 @@ export async function GET(request: NextRequest) {
   const { data: recruitList, error: recruitsError } = await fetchAllRows<RecruitRow>((from, to) =>
     supabase
       .from("recruit_accounts")
-      .select("id, name, reg_no")
+      .select("id, name, reg_no, phone")
       .eq("cycle_id", cycle.id)
       .eq("is_selected", true)
       .order("name", { ascending: true })
@@ -156,6 +159,7 @@ export async function GET(request: NextRequest) {
         recruit_id: recruit.id,
         name: recruit.name,
         reg_no: recruit.reg_no,
+        phone: recruit.phone,
         attended: Boolean(marked),
         method: marked?.method ?? null,
         marked_by: marked ? markedByNames.get(marked.marked_by) ?? marked.marked_by : null,

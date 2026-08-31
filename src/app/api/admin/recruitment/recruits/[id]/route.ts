@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
-import { boundedText, FIELD_LIMITS } from "@/lib/recruit-validation";
+import { boundedText, FIELD_LIMITS, PHONE_RE } from "@/lib/recruit-validation";
 import { isHostelBlock } from "@/lib/hostel-blocks";
 import { isTravelMethod } from "@/lib/travel-method";
 import { isGender } from "@/lib/gender";
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (!["1", "2"].includes(year)) {
     return NextResponse.json({ success: false, error: "Invalid year of study." }, { status: 400 });
   }
-  if (!/^\d{10}$/.test(phone)) {
+  if (!PHONE_RE.test(phone)) {
     return NextResponse.json({ success: false, error: "Phone must be a 10-digit number." }, { status: 400 });
   }
 

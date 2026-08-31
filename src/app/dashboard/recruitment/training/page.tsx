@@ -19,6 +19,7 @@ import {
 import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
 import { todayInIST } from "@/lib/recruit-dates";
+import { phoneSearchTerm } from "@/lib/recruit-validation";
 import Select from "@/components/ui/select";
 
 interface TrainingSession {
@@ -51,6 +52,8 @@ interface RecruitSessionRow {
     recruit_id: string;
     name: string;
     reg_no: string;
+    // Search-only — never rendered in a row.
+    phone: string | null;
     attended: boolean;
     method: "qr" | "manual" | null;
     marked_by: string | null;
@@ -244,8 +247,15 @@ export default function TrainingAttendancePage() {
     const filteredRecruits = useMemo(() => {
         if (!detail) return { attended: [], pending: [] };
         const query = search.trim().toLowerCase();
+        // Name/reg_no match the raw term; phone matches a digits-only copy, since numbers are
+        // stored bare and a pasted "+91 98765 43210" has to normalize first. Null under 3
+        // digits, so a stray digit in a name search can't match hundreds of numbers.
+        const phoneQuery = phoneSearchTerm(search);
         const matches = (row: RecruitSessionRow) =>
-            !query || row.name.toLowerCase().includes(query) || row.reg_no.toLowerCase().includes(query);
+            !query ||
+            row.name.toLowerCase().includes(query) ||
+            row.reg_no.toLowerCase().includes(query) ||
+            (phoneQuery !== null && (row.phone ?? "").includes(phoneQuery));
 
         return {
             attended: detail.recruits.filter((r) => r.attended && matches(r)),
@@ -409,7 +419,7 @@ export default function TrainingAttendancePage() {
                                 <input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search by name or reg no..."
+                                    placeholder="Search by name, reg no or phone..."
                                     className="w-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
                                 />
                             </div>

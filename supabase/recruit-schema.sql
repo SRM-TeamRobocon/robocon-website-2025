@@ -357,6 +357,10 @@ create table if not exists recruit_marks (
   sub_domain         recruit_subdomain not null,
   marks              integer not null check (marks >= 0 and marks <= 100),
   evaluator_username text not null,
+  -- Optional evaluator note (migration 019): the context a bare 0-100 loses — "answered
+  -- only 3 of 5", "sheet partly unreadable". Never required; the marks page saves fine
+  -- with it blank.
+  note               text,
   entered_at         timestamptz default now(),
   updated_at         timestamptz,
   unique (recruit_id, sub_domain, cycle_id)
@@ -364,13 +368,24 @@ create table if not exists recruit_marks (
 
 alter table recruit_marks enable row level security;
 
+-- Migration 019 upgrade block, for a DB created before the column existed.
+alter table recruit_marks add column if not exists note text;
+
+do $$ begin
+  alter table recruit_marks
+    add constraint recruit_marks_note_length
+    check (note is null or char_length(note) <= 500);
+exception when duplicate_object then null; end $$;
+
 ---------------------------------------------------------------------------
 -- recruit_cutoffs
 ---------------------------------------------------------------------------
 
--- Gender-scoped since migration 013: a domain now has TWO cutoffs (one per gender), not
--- one. shortlist/compute (src/app/api/admin/recruitment/shortlist/compute/route.ts) skips
--- a domain entirely unless BOTH genders' cutoffs are set for it — see that route for why.
+-- Gender-scoped since migration 013 and year-scoped since migration 018: a domain now has
+-- FOUR cutoffs (male/female x year 1/year 2), not one.
+-- shortlist/compute (src/app/api/admin/recruitment/shortlist/compute/route.ts) skips a
+-- domain entirely unless ALL FOUR are set for it — see that route for why. The CREATE TABLE
+-- below is the pre-013 shape; the upgrade blocks after it bring a fresh DB to current.
 create table if not exists recruit_cutoffs (
   id           uuid primary key default gen_random_uuid(),
   cycle_id     uuid not null references recruitment_cycles(id),
@@ -415,6 +430,46 @@ do $$ begin
   alter table recruit_cutoffs
     add constraint recruit_cutoffs_cycle_sub_gender_key
     unique (cycle_id, sub_domain, gender);
+exception when duplicate_object then null; end $$;
+
+-- Migration 018 — year-scoped cutoffs on top of the gender scoping above. 1st and 2nd years
+-- sit different papers for the same domain, so a domain now has FOUR cutoffs, not two:
+-- (male, year 1), (male, year 2), (female, year 1), (female, year 2). shortlist/compute
+-- skips a domain entirely unless ALL FOUR are set.
+--
+-- Same widening trick as 013: each existing gender row becomes year '1' in place and gets a
+-- year '2' copy carrying the same cutoff_marks forward, so prior work isn't wiped. The old
+-- 3-column unique key must be dropped BEFORE the backfill or the copy violates it.
+alter table recruit_cutoffs add column if not exists year text;
+
+alter table recruit_cutoffs drop constraint if exists recruit_cutoffs_cycle_sub_gender_key;
+
+insert into recruit_cutoffs (cycle_id, sub_domain, cutoff_marks, gender, set_by, set_at, year)
+select cycle_id, sub_domain, cutoff_marks, gender, set_by, set_at, '2'
+from recruit_cutoffs src
+where src.year is null
+  and not exists (
+    select 1 from recruit_cutoffs y2
+    where y2.cycle_id = src.cycle_id
+      and y2.sub_domain = src.sub_domain
+      and y2.gender = src.gender
+      and y2.year = '2'
+  );
+
+update recruit_cutoffs set year = '1' where year is null;
+
+alter table recruit_cutoffs alter column year set not null;
+
+do $$ begin
+  alter table recruit_cutoffs
+    add constraint recruit_cutoffs_year_valid
+    check (year in ('1', '2'));
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter table recruit_cutoffs
+    add constraint recruit_cutoffs_cycle_sub_gender_year_key
+    unique (cycle_id, sub_domain, gender, year);
 exception when duplicate_object then null; end $$;
 
 ---------------------------------------------------------------------------

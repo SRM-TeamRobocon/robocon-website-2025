@@ -124,7 +124,13 @@ interface AnalyticsData {
                 shortlisted: number;
                 not_shortlisted: number;
             }[];
-            cutoffs: { sub_domain: string; male: number | null; female: number | null }[];
+            cutoffs: {
+                sub_domain: string;
+                male_year_1: number | null;
+                male_year_2: number | null;
+                female_year_1: number | null;
+                female_year_2: number | null;
+            }[];
             shortlisted_by_gender: {
                 sub_domain: string;
                 male: number;
@@ -1005,7 +1011,14 @@ function ShortlistExtras({ extras }: { extras: AnalyticsData["stage_extras"]["sh
         Male: row.male,
         Female: row.female,
     }));
-    const missingCutoffs = extras.cutoffs.filter((c) => c.male === null || c.female === null);
+    // Mirrors the engine's skip rule exactly: all four (gender, year) cutoffs must be set.
+    const missingCutoffs = extras.cutoffs.filter(
+        (c) =>
+            c.male_year_1 === null ||
+            c.male_year_2 === null ||
+            c.female_year_1 === null ||
+            c.female_year_2 === null
+    );
 
     return (
         <>
@@ -1024,9 +1037,10 @@ function ShortlistExtras({ extras }: { extras: AnalyticsData["stage_extras"]["sh
                             <span className="font-bold text-white">
                                 {missingCutoffs.length} domain{missingCutoffs.length === 1 ? "" : "s"}
                             </span>{" "}
-                            {missingCutoffs.length === 1 ? "is" : "are"} missing a cutoff for at least one gender (
-                            {missingCutoffs.map((c) => subDomainLabel(c.sub_domain)).join(", ")}). The shortlist
-                            engine skips a domain entirely until both are set, which is why those rows read zero.
+                            {missingCutoffs.length === 1 ? "is" : "are"} missing at least one of their four
+                            gender × year cutoffs ({missingCutoffs.map((c) => subDomainLabel(c.sub_domain)).join(", ")}).
+                            The shortlist engine skips a domain entirely until all four are set, which is why those
+                            rows read zero.
                         </p>
                     </div>
                 </Card>
@@ -1058,7 +1072,7 @@ function ShortlistExtras({ extras }: { extras: AnalyticsData["stage_extras"]["sh
             <Card>
                 <CardHeader
                     title="Cutoffs and Shortlisted, by Gender"
-                    caption="Cutoffs are set per gender per domain (migration 013), so the shortlist splits the same way."
+                    caption="Cutoffs are set per gender AND per year (migrations 013 and 018) because the two years sit different papers — four values per domain. Shortlisted counts below are per gender across both years."
                 />
                 <div className="px-5 pt-4" style={{ width: "100%", height: 260 }}>
                     <ResponsiveContainer>
@@ -1078,8 +1092,10 @@ function ShortlistExtras({ extras }: { extras: AnalyticsData["stage_extras"]["sh
                         <thead>
                             <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
                                 <th className="px-5 py-3">Domain</th>
-                                <th className="px-5 py-3">Cutoff (M)</th>
-                                <th className="px-5 py-3">Cutoff (F)</th>
+                                <th className="px-5 py-3">M · Y1</th>
+                                <th className="px-5 py-3">M · Y2</th>
+                                <th className="px-5 py-3">F · Y1</th>
+                                <th className="px-5 py-3">F · Y2</th>
                                 <th className="px-5 py-3">Shortlisted (M)</th>
                                 <th className="px-5 py-3">Shortlisted (F)</th>
                             </tr>
@@ -1095,12 +1111,16 @@ function ShortlistExtras({ extras }: { extras: AnalyticsData["stage_extras"]["sh
                                                 {subDomainSubsystem(c.sub_domain)}
                                             </span>
                                         </td>
-                                        <td className={`px-5 py-3 ${c.male === null ? "text-amber-400" : "text-gray-300"}`}>
-                                            {c.male ?? "not set"}
-                                        </td>
-                                        <td className={`px-5 py-3 ${c.female === null ? "text-amber-400" : "text-gray-300"}`}>
-                                            {c.female ?? "not set"}
-                                        </td>
+                                        {(
+                                            [c.male_year_1, c.male_year_2, c.female_year_1, c.female_year_2] as (number | null)[]
+                                        ).map((value, i) => (
+                                            <td
+                                                key={i}
+                                                className={`px-5 py-3 ${value === null ? "text-amber-400" : "text-gray-300"}`}
+                                            >
+                                                {value ?? "not set"}
+                                            </td>
+                                        ))}
                                         <td className="px-5 py-3 text-gray-300">{g?.male ?? 0}</td>
                                         <td className="px-5 py-3 text-gray-300">{g?.female ?? 0}</td>
                                     </tr>

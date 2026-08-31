@@ -2,17 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS } from "@/lib/recruit-domains";
-import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
+import { fetchAllRows, recruitSearchOrFilter, selectInChunks } from "@/lib/supabase/query-helpers";
 
 export const dynamic = "force-dynamic";
 
 const VALID_DOMAINS = RECRUIT_SUBDOMAIN_KEYS as string[];
-
-// Escapes characters that would otherwise break PostgREST's .or() filter syntax
-// (comma separates conditions, parentheses group them).
-function escapeOrValue(input: string) {
-  return input.replace(/[\\,()]/g, (c) => `\\${c}`);
-}
 
 // Departments are free text on recruit_accounts, so the filter can't be validated against
 // an enum — bound its length instead so it can't be used to push arbitrarily large strings
@@ -20,7 +14,9 @@ function escapeOrValue(input: string) {
 const MAX_DEPARTMENT_LENGTH = 120;
 
 // GET /api/admin/recruitment/recruits — list recruits for the active cycle.
-// Query params: domain, year, department (exact match), search (name or reg_no, case-insensitive).
+// Query params: domain, year, department (exact match), search (name or reg_no
+// case-insensitive, or phone — see recruitSearchOrFilter for how the one term is normalized
+// differently per column). Phone is searchable here but is NOT newly surfaced in any UI.
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -76,6 +72,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const searchOrFilter = recruitSearchOrFilter(search);
+
   function buildRecruitsQuery(from: number, to: number) {
     let query = supabase
       .from("recruit_accounts")
@@ -88,10 +86,7 @@ export async function GET(request: NextRequest) {
     if (year) query = query.eq("year", year);
     if (department) query = query.eq("department", department);
     if (recruitIdFilter) query = query.in("id", recruitIdFilter);
-    if (search) {
-      const s = escapeOrValue(search);
-      query = query.or(`name.ilike.%${s}%,reg_no.ilike.%${s}%`);
-    }
+    if (searchOrFilter) query = query.or(searchOrFilter);
     return query.range(from, to);
   }
 

@@ -623,14 +623,14 @@ export default function RecruitScannerPage() {
                         {showManualEntry && (
                             <div className="border-2 border-red bg-black p-4 md:p-5 space-y-3">
                                 <p className="text-xs uppercase tracking-widest font-bold text-white/40">
-                                    Mark present without a QR: search by name or reg no
+                                    Mark present without a QR: search by name, reg no or phone
                                 </p>
                                 <input
                                     type="text"
                                     autoFocus
                                     value={manualQuery}
                                     onChange={(e) => setManualQuery(e.target.value)}
-                                    placeholder="Start typing a name or registration number..."
+                                    placeholder="Start typing a name, registration number or phone..."
                                     className="w-full border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/40"
                                 />
                                 {manualSearching ? (

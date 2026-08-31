@@ -8,6 +8,7 @@ import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainSubsystem, type RecruitSubDomain } from "@/lib/recruit-domains";
 import { SortableTh, compareBy, nextSortState, type SortState } from "@/components/recruit/SortableTh";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
+import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
 import Select from "@/components/ui/select";
 
@@ -196,10 +197,17 @@ function ExamDomainsTab() {
 
   const visibleRows = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // Name/reg_no match the raw term; phone matches a digits-only copy of it, because
+    // numbers are stored bare and a pasted "+91 98765 43210" has to normalize first.
+    // phoneQ is null under 3 digits, so a stray digit in a name search matches no phones.
+    // Searchable only — phone stays out of the rendered row.
+    const phoneQ = phoneSearchTerm(search);
     const filtered = q
       ? rows.filter(
           (row) =>
-            row.recruit.name.toLowerCase().includes(q) || row.recruit.reg_no.toLowerCase().includes(q)
+            row.recruit.name.toLowerCase().includes(q) ||
+            row.recruit.reg_no.toLowerCase().includes(q) ||
+            (phoneQ !== null && (row.recruit.phone ?? "").includes(phoneQ))
         )
       : rows;
 
@@ -300,7 +308,7 @@ function ExamDomainsTab() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or reg no..."
+            placeholder="Search by name, reg no or phone..."
             className="h-10 border-0 bg-white/5 pl-8 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
           />
         </div>

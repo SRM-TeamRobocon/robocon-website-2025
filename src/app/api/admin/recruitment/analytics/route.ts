@@ -163,7 +163,7 @@ export async function GET() {
       supabase.from("recruit_marks").select("recruit_id, sub_domain, marks").eq("cycle_id", cycle.id).range(from, to)
     ),
     fetchAllRows<any>((from, to) =>
-      supabase.from("recruit_cutoffs").select("sub_domain, gender, cutoff_marks").eq("cycle_id", cycle.id).range(from, to)
+      supabase.from("recruit_cutoffs").select("sub_domain, gender, year, cutoff_marks").eq("cycle_id", cycle.id).range(from, to)
     ),
     fetchAllRows<any>((from, to) =>
       supabase
@@ -644,16 +644,23 @@ export async function GET() {
     };
   });
 
-  // Cutoffs are gender-scoped since migration 013, and shortlist/compute skips a domain
-  // entirely unless BOTH genders have one set — so a null here is the reason a domain shows
-  // zero shortlisted, and is worth surfacing rather than rendering as a blank cell.
+  // Cutoffs are scoped by gender (migration 013) AND year (migration 018), so a domain has
+  // four. shortlist/compute skips a domain entirely unless ALL FOUR are set — so a null here
+  // is the reason a domain shows zero shortlisted, and is worth surfacing rather than
+  // rendering as a blank cell.
   const cutoffByDomain = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const rows = (cutoffs as any[]).filter((c) => c.sub_domain === domain);
-    const forGender = (g: string) => {
-      const row = rows.find((c) => c.gender === g);
+    const at = (g: string, y: string) => {
+      const row = rows.find((c) => c.gender === g && String(c.year) === y);
       return row ? Number(row.cutoff_marks) : null;
     };
-    return { sub_domain: domain, male: forGender("male"), female: forGender("female") };
+    return {
+      sub_domain: domain,
+      male_year_1: at("male", "1"),
+      male_year_2: at("male", "2"),
+      female_year_1: at("female", "1"),
+      female_year_2: at("female", "2"),
+    };
   });
 
   const shortlistedByGender = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {

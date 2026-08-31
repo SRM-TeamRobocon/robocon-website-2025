@@ -552,7 +552,8 @@ alter table recruit_marks enable row level security;
 
 ### Table: `recruit_cutoffs`
 
-Per-domain cutoff marks, set by admin before shortlisting runs.
+Cutoff marks, set by a lead/admin before shortlisting runs. **Scoped by gender AND year**, so
+a domain has **four** cutoffs, not one — 24 values across the six domains.
 
 ```sql
 create table if not exists recruit_cutoffs (
@@ -560,13 +561,35 @@ create table if not exists recruit_cutoffs (
   cycle_id     uuid not null references recruitment_cycles(id),
   sub_domain   recruit_subdomain not null,
   cutoff_marks integer not null check (cutoff_marks >= 0 and cutoff_marks <= 100),
+  gender       text not null check (gender in ('male', 'female')),   -- migration 013
+  year         text not null check (year in ('1', '2')),             -- migration 018
   set_by       text not null,             -- admin_token username
   set_at       timestamptz default now(),
-  unique (cycle_id, sub_domain)
+  unique (cycle_id, sub_domain, gender, year)
 );
 
 alter table recruit_cutoffs enable row level security;
 ```
+
+**This table has been widened twice, and the docs below the schema section had not caught up
+until 2026-09-01 — if you find prose describing one cutoff per domain, it is stale.**
+
+- **Migration 013** made it gender-scoped: `unique (cycle_id, sub_domain)` became
+  `(cycle_id, sub_domain, gender)`. Each pre-existing row became `male` in place and got a
+  `female` copy carrying the same value forward.
+- **Migration 018** (2026-09-01) added `year` on top, for the same reason gender was added:
+  1st and 2nd years sit **different papers** for the same domain, so one bar can't be right
+  for both. Each gender row became year `'1'` in place and got a year `'2'` copy with the same
+  value. New key is `(cycle_id, sub_domain, gender, year)`.
+
+Both widenings drop the previous unique constraint **before** the backfill insert — otherwise
+the copy row collides with the original on the old key. Keep that ordering if you widen it again.
+
+`year` mirrors `recruit_accounts.year`: a checked text column of `'1'`/`'2'` (tightened from
+`('1','2','3')` by migration 016), not an enum, so a third year is a CHECK change rather than
+an `ALTER TYPE`. The canonical list lives in [recruit-year.ts](src/lib/recruit-year.ts), the
+year counterpart to [gender.ts](src/lib/gender.ts) — both the cutoffs page and the compute
+engine derive their grids from those two arrays rather than hardcoding four combinations.
 
 ### Table: `recruit_shortlist_status`
 
@@ -863,6 +886,9 @@ Layout:
 - Columns: Name, Reg No, Year, Dept, Day 1 ✓/✗, Day 2 ✓/✗, Marks (editable number input 0–100), Save button per row
 - The Day 1 / Day 2 ticks are scoped to the selected domain's exam, so they show whether the recruit sat *this* exam
 - Shows existing marks if already entered
+- A **Note** column (2026-09-01) beside the marks input, saved to `recruit_marks.note` (migration 019, nullable `text`, CHECK <= 500 chars). Optional context a bare 0-100 loses: "answered only 3 of 5", "sheet partly unreadable". A blank note stores NULL, not `""`, and the Save button enables on a note-only edit
+- **Exam** filter (All / Attended / Absent) and **Year** filter (All / Year 1 / Year 2), both client-side, both defaulting to **All** (2026-09-01). All deliberately stays the default: marks entry is explicitly *not* gated by attendance, so opening on "Attended" would hide anyone whose scan failed. The Exam filter reads the same per-domain `day1`/`day2` booleans the attendance badge uses
+- Search matches name, reg no **or phone** (2026-09-01). Phone is never rendered here — searchable only
 - Under each marks input, a **"Saved by &lt;name&gt; · &lt;date, time&gt;"** line (2026-08-31) — `evaluator_username` resolved to a display name via `resolveDisplayNames`, plus `updated_at`. The POST echoes both back so this updates the instant you save, rather than staying stale (or absent, on a first entry) until a reload. This is the only visible signal that someone else already marked a row, since the upsert is silently last-write-wins
 
 Calls: `POST /api/admin/recruitment/marks` (upsert)
@@ -1379,7 +1405,7 @@ Route: `POST /api/admin/recruitment/cutoffs`
   { sub_domain: 'sambed', cutoff_marks: 58 },
 ]
 
-// Upserts recruit_cutoffs rows (unique on cycle_id, sub_domain)
+// Upserts recruit_cutoffs rows (unique on cycle_id, sub_domain, gender, year)
 ```
 
 `GET /api/admin/recruitment/cutoffs` always returns **all six** domains, with `cutoff_marks: null` for any not yet set, so the page can render every row up front.
@@ -1393,7 +1419,7 @@ Route: `POST /api/admin/recruitment/shortlist/compute`
 This is a server-side batch operation. It:
 
 1. Fetches active cycle ID
-2. For each of the six domains: fetch cutoff from `recruit_cutoffs`
+2. For each of the six domains: fetch all four (gender x year) cutoffs from `recruit_cutoffs` — the domain is skipped unless every one is set
 3. For each recruit who selected that domain: fetch their marks from `recruit_marks`
 4. Compute: `marks >= cutoff_marks` → `shortlisted` / `not_shortlisted` / `pending` (no marks yet)
 5. Upsert into `recruit_shortlist_status`:
@@ -1900,6 +1926,49 @@ Later the same day:
 
 No Training or Tickets tab was added — the pipeline tabs stop at Interview. Training still has its own page and its API data is still returned.
 
+### Search, filters, year cutoffs and marks notes (2026-09-01)
+
+Two migrations, both applied via the Supabase MCP `apply_migration` tool: **018** (year on
+`recruit_cutoffs`) and **019** (`note` on `recruit_marks`). Both are idempotent and both are
+mirrored into `recruit-schema.sql` as upgrade blocks, per house convention.
+
+1. **Phone search everywhere.** Every recruit search now matches phone as well as name and
+   reg no. The normalizer is shared (`phoneSearchTerm` in `recruit-validation.ts`) because the
+   naive version is wrong in two ways: numbers are stored as **bare 10 digits**, so a pasted
+   `+91 98765 43210` matches nothing unless the separators AND the country code are stripped
+   (it peels a 12-digit `91` prefix and an 11-digit `0` prefix, both length-guarded so a real
+   number starting `91` is left alone); and the digits-only term must be used *only* for the
+   phone comparison — stripping separators out of a name or reg-no search breaks both. A term
+   under 3 digits is not treated as a phone lookup at all, or a stray digit in a name search
+   would substring-match hundreds of numbers.
+   **Phone is searchable but never newly displayed** — including on the exam check-in board,
+   which is projected on a screen in front of the whole exam queue. Both the API route and the
+   page carry a comment saying so; don't add it to a row later.
+2. **Year-scoped cutoffs (migration 018).** A domain now has four cutoffs — male/female x
+   year 1/year 2 — because the two years sit different papers. The Cutoffs page is a 4-input
+   grid per domain, and the compute engine skips a domain unless **all four** are set, widening
+   the previous "both genders" rule. That strictness is deliberate: running half-configured
+   would mark an entire year `not_shortlisted` against a bar meant for the other year, which is
+   much worse than not running. Both the grid and the skip check are derived from
+   `GENDERS x RECRUIT_YEARS`, so a third year is a one-line change in `recruit-year.ts` plus a
+   CHECK migration.
+   The engine now reads `id, gender, year` from `recruit_accounts` and looks up
+   `cutoffKey(domain, gender, year)`. A recruit missing either attribute is `pending`, the same
+   treatment missing marks already got — never an error that blocks the rest of the domain.
+3. **Marks page: note + filters.** Per-recruit note column (migration 019), plus Exam
+   (All/Attended/Absent) and Year (All/Year 1/Year 2) filters, both defaulting to All so the
+   documented "marks entry is not gated by attendance" rule still holds on first paint.
+4. **Analytics kept in lockstep** — the shortlist tab's cutoff table is now four columns
+   (M·Y1, M·Y2, F·Y1, F·Y2) and its "missing cutoffs" warning checks all four, matching the
+   engine's skip rule exactly rather than drifting from it.
+
+Also corrected here: the `recruit_cutoffs` schema block in section 3 had never been updated for
+migration 013 and was still documenting a gender-blind `unique (cycle_id, sub_domain)`. It now
+describes the current 4-column key and both widenings.
+
+**Still stale, not fixed:** `scripts/seed-recruitment.ts` inserts gender-blind, year-blind
+cutoff rows and will violate the NOT NULL constraints if run today.
+
 ### Known remaining gaps (not fixed yet)
 
 - **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) — but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel. The 2026-08-13 auto-routing/redistribution logic inherits the same caveat — verified by reading the code and by manual testing against seeded data (via Supabase MCP + a Playwright screenshot of the kiosk screen), not load-tested.
@@ -1922,8 +1991,10 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 ### File map
 
 - `supabase/recruit-schema.sql` — full current schema (already reflects all pending migrations — it's the target state, not what's live)
-- `supabase/recruit-migration-00{1..14}-*.sql` — the numbered migrations, apply in order. 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the new public chatbot
+- `supabase/recruit-migration-0NN-*.sql` — the numbered migrations, apply in order (highest is 019). 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the public chatbot; 016 = drop year '3'; 018 (2026-09-01) = year-scoped cutoffs; 019 (2026-09-01) = `recruit_marks.note`. Note 004 and 005 each got used twice by different files — a pre-existing collision, don't reuse a number again
 - `src/lib/recruit-domains.ts` — domain/subsystem source of truth
+- `src/lib/recruit-year.ts` (new, 2026-09-01) — year-of-study source of truth ('1'/'2'), the counterpart to `gender.ts`; both feed the 4-cell cutoff grid
+- `src/lib/recruit-validation.ts` — also holds `PHONE_RE`, `digitsOnly` and `phoneSearchTerm` (2026-09-01), the shared normalizer every phone search goes through
 - `src/lib/recruit-interview-redistribution.ts` (2026-08-13) — shared `redistributeWaitingTokens`/`reattachHistoricalTokens`, used by Close for the Day, table deletion, and the new (2026-08-16) cross-panel `call-token` reassignment
 - `src/lib/recruit-session.ts`, `recruit-qr.ts`, `recruit-validation.ts` — shared recruit-auth/QR/validation helpers
 - `src/lib/supabase/recruit-admin.ts` — untyped service-role client for `recruit_*` tables (the generated `Database` type doesn't know about them)
