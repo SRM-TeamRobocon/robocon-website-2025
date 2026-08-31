@@ -6,7 +6,7 @@ interface IdCardEmailParams {
     domainLabels: string[];
 }
 
-const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/D8HWhwL3vjj5xsgPxJTcmr";
+const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/FesAdolZdhvFsuRRUOiMa8?s=sw&p=a&ilr=0";
 
 export function buildIdCardHtml(params: IdCardEmailParams): string {
     const { name, regNo, year, department, domainLabels } = params;

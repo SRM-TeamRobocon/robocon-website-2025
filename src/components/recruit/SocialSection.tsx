@@ -3,7 +3,7 @@
 import WhatsappFillIcon from "remixicon-react/WhatsappFillIcon";
 import InstagramFillIcon from "remixicon-react/InstagramFillIcon";
 
-const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/D8HWhwL3vjj5xsgPxJTcmr";
+const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/FesAdolZdhvFsuRRUOiMa8?s=sw&p=a&ilr=0";
 const INSTAGRAM_URL = "https://www.instagram.com/srmteamrobocon/";
 
 // Sharp red/white/black poster theme — matches the rest of the reskinned
