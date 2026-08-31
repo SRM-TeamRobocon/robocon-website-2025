@@ -6,7 +6,7 @@ import { fetchAllRows } from "@/lib/supabase/query-helpers";
 
 export const dynamic = "force-dynamic";
 
-type Account = { name: string; reg_no: string } | { name: string; reg_no: string }[] | null;
+type Account = { name: string; reg_no: string; year: string } | { name: string; reg_no: string; year: string }[] | null;
 const accountOf = (acc: Account) => (Array.isArray(acc) ? acc[0] : acc);
 
 type AttendanceRow = {
@@ -18,6 +18,26 @@ type AttendanceRow = {
     recruit_accounts: Account;
 };
 
+type SelectionRow = {
+    id: string;
+    sub_domain: string;
+    recruit_accounts: { year: string } | { year: string }[] | null;
+};
+
+// `year` is free text on recruit_accounts holding "1" or "2" (registration only ever offers
+// those two — see the Year select on /dashboard/recruitment/recruits). Anything else is
+// bucketed into "other" rather than dropped: a recruit with a bad year value still physically
+// sat the exam, and a board that silently omits them is worse than one showing an odd label.
+type YearBucket = "year1" | "year2" | "other";
+
+function yearBucket(year: string | undefined | null): YearBucket {
+    if (year === "1") return "year1";
+    if (year === "2") return "year2";
+    return "other";
+}
+
+const EMPTY_COUNTS = (): Record<YearBucket, number> => ({ year1: 0, year2: 0, other: 0 });
+
 // GET /api/admin/recruitment/exam-checkin?day=1|2|all
 //
 // Backs the exam check-in board at /dashboard/recruitment/exam-checkin — the exam-day
@@ -28,6 +48,9 @@ type AttendanceRow = {
 // All six domains come back in ONE call rather than one call per domain: the board shows
 // them side by side, and its search box has to work across domains (a recruit sitting two
 // exams needs to find themselves in either column).
+//
+// Everything is split Year 1 / Year 2, both the checked-in lists and the registered
+// denominators, because the two years sit different papers and turnout is tracked per year.
 //
 // Not public, unlike the interview kiosk at /api/recruit/tables — this returns full names
 // AND reg numbers, which is the whole point (a first name alone can't disambiguate 1000+
@@ -55,7 +78,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: "No active recruitment cycle" }, { status: 503 });
     }
 
-    const [{ data: attendance, error: attendanceError }, registeredCounts] = await Promise.all([
+    const [{ data: attendance, error: attendanceError }, { data: selections, error: selectionsError }] = await Promise.all([
         // Paged: at the module's target scale a single exam day across six domains can clear
         // PostgREST's silent 1000-row cap, and a board that quietly stops listing people past
         // row 1000 is worse than no board at all. Ordered by (scanned_at desc, id desc) rather
@@ -64,7 +87,7 @@ export async function GET(request: NextRequest) {
         fetchAllRows<AttendanceRow>((from, to) => {
             let q = supabase
                 .from("recruit_exam_attendance")
-                .select("id, recruit_id, sub_domain, day, scanned_at, recruit_accounts(name, reg_no)")
+                .select("id, recruit_id, sub_domain, day, scanned_at, recruit_accounts(name, reg_no, year)")
                 .eq("cycle_id", cycle.id);
             if (dayParam !== "all") q = q.eq("day", Number(dayParam));
             return q
@@ -72,50 +95,66 @@ export async function GET(request: NextRequest) {
                 .order("id", { ascending: false })
                 .range(from, to);
         }),
-        // The "42 of 118" denominator: how many people picked this domain at registration.
-        // Six bounded head-counts in parallel, so no rows cross the wire for this half.
-        Promise.all(
-            RECRUIT_SUBDOMAINS.map(async (d) => {
-                const { count } = await supabase
-                    .from("recruit_domain_selections")
-                    .select("id", { count: "exact", head: true })
-                    .eq("cycle_id", cycle.id)
-                    .eq("sub_domain", d.key);
-                return [d.key, count ?? 0] as const;
-            })
+        // The "15 of 40" denominators. Fetched and counted in JS rather than as a dozen
+        // head-count queries, because the per-year split needs a join onto recruit_accounts
+        // and an unexpected `year` value has to land somewhere visible instead of vanishing
+        // between six domain counts that no longer add up.
+        fetchAllRows<SelectionRow>((from, to) =>
+            supabase
+                .from("recruit_domain_selections")
+                .select("id, sub_domain, recruit_accounts(year)")
+                .eq("cycle_id", cycle.id)
+                .order("id", { ascending: true })
+                .range(from, to)
         ),
     ]);
 
-    if (attendanceError) {
-        console.error("recruitment exam-checkin GET error", attendanceError);
+    if (attendanceError || selectionsError) {
+        console.error("recruitment exam-checkin GET error", attendanceError || selectionsError);
         return NextResponse.json({ success: false, error: "Could not load check-ins" }, { status: 500 });
     }
 
-    const registered = new Map(registeredCounts);
+    const registeredByDomain = new Map<string, Record<YearBucket, number>>();
+    for (const row of selections) {
+        const acc = Array.isArray(row.recruit_accounts) ? row.recruit_accounts[0] : row.recruit_accounts;
+        const counts = registeredByDomain.get(row.sub_domain) ?? EMPTY_COUNTS();
+        counts[yearBucket(acc?.year)] += 1;
+        registeredByDomain.set(row.sub_domain, counts);
+    }
 
-    const byDomain = new Map<string, Array<{ recruit_id: string; name: string; reg_no: string; day: number; at: string }>>();
+    type CheckIn = { recruit_id: string; name: string; reg_no: string; year: string; day: number; at: string };
+    const checkedInByDomain = new Map<string, Record<YearBucket, CheckIn[]>>();
     for (const row of attendance) {
         const acc = accountOf(row.recruit_accounts);
-        const list = byDomain.get(row.sub_domain) ?? [];
-        list.push({
+        const buckets = checkedInByDomain.get(row.sub_domain) ?? { year1: [], year2: [], other: [] };
+        buckets[yearBucket(acc?.year)].push({
             recruit_id: row.recruit_id,
             name: acc?.name ?? "Unknown",
             reg_no: acc?.reg_no ?? "",
+            year: acc?.year ?? "",
             day: row.day,
             at: row.scanned_at,
         });
-        byDomain.set(row.sub_domain, list);
+        checkedInByDomain.set(row.sub_domain, buckets);
     }
 
     // Always all six, in RECRUIT_SUBDOMAINS order — a domain nobody has scanned into yet
     // still gets a column, so the board's shape doesn't shift as the morning goes on.
-    const domains = RECRUIT_SUBDOMAINS.map((d) => ({
-        sub_domain: d.key,
-        label: d.label,
-        subsystem: d.subsystem,
-        registered: registered.get(d.key) ?? 0,
-        checked_in: byDomain.get(d.key) ?? [],
-    }));
+    const domains = RECRUIT_SUBDOMAINS.map((d) => {
+        const registered = registeredByDomain.get(d.key) ?? EMPTY_COUNTS();
+        const checked_in = checkedInByDomain.get(d.key) ?? { year1: [], year2: [], other: [] };
+        return {
+            sub_domain: d.key,
+            label: d.label,
+            subsystem: d.subsystem,
+            registered: {
+                ...registered,
+                total: registered.year1 + registered.year2 + registered.other,
+            },
+            checked_in,
+            total_checked_in: checked_in.year1.length + checked_in.year2.length + checked_in.other.length,
+        };
+    });
 
     return NextResponse.json({ success: true, day: dayParam, cycle_id: cycle.id, domains });
 }

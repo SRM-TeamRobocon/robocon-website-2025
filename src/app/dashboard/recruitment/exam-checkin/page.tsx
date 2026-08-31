@@ -12,10 +12,21 @@ const DAY_OPTIONS: { value: DayFilter; label: string }[] = [
     { value: "all", label: "All" },
 ];
 
+type YearBucket = "year1" | "year2" | "other";
+
+// Rendered in this order inside every domain column. "other" only appears when a recruit
+// somehow has a year that isn't 1 or 2 — never dropped, because they still sat the exam.
+const YEAR_SECTIONS: { key: YearBucket; label: string }[] = [
+    { key: "year1", label: "Year 1" },
+    { key: "year2", label: "Year 2" },
+    { key: "other", label: "Other" },
+];
+
 interface CheckIn {
     recruit_id: string;
     name: string;
     reg_no: string;
+    year: string;
     day: number;
     at: string;
 }
@@ -24,8 +35,9 @@ interface DomainColumn {
     sub_domain: string;
     label: string;
     subsystem: string;
-    registered: number;
-    checked_in: CheckIn[];
+    registered: Record<YearBucket, number> & { total: number };
+    checked_in: Record<YearBucket, CheckIn[]>;
+    total_checked_in: number;
 }
 
 const POLL_MS = 5000;
@@ -74,24 +86,34 @@ export default function ExamCheckInBoardPage() {
 
     const term = search.trim().toLowerCase();
 
-    // The search deliberately filters all six columns at once rather than scoping to one
-    // domain: "am I checked in?" is the question this board exists to answer, and someone
-    // sitting two exams needs to see both answers without knowing which column to look in.
-    const filtered = useMemo(
-        () =>
-            domains.map((d) => ({
-                ...d,
-                visible: term
-                    ? d.checked_in.filter(
-                          (c) => c.name.toLowerCase().includes(term) || c.reg_no.toLowerCase().includes(term)
-                      )
-                    : d.checked_in,
-            })),
-        [domains, term]
-    );
+    // The search deliberately filters all six columns (and both year sections) at once rather
+    // than scoping to one: "am I checked in?" is the question this board exists to answer, and
+    // someone sitting two exams needs both answers without knowing where to look.
+    const filtered = useMemo(() => {
+        const match = (c: CheckIn) =>
+            c.name.toLowerCase().includes(term) || c.reg_no.toLowerCase().includes(term);
+        return domains.map((d) => ({
+            ...d,
+            visible: {
+                year1: term ? d.checked_in.year1.filter(match) : d.checked_in.year1,
+                year2: term ? d.checked_in.year2.filter(match) : d.checked_in.year2,
+                other: term ? d.checked_in.other.filter(match) : d.checked_in.other,
+            } as Record<YearBucket, CheckIn[]>,
+        }));
+    }, [domains, term]);
 
-    const totalCheckedIn = domains.reduce((sum, d) => sum + d.checked_in.length, 0);
-    const matchCount = filtered.reduce((sum, d) => sum + d.visible.length, 0);
+    const totalCheckedIn = domains.reduce((sum, d) => sum + d.total_checked_in, 0);
+    const matchCount = filtered.reduce(
+        (sum, d) => sum + d.visible.year1.length + d.visible.year2.length + d.visible.other.length,
+        0
+    );
+    const yearTotals = domains.reduce(
+        (acc, d) => ({
+            year1: acc.year1 + d.checked_in.year1.length,
+            year2: acc.year2 + d.checked_in.year2.length,
+        }),
+        { year1: 0, year2: 0 }
+    );
     const dayLabel = day === "all" ? "any exam day" : `Day ${day}`;
 
     if (!ready) return null;
@@ -104,9 +126,9 @@ export default function ExamCheckInBoardPage() {
                     Exam Check-In Board
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-2xl">
-                    Live list of who has been scanned in for each domain&apos;s written exam, newest first.
-                    Show this on a screen at the hall so recruits can confirm their own check-in registered.
-                    Refreshes every {POLL_MS / 1000}s.
+                    Live list of who has been scanned in for each domain&apos;s written exam, split by year,
+                    newest first. Show this on a screen at the hall so recruits can confirm their own
+                    check-in registered. Refreshes every {POLL_MS / 1000}s.
                 </p>
             </div>
 
@@ -148,7 +170,12 @@ export default function ExamCheckInBoardPage() {
                 </div>
 
                 <span className="text-xs font-mono text-gray-500">
-                    {totalCheckedIn} checked in · {dayLabel}
+                    {totalCheckedIn} checked in
+                    <span className="text-gray-600">
+                        {" "}
+                        (Y1 {yearTotals.year1} · Y2 {yearTotals.year2})
+                    </span>{" "}
+                    · {dayLabel}
                 </span>
             </div>
 
@@ -179,41 +206,66 @@ export default function ExamCheckInBoardPage() {
                                     </span>
                                 </div>
                                 <p className="mt-0.5 text-xs text-gray-500">
-                                    <span className="font-mono text-emerald-400">{d.checked_in.length}</span>
+                                    <span className="font-mono text-emerald-400">{d.total_checked_in}</span>
                                     {" of "}
-                                    <span className="font-mono">{d.registered}</span> checked in
-                                    {term && <span className="text-gray-600"> · {d.visible.length} shown</span>}
+                                    <span className="font-mono">{d.registered.total}</span> checked in
                                 </p>
                             </div>
 
                             <div className="max-h-[28rem] overflow-y-auto">
-                                {d.visible.length === 0 ? (
-                                    <p className="px-3 py-4 text-xs text-gray-600">
-                                        {term ? "No match here." : "Nobody scanned in yet."}
-                                    </p>
-                                ) : (
-                                    <ul className="divide-y divide-white/5">
-                                        {d.visible.map((c) => (
-                                            <li key={c.recruit_id} className="px-3 py-2">
-                                                <div className="flex items-baseline justify-between gap-2">
-                                                    <span className="text-sm text-white truncate">{c.name}</span>
-                                                    <span className="text-[10px] font-mono text-gray-500 shrink-0">
-                                                        {clockTime(c.at)}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-[11px] font-mono text-gray-500">{c.reg_no}</span>
-                                                    {/* Only meaningful when both days are merged into one list. */}
-                                                    {day === "all" && (
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
-                                                            Day {c.day}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                {YEAR_SECTIONS.map((section) => {
+                                    const rows = d.visible[section.key];
+                                    const scanned = d.checked_in[section.key].length;
+                                    const registered = d.registered[section.key];
+
+                                    // Skip the "Other" section entirely unless it has someone in
+                                    // it — it's a data-quality escape hatch, not a real year.
+                                    if (section.key === "other" && scanned === 0 && registered === 0) return null;
+
+                                    return (
+                                        <div key={section.key}>
+                                            <div className="sticky top-0 z-10 flex items-baseline justify-between gap-2 bg-white/[0.04] px-3 py-1.5 backdrop-blur-sm">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                                    {section.label}
+                                                </span>
+                                                <span className="text-[10px] font-mono text-gray-500">
+                                                    <span className="text-emerald-400">{scanned}</span> of {registered}
+                                                    {term && <span className="text-gray-600"> · {rows.length} shown</span>}
+                                                </span>
+                                            </div>
+
+                                            {rows.length === 0 ? (
+                                                <p className="px-3 py-2.5 text-xs text-gray-600">
+                                                    {term ? "No match here." : "Nobody scanned in yet."}
+                                                </p>
+                                            ) : (
+                                                <ul className="divide-y divide-white/5">
+                                                    {rows.map((c) => (
+                                                        <li key={c.recruit_id} className="px-3 py-2">
+                                                            <div className="flex items-baseline justify-between gap-2">
+                                                                <span className="text-sm text-white truncate">{c.name}</span>
+                                                                <span className="text-[10px] font-mono text-gray-500 shrink-0">
+                                                                    {clockTime(c.at)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="text-[11px] font-mono text-gray-500">
+                                                                    {c.reg_no}
+                                                                </span>
+                                                                {/* Only meaningful when both days are merged into one list. */}
+                                                                {day === "all" && (
+                                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                                                                        Day {c.day}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

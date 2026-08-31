@@ -931,6 +931,19 @@ Shows:
 
 This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 
+##### Update 2026-08-31 — rebuilt as stage tabs
+
+The page is now a tab bar — **Overview · Registration · Orientation · Exam · Shortlist · Interview** — instead of one long scroll. This replaced the state where every section except registration was commented out because those stages had no data (and some of those commented blocks referenced components that had since been deleted, so they would not have compiled if uncommented).
+
+- **Overview** keeps the whole-funnel view: six stat tiles, the funnel bars, registration share by domain, and the full per-domain funnel table.
+- **Every stage tab** renders the same four breakdowns from the API's new `stages[]` array — By Domain, **By Domain — Year 1 vs Year 2** (stacked bars: segment heights give the year mix, full bar height gives the domain total), By Year, By Gender, By Residence — via one generic component, plus stage-specific extras below.
+- **Denominators are the previous stage, not the total.** Orientation and Exam are measured against everyone registered; Shortlist against everyone who sat an exam; Interview against everyone shortlisted. So each rate reads as step-to-step conversion. Registration has no denominator (`has_denominator: false`) — a 100% conversion row would be noise — and the page drops the rate column there.
+- **Stage-specific extras:** Registration → registrations-over-time (IST days), normalized department chart, email-verified split. Exam → Day 1/Day 2 tiles, **By Domain — Day 1 vs Day 2** (stacked, with an "All domains" total row), marks histogram and per-domain marks stats. Shortlist → status-by-domain, gender-scoped cutoffs table that flags a domain missing either gender's cutoff (the compute engine skips those entirely, which is why they read zero), shortlisted-by-gender, auto-vs-manual, called count. Interview → token statuses, walk-ins, no-show rate, outcomes by domain.
+- **A stage with zero rows renders an explicit "hasn't started yet" panel** naming how many recruits are waiting on it, not empty charts. The tab always exists — an absent tab can't tell you the pipeline is wired and waiting.
+- **Department is normalized for grouping only** (uppercase, strip non-alphanumerics), because it's free text with no allow-list: `ECE`/`Ece` and `CSE AIML`/`CSE-AIML`/`CSE AI ML` are separate stored values. Each group is labelled with its most common original spelling. Top 15 plus an "Other" bucket. **Nothing writes back to `recruit_accounts`** — `course` is just as dirty (~16 spellings of "B.Tech") and is deliberately not charted.
+
+The older top-level response fields (`overall`, `by_domain`, `by_domain_gender`, `by_domain_year`, `by_domain_hosteller`, `training`) are unchanged and still returned — the recruitment hub reads `overall`/`by_domain` from the same endpoint. There is still **no Training or Tickets tab**; training data is still returned by the API and still has its own page at `/dashboard/recruitment/training`.
+
 ### API Routes
 
 #### Auth (public)
@@ -1033,7 +1046,7 @@ This is read-only. All data from `GET /api/admin/recruitment/analytics`.
 
 | Method | Route | What |
 |--------|-------|------|
-| GET | `/api/admin/recruitment/analytics` | Returns funnel stats for active cycle |
+| GET | `/api/admin/recruitment/analytics` | Returns funnel stats for active cycle. Since 2026-08-31 also returns `stages[]` (one entry per pipeline stage, each with `by_domain` carrying a Year 1/Year 2 split, plus `by_year`/`by_gender`/`by_residence`, and an `eligible` set to the previous stage's population) and `stage_extras` (registration over-time + normalized departments; exam day split per domain + marks histogram; shortlist cutoffs/method/called; interview token statuses + outcomes). All pre-existing top-level fields are unchanged |
 
 ---
 
@@ -1303,6 +1316,8 @@ The Day 1 / Day 2 ticks shown in the marks table are **scoped to the domain you 
 #### Update 2026-08-31 — exam check-in board
 
 There is now a read-only live board at `/dashboard/recruitment/exam-checkin` (`GET /api/admin/recruitment/exam-checkin?day=1|2|all`), the exam-day counterpart to the interview board: six columns, one per domain, each listing who has been scanned in for that domain's exam (name, reg no, scan time) newest first, with a `<checked in> of <registered>` count in the header. Day 1 / Day 2 / All toggle, default Day 1. Polls every 5s.
+
+Inside each domain column the list is **split into Year 1 and Year 2 sections**, each with its own `<scanned> of <registered>` count — the two years sit different papers, so per-year turnout is the number that matters, and a combined count hides it. `year` is free text on `recruit_accounts` constrained to `'1'`/`'2'`, so anything else lands in a third "Other" section that only renders when it has someone in it; a recruit with a bad year value still sat the exam and must not silently vanish from a board people use to verify themselves. The registered denominators come from `recruit_domain_selections` joined to `recruit_accounts`, fetched and counted in JS rather than as a dozen head-count queries, so that same "Other" bucket stays visible instead of making six domain counts quietly fail to add up.
 
 Why it exists: the scanner's own roster panel is only visible to the volunteer holding the scanner. A recruit who isn't sure their scan registered had no way to check without asking someone to re-scan them (which returns `already_scanned` and looks like a failure). The board is meant to be put on a screen at the hall so they can confirm themselves.
 
@@ -1877,6 +1892,13 @@ Shipped the morning of exam day 1. No schema change, no migration.
 3. **Exam check-in board.** New `/dashboard/recruitment/exam-checkin` + `GET /api/admin/recruitment/exam-checkin` — see [Exam & Shortlisting](#6-exam--shortlisting) for the design and why it's admin-gated rather than public like the interview kiosk.
 
 Worth knowing for whoever runs marks entry: `recruit_marks` is unique on `(recruit_id, sub_domain, cycle_id)`, so a recruit sitting two exams gets **two independent rows** — the Coding evaluator and the Web Dev evaluator cannot overwrite each other. The only clobber risk is two people marking the *same* recruit in the *same* domain, which is still silently last-write-wins; the new "Saved by" line is the only warning of it.
+
+Later the same day:
+
+4. **Exam check-in board splits by year.** Each domain column is sectioned Year 1 / Year 2 with per-year `scanned of registered` counts. See the Exam & Shortlisting section above.
+5. **Analytics rebuilt as stage tabs** — Overview · Registration · Orientation · Exam · Shortlist · Interview, each with the same four breakdowns plus stage-specific extras, and a per-domain Year 1/Year 2 split on every stage (per-domain Day 1/Day 2 on the Exam tab). See the `/dashboard/recruitment/analytics` section above for the full design. This also un-stranded the page: every stage section had been commented out for lack of data, and several of those blocks referenced components that no longer existed, so they could not have been uncommented as-is.
+
+No Training or Tickets tab was added — the pipeline tabs stop at Interview. Training still has its own page and its API data is still returned.
 
 ### Known remaining gaps (not fixed yet)
 
