@@ -199,6 +199,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const updatedAt = new Date().toISOString();
+
   const { error: upsertError } = await supabase.from("recruit_marks").upsert(
     {
       cycle_id: cycleId,
@@ -206,7 +208,7 @@ export async function POST(request: NextRequest) {
       sub_domain,
       marks,
       evaluator_username: session.user,
-      updated_at: new Date().toISOString(),
+      updated_at: updatedAt,
     },
     { onConflict: "recruit_id,sub_domain,cycle_id" }
   );
@@ -216,5 +218,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Could not save marks" }, { status: 500 });
   }
 
-  return NextResponse.json({ saved: true, recruit_id, sub_domain, marks });
+  // Echo back who saved it and when, resolved the same way the GET does. Without this the
+  // marks page would show a stale (or missing) "Saved by ..." line until a full reload —
+  // the one moment an evaluator most wants to see their own entry confirmed.
+  const evaluatorNames = await resolveDisplayNames(supabase, [session.user]);
+
+  return NextResponse.json({
+    saved: true,
+    recruit_id,
+    sub_domain,
+    marks,
+    evaluator_username: evaluatorNames.get(session.user) ?? session.user,
+    updated_at: updatedAt,
+  });
 }

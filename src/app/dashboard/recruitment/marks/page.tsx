@@ -46,6 +46,19 @@ function ExamAttendance({ day1, day2 }: { day1: boolean; day2: boolean }) {
   );
 }
 
+// "31 Aug, 2:14 pm". Deliberately short — this sits under a number input in a dense table,
+// so a full timestamp would wrap and push the row height around.
+function savedAtLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString([], {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function RecruitmentMarksPage() {
   const ready = useRequireRole(["member", "lead", "admin"]);
   const [domain, setDomain] = useState<ExamDomain>("coding");
@@ -117,8 +130,20 @@ export default function RecruitmentMarksPage() {
       const data = await res.json();
       if (res.ok && data.saved) {
         toast.success("Marks saved");
+        // Carry the server's attribution back into the row too, not just `marks` — otherwise
+        // the "Saved by ..." line under the input stays stale (or stays absent on a first
+        // entry) until someone reloads the page.
         setRows((prev) =>
-          prev.map((r) => (r.recruit_id === recruitId ? { ...r, marks } : r))
+          prev.map((r) =>
+            r.recruit_id === recruitId
+              ? {
+                  ...r,
+                  marks,
+                  evaluator_username: data.evaluator_username ?? r.evaluator_username,
+                  updated_at: data.updated_at ?? r.updated_at,
+                }
+              : r
+          )
         );
       } else {
         toast.error(data.error || "Could not save marks");
@@ -234,8 +259,9 @@ export default function RecruitmentMarksPage() {
                             className="w-20 border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
                           />
                           {row.evaluator_username && (
-                            <p className="mt-1 text-[10px] text-gray-500">
-                              by {row.evaluator_username}
+                            <p className="mt-1 text-[10px] text-gray-500 whitespace-nowrap">
+                              Saved by {row.evaluator_username}
+                              {row.updated_at ? ` · ${savedAtLabel(row.updated_at)}` : ""}
                             </p>
                           )}
                         </td>

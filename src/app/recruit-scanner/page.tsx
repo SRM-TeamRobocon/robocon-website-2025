@@ -14,13 +14,25 @@ const Html5QrcodeScanner = dynamic(() => import("@/components/recruit/Html5Qrcod
 
 type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "training";
 
+// TEMPORARY (2026-08-31, exam day 1): every mode except "Exam: Day 1" is commented out so a
+// volunteer physically cannot pick the wrong one and silently write attendance into the wrong
+// table. The server still accepts all five modes — this is a UI lock only, nothing was deleted.
+//
+// TO RESTORE: uncomment the lines below. Everything else adapts on its own — the mode picker
+// re-appears once this array has more than one entry (see `modeIsLocked`), and the default
+// `selectedMode` falls back to MODE_OPTIONS[0].
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
-    { value: "orientation", label: "Orientation" },
+    // { value: "orientation", label: "Orientation" },
     { value: "exam_day_1", label: "Exam: Day 1" },
-    { value: "exam_day_2", label: "Exam: Day 2" },
-    { value: "interview", label: "Interview Check-In" },
-    { value: "training", label: "Training" },
+    // { value: "exam_day_2", label: "Exam: Day 2" },
+    // { value: "interview", label: "Interview Check-In" },
+    // { value: "training", label: "Training" },
 ];
+
+// When only one mode is available there is nothing to choose — the picker is hidden and the
+// mode is stated as a fact instead. Derived, not hardcoded, so restoring the list above is a
+// one-place edit.
+const modeIsLocked = MODE_OPTIONS.length === 1;
 
 type ScanResult = {
     status: "ok" | "already_scanned" | "already_checked_in" | "not_shortlisted" | "error";
@@ -123,7 +135,7 @@ function clockTime(ts: number) {
 export default function RecruitScannerPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
 
-    const [selectedMode, setSelectedMode] = useState<Mode>("orientation");
+    const [selectedMode, setSelectedMode] = useState<Mode>(MODE_OPTIONS[0].value);
     const [interviewSubDomain, setInterviewSubDomain] = useState<string>("");
     const [examSubDomain, setExamSubDomain] = useState<string>("");
     const [trainingSubDomain, setTrainingSubDomain] = useState<string>("");
@@ -462,34 +474,50 @@ export default function RecruitScannerPage() {
             <div className="max-w-2xl mx-auto space-y-8">
                 <div className="text-center">
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Recruitment Scanner</h1>
-                    <p className="text-sm text-white/60 mt-2">Scan recruit QR codes for orientation, exams, interviews, and training.</p>
+                    <p className="text-sm text-white/60 mt-2">
+                        {modeIsLocked
+                            ? `Scan recruit QR codes — ${MODE_OPTIONS[0].label} only today.`
+                            : "Scan recruit QR codes for orientation, exams, interviews, and training."}
+                    </p>
                 </div>
 
                 {!scanning ? (
                     <div className="border-2 border-red bg-black p-6 md:p-8 space-y-6">
-                        <p className="text-xs uppercase tracking-widest font-bold text-white/40">Select scan mode</p>
+                        {modeIsLocked ? (
+                            <div className="border border-red/40 bg-red/10 px-4 py-3">
+                                <p className="text-xs uppercase tracking-widest font-bold text-white/40">Scan mode</p>
+                                <p className="mt-1 text-lg font-black tracking-tight text-white">{MODE_OPTIONS[0].label}</p>
+                                <p className="mt-1 text-xs text-white/50">
+                                    Locked for today — there is nothing else to pick. Just choose the exam below.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-xs uppercase tracking-widest font-bold text-white/40">Select scan mode</p>
 
-                        <div className="space-y-3">
-                            {MODE_OPTIONS.map((opt) => (
-                                <label
-                                    key={opt.value}
-                                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${selectedMode === opt.value
-                                        ? "border-red bg-red/10"
-                                        : "border-white/15 hover:border-white/30"
-                                        }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="scan-mode"
-                                        value={opt.value}
-                                        checked={selectedMode === opt.value}
-                                        onChange={() => setSelectedMode(opt.value)}
-                                        className="accent-red"
-                                    />
-                                    <span className="font-semibold text-sm text-white">{opt.label}</span>
-                                </label>
-                            ))}
-                        </div>
+                                <div className="space-y-3">
+                                    {MODE_OPTIONS.map((opt) => (
+                                        <label
+                                            key={opt.value}
+                                            className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${selectedMode === opt.value
+                                                ? "border-red bg-red/10"
+                                                : "border-white/15 hover:border-white/30"
+                                                }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="scan-mode"
+                                                value={opt.value}
+                                                checked={selectedMode === opt.value}
+                                                onChange={() => setSelectedMode(opt.value)}
+                                                className="accent-red"
+                                            />
+                                            <span className="font-semibold text-sm text-white">{opt.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </>
+                        )}
 
                         {isExamMode && (
                             <div>
@@ -587,7 +615,7 @@ export default function RecruitScannerPage() {
                                     }}
                                     className="text-xs font-bold uppercase tracking-widest text-red hover:text-red/80 border border-red/40 px-3 py-1.5 transition-colors"
                                 >
-                                    Change Mode
+                                    {modeIsLocked ? "Change Exam" : "Change Mode"}
                                 </button>
                             </div>
                         </div>
