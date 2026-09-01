@@ -14,7 +14,7 @@ const Html5QrcodeScanner = dynamic(() => import("@/components/recruit/Html5Qrcod
 
 type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "training";
 
-// TEMPORARY (2026-08-31, exam day 1): every mode except "Exam: Day 1" is commented out so a
+// TEMPORARY (2026-09-01, exam day 2): every mode except "Exam: Day 2" is commented out so a
 // volunteer physically cannot pick the wrong one and silently write attendance into the wrong
 // table. The server still accepts all five modes — this is a UI lock only, nothing was deleted.
 //
@@ -23,8 +23,8 @@ type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "trainin
 // `selectedMode` falls back to MODE_OPTIONS[0].
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
     // { value: "orientation", label: "Orientation" },
-    { value: "exam_day_1", label: "Exam: Day 1" },
-    // { value: "exam_day_2", label: "Exam: Day 2" },
+    // { value: "exam_day_1", label: "Exam: Day 1" },
+    { value: "exam_day_2", label: "Exam: Day 2" },
     // { value: "interview", label: "Interview Check-In" },
     // { value: "training", label: "Training" },
 ];
