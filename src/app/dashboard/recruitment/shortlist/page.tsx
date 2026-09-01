@@ -10,11 +10,17 @@ import { SortableTh, compareBy, nextSortState, type SortState } from "@/componen
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
+import { GENDERS } from "@/lib/gender";
 import Select from "@/components/ui/select";
 
 type ExamDomain = RecruitSubDomain;
 
 const STATUS_OPTIONS = ["all", "pending", "shortlisted", "not_shortlisted"] as const;
+
+const GENDER_OPTIONS = [
+  { value: "all", label: "All Genders" },
+  ...GENDERS.map((g) => ({ value: g.key, label: g.label })),
+];
 
 interface ShortlistRow {
   id: string;
@@ -34,6 +40,7 @@ interface ShortlistRow {
     name: string;
     reg_no: string;
     year: string;
+    gender: string | null;
     department: string;
     course: string;
     portfolio_url: string | null;
@@ -149,6 +156,7 @@ function OverrideControls({
 function ExamDomainsTab() {
   const [domain, setDomain] = useState<ExamDomain | "all">("all");
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("all");
+  const [gender, setGender] = useState("all");
   const [rows, setRows] = useState<ShortlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -211,9 +219,14 @@ function ExamDomainsTab() {
         )
       : rows;
 
-    if (!sort) return filtered;
-    return [...filtered].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
-  }, [rows, search, sort]);
+    // Gender is nullable on recruit_accounts, so a recruit with none on file matches neither
+    // "Male" nor "Female" — "All Genders" is the option that keeps them in the list. Applied
+    // client-side (unlike domain/status) because the column lives on the joined account.
+    const byGender = gender === "all" ? filtered : filtered.filter((row) => row.recruit.gender === gender);
+
+    if (!sort) return byGender;
+    return [...byGender].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
+  }, [rows, search, gender, sort]);
 
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
@@ -300,6 +313,15 @@ function ExamDomainsTab() {
               value: s,
               label: s === "all" ? "All Statuses" : s === "not_shortlisted" ? "Not Shortlisted" : s[0].toUpperCase() + s.slice(1),
             }))}
+          />
+        </div>
+        <div className="w-40">
+          <Select
+            accent="blue"
+            value={gender}
+            onChange={setGender}
+            className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+            options={GENDER_OPTIONS}
           />
         </div>
         <div className="relative">

@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS } from "@/lib/recruit-domains";
 import { fetchAllRows, recruitSearchOrFilter, selectInChunks } from "@/lib/supabase/query-helpers";
+import { isGender } from "@/lib/gender";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const VALID_DOMAINS = RECRUIT_SUBDOMAIN_KEYS as string[];
 const MAX_DEPARTMENT_LENGTH = 120;
 
 // GET /api/admin/recruitment/recruits — list recruits for the active cycle.
-// Query params: domain, year, department (exact match), search (name or reg_no
+// Query params: domain, year, gender, department (exact match), search (name or reg_no
 // case-insensitive, or phone — see recruitSearchOrFilter for how the one term is normalized
 // differently per column). Phone is searchable here but is NOT newly surfaced in any UI.
 export async function GET(request: NextRequest) {
@@ -26,11 +27,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get("domain")?.trim() || "";
   const year = searchParams.get("year")?.trim() || "";
+  const gender = searchParams.get("gender")?.trim() || "";
   const department = searchParams.get("department")?.trim() || "";
   const search = searchParams.get("search")?.trim() || "";
 
   if (domain && !VALID_DOMAINS.includes(domain)) {
     return NextResponse.json({ success: false, error: "Invalid domain." }, { status: 400 });
+  }
+  if (gender && !isGender(gender)) {
+    return NextResponse.json({ success: false, error: "Invalid gender." }, { status: 400 });
   }
   if (department.length > MAX_DEPARTMENT_LENGTH) {
     return NextResponse.json({ success: false, error: "Invalid department." }, { status: 400 });
@@ -84,6 +89,10 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (year) query = query.eq("year", year);
+    // recruit_accounts.gender is nullable, so an .eq() here drops rows with no gender on
+    // file — exactly like the year filter. That's only ever reachable when a specific
+    // gender is picked; "All genders" sends no param at all and keeps every row visible.
+    if (gender) query = query.eq("gender", gender);
     if (department) query = query.eq("department", department);
     if (recruitIdFilter) query = query.in("id", recruitIdFilter);
     if (searchOrFilter) query = query.or(searchOrFilter);

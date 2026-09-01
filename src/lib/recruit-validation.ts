@@ -86,3 +86,40 @@ export function phoneSearchTerm(raw: string): string | null {
 
   return digits.length >= MIN_PHONE_SEARCH_DIGITS ? digits : null;
 }
+
+// --- Exam marks --------------------------------------------------------------
+
+export const MARKS_MIN = 0;
+export const MARKS_MAX = 100;
+
+/** Shared wording so the API, the Marks page and the Cutoffs page all say the same thing. */
+export const MARKS_ERROR = "Marks must be between 0 and 100, in steps of 0.5";
+
+/**
+ * Exam marks and cutoffs are `numeric(5,2)` (migration 020) but only half marks are ever
+ * awarded — 0, 0.5, 1, 1.5 ... 100. The DB has a CHECK enforcing that, and so does this,
+ * on purpose: the CHECK is the last line of defence and surfaces as an opaque 500, while
+ * this one rejects at the boundary with a message a human can act on, and lets the client
+ * catch a typo (72.3) before a round trip. Keep the two rules in sync.
+ */
+export function isHalfStep(value: number): boolean {
+  return Number.isFinite(value) && value * 2 === Math.trunc(value * 2);
+}
+
+/**
+ * Coerces a marks/cutoff input (number or numeric string) to a valid mark, or null.
+ *
+ * Null means "reject" — callers must not fall back to 0. Note the recruit_* tables go
+ * through an UNTYPED Supabase client, so values read back off a `numeric` column arrive
+ * as `any` and may be strings; anything doing arithmetic or a `>=` comparison on them
+ * must coerce with Number() first or the comparison silently goes lexicographic.
+ */
+export function parseMarksValue(raw: unknown): number | null {
+  if (typeof raw !== "number" && typeof raw !== "string") return null;
+  if (typeof raw === "string" && raw.trim() === "") return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  if (value < MARKS_MIN || value > MARKS_MAX) return null;
+  if (!isHalfStep(value)) return null;
+  return value;
+}

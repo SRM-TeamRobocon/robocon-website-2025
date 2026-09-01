@@ -4,6 +4,7 @@ import { getSession, requireRole } from "@/lib/session";
 import { isRecruitSubDomain } from "@/lib/recruit-domains";
 import { fetchAllRows, selectInChunks } from "@/lib/supabase/query-helpers";
 import { resolveDisplayNames } from "@/lib/admin-users";
+import { parseMarksValue, MARKS_ERROR } from "@/lib/recruit-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
   const { data: rows, error: selectionsError } = await fetchAllRows<SelectionRow>((from, to) =>
     supabase
       .from("recruit_domain_selections")
-      .select("recruit_id, recruit_accounts(id, name, reg_no, phone, year, department, course)")
+      .select("recruit_id, recruit_accounts(id, name, reg_no, phone, year, gender, department, course)")
       .eq("cycle_id", cycleId)
       .eq("sub_domain", domain)
       .range(from, to)
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
   // recruit_accounts as an array even though recruit_domain_selections.recruit_id -> recruit_accounts.id
   // is many-to-one. Normalize defensively either way.
   // phone is nullable on recruit_accounts — typed honestly so callers can't assume a string.
-  const accountOf = (row: SelectionRow): { id: string; name: string; reg_no: string; phone: string | null; year: string; department: string; course: string } | null =>
+  const accountOf = (row: SelectionRow): { id: string; name: string; reg_no: string; phone: string | null; year: string; gender: string | null; department: string; course: string } | null =>
     (Array.isArray(row.recruit_accounts) ? row.recruit_accounts[0] : row.recruit_accounts) as any;
   const recruitIds = rows.map((r) => r.recruit_id);
 
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
     .map(({ r, acc }) => {
       const marks = marksMap.get(r.recruit_id) as
         | {
-            marks: number;
+            marks: number | string;
             note: string | null;
             evaluator_username: string;
             updated_at: string | null;
@@ -136,11 +137,16 @@ export async function GET(request: NextRequest) {
         // evaluator has when a recruit turns up without their reg no.
         phone: acc.phone,
         year: acc.year,
+        // Filter-only on the marks page, never rendered — but cutoffs ARE gender-scoped, so
+        // an evaluator working one gender's papers needs to narrow to them.
+        gender: acc.gender,
         department: acc.department,
         course: acc.course,
         day1: attendance.day1,
         day2: attendance.day2,
-        marks: marks?.marks ?? null,
+        // numeric(5,2) since migration 020: coerce so 72.50 reaches the client as 72.5,
+        // and a missing marks row still yields null rather than 0.
+        marks: marks?.marks === undefined || marks?.marks === null ? null : Number(marks.marks),
         note: marks?.note ?? null,
         evaluator_username: marks?.evaluator_username ? evaluatorNames.get(marks.evaluator_username) ?? marks.evaluator_username : null,
         updated_at: marks?.updated_at ?? marks?.entered_at ?? null,
@@ -179,9 +185,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const marks = typeof marksRaw === "number" ? marksRaw : Number(marksRaw);
-  if (!Number.isInteger(marks) || marks < 0 || marks > 100) {
-    return NextResponse.json({ success: false, error: "marks must be an integer between 0 and 100" }, { status: 400 });
+  // Half marks since migration 020 (`marks` is numeric(5,2) with a half-step CHECK). Shared
+  // with the cutoffs route and both UIs so the rule can't drift between them.
+  const marks = parseMarksValue(marksRaw);
+  if (marks === null) {
+    return NextResponse.json({ success: false, error: MARKS_ERROR }, { status: 400 });
   }
 
   // Optional free-text note ("answered 3 of 5"). Absent and blank both mean "no note" and

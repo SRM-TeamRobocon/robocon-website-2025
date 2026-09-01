@@ -7,6 +7,7 @@ import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, RECRUIT_SUBDOMAIN_KEYS, subDomainLabel, type RecruitSubDomain } from "@/lib/recruit-domains";
 import { GENDERS, type Gender } from "@/lib/gender";
 import { RECRUIT_YEARS, type RecruitYear } from "@/lib/recruit-year";
+import { MARKS_ERROR, parseMarksValue } from "@/lib/recruit-validation";
 
 type ExamDomain = RecruitSubDomain;
 
@@ -79,10 +80,11 @@ export default function RecruitmentCutoffsPage() {
       for (const g of GENDERS) {
         for (const y of RECRUIT_YEARS) {
           const raw = inputs[inputKey(domain, g.key, y.key)] ?? "";
+          // Blank cells are skipped, not sent — a domain can be configured one cell at a time.
           if (raw.trim() === "") continue;
-          const value = Number(raw);
-          if (!Number.isInteger(value) || value < 0 || value > 100) {
-            toast.error(`${subDomainLabel(domain)} (${g.label}, ${y.label}) cutoff must be an integer between 0 and 100`);
+          const value = parseMarksValue(raw);
+          if (value === null) {
+            toast.error(`${subDomainLabel(domain)} (${g.label}, ${y.label}) cutoff is invalid. ${MARKS_ERROR}`);
             return;
           }
           payload.push({ sub_domain: domain, gender: g.key, year: y.key, cutoff_marks: value });
@@ -209,6 +211,7 @@ export default function RecruitmentCutoffsPage() {
                               type="number"
                               min={0}
                               max={100}
+                              step={0.5}
                               value={inputs[inputKey(domain, g.key, y.key)] ?? ""}
                               onChange={(e) =>
                                 setInputs((prev) => ({

@@ -84,6 +84,7 @@ export default function RecruitsPage() {
     const [loading, setLoading] = useState(true);
     const [domain, setDomain] = useState("");
     const [year, setYear] = useState("");
+    const [gender, setGender] = useState("");
     const [search, setSearch] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -101,8 +102,8 @@ export default function RecruitsPage() {
             return next;
         });
 
-    // Search/domain/year filtering already happened server-side, so `recruits` is the full
-    // result set by the time it lands here — sorting it is just re-ordering what's loaded.
+    // Search/domain/year/gender filtering already happened server-side, so `recruits` is the
+    // full result set by the time it lands here — sorting it is just re-ordering what's loaded.
     const sortedRecruits = useMemo(() => {
         if (!sort) return recruits;
         return [...recruits].sort((a, b) => compareBy(a[sort.key], b[sort.key], sort.direction));
@@ -140,6 +141,7 @@ export default function RecruitsPage() {
             const params = new URLSearchParams();
             if (domain) params.set("domain", domain);
             if (year) params.set("year", year);
+            if (gender) params.set("gender", gender);
             if (search) params.set("search", search);
 
             fetch(`/api/admin/recruitment/recruits?${params.toString()}`, { signal: controller.signal })
@@ -158,16 +160,17 @@ export default function RecruitsPage() {
             clearTimeout(t);
             controller.abort();
         };
-    }, [ready, domain, year, search]);
+    }, [ready, domain, year, gender, search]);
 
     const exportHref = useMemo(() => {
         const params = new URLSearchParams();
         if (domain) params.set("domain", domain);
         if (year) params.set("year", year);
+        if (gender) params.set("gender", gender);
         if (search) params.set("search", search);
         const qs = params.toString();
         return `/api/admin/recruitment/recruits/export${qs ? `?${qs}` : ""}`;
-    }, [domain, year, search]);
+    }, [domain, year, gender, search]);
 
     if (!ready) return null;
 
@@ -227,6 +230,20 @@ export default function RecruitsPage() {
                             { value: "", label: "All years" },
                             { value: "1", label: "Year 1" },
                             { value: "2", label: "Year 2" },
+                        ]}
+                    />
+                </div>
+                <div className="w-40">
+                    {/* gender is nullable on recruit_accounts: picking Male or Female narrows
+                        to that value server-side, so a recruit with no gender on file matches
+                        neither — "All genders" is the option that keeps them visible. */}
+                    <Select
+                        value={gender}
+                        onChange={setGender}
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+                        options={[
+                            { value: "", label: "All genders" },
+                            ...GENDERS.map((g) => ({ value: g.key, label: g.label })),
                         ]}
                     />
                 </div>

@@ -70,8 +70,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Could not load cutoffs" }, { status: 500 });
   }
 
+  // Marks and cutoffs are `numeric(5,2)` (migration 020) read through the UNTYPED recruit
+  // client, so PostgREST can hand them back as strings ("72.50") rather than numbers. They
+  // are compared with `>=` below, and `"9.5" >= "72.5"` is a lexicographic comparison that
+  // is true — it would silently shortlist recruits who failed. Coerce on the way into the
+  // Map so every consumer downstream is guaranteed a real number.
   const cutoffMap = new Map(
-    (cutoffRows ?? []).map((row: any) => [cutoffKey(row.sub_domain, row.gender, row.year), row.cutoff_marks as number])
+    (cutoffRows ?? []).map((row: any) => [cutoffKey(row.sub_domain, row.gender, row.year), Number(row.cutoff_marks)])
   );
 
   const stats = { shortlisted_count: 0, not_shortlisted_count: 0, pending_count: 0 };
@@ -138,7 +143,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: `Could not load marks for ${domain}` }, { status: 500 });
     }
 
-    const marksMap = new Map((marksRows ?? []).map((m: any) => [m.recruit_id, m.marks as number]));
+    // Same coercion as cutoffMap above — both sides of the `marks >= applicableCutoff`
+    // comparison must be real numbers, never numeric strings.
+    const marksMap = new Map((marksRows ?? []).map((m: any) => [m.recruit_id, Number(m.marks)]));
     const existingMap = new Map(
       (existingRows ?? []).map((r: any) => [r.recruit_id, r as { status: string; method: string }])
     );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MonitorCheck, Search, X } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
+import { GENDERS } from "@/lib/gender";
 
 type DayFilter = "1" | "2" | "all";
 
@@ -11,6 +12,15 @@ const DAY_OPTIONS: { value: DayFilter; label: string }[] = [
     { value: "1", label: "Day 1" },
     { value: "2", label: "Day 2" },
     { value: "all", label: "All" },
+];
+
+type GenderFilter = string;
+
+// "All" first, mirroring the Day pills' trailing "All", except a gender has no natural
+// default — the board opens unfiltered.
+const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    ...GENDERS.map((g) => ({ value: g.key as GenderFilter, label: g.label })),
 ];
 
 type YearBucket = "year1" | "year2" | "other";
@@ -28,6 +38,11 @@ interface CheckIn {
     name: string;
     reg_no: string;
     year: string;
+    // FILTER-ONLY — NEVER RENDER THIS. Same rule as `phone` below: the board is projected on
+    // a screen at the exam hall, so a recruit's gender must not appear in a row. It exists
+    // solely to back the gender pills above the columns. Nullable, so a recruit with no
+    // gender on file matches neither pill and is only listed under "All".
+    gender: string | null;
     // SEARCH-ONLY — NEVER RENDER THIS. The board is projected on a screen at the exam hall
     // in front of the whole queue; a recruit's phone number must not appear in a row. It
     // exists solely so someone can find themselves by typing their own number.
@@ -57,6 +72,7 @@ export default function ExamCheckInBoardPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
 
     const [day, setDay] = useState<DayFilter>("1");
+    const [gender, setGender] = useState<GenderFilter>("all");
     const [domains, setDomains] = useState<DomainColumn[]>([]);
     const [search, setSearch] = useState("");
     // Only guards the very first paint. Later polls swap the data in silently — a spinner
@@ -95,23 +111,33 @@ export default function ExamCheckInBoardPage() {
     // Null under 3 digits, so a stray digit in a name search can't match every phone.
     const phoneTerm = phoneSearchTerm(search);
 
+    // True when anything is narrowing the lists — drives the "N shown" counts and the empty
+    // -section copy below. With gender on "All" this is exactly `term`, as it always was.
+    const filtering = Boolean(term) || gender !== "all";
+
     // The search deliberately filters all six columns (and both year sections) at once rather
     // than scoping to one: "am I checked in?" is the question this board exists to answer, and
     // someone sitting two exams needs both answers without knowing where to look.
     const filtered = useMemo(() => {
-        const match = (c: CheckIn) =>
+        const matchesSearch = (c: CheckIn) =>
+            !term ||
             c.name.toLowerCase().includes(term) ||
             c.reg_no.toLowerCase().includes(term) ||
             (phoneTerm !== null && (c.phone ?? "").includes(phoneTerm));
+        // gender is nullable on recruit_accounts, so a recruit with none on file matches
+        // neither specific pill — "All" is what keeps them on the board. FILTER-ONLY: the
+        // value itself is never rendered in a row (see the CheckIn type).
+        const matchesGender = (c: CheckIn) => gender === "all" || c.gender === gender;
+        const match = (c: CheckIn) => matchesSearch(c) && matchesGender(c);
         return domains.map((d) => ({
             ...d,
             visible: {
-                year1: term ? d.checked_in.year1.filter(match) : d.checked_in.year1,
-                year2: term ? d.checked_in.year2.filter(match) : d.checked_in.year2,
-                other: term ? d.checked_in.other.filter(match) : d.checked_in.other,
+                year1: filtering ? d.checked_in.year1.filter(match) : d.checked_in.year1,
+                year2: filtering ? d.checked_in.year2.filter(match) : d.checked_in.year2,
+                other: filtering ? d.checked_in.other.filter(match) : d.checked_in.other,
             } as Record<YearBucket, CheckIn[]>,
         }));
-    }, [domains, term, phoneTerm]);
+    }, [domains, term, phoneTerm, gender, filtering]);
 
     const totalCheckedIn = domains.reduce((sum, d) => sum + d.total_checked_in, 0);
     const matchCount = filtered.reduce(
@@ -151,6 +177,23 @@ export default function ExamCheckInBoardPage() {
                             onClick={() => setDay(opt.value)}
                             className={`px-4 py-2 text-sm font-semibold transition ${
                                 day === opt.value
+                                    ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
+                                    : "text-gray-400 hover:bg-white/5"
+                            }`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Filters only — a recruit's gender is never printed in a row on this board. */}
+                <div className="flex items-center gap-2">
+                    {GENDER_OPTIONS.map((opt) => (
+                        <button
+                            key={opt.value}
+                            onClick={() => setGender(opt.value)}
+                            className={`px-4 py-2 text-sm font-semibold transition ${
+                                gender === opt.value
                                     ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
                                     : "text-gray-400 hover:bg-white/5"
                             }`}
@@ -241,13 +284,13 @@ export default function ExamCheckInBoardPage() {
                                                 </span>
                                                 <span className="text-[10px] font-mono text-gray-500">
                                                     <span className="text-emerald-400">{scanned}</span> of {registered}
-                                                    {term && <span className="text-gray-600"> · {rows.length} shown</span>}
+                                                    {filtering && <span className="text-gray-600"> · {rows.length} shown</span>}
                                                 </span>
                                             </div>
 
                                             {rows.length === 0 ? (
                                                 <p className="px-3 py-2.5 text-xs text-gray-600">
-                                                    {term ? "No match here." : "Nobody scanned in yet."}
+                                                    {filtering ? "No match here." : "Nobody scanned in yet."}
                                                 </p>
                                             ) : (
                                                 <ul className="divide-y divide-white/5">

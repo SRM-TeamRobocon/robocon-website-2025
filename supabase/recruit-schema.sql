@@ -355,7 +355,10 @@ create table if not exists recruit_marks (
   cycle_id           uuid not null references recruitment_cycles(id),
   recruit_id         uuid not null references recruit_accounts(id) on delete cascade,
   sub_domain         recruit_subdomain not null,
-  marks              integer not null check (marks >= 0 and marks <= 100),
+  -- numeric, not integer, since migration 020: half marks. Exact decimal on purpose —
+  -- the shortlist engine compares marks >= cutoff and must never flip on a float
+  -- representation error for someone sitting exactly on the bar.
+  marks              numeric(5, 2) not null check (marks >= 0 and marks <= 100),
   evaluator_username text not null,
   -- Optional evaluator note (migration 019): the context a bare 0-100 loses — "answered
   -- only 3 of 5", "sheet partly unreadable". Never required; the marks page saves fine
@@ -370,6 +373,16 @@ alter table recruit_marks enable row level security;
 
 -- Migration 019 upgrade block, for a DB created before the column existed.
 alter table recruit_marks add column if not exists note text;
+
+-- Migration 020 — half marks. Widening integer -> numeric is lossless, so no backfill.
+alter table recruit_marks
+  alter column marks type numeric(5, 2) using marks::numeric(5, 2);
+
+do $$ begin
+  alter table recruit_marks
+    add constraint recruit_marks_half_step
+    check ((marks * 2) = trunc(marks * 2));
+exception when duplicate_object then null; end $$;
 
 do $$ begin
   alter table recruit_marks
@@ -390,7 +403,7 @@ create table if not exists recruit_cutoffs (
   id           uuid primary key default gen_random_uuid(),
   cycle_id     uuid not null references recruitment_cycles(id),
   sub_domain   recruit_subdomain not null,
-  cutoff_marks integer not null check (cutoff_marks >= 0 and cutoff_marks <= 100),
+  cutoff_marks numeric(5, 2) not null check (cutoff_marks >= 0 and cutoff_marks <= 100),  -- migration 020
   gender       text not null check (gender in ('male', 'female')),
   set_by       text not null,
   set_at       timestamptz default now(),
@@ -470,6 +483,18 @@ do $$ begin
   alter table recruit_cutoffs
     add constraint recruit_cutoffs_cycle_sub_gender_year_key
     unique (cycle_id, sub_domain, gender, year);
+exception when duplicate_object then null; end $$;
+
+-- Migration 020 — cutoffs move to half marks in lockstep with recruit_marks. Leaving the bar
+-- an integer would make 72.5 and 72.9 indistinguishable at a cutoff of 72, so the decimals
+-- would stop mattering exactly at the boundary where they matter most.
+alter table recruit_cutoffs
+  alter column cutoff_marks type numeric(5, 2) using cutoff_marks::numeric(5, 2);
+
+do $$ begin
+  alter table recruit_cutoffs
+    add constraint recruit_cutoffs_half_step
+    check ((cutoff_marks * 2) = trunc(cutoff_marks * 2));
 exception when duplicate_object then null; end $$;
 
 ---------------------------------------------------------------------------

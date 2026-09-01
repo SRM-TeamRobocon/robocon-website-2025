@@ -4,7 +4,7 @@ import { getSession, requireRole } from "@/lib/session";
 import { RECRUIT_SUBDOMAIN_KEYS, subDomainFullLabel } from "@/lib/recruit-domains";
 import { fetchAllRows, recruitSearchOrFilter, selectInChunks } from "@/lib/supabase/query-helpers";
 import { travelMethodLabel } from "@/lib/travel-method";
-import { genderLabel } from "@/lib/gender";
+import { genderLabel, isGender } from "@/lib/gender";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ function csvResponse(rows: string[][]) {
 }
 
 // GET /api/admin/recruitment/recruits/export — CSV export of the same filtered/active-cycle
-// dataset as the recruits list route. Query params: domain, year, search.
+// dataset as the recruits list route. Query params: domain, year, gender, search.
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -62,10 +62,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get("domain")?.trim() || "";
   const year = searchParams.get("year")?.trim() || "";
+  const gender = searchParams.get("gender")?.trim() || "";
   const search = searchParams.get("search")?.trim() || "";
 
   if (domain && !VALID_DOMAINS.includes(domain)) {
     return NextResponse.json({ success: false, error: "Invalid domain." }, { status: 400 });
+  }
+  if (gender && !isGender(gender)) {
+    return NextResponse.json({ success: false, error: "Invalid gender." }, { status: 400 });
   }
 
   const supabase = createRecruitSupabaseAdminClient();
@@ -115,6 +119,10 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (year) query = query.eq("year", year);
+    // Same clause the list route applies, so the CSV holds exactly the rows on screen.
+    // gender is nullable, so .eq() excludes rows with none on file — only reachable once a
+    // specific gender is picked; "All genders" sends no param and keeps every row.
+    if (gender) query = query.eq("gender", gender);
     if (recruitIdFilter) query = query.in("id", recruitIdFilter);
     if (searchOrFilter) query = query.or(searchOrFilter);
     return query.range(from, to);

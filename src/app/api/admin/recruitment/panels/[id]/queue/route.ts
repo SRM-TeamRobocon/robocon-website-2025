@@ -137,7 +137,9 @@ export async function buildRecruitProfiles(
     map.get(s.recruit_id)?.domains.push(s.sub_domain);
   }
   for (const m of marks ?? []) {
-    map.get(m.recruit_id)?.exam_marks.push({ sub_domain: m.sub_domain, marks: m.marks });
+    // numeric(5,2) via the untyped recruit client, so this can arrive as "72.50". The
+    // interview card renders it verbatim — coerce so it reads "72.5" (and "72", not "72.00").
+    map.get(m.recruit_id)?.exam_marks.push({ sub_domain: m.sub_domain, marks: Number(m.marks) });
   }
   for (const s of shortlist ?? []) {
     map.get(s.recruit_id)?.shortlisted_for.push(s.sub_domain);

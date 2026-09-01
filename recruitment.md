@@ -538,7 +538,7 @@ create table if not exists recruit_marks (
   cycle_id         uuid not null references recruitment_cycles(id),
   recruit_id       uuid not null references recruit_accounts(id) on delete cascade,
   sub_domain       recruit_subdomain not null,
-  marks            integer not null check (marks >= 0 and marks <= 100),
+  marks            numeric(5, 2) not null check (marks >= 0 and marks <= 100),  -- migration 020
   evaluator_username text not null,        -- admin_token session username
   entered_at       timestamptz default now(),
   updated_at       timestamptz,
@@ -560,7 +560,7 @@ create table if not exists recruit_cutoffs (
   id           uuid primary key default gen_random_uuid(),
   cycle_id     uuid not null references recruitment_cycles(id),
   sub_domain   recruit_subdomain not null,
-  cutoff_marks integer not null check (cutoff_marks >= 0 and cutoff_marks <= 100),
+  cutoff_marks numeric(5, 2) not null check (cutoff_marks >= 0 and cutoff_marks <= 100),  -- migration 020
   gender       text not null check (gender in ('male', 'female')),   -- migration 013
   year         text not null check (year in ('1', '2')),             -- migration 018
   set_by       text not null,             -- admin_token username
@@ -889,6 +889,8 @@ Layout:
 - A **Note** column (2026-09-01) beside the marks input, saved to `recruit_marks.note` (migration 019, nullable `text`, CHECK <= 500 chars). Optional context a bare 0-100 loses: "answered only 3 of 5", "sheet partly unreadable". A blank note stores NULL, not `""`, and the Save button enables on a note-only edit
 - **Exam** filter (All / Attended / Absent) and **Year** filter (All / Year 1 / Year 2), both client-side, both defaulting to **All** (2026-09-01). All deliberately stays the default: marks entry is explicitly *not* gated by attendance, so opening on "Attended" would hide anyone whose scan failed. The Exam filter reads the same per-domain `day1`/`day2` booleans the attendance badge uses
 - Search matches name, reg no **or phone** (2026-09-01). Phone is never rendered here — searchable only
+- **Gender** filter (All / Male / Female), client-side (2026-09-01). Cutoffs are gender-scoped, so an evaluator marking one gender's papers can narrow to them. Gender is filter-only here, never rendered
+- Marks accept **half steps** (0, 0.5, 1 … 100) since migration 020 — the input is `step={0.5}` and both the API and the UI validate through the shared `parseMarksValue`
 - Under each marks input, a **"Saved by &lt;name&gt; · &lt;date, time&gt;"** line (2026-08-31) — `evaluator_username` resolved to a display name via `resolveDisplayNames`, plus `updated_at`. The POST echoes both back so this updates the instant you save, rather than staying stale (or absent, on a first entry) until a reload. This is the only visible signal that someone else already marked a row, since the upsert is silently last-write-wins
 
 Calls: `POST /api/admin/recruitment/marks` (upsert)
@@ -1009,7 +1011,7 @@ The older top-level response fields (`overall`, `by_domain`, `by_domain_gender`,
 
 | Method | Route | What |
 |--------|-------|------|
-| GET | `/api/admin/recruitment/recruits` | List recruits for active cycle. Query params: `domain`, `year`, `search` |
+| GET | `/api/admin/recruitment/recruits` | List recruits for active cycle. Query params: `domain`, `year`, `gender` (2026-09-01), `search` (matches name, reg no or phone). All are applied server-side and mirrored by the export route |
 | GET | `/api/admin/recruitment/recruits/export` | CSV export of recruits |
 
 #### Admin — Marks
@@ -1378,7 +1380,7 @@ Unlike the `/recruit/tables` interview kiosk, this is **not public** — it's be
 // 2. sub_domain must pass isRecruitSubDomain() → 400 otherwise
 // 3. Verify recruit selected this sub_domain (check recruit_domain_selections)
 //    → 400 'Recruit did not select this sub_domain'
-// 4. marks must be an integer 0–100
+// 4. marks must be 0–100 in steps of 0.5 (migration 020)
 // 5. Upsert recruit_marks on (recruit_id, sub_domain, cycle_id),
 //    set evaluator_username from session, set updated_at = now()
 
@@ -1971,6 +1973,51 @@ describes the current 4-column key and both widenings.
 **Still stale, not fixed:** `scripts/seed-recruitment.ts` inserts gender-blind, year-blind
 cutoff rows and will violate the NOT NULL constraints if run today.
 
+### Half marks, gender filters, and the marks-page render fix (2026-09-01)
+
+Migration **020** applied via the Supabase MCP `apply_migration` tool, and mirrored into
+`recruit-schema.sql`.
+
+1. **Half marks (migration 020).** `recruit_marks.marks` and `recruit_cutoffs.cutoff_marks`
+   both went `integer` -> `numeric(5,2)`, with a CHECK `((x * 2) = trunc(x * 2))` enforcing
+   whole-or-half values. Widening is lossless so there was no backfill; all 94 existing marks
+   rows and the 4 cutoff rows survived unchanged.
+   - **numeric, not real/double precision, deliberately.** numeric is exact decimal. The
+     shortlist engine's `marks >= cutoff` must never flip on a float representation error for
+     a recruit sitting exactly on the bar, and the half-step CHECK has to be exact rather than
+     approximate.
+   - **Cutoffs moved in lockstep on purpose.** Leaving the bar an integer would make 72.5 and
+     72.9 indistinguishable at a cutoff of 72 — the decimals would stop mattering exactly at
+     the boundary where they matter most.
+   - Verified against the live DB that `to_json(72.5::numeric)` serialises as the bare JSON
+     number `72.5` (and `72.00` as `72`), so supabase-js hands back a JS number, not a string.
+     Reads are still `Number(...)`-coerced anyway: the `recruit_*` tables go through an
+     **untyped** client, so nothing at the type level would catch a string, and a string on
+     either side of `>=` turns the comparison lexicographic — `"9" >= "72.5"` is true.
+   - To allow arbitrary 2dp later, drop just the two `*_half_step` constraints. The
+     `numeric(5,2)` column type already permits it; no type change needed.
+2. **Gender filters** on every recruit-listing surface, matching each page's existing filter
+   style. `gender` is nullable, so — like Year — a null matches neither specific option but
+   stays reachable under "All" rather than vanishing from every view. On the exam check-in
+   board gender may be filtered on but, like `phone`, is never rendered: that board is
+   projected in front of the whole exam queue.
+3. **The marks page no longer stalls on save.** The report was "the whole page goes blank and
+   loads" on every save. It was NOT a refetch — `save()` never called `load()`. The real cause
+   was render cost: a popular domain puts 600+ recruits in one table, each with two controlled
+   inputs (~6000 DOM nodes), every row was inline JSX with no memoization, and `inputs` /
+   `noteInputs` were single objects keyed by recruit id. So **every keystroke re-reconciled all
+   600 rows**, and one save fired several state updates back to back, each doing the same.
+   The fix keeps the single long list exactly as it was (no pagination, no virtualization):
+   the row became a `memo`-ised `<MarkRow>`, and every prop it takes is primitive or
+   referentially stable — this row's two values rather than the whole `inputs` map, a `saving`
+   boolean rather than `savingId`, and `useCallback` handlers that take the recruit id as an
+   argument and use functional `setState` so their identity never changes. `onSave` receives
+   the row's current values as arguments specifically so it doesn't have to close over the
+   input maps, which would have made it unstable and defeated the memo.
+   Net effect: a keystroke re-renders one row instead of 600, and a save re-renders two.
+   **If you add a prop to `<MarkRow>`, keep it primitive or stable** — an inline arrow or a
+   fresh object literal in those props silently restores the old behaviour.
+
 ### Known remaining gaps (not fixed yet)
 
 - **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) — but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel. The 2026-08-13 auto-routing/redistribution logic inherits the same caveat — verified by reading the code and by manual testing against seeded data (via Supabase MCP + a Playwright screenshot of the kiosk screen), not load-tested.
@@ -1993,7 +2040,7 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 ### File map
 
 - `supabase/recruit-schema.sql` — full current schema (already reflects all pending migrations — it's the target state, not what's live)
-- `supabase/recruit-migration-0NN-*.sql` — the numbered migrations, apply in order (highest is 019). 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the public chatbot; 016 = drop year '3'; 018 (2026-09-01) = year-scoped cutoffs; 019 (2026-09-01) = `recruit_marks.note`. Note 004 and 005 each got used twice by different files — a pre-existing collision, don't reuse a number again
+- `supabase/recruit-migration-0NN-*.sql` — the numbered migrations, apply in order (highest is 019). 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the public chatbot; 016 = drop year '3'; 018 (2026-09-01) = year-scoped cutoffs; 019 (2026-09-01) = `recruit_marks.note`; 020 (2026-09-01) = half marks (marks + cutoffs integer -> numeric). Note 004 and 005 each got used twice by different files — a pre-existing collision, don't reuse a number again
 - `src/lib/recruit-domains.ts` — domain/subsystem source of truth
 - `src/lib/recruit-year.ts` (new, 2026-09-01) — year-of-study source of truth ('1'/'2'), the counterpart to `gender.ts`; both feed the 4-cell cutoff grid
 - `src/lib/recruit-validation.ts` — also holds `PHONE_RE`, `digitsOnly` and `phoneSearchTerm` (2026-09-01), the shared normalizer every phone search goes through

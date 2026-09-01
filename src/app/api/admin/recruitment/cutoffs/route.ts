@@ -5,6 +5,7 @@ import { RECRUIT_SUBDOMAIN_KEYS, isRecruitSubDomain, type RecruitSubDomain } fro
 import { GENDERS, isGender, type Gender } from "@/lib/gender";
 import { RECRUIT_YEARS, isRecruitYear, type RecruitYear } from "@/lib/recruit-year";
 import { resolveDisplayNames } from "@/lib/admin-users";
+import { MARKS_ERROR, parseMarksValue } from "@/lib/recruit-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     GENDERS.flatMap((g) =>
       RECRUIT_YEARS.map((y) => {
         const existing = byKey.get(cutoffKey(domain, g.key, y.key)) as
-          | { sub_domain: string; gender: string; year: string; cutoff_marks: number; set_by: string; set_at: string }
+          | { sub_domain: string; gender: string; year: string; cutoff_marks: number | string | null; set_by: string; set_at: string }
           | undefined;
         if (!existing) {
           return {
@@ -69,7 +70,14 @@ export async function GET(request: NextRequest) {
             set_at: null,
           };
         }
-        return { ...existing, set_by: setByNames.get(existing.set_by) ?? existing.set_by };
+        return {
+          ...existing,
+          // cutoff_marks is `numeric` read through the untyped recruit client, so it can
+          // arrive as a string ("72.50"). Ship a real number so the Cutoffs page renders
+          // "72.5" rather than "72.50" and never compares strings.
+          cutoff_marks: existing.cutoff_marks === null ? null : Number(existing.cutoff_marks),
+          set_by: setByNames.get(existing.set_by) ?? existing.set_by,
+        };
       })
     )
   );
@@ -115,10 +123,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const cutoff = typeof item.cutoff_marks === "number" ? item.cutoff_marks : Number(item.cutoff_marks);
-    if (!Number.isInteger(cutoff) || cutoff < 0 || cutoff > 100) {
+    const cutoff = parseMarksValue(item.cutoff_marks);
+    if (cutoff === null) {
       return NextResponse.json(
-        { success: false, error: `cutoff_marks for ${item.sub_domain} (${item.gender}, year ${item.year}) must be an integer between 0 and 100` },
+        { success: false, error: `cutoff_marks for ${item.sub_domain} (${item.gender}, year ${item.year}) is invalid. ${MARKS_ERROR}` },
         { status: 400 }
       );
     }

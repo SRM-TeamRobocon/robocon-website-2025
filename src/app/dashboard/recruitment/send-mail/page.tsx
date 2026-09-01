@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { Mail, Search, Send, CheckSquare, Square, AlertTriangle } from "lucide-react";
 import { useRoleGate } from "@/hooks/use-require-role";
 import { groupBySubsystem, subDomainLabel } from "@/lib/recruit-domains";
+import { GENDERS } from "@/lib/gender";
 import Select from "@/components/ui/select";
 
 const DOMAIN_GROUPS = groupBySubsystem();
@@ -28,6 +29,11 @@ interface ShortlistRow {
     sub_domain: string;
     status: "pending" | "shortlisted" | "not_shortlisted";
 }
+
+const GENDER_OPTIONS = [
+    { value: "", label: "All genders" },
+    ...GENDERS.map((g) => ({ value: g.key, label: g.label })),
+];
 
 const STATUS_OPTIONS = [
     { value: "", label: "Any shortlist status" },
@@ -81,6 +87,7 @@ export default function SendMailPage() {
     const [error, setError] = useState<string | null>(null);
     const [domain, setDomain] = useState("");
     const [year, setYear] = useState("");
+    const [gender, setGender] = useState("");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [shortlistMap, setShortlistMap] = useState<Map<string, ShortlistRow[]>>(new Map());
@@ -102,6 +109,9 @@ export default function SendMailPage() {
             const params = new URLSearchParams();
             if (domain) params.set("domain", domain);
             if (year) params.set("year", year);
+            // Server-side, like domain/year. gender is nullable on recruit_accounts, so a
+            // recruit with none on file is only returned under "All genders" (no param).
+            if (gender) params.set("gender", gender);
             if (search) params.set("search", search);
 
             fetch(`/api/admin/recruitment/recruits?${params.toString()}`, { signal: controller.signal })
@@ -120,7 +130,7 @@ export default function SendMailPage() {
             clearTimeout(t);
             controller.abort();
         };
-    }, [ready, domain, year, search]);
+    }, [ready, domain, year, gender, search]);
 
     // Shortlist status lives in a separate table (recruit_shortlist_status), keyed per
     // recruit+domain — fetched alongside the roster so both the "Shortlist" column and the
@@ -361,6 +371,14 @@ export default function SendMailPage() {
                             { value: "1", label: "Year 1" },
                             { value: "2", label: "Year 2" },
                         ]}
+                    />
+                </div>
+                <div className="w-40">
+                    <Select
+                        value={gender}
+                        onChange={setGender}
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+                        options={GENDER_OPTIONS}
                     />
                 </div>
                 <div className="w-52">

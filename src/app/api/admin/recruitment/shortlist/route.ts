@@ -20,7 +20,7 @@ async function getActiveCycleId(supabase: ReturnType<typeof createRecruitSupabas
 
 // GET /api/admin/recruitment/shortlist?domain=&status=
 // Returns all recruit_shortlist_status rows for the active cycle, joined with recruit
-// name/reg_no/year/department/portfolio_url and their marks.
+// name/reg_no/year/gender/department/portfolio_url and their marks.
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["lead", "admin"])) {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_shortlist_status")
       .select(
-        "id, recruit_id, sub_domain, status, method, override_reason, overridden_by, overridden_at, computed_at, called_by, called_at, recruit_accounts(id, name, reg_no, year, department, course, portfolio_url, phone)"
+        "id, recruit_id, sub_domain, status, method, override_reason, overridden_by, overridden_at, computed_at, called_by, called_at, recruit_accounts(id, name, reg_no, year, gender, department, course, portfolio_url, phone)"
       )
       .eq("cycle_id", cycleId)
       .order("sub_domain", { ascending: true });
@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
 
   const rowRecruitIds = rows.map((r) => r.recruit_id as string);
 
-  let marksMap = new Map<string, number>();
+  let marksMap = new Map<string, number | null>();
   if (rowRecruitIds.length > 0) {
     const { data: marksRows, error: marksError } = await selectInChunks<{
       recruit_id: string;
       sub_domain: string;
-      marks: number;
+      marks: number | string | null;
     }>(rowRecruitIds, (chunk) =>
       supabase.from("recruit_marks").select("recruit_id, sub_domain, marks").eq("cycle_id", cycleId).in("recruit_id", chunk)
     );
@@ -84,7 +84,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Could not load marks" }, { status: 500 });
     }
 
-    marksMap = new Map(marksRows.map((m) => [`${m.recruit_id}:${m.sub_domain}`, m.marks]));
+    // `marks` is numeric(5,2) since migration 020 and this client is untyped, so PostgREST
+    // may hand it over as the string "72.50". Coerce so the row ships a real number (and
+    // renders as "72.5", not "72.50"). A stored null stays null — combined with the `?? null`
+    // below, a recruit with no marks row still reports null rather than 0.
+    marksMap = new Map(
+      marksRows.map((m) => [`${m.recruit_id}:${m.sub_domain}`, m.marks === null ? null : Number(m.marks)])
+    );
   }
 
   // Supabase's untyped client can't confirm this is a to-one relationship, so it may type
@@ -115,6 +121,9 @@ export async function GET(request: NextRequest) {
         name: acc.name,
         reg_no: acc.reg_no,
         year: acc.year,
+        // Nullable on recruit_accounts — passed through as null rather than defaulted, so
+        // the page's "All genders" option is the only thing that can show such a row.
+        gender: acc.gender ?? null,
         department: acc.department,
         course: acc.course,
         portfolio_url: acc.portfolio_url,

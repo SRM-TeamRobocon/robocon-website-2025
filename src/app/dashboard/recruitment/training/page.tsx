@@ -20,7 +20,13 @@ import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
 import { todayInIST } from "@/lib/recruit-dates";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
+import { GENDERS } from "@/lib/gender";
 import Select from "@/components/ui/select";
+
+const GENDER_OPTIONS = [
+    { value: "", label: "All genders" },
+    ...GENDERS.map((g) => ({ value: g.key, label: g.label })),
+];
 
 interface TrainingSession {
     id: string;
@@ -52,6 +58,9 @@ interface RecruitSessionRow {
     recruit_id: string;
     name: string;
     reg_no: string;
+    // Filter-only — never rendered in a row. Nullable, so a recruit with no gender on file
+    // matches neither option and shows only under "All genders".
+    gender: string | null;
     // Search-only — never rendered in a row.
     phone: string | null;
     attended: boolean;
@@ -105,6 +114,7 @@ export default function TrainingAttendancePage() {
     const [creating, setCreating] = useState(false);
 
     const [search, setSearch] = useState("");
+    const [genderFilter, setGenderFilter] = useState("");
     const [markingId, setMarkingId] = useState<string | null>(null);
 
     const loadSessions = useCallback(async () => {
@@ -256,12 +266,15 @@ export default function TrainingAttendancePage() {
             row.name.toLowerCase().includes(query) ||
             row.reg_no.toLowerCase().includes(query) ||
             (phoneQuery !== null && (row.phone ?? "").includes(phoneQuery));
+        // gender is nullable on recruit_accounts, so a recruit with none on file matches
+        // neither option — "All genders" (the empty value) is what keeps them listed.
+        const matchesGender = (row: RecruitSessionRow) => !genderFilter || row.gender === genderFilter;
 
         return {
-            attended: detail.recruits.filter((r) => r.attended && matches(r)),
-            pending: detail.recruits.filter((r) => !r.attended && matches(r)),
+            attended: detail.recruits.filter((r) => r.attended && matches(r) && matchesGender(r)),
+            pending: detail.recruits.filter((r) => !r.attended && matches(r) && matchesGender(r)),
         };
-    }, [detail, search]);
+    }, [detail, search, genderFilter]);
 
     if (!ready) return null;
 
@@ -411,17 +424,27 @@ export default function TrainingAttendancePage() {
                                 </div>
                             </div>
 
-                            <div className="relative max-w-sm">
-                                <Search
-                                    size={14}
-                                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-                                />
-                                <input
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search by name, reg no or phone..."
-                                    className="w-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
-                                />
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="relative max-w-sm flex-1">
+                                    <Search
+                                        size={14}
+                                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                    />
+                                    <input
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        placeholder="Search by name, reg no or phone..."
+                                        className="w-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition focus:border-red"
+                                    />
+                                </div>
+                                <div className="w-40">
+                                    <Select
+                                        value={genderFilter}
+                                        onChange={setGenderFilter}
+                                        options={GENDER_OPTIONS}
+                                        className="bg-white/5 ring-white/10 py-2.5 px-3 text-sm"
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">

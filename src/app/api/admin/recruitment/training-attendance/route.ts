@@ -29,6 +29,11 @@ interface RecruitRow {
   id: string;
   name: string;
   reg_no: string;
+  // Returned on the per-session roster only, so the mark-present gender filter can narrow
+  // it. Nullable on recruit_accounts — a recruit with none on file matches neither option
+  // and stays visible only under "All genders". Left off the overview summary shape, like
+  // phone below, since nothing there filters on it.
+  gender: string | null;
   // Returned on the per-session roster only, so the mark-present search box can match a
   // number. Not rendered anywhere, and deliberately left off the overview summary shape.
   phone: string | null;
@@ -78,7 +83,7 @@ export async function GET(request: NextRequest) {
   const { data: recruitList, error: recruitsError } = await fetchAllRows<RecruitRow>((from, to) =>
     supabase
       .from("recruit_accounts")
-      .select("id, name, reg_no, phone")
+      .select("id, name, reg_no, gender, phone")
       .eq("cycle_id", cycle.id)
       .eq("is_selected", true)
       .order("name", { ascending: true })
@@ -159,6 +164,7 @@ export async function GET(request: NextRequest) {
         recruit_id: recruit.id,
         name: recruit.name,
         reg_no: recruit.reg_no,
+        gender: recruit.gender,
         phone: recruit.phone,
         attended: Boolean(marked),
         method: marked?.method ?? null,

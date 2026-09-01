@@ -6,9 +6,9 @@ import { fetchAllRows } from "@/lib/supabase/query-helpers";
 
 export const dynamic = "force-dynamic";
 
-// `phone` rides along ONLY so the board's search box can match it — see the CheckIn type
-// below. It is never rendered.
-type AccountFields = { name: string; reg_no: string; year: string; phone: string | null };
+// `phone` rides along ONLY so the board's search box can match it, and `gender` ONLY so the
+// board's gender pills can filter on it — see the CheckIn type below. Neither is rendered.
+type AccountFields = { name: string; reg_no: string; year: string; gender: string | null; phone: string | null };
 type Account = AccountFields | AccountFields[] | null;
 const accountOf = (acc: Account) => (Array.isArray(acc) ? acc[0] : acc);
 
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         fetchAllRows<AttendanceRow>((from, to) => {
             let q = supabase
                 .from("recruit_exam_attendance")
-                .select("id, recruit_id, sub_domain, day, scanned_at, recruit_accounts(name, reg_no, year, phone)")
+                .select("id, recruit_id, sub_domain, day, scanned_at, recruit_accounts(name, reg_no, year, gender, phone)")
                 .eq("cycle_id", cycle.id);
             if (dayParam !== "all") q = q.eq("day", Number(dayParam));
             return q
@@ -125,11 +125,14 @@ export async function GET(request: NextRequest) {
         registeredByDomain.set(row.sub_domain, counts);
     }
 
-    // `phone` is SEARCH-ONLY. This board is projected on a screen at the exam hall in front
-    // of every recruit in the queue, so a phone number must NEVER be rendered in a row — it
-    // is here purely so the board's "find yourself" box can match a number. Don't add it to
-    // the JSX on /dashboard/recruitment/exam-checkin.
-    type CheckIn = { recruit_id: string; name: string; reg_no: string; year: string; phone: string | null; day: number; at: string };
+    // `phone` is SEARCH-ONLY and `gender` is FILTER-ONLY. This board is projected on a screen
+    // at the exam hall in front of every recruit in the queue, so neither must EVER be
+    // rendered in a row — phone is here purely so the board's "find yourself" box can match a
+    // number, and gender purely so a volunteer can narrow the columns to one hall section.
+    // Don't add either to the JSX on /dashboard/recruitment/exam-checkin.
+    // gender stays nullable end to end: a recruit with none on file is still listed, and is
+    // simply not matched by either specific pill.
+    type CheckIn = { recruit_id: string; name: string; reg_no: string; year: string; gender: string | null; phone: string | null; day: number; at: string };
     const checkedInByDomain = new Map<string, Record<YearBucket, CheckIn[]>>();
     for (const row of attendance) {
         const acc = accountOf(row.recruit_accounts);
@@ -139,6 +142,7 @@ export async function GET(request: NextRequest) {
             name: acc?.name ?? "Unknown",
             reg_no: acc?.reg_no ?? "",
             year: acc?.year ?? "",
+            gender: acc?.gender ?? null,
             phone: acc?.phone ?? null,
             day: row.day,
             at: row.scanned_at,
