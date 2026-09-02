@@ -178,7 +178,11 @@ function ExamDomainsTab() {
   const [callBusyId, setCallBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState<ShortlistSortKey>>(null);
-  const [interviewDates, setInterviewDates] = useState<Record<string, string>>({});
+  // ONE date for the whole page, not one per recruit. Interview day is walk-in with no time
+  // slots (see the interview dashboard), so there is no per-recruit slot to record - everyone
+  // shortlisted gets told the same day. Typing it once here also stops a lead retyping the
+  // same string for every recruit they message.
+  const [interviewDate, setInterviewDate] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (id: string) => {
@@ -250,28 +254,39 @@ function ExamDomainsTab() {
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
   const sendWhatsApp = (row: ShortlistRow) => {
+    const when = interviewDate.trim();
+    // The date line REPLACES the "shared soon" placeholder rather than sitting beside it, so
+    // the message never states a time and promises the time separately in the same breath.
+    const schedule = when
+      ? `🗓️ Interview: ${when}`
+      : "Further details regarding the interview schedule will be shared soon.";
+
+    // Deliberately flush against column 0. A template literal keeps its source indentation,
+    // so indenting these lines to match the surrounding code would put four leading spaces in
+    // front of every line the recruit actually receives on WhatsApp.
     const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainLabel(
       row.sub_domain
     )} sub-domain! 🤖🔥
 
-    📍 Venue: SRM Team Robocon Lab, 1st Floor, SRM IST Canteen, near HiTech Block, Main Campus
-    🗺️ Location: https://maps.app.goo.gl/y6auhbSeuUGh2o2N8
+📍 Venue: SRM Team Robocon Lab, 1st Floor, SRM IST Canteen, near HiTech Block, Main Campus
+🗺️ Location: https://maps.app.goo.gl/y6auhbSeuUGh2o2N8
 
-    We’re excited to meet you and see what you’ve got! 🚀
+${schedule}
 
-    Further details regarding the interview schedule will be shared soon.
+We're excited to meet you and see what you've got! 🚀
 
-    All the best! 💪🤖
+All the best! 💪🤖
 
-    — SRM Team Robocon`;
-      
-      const url = buildWhatsAppLink(row.recruit.phone ?? "", message);
-      if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else {
-        toast.error("No valid phone number on file for this recruit");
-      }
+- SRM Team Robocon`;
+
+    const url = buildWhatsAppLink(row.recruit.phone ?? "", message);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error("No valid phone number on file for this recruit");
+    }
   };
+
   const decide = async (id: string, newStatus: "shortlisted" | "not_shortlisted", reason: string) => {
     setBusyId(id);
     try {
@@ -373,6 +388,14 @@ function ExamDomainsTab() {
             className="h-10 border-0 bg-white/5 pl-8 pr-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <input
+          type="text"
+          value={interviewDate}
+          onChange={(e) => setInterviewDate(e.target.value)}
+          placeholder="Interview date/time (optional)"
+          title="Included in every WhatsApp message sent from this page. Leave blank and the message says the schedule follows separately."
+          className="h-10 w-60 border-0 bg-white/5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
+        />
       </div>
 
       <div className="border border-white/10 bg-black">
@@ -435,15 +458,6 @@ function ExamDomainsTab() {
                             label="WhatsApp"
                             value={
                               <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={interviewDates[row.id] ?? ""}
-                                  onChange={(e) =>
-                                    setInterviewDates((prev) => ({ ...prev, [row.id]: e.target.value }))
-                                  }
-                                  placeholder="Interview date/time"
-                                  className="w-36 border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                                />
                                 <button
                                   type="button"
                                   onClick={() => sendWhatsApp(row)}
