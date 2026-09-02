@@ -1,6 +1,6 @@
 // Draws a portrait ID-badge image (logo + name + QR) onto an offscreen canvas and
 // returns a PNG data URL, for use as the Lanyard component's `frontImage` prop.
-// Client-only — uses document/Image, must be called inside a browser context.
+// Client-only - uses document/Image, must be called inside a browser context.
 
 function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {

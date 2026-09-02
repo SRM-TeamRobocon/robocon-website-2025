@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import ParticlesCom from "@/components/Particles";
 
-// These are the pages people spend the longest time on actively typing into forms —
+// These are the pages people spend the longest time on actively typing into forms -
 // the full-viewport animated canvas is pure overhead competing for the same frame
 // budget as everything else, and combined with the backdrop-blur glass card on top of
 // it, iOS Safari in particular can drop/lag keystrokes badly enough that typing feels

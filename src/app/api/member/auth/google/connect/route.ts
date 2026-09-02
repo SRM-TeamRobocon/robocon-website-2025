@@ -8,7 +8,7 @@ import { MEMBER_OAUTH_CONNECT_NONCE_COOKIE, NONCE_COOKIE_OPTIONS } from "@/lib/m
 export const dynamic = "force-dynamic";
 
 // Opened in a popup from the dashboard "Connect Gmail" button. Requires an active
-// member session — the callback links the Google profile to session.memberAccountId,
+// member session - the callback links the Google profile to session.memberAccountId,
 // so there's no need to carry account identity through the OAuth `state` param.
 export async function GET(request: NextRequest) {
     const origin = new URL(request.url).origin;

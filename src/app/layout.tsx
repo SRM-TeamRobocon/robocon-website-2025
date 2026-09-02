@@ -27,7 +27,7 @@ export default function RootLayout({
         {/* Vercel already 307s the bare apex to www at the edge, but that only fires on a
             real top-level navigation. A tab that's been client-side-routing (Next.js Link/
             router.push) since before that redirect ran, or one restored from bfcache, keeps
-            showing apex in the URL bar — and every fetch() from an apex-origin page silently
+            showing apex in the URL bar - and every fetch() from an apex-origin page silently
             drops cookies on the auto-followed redirect to www (default `credentials:
             "same-origin"` only attaches cookies when the request's final origin matches the
             page's own origin), so any logged-in action 401s and looks like a random logout.

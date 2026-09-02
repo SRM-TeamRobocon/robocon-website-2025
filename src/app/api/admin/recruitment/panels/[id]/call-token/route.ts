@@ -10,13 +10,13 @@ type RouteContext = { params: Promise<{ id: string }> };
 const TOKEN_COLUMNS =
   "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin, panel_id, sub_domain";
 
-// Postgres unique_violation — fired by the (panel_id, token_number) backstop when this
+// Postgres unique_violation - fired by the (panel_id, token_number) backstop when this
 // route's freshly-computed token_number collides with a concurrent check-in/call onto
 // the same target panel.
 const UNIQUE_VIOLATION = "23505";
 const MAX_ATTEMPTS = 5;
 
-// Keep in sync with call-next/route.ts — both self-heal the same "one called recruit
+// Keep in sync with call-next/route.ts - both self-heal the same "one called recruit
 // per table at a time" invariant the same way, so a table's Call Next and its shared
 // -queue "Call to <table>" buttons never disagree about whether it's free.
 const NO_SHOW_TIMEOUT_MINUTES = 15;
@@ -58,19 +58,19 @@ type TokenRow = {
 // recruit from their sub_domain's shared queue to their own table, even if that
 // recruit was originally auto-routed (or drag-reordered) onto a DIFFERENT table for
 // the same domain. Complements call-next (which only ever pulls the front of THIS
-// panel's own queue) — both stay available in the UI side by side.
+// panel's own queue) - both stay available in the UI side by side.
 //
 // If the token is already on this panel, this is just a manual override of FIFO order
 // (flip straight to `called`). If it's on a different panel, calling it also reassigns
 // panel_id and allocates a FRESH token_number + queue_position scoped to the new panel
-// — same read-max-then-write pattern, and the same retry-on-23505 discipline, used at
+// - same read-max-then-write pattern, and the same retry-on-23505 discipline, used at
 // check-in time (scan/route.ts) and by close-for-day's redistribution
 // (recruit-interview-redistribution.ts). This has to happen here, in the same request
-// as the reassignment, not via a trigger — see the schema file's note on token_number
+// as the reassignment, not via a trigger - see the schema file's note on token_number
 // allocation for why.
 //
 // Rejects (400) a token that isn't `waiting`, or whose sub_domain doesn't match this
-// panel's — a recruit can never be pulled into a table for a different domain than the
+// panel's - a recruit can never be pulled into a table for a different domain than the
 // one they checked into.
 export async function POST(request: NextRequest, context: RouteContext) {
   const session = await getSession();
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "This table is closed" }, { status: 400 });
   }
   if (!panel.sub_domain) {
-    return NextResponse.json({ error: "This table has no domain set — cannot call to it" }, { status: 400 });
+    return NextResponse.json({ error: "This table has no domain set - cannot call to it" }, { status: 400 });
   }
 
   const respond = async (token: TokenRow) => {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     // Same "one called recruit per table at a time" rule call-next enforces, including
-    // its self-healing stale-called timeout — a table an interviewer forgot to resolve
+    // its self-healing stale-called timeout - a table an interviewer forgot to resolve
     // shouldn't block a manual call any longer than it blocks Call Next.
     const { data: existingCalledRaw, error: calledError } = await supabase
       .from("recruit_interview_tokens")
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         );
       }
       // Flip it out of the way (CAS-guarded in case someone resolves it concurrently)
-      // and fall through — the table is free again.
+      // and fall through - the table is free again.
       await supabase
         .from("recruit_interview_tokens")
         .update({ status: "no_show" })
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
     if (token.status !== "waiting") {
       return NextResponse.json(
-        { error: "This recruit isn't waiting anymore — refresh the queue" },
+        { error: "This recruit isn't waiting anymore - refresh the queue" },
         { status: 400 }
       );
     }
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "This recruit isn't in this table's domain" }, { status: 400 });
     }
 
-    // Already on this panel — just a manual FIFO override, no reassignment needed.
+    // Already on this panel - just a manual FIFO override, no reassignment needed.
     if (token.panel_id === panelId) {
       const { data: updated, error: updateError } = await supabase
         .from("recruit_interview_tokens")
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (updateError) throw new Error(updateError.message);
       if (!updated) {
         return NextResponse.json(
-          { error: "Someone else just called this recruit — refresh the queue" },
+          { error: "Someone else just called this recruit - refresh the queue" },
           { status: 409 }
         );
       }
@@ -239,7 +239,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (!updateError) {
         if (!updated) {
           return NextResponse.json(
-            { error: "Someone else just called this recruit — refresh the queue" },
+            { error: "Someone else just called this recruit - refresh the queue" },
             { status: 409 }
           );
         }
@@ -250,10 +250,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         throw new Error(updateError.message);
       }
       // A concurrent check-in or another manual call landed the same token_number on
-      // this panel between our read and our write — loop around and recompute the max.
+      // this panel between our read and our write - loop around and recompute the max.
     }
 
-    return NextResponse.json({ error: "Table is busy right now — try calling again" }, { status: 409 });
+    return NextResponse.json({ error: "Table is busy right now - try calling again" }, { status: 409 });
   } catch (error) {
     console.error("recruitment call-token error", error);
     return NextResponse.json({ error: "Could not call this recruit" }, { status: 500 });

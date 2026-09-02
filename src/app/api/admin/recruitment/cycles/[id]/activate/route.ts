@@ -12,20 +12,20 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: string }).code === UNIQUE_VIOLATION;
 }
 
-// PATCH /api/admin/recruitment/cycles/:id/activate — admin only.
+// PATCH /api/admin/recruitment/cycles/:id/activate - admin only.
 //
 // The recovery path for the previously one-way cycle lifecycle: before this route, closing a
 // cycle (or a half-failed create) left ZERO active cycles and every `.single()` active-cycle
 // lookup in the module returned 503/500 with no fix short of manual SQL.
 //
 // Stands every other cycle down, then activates this one, and clears closed_at so a
-// re-opened cycle no longer reads as "Closed". Two statements rather than one transaction —
+// re-opened cycle no longer reads as "Closed". Two statements rather than one transaction -
 // the partial unique index `recruitment_cycles_single_active` is what actually guarantees
 // a concurrent activate can never leave two cycles active (it raises 23505 instead).
 export async function PATCH(_request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["admin"])) {
-    return NextResponse.json({ success: false, error: "Forbidden — admin only." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "Forbidden - admin only." }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -49,7 +49,7 @@ export async function PATCH(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ success: false, error: "Cycle not found." }, { status: 404 });
   }
 
-  // Stand down every other cycle first — activating first would trip the single-active index.
+  // Stand down every other cycle first - activating first would trip the single-active index.
   const { error: deactivateError } = await supabase
     .from("recruitment_cycles")
     .update({ is_active: false })

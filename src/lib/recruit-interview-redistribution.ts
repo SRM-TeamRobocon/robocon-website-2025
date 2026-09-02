@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Shared by "Close for the Day" and panel deletion — both need to get every `waiting`
+// Shared by "Close for the Day" and panel deletion - both need to get every `waiting`
 // recruit off a table that's going away onto another open table for the same domain, or
 // (if none is open) flip them to `deferred` rather than stranding them.
 
@@ -20,7 +20,7 @@ export type RedistributeResult = { moved: number; deferred: number };
 // active, marks them `deferred` ("come back another day for this domain") instead of
 // leaving them `waiting` on a table that will never call them again.
 //
-// Does NOT touch `panel`'s own row (is_active, deletion, etc.) — callers do that
+// Does NOT touch `panel`'s own row (is_active, deletion, etc.) - callers do that
 // themselves before or after, per their own semantics.
 export async function redistributeWaitingTokens(
   supabase: SupabaseClient,
@@ -52,7 +52,7 @@ export async function redistributeWaitingTokens(
     return { moved: 0, deferred: waitingTokens.length };
   };
 
-  // No domain to match same-domain tables against (legacy panel with no sub_domain) —
+  // No domain to match same-domain tables against (legacy panel with no sub_domain) -
   // nothing to redistribute onto.
   if (!panel.sub_domain) {
     return deferAll();
@@ -75,7 +75,7 @@ export async function redistributeWaitingTokens(
   }
 
   // Per-target load + timeline snapshot, both mutated in-memory as tokens get assigned so
-  // later displaced recruits see the effect of earlier ones in this same batch — greedy
+  // later displaced recruits see the effect of earlier ones in this same batch - greedy
   // least-loaded balancing without a DB round trip per assignment.
   const { data: existingTokensRaw } = await supabase
     .from("recruit_interview_tokens")
@@ -149,7 +149,7 @@ export async function redistributeWaitingTokens(
 
     if (moveError) {
       // Very unlikely (a concurrent scan into the target table grabbed the same
-      // token_number) — defer this one rather than fail the whole batch.
+      // token_number) - defer this one rather than fail the whole batch.
       await supabase.from("recruit_interview_tokens").update({ status: "deferred" }).eq("id", token.id);
       deferred += 1;
       continue;
@@ -164,13 +164,13 @@ export async function redistributeWaitingTokens(
 }
 
 // For panel deletion only: recruit_interview_tokens.panel_id is `not null references
-// recruit_interview_panels(id)` with no ON DELETE CASCADE — every token still pointing at
+// recruit_interview_panels(id)` with no ON DELETE CASCADE - every token still pointing at
 // `panel.id` (called/done/no_show/deferred; `waiting` ones should already have been moved
 // by redistributeWaitingTokens) must be reassigned to SOME other still-existing panel for
 // the same domain before the row can be deleted. They don't need a *correct* table, just a
 // *valid* one: none of these statuses are rendered via panel affiliation anywhere, so
 // pointing a `deferred` or `done` token at an unrelated table for the same domain is
-// invisible to everyone. Falls back to ANY panel in the cycle if none share the domain —
+// invisible to everyone. Falls back to ANY panel in the cycle if none share the domain -
 // better than blocking the delete outright.
 export async function reattachHistoricalTokens(
   supabase: SupabaseClient,
@@ -215,7 +215,7 @@ export async function reattachHistoricalTokens(
     return {
       ok: false,
       reason:
-        "This is the only interview table that has ever existed for this cycle, and it has recorded history (interviews, no-shows, or deferrals) — deleting it would orphan that history. Use \"Close for the Day\" instead, or create another table first.",
+        "This is the only interview table that has ever existed for this cycle, and it has recorded history (interviews, no-shows, or deferrals) - deleting it would orphan that history. Use \"Close for the Day\" instead, or create another table first.",
     };
   }
 

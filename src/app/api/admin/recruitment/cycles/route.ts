@@ -13,7 +13,7 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: string }).code === UNIQUE_VIOLATION;
 }
 
-// GET /api/admin/recruitment/cycles — list all cycles (lead or admin), each with a
+// GET /api/admin/recruitment/cycles - list all cycles (lead or admin), each with a
 // total_recruits count (recruit_accounts rows for that cycle).
 export async function GET() {
   const session = await getSession();
@@ -46,21 +46,21 @@ export async function GET() {
   return NextResponse.json({ success: true, data: withCounts });
 }
 
-// POST /api/admin/recruitment/cycles — create a new cycle. Admin only (leads can view but
+// POST /api/admin/recruitment/cycles - create a new cycle. Admin only (leads can view but
 // not create/close/activate cycles).
 //
 // The old implementation deactivated every cycle FIRST and then inserted the new one, so a
 // failing insert left the module with ZERO active cycles (every `.single()` active-cycle
 // lookup 500s) with no way back except manual SQL. Order is now inverted: insert inactive,
 // then hand over. A failure at any later step leaves the previous active cycle untouched or
-// the new cycle sitting inactive — both recoverable from the UI's Activate button.
+// the new cycle sitting inactive - both recoverable from the UI's Activate button.
 //
 // "At most one active cycle" is now also a DB invariant (partial unique index), so a
 // concurrent double-create can no longer produce two active cycles.
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["admin"])) {
-    return NextResponse.json({ success: false, error: "Forbidden — admin only." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "Forbidden - admin only." }, { status: 403 });
   }
 
   let body: { name?: string; year?: string };

@@ -28,7 +28,7 @@ async function anthropicChatCompletion(systemPrompt: string, userMessage: string
 }
 
 // Provider-agnostic answer step, selected at call time via RAG_LLM_PROVIDER so the
-// concrete LLM can be swapped without touching the chat route. Defaults to "groq" —
+// concrete LLM can be swapped without touching the chat route. Defaults to "groq" -
 // the first provider wired up for this feature (see recruit-dashboard plan, Phase 3
 // build order: Groq first, Anthropic added afterward).
 const INSTAGRAM_HANDLE = "@srmteamrobocon";
@@ -36,10 +36,10 @@ const INSTAGRAM_URL = "https://www.instagram.com/srmteamrobocon/";
 
 // Shared verbatim with the system prompt below, so the chat route can return this exact
 // string directly when retrieval finds nothing at all (e.g. no KB documents uploaded
-// yet) — deterministic, rather than trusting the LLM to follow instructions for a case
+// yet) - deterministic, rather than trusting the LLM to follow instructions for a case
 // that's fully knowable before the LLM call ever happens.
 export const NO_CONTEXT_FALLBACK =
-    `I don't have that information yet — follow ${INSTAGRAM_HANDLE} on Instagram for updates: ${INSTAGRAM_URL}`;
+    `I don't have that information yet - follow ${INSTAGRAM_HANDLE} on Instagram for updates: ${INSTAGRAM_URL}`;
 
 function buildSystemPrompt(contextChunks: string[]): string {
     const context = contextChunks.length > 0 ? contextChunks.join("\n\n---\n\n") : "(no matching context found)";
@@ -67,5 +67,5 @@ export async function answerQuestion(question: string, contextChunks: string[]):
         return anthropicChatCompletion(systemPrompt, question);
     }
 
-    throw new Error(`Unknown RAG_LLM_PROVIDER "${provider}" — expected "groq" or "anthropic".`);
+    throw new Error(`Unknown RAG_LLM_PROVIDER "${provider}" - expected "groq" or "anthropic".`);
 }

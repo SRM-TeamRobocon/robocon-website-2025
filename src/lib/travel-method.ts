@@ -1,5 +1,5 @@
 // Canonical day-scholar travel method list for the recruitment module. Day-scholar-only
-// counterpart to src/lib/hostel-blocks.ts, following the same pattern — see
+// counterpart to src/lib/hostel-blocks.ts, following the same pattern - see
 // supabase/recruit-migration-012-day-scholar-details.sql for why this is a checked text
 // column rather than a Postgres enum (a third option can be added later with no ALTER TYPE).
 

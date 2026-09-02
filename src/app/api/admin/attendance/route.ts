@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // Manual escape hatch for cases self-service pairing can't reach: lost-card
 // replacement, or legacy LEAD_ACCOUNTS logins that have no member_accounts row of
-// their own to pair from. Not the primary flow — self-service pairing is.
+// their own to pair from. Not the primary flow - self-service pairing is.
 export async function PATCH(request: Request) {
     const session = await getSession();
     if (!requireRole(session, ["lead", "admin"])) {

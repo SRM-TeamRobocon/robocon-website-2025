@@ -4,8 +4,8 @@ import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 // Click target for expanding a table row: wraps the row's primary identity cell (usually
-// the name) in a button with a chevron that rotates open. Only this cell is clickable —
-// deliberately not the whole <tr> — so buttons/inputs elsewhere in the row (Save, Edit,
+// the name) in a button with a chevron that rotates open. Only this cell is clickable -
+// deliberately not the whole <tr> - so buttons/inputs elsewhere in the row (Save, Edit,
 // Override, WhatsApp) never need onClick stopPropagation gymnastics to avoid double-firing.
 export function ExpandToggleCell({
   expanded,
@@ -34,7 +34,7 @@ export function ExpandToggleCell({
   );
 }
 
-// The expanded detail panel — a full-width row directly under the toggled row, holding
+// The expanded detail panel - a full-width row directly under the toggled row, holding
 // whatever columns were moved off the main table to keep it from overflowing horizontally.
 export function DetailRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
   return (

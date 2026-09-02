@@ -46,7 +46,7 @@ function Flag({ ok }: { ok: boolean }) {
 // with two domains sits two different exams, so a bare "Day 1 / Day 2" pair couldn't say
 // WHICH one they turned up for. Pair every domain they applied for with whether they sat it.
 function DomainAttendance({ domains, exams }: { domains: string[]; exams: Recruit["exams"] }) {
-    if (domains.length === 0) return <span className="text-gray-600">—</span>;
+    if (domains.length === 0) return <span className="text-gray-600">-</span>;
 
     const dayOf = new Map((exams ?? []).map((e) => [e.sub_domain, e.day]));
 
@@ -76,7 +76,7 @@ function DomainAttendance({ domains, exams }: { domains: string[]; exams: Recrui
 
 export default function RecruitsPage() {
     const { ready, role } = useRoleGate(["member", "lead", "admin"]);
-    // Every dashboard role can view and edit recruits; deleting stays lead/admin-only — a
+    // Every dashboard role can view and edit recruits; deleting stays lead/admin-only - a
     // delete cascades away their scans, marks and interview records. The API enforces
     // this; this just hides the button that would always 403 for a member.
     const canDeleteRecruits = role === "lead" || role === "admin";
@@ -103,13 +103,13 @@ export default function RecruitsPage() {
         });
 
     // Search/domain/year/gender filtering already happened server-side, so `recruits` is the
-    // full result set by the time it lands here — sorting it is just re-ordering what's loaded.
+    // full result set by the time it lands here - sorting it is just re-ordering what's loaded.
     const sortedRecruits = useMemo(() => {
         if (!sort) return recruits;
         return [...recruits].sort((a, b) => compareBy(a[sort.key], b[sort.key], sort.direction));
     }, [recruits, sort]);
 
-    // Hard delete — cascades away the recruit's scans, marks, shortlist and interview rows.
+    // Hard delete - cascades away the recruit's scans, marks, shortlist and interview rows.
     const deleteRecruit = async (r: Recruit) => {
         if (!confirm(`Permanently delete ${r.name} (${r.reg_no})?\n\nThis also removes their attendance scans, marks, shortlist status and interview records. This cannot be undone.`)) {
             return;
@@ -236,7 +236,7 @@ export default function RecruitsPage() {
                 <div className="w-40">
                     {/* gender is nullable on recruit_accounts: picking Male or Female narrows
                         to that value server-side, so a recruit with no gender on file matches
-                        neither — "All genders" is the option that keeps them visible. */}
+                        neither - "All genders" is the option that keeps them visible. */}
                     <Select
                         value={gender}
                         onChange={setGender}
@@ -307,7 +307,7 @@ export default function RecruitsPage() {
                                             {expanded && (
                                                 <DetailRow colSpan={4}>
                                                     <DetailField label="Year" value={r.year} />
-                                                    <DetailField label="Gender" value={genderLabel(r.gender) || "—"} />
+                                                    <DetailField label="Gender" value={genderLabel(r.gender) || "-"} />
                                                     <DetailField label="Department" value={r.department} />
                                                     <DetailField
                                                         label="Stay"
@@ -358,7 +358,7 @@ export default function RecruitsPage() {
 }
 
 // Fields PATCH /api/admin/recruitment/recruits/:id accepts and returns. Deliberately a
-// subset of Recruit — srm_email isn't editable here (see the route's own comment).
+// subset of Recruit - srm_email isn't editable here (see the route's own comment).
 type EditableFields = Pick<
     Recruit,
     | "id"
@@ -404,7 +404,7 @@ function EditRecruitModal({
     const toggleDomain = (key: string) =>
         setDomains((prev) => (prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key]));
 
-    // Server-side re-validates this too (a recruit must have at least one domain) — this is
+    // Server-side re-validates this too (a recruit must have at least one domain) - this is
     // just so the button reflects an invalid state before the round-trip.
     const domainsValid = domains.length > 0;
 
@@ -426,7 +426,7 @@ function EditRecruitModal({
                     is_hosteller: isHosteller,
                     // Mirrors the server's own rule: a non-hosteller is always sent as
                     // (false, null, null) rather than trusting stale block/room state left
-                    // over from before the checkbox was toggled off — and the reverse for
+                    // over from before the checkbox was toggled off - and the reverse for
                     // day_scholar_area/travel_method when toggled to hosteller.
                     hostel_block: isHosteller ? hostelBlock : null,
                     hostel_room: isHosteller ? hostelRoom : null,

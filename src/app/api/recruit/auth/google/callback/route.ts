@@ -96,10 +96,10 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (existing) {
-            // Existing, fully-registered recruit — Google OAuth doubles as login. Account
+            // Existing, fully-registered recruit - Google OAuth doubles as login. Account
             // existence is the completeness signal here, not srm_email_verified: since the
             // 2026-08-16 change, that verification is optional and happens later from the
-            // dashboard (EmailVerifyBanner), so every account is created with it false — gating
+            // dashboard (EmailVerifyBanner), so every account is created with it false - gating
             // login on it would send every real recruit back through registration forever.
             const token = await issueRecruitToken({
                 recruit_id: existing.id,
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
             return response;
         }
 
-        // No account yet, or an account that never finished SRM email verification —
+        // No account yet, or an account that never finished SRM email verification -
         // stash the Google profile in a short-lived signed cookie and continue registration.
         const stateToken = await signOAuthState({
             google_uid: googleUid,

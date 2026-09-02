@@ -30,7 +30,7 @@ import { subDomainLabel, subDomainSubsystem, RECRUIT_SUBDOMAIN_KEYS } from "@/li
 // One tab per pipeline stage. Every stage tab renders the SAME four breakdowns (domain,
 // year, gender, residence) from `stages[]` via <StageBreakdown>, plus a stage-specific
 // extras block underneath. A stage with no rows yet renders an explicit "hasn't started"
-// panel rather than a wall of empty charts — the tab still exists so you can see the
+// panel rather than a wall of empty charts - the tab still exists so you can see the
 // pipeline is wired and waiting, which an absent tab wouldn't tell you.
 
 interface OutcomeCounts {
@@ -152,7 +152,7 @@ interface AnalyticsData {
     };
 }
 
-// Validated dark-mode categorical palette (colorblind-safe adjacent ordering) — see the
+// Validated dark-mode categorical palette (colorblind-safe adjacent ordering) - see the
 // dataviz skill's reference palette. Domains are mapped to slots in a fixed order (never by
 // rank/sort position) so a bar's color always identifies the same domain everywhere on the
 // page.
@@ -217,7 +217,7 @@ function StatTile({ label, value, sub }: { label: string; value: React.ReactNode
 }
 
 function pct(count: number, total: number): string {
-    if (total <= 0) return "—";
+    if (total <= 0) return "-";
     return `${Math.round((count / total) * 1000) / 10}%`;
 }
 
@@ -239,7 +239,7 @@ function FunnelBar({ label, value, max }: { label: string; value: number; max: n
 }
 
 // One breakdown card: a bar chart of the buckets plus the same numbers as a table. When the
-// stage has a denominator, a second "of eligible" series and a conversion-% column appear —
+// stage has a denominator, a second "of eligible" series and a conversion-% column appear -
 // on Registration those would both be a tautological 100%, so they're dropped there.
 function BucketSection({
     title,
@@ -356,7 +356,7 @@ function DomainYearSection({
     return (
         <Card>
             <CardHeader
-                title="By Domain — Year 1 vs Year 2"
+                title="By Domain - Year 1 vs Year 2"
                 caption={
                     stage.has_denominator
                         ? `Stacked bars: each domain's total, split by year. Rates are against everyone ${denom} for that domain and year.`
@@ -522,7 +522,7 @@ function NotStarted({ stage }: { stage: Stage }) {
                         )}
                     </p>
                     <p className="mt-2 text-xs text-gray-600">
-                        This tab fills in on its own as soon as the first row lands — nothing to switch on.
+                        This tab fills in on its own as soon as the first row lands - nothing to switch on.
                     </p>
                 </div>
             </div>
@@ -691,7 +691,7 @@ function OverviewTab({
                             {(overall[s.key] as number).toLocaleString()}
                         </p>
                         <p className="mt-0.5 text-[11px] text-gray-600">
-                            {s.key === "registered" ? "—" : `${pct(overall[s.key] as number, overall.registered)} of registered`}
+                            {s.key === "registered" ? "-" : `${pct(overall[s.key] as number, overall.registered)} of registered`}
                         </p>
                     </Card>
                 ))}
@@ -800,7 +800,7 @@ function OverviewTab({
 
 function RegistrationExtras({ extras }: { extras: AnalyticsData["stage_extras"]["registration"] }) {
     const overTime = extras.over_time.map((d) => ({
-        name: d.date.slice(5), // MM-DD — the year is the same for every point
+        name: d.date.slice(5), // MM-DD - the year is the same for every point
         Registrations: d.count,
     }));
     const departments = [
@@ -887,8 +887,8 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
 
             <Card>
                 <CardHeader
-                    title="By Domain — Day 1 vs Day 2"
-                    caption="Exam attendance is one row per recruit per domain, so a domain's Day 1 and Day 2 counts add up to its total attendees — nobody is double-counted."
+                    title="By Domain - Day 1 vs Day 2"
+                    caption="Exam attendance is one row per recruit per domain, so a domain's Day 1 and Day 2 counts add up to its total attendees - nobody is double-counted."
                 />
                 <div className="px-5 pt-4" style={{ width: "100%", height: 300 }}>
                     <ResponsiveContainer>
@@ -956,7 +956,7 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
             ) : (
                 <Card className="p-6">
                     <p className="text-sm text-gray-400">
-                        No marks entered yet — the distribution and per-domain averages appear as evaluators
+                        No marks entered yet - the distribution and per-domain averages appear as evaluators
                         save them on the{" "}
                         <span className="text-gray-300">Marks</span> page.
                     </p>
@@ -986,9 +986,9 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
                                         </span>
                                     </td>
                                     <td className="px-5 py-3 text-gray-300">{row.entered}</td>
-                                    <td className="px-5 py-3 text-gray-300">{row.average ?? "—"}</td>
-                                    <td className="px-5 py-3 text-gray-300">{row.min ?? "—"}</td>
-                                    <td className="px-5 py-3 text-gray-300">{row.max ?? "—"}</td>
+                                    <td className="px-5 py-3 text-gray-300">{row.average ?? "-"}</td>
+                                    <td className="px-5 py-3 text-gray-300">{row.min ?? "-"}</td>
+                                    <td className="px-5 py-3 text-gray-300">{row.max ?? "-"}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -1072,7 +1072,7 @@ function ShortlistExtras({ extras }: { extras: AnalyticsData["stage_extras"]["sh
             <Card>
                 <CardHeader
                     title="Cutoffs and Shortlisted, by Gender"
-                    caption="Cutoffs are set per gender AND per year (migrations 013 and 018) because the two years sit different papers — four values per domain. Shortlisted counts below are per gender across both years."
+                    caption="Cutoffs are set per gender AND per year (migrations 013 and 018) because the two years sit different papers - four values per domain. Shortlisted counts below are per gender across both years."
                 />
                 <div className="px-5 pt-4" style={{ width: "100%", height: 260 }}>
                     <ResponsiveContainer>
@@ -1151,7 +1151,7 @@ function InterviewExtras({ extras }: { extras: AnalyticsData["stage_extras"]["in
                 <StatTile label="Walk-ins" value={extras.walkin_tokens.toLocaleString()} sub="not shortlisted, let in anyway" />
                 <StatTile
                     label="No-show rate"
-                    value={extras.no_show_rate === null ? "—" : `${extras.no_show_rate}%`}
+                    value={extras.no_show_rate === null ? "-" : `${extras.no_show_rate}%`}
                     sub="of tokens that were resolved"
                 />
                 <StatTile label="Still waiting" value={t.waiting.toLocaleString()} />

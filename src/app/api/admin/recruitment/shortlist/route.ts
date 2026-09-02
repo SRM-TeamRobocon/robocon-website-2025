@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: "No active recruitment cycle" }, { status: 503 });
   }
 
-  // Unfiltered ("all domains") this can span every domain's shortlist rows at once — at
+  // Unfiltered ("all domains") this can span every domain's shortlist rows at once - at
   // the module's 2000-recruit target scale that's comfortably past PostgREST's default
   // 1000-row response cap, so page through it.
   const { data: rows, error } = await fetchAllRows<any>((from, to) => {
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     // `marks` is numeric(5,2) since migration 020 and this client is untyped, so PostgREST
     // may hand it over as the string "72.50". Coerce so the row ships a real number (and
-    // renders as "72.5", not "72.50"). A stored null stays null — combined with the `?? null`
+    // renders as "72.5", not "72.50"). A stored null stays null - combined with the `?? null`
     // below, a recruit with no marks row still reports null rather than 0.
     marksMap = new Map(
       marksRows.map((m) => [`${m.recruit_id}:${m.sub_domain}`, m.marks === null ? null : Number(m.marks)])
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         name: acc.name,
         reg_no: acc.reg_no,
         year: acc.year,
-        // Nullable on recruit_accounts — passed through as null rather than defaulted, so
+        // Nullable on recruit_accounts - passed through as null rather than defaulted, so
         // the page's "All genders" option is the only thing that can show such a row.
         gender: acc.gender ?? null,
         department: acc.department,

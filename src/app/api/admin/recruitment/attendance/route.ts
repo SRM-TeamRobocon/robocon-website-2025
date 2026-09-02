@@ -12,7 +12,7 @@ const VALID_TYPES: AttendanceType[] = ["orientation", "exam", "training"];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isUuid(value: unknown): value is string {
-    // Bounded by the regex itself — a 36-char anchored match can't be abused with a
+    // Bounded by the regex itself - a 36-char anchored match can't be abused with a
     // megabyte of free text.
     return typeof value === "string" && value.length === 36 && UUID_RE.test(value);
 }
@@ -24,7 +24,7 @@ function fail(message: string, status: number) {
 // DELETE /api/admin/recruitment/attendance
 //
 // Undo a mis-scan. Deliberately more privileged than scanning itself (which any
-// `member` volunteer can do) — deleting attendance is destructive and unlogged from
+// `member` volunteer can do) - deleting attendance is destructive and unlogged from
 // the recruit's side, so it is restricted to lead/admin.
 //
 // Body: { type: 'orientation' | 'exam' | 'training', recruit_id, sub_domain?, session_id? }
@@ -79,7 +79,7 @@ export async function DELETE(request: NextRequest) {
             return fail("No active recruitment cycle.", 503);
         }
 
-        // Confirm the recruit belongs to the active cycle before touching anything —
+        // Confirm the recruit belongs to the active cycle before touching anything -
         // also gives us a name for a human-readable confirmation message.
         const { data: recruit, error: recruitError } = await supabase
             .from("recruit_accounts")
@@ -132,7 +132,7 @@ export async function DELETE(request: NextRequest) {
         } else {
             const sessionId = body.session_id as string;
 
-            // The session must belong to the active cycle — otherwise a stale session_id
+            // The session must belong to the active cycle - otherwise a stale session_id
             // from another season could be used to delete rows outside this cycle.
             const { data: trainingSession, error: sessionError } = await supabase
                 .from("recruit_training_sessions")
@@ -176,7 +176,7 @@ export async function DELETE(request: NextRequest) {
             message:
                 removed > 0
                     ? `Removed ${recruit.name}'s ${what}.`
-                    : `No ${what} was recorded for ${recruit.name} — nothing to undo.`,
+                    : `No ${what} was recorded for ${recruit.name} - nothing to undo.`,
         });
     } catch (error) {
         console.error("Error in DELETE /api/admin/recruitment/attendance:", error);

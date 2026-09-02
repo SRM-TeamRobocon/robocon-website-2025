@@ -8,12 +8,12 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
-// Renders message text with any http(s) URLs turned into clickable links — the RAG
+// Renders message text with any http(s) URLs turned into clickable links - the RAG
 // answer's Instagram fallback (see src/lib/rag/answer.ts) includes a raw URL that would
 // otherwise render as inert plain text.
 function renderMessageContent(content: string, linkClassName: string) {
     // A regex with a capturing group makes split() interleave the captured URLs into
-    // the result array at odd indices — no separate .test()/.exec() call needed (and no
+    // the result array at odd indices - no separate .test()/.exec() call needed (and no
     // shared-regex lastIndex statefulness to worry about, since split() doesn't use it).
     const parts = content.split(URL_PATTERN);
     return parts.map((part, i) =>
@@ -27,7 +27,7 @@ function renderMessageContent(content: string, linkClassName: string) {
     );
 }
 
-// Shared fetch/state logic for both chat surfaces — the floating dark-glass widget on
+// Shared fetch/state logic for both chat surfaces - the floating dark-glass widget on
 // /recruit/dashboard (authenticated, /api/recruit/chat) and the inline light widget on
 // the homepage RecruitmentSection (public, /api/recruit/public-chat). Only the endpoint
 // and the JSX around it differ.
@@ -59,7 +59,7 @@ function useDoubtChat(endpoint: string) {
             if (res.status === 401) {
                 // Confirmed-dead session (recruitFetch only surfaces a 401 after its probe
                 // has verified that). Show a sign-in prompt inside the widget rather than
-                // navigating away mid-conversation — the transcript stays on screen, and
+                // navigating away mid-conversation - the transcript stays on screen, and
                 // their question goes back into the input so it survives logging back in.
                 setSessionExpired(true);
                 setInput(text);
@@ -113,7 +113,7 @@ function SessionExpiredNotice({ light }: { light: boolean }) {
     );
 }
 
-// Floating widget — used on /recruit/dashboard. `theme` defaults to the original
+// Floating widget - used on /recruit/dashboard. `theme` defaults to the original
 // dark-glass look so every other call site (there was only ever this one, but the
 // default keeps it that way if that changes) is unaffected; the dashboard now passes
 // theme="light" to match its sharp red/white/black reskin instead of floating dark
@@ -267,7 +267,7 @@ export default function ChatWidget({ theme = "dark" }: { theme?: "dark" | "light
     );
 }
 
-// Inline sharp red/white/black widget — always-open card matching RecruitmentSection's
+// Inline sharp red/white/black widget - always-open card matching RecruitmentSection's
 // poster aesthetic (black border, no glass/blur). Public
 // endpoint: no recruit_token, works for homepage visitors who haven't registered yet.
 export function InlineChatWidget() {

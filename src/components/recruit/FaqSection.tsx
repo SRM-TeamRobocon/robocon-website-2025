@@ -11,7 +11,7 @@ type FaqRow = {
     is_published: boolean;
 };
 
-// Sharp red/white/black poster theme — matches the rest of the reskinned dashboard
+// Sharp red/white/black poster theme - matches the rest of the reskinned dashboard
 // (see src/app/recruit/dashboard/page.tsx). Only used on that page, so no dark-glass
 // remnants need to survive here.
 export default function FaqSection() {
@@ -32,7 +32,7 @@ export default function FaqSection() {
                 setFaqs(published);
             })
             .catch(() => {
-                // Non-essential section — the rest of the dashboard still works without it.
+                // Non-essential section - the rest of the dashboard still works without it.
             });
 
         return () => {

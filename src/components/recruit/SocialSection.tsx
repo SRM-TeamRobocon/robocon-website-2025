@@ -6,7 +6,7 @@ import InstagramFillIcon from "remixicon-react/InstagramFillIcon";
 const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/FesAdolZdhvFsuRRUOiMa8?s=sw&p=a&ilr=0";
 const INSTAGRAM_URL = "https://www.instagram.com/srmteamrobocon/";
 
-// Sharp red/white/black poster theme — matches the rest of the reskinned
+// Sharp red/white/black poster theme - matches the rest of the reskinned
 // recruit dashboard (see src/app/recruit/dashboard/page.tsx).
 export default function SocialSection() {
     return (

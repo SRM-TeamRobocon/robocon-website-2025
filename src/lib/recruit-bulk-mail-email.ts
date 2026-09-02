@@ -1,6 +1,6 @@
 // HTML template for admin-composed bulk emails to recruits (Send Mail page). Subject/body
 // are admin-supplied free text, so everything user-controlled is escaped before being
-// interpolated — this renders in the recipient's mail client, but a lead's own account
+// interpolated - this renders in the recipient's mail client, but a lead's own account
 // could otherwise be turned into a stored-XSS vector against the composer they reuse later.
 function escapeHtml(input: string): string {
     return input

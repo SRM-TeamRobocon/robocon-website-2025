@@ -13,9 +13,9 @@ function qrSecret(): string {
   const configured = process.env.QR_SECRET;
   if (!configured) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("QR_SECRET is not set — refusing to sign or verify recruit QR codes.");
+      throw new Error("QR_SECRET is not set - refusing to sign or verify recruit QR codes.");
     }
-    console.warn("[recruit-qr] QR_SECRET is unset — using an insecure development fallback.");
+    console.warn("[recruit-qr] QR_SECRET is unset - using an insecure development fallback.");
     return "fallback_qr_secret_!@#";
   }
   return configured;

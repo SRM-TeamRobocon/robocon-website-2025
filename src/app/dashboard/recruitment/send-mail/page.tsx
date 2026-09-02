@@ -54,11 +54,11 @@ const STATUS_LABELS: Record<string, string> = {
     not_shortlisted: "Not shortlisted",
 };
 
-// Shortlist status is per (recruit, domain) — a recruit with two domains can be
+// Shortlist status is per (recruit, domain) - a recruit with two domains can be
 // shortlisted in one and pending in the other, so this renders one badge per applied
 // domain rather than a single recruit-level flag.
 function ShortlistBadges({ domains, rows }: { domains: string[]; rows: ShortlistRow[] }) {
-    if (domains.length === 0) return <span className="text-gray-600">—</span>;
+    if (domains.length === 0) return <span className="text-gray-600">-</span>;
     const statusOf = new Map(rows.map((r) => [r.sub_domain, r.status]));
     return (
         <div className="flex flex-wrap gap-1.5">
@@ -133,7 +133,7 @@ export default function SendMailPage() {
     }, [ready, domain, year, gender, search]);
 
     // Shortlist status lives in a separate table (recruit_shortlist_status), keyed per
-    // recruit+domain — fetched alongside the roster so both the "Shortlist" column and the
+    // recruit+domain - fetched alongside the roster so both the "Shortlist" column and the
     // status filter below can show it without a second round trip per row.
     useEffect(() => {
         if (!ready) return;
@@ -168,7 +168,7 @@ export default function SendMailPage() {
         return recruits.filter((r) => (shortlistMap.get(r.id) || []).some((row) => row.status === statusFilter));
     }, [recruits, shortlistMap, statusFilter]);
 
-    // A filter change can hide rows that were selected under a previous filter — drop
+    // A filter change can hide rows that were selected under a previous filter - drop
     // selections that are no longer in the visible/loaded set so "select all" stays honest.
     useEffect(() => {
         const visibleIds = new Set(filteredRecruits.map((r) => r.id));

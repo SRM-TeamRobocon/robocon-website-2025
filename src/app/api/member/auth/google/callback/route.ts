@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (!account) {
-            // Not connected yet — stash the profile and send them to log in with a
+            // Not connected yet - stash the profile and send them to log in with a
             // password once, which will link it (see /api/admin/login).
             const pendingToken = await signPendingGoogleProfile({ google_uid: googleUid, google_email: googleEmail });
             const response = NextResponse.redirect(`${origin}/login?role=member&notice=connect_google`);

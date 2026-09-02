@@ -45,7 +45,7 @@ export default async function GalleryPage() {
         <h1 className="text-3xl md:text-5xl font-bold text-white">Our Gallery</h1>
         <p className="mt-4 text-white/60 max-w-xl mx-auto">
           {albums.length > 0
-            ? `Pick an album to relive the moment — ${totalPhotos} photo${totalPhotos === 1 ? "" : "s"} across ${albums.length} album${albums.length === 1 ? "" : "s"}.`
+            ? `Pick an album to relive the moment - ${totalPhotos} photo${totalPhotos === 1 ? "" : "s"} across ${albums.length} album${albums.length === 1 ? "" : "s"}.`
             : "Pick an album to relive the moment."}
         </p>
       </section>

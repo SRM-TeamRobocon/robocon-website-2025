@@ -1,4 +1,4 @@
-// Shared input validation for recruit-supplied data. Isomorphic — used server-side to
+// Shared input validation for recruit-supplied data. Isomorphic - used server-side to
 // reject bad input at the boundary, and client-side to guard rendering.
 
 export const MAX_PORTFOLIO_URL_LENGTH = 500;
@@ -21,7 +21,7 @@ export const FIELD_LIMITS = {
 
 /**
  * Returns the URL only if it is a well-formed http(s) URL within the length cap.
- * Anything else — including `javascript:`, `data:` and `vbscript:` URIs — returns null.
+ * Anything else - including `javascript:`, `data:` and `vbscript:` URIs - returns null.
  *
  * This matters because portfolio URLs are rendered as clickable <a href> links in the
  * admin shortlist and interview panels: a `javascript:` URL there would execute in an
@@ -50,7 +50,7 @@ export function boundedText(input: unknown, max: number): string {
 }
 
 /**
- * Recruit phone numbers are stored as BARE 10 digits — no country code, no separators —
+ * Recruit phone numbers are stored as BARE 10 digits - no country code, no separators -
  * and every write path validates against this. See buildWhatsAppLink in lib/whatsapp.ts,
  * which relies on the same guarantee when prepending "91".
  */
@@ -77,7 +77,7 @@ const MIN_PHONE_SEARCH_DIGITS = 3;
 export function phoneSearchTerm(raw: string): string | null {
   let digits = digitsOnly(raw);
 
-  // Stored numbers are exactly 10 bare digits, so a longer term can never match as-is —
+  // Stored numbers are exactly 10 bare digits, so a longer term can never match as-is -
   // "+91 98765 43210" would normalize to "919876543210" and find nothing. Peel the two
   // prefixes people actually paste. Guarded on length so it can only ever strip an actual
   // prefix: a genuine 10-digit number starting "91" is 10 long and left alone.
@@ -97,7 +97,7 @@ export const MARKS_ERROR = "Marks must be between 0 and 100, in steps of 0.5";
 
 /**
  * Exam marks and cutoffs are `numeric(5,2)` (migration 020) but only half marks are ever
- * awarded — 0, 0.5, 1, 1.5 ... 100. The DB has a CHECK enforcing that, and so does this,
+ * awarded - 0, 0.5, 1, 1.5 ... 100. The DB has a CHECK enforcing that, and so does this,
  * on purpose: the CHECK is the last line of defence and surfaces as an opaque 500, while
  * this one rejects at the boundary with a message a human can act on, and lets the client
  * catch a typo (72.3) before a round trip. Keep the two rules in sync.
@@ -109,7 +109,7 @@ export function isHalfStep(value: number): boolean {
 /**
  * Coerces a marks/cutoff input (number or numeric string) to a valid mark, or null.
  *
- * Null means "reject" — callers must not fall back to 0. Note the recruit_* tables go
+ * Null means "reject" - callers must not fall back to 0. Note the recruit_* tables go
  * through an UNTYPED Supabase client, so values read back off a `numeric` column arrive
  * as `any` and may be strings; anything doing arithmetic or a `>=` comparison on them
  * must coerce with Number() first or the comparison silently goes lexicographic.

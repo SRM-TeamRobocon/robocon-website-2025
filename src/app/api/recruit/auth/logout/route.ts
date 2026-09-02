@@ -3,7 +3,7 @@ import { RECRUIT_COOKIE_NAME } from "@/lib/recruit-session";
 
 export const dynamic = "force-dynamic";
 
-// Called via fetch() from client components — clears the cookie and hands back
+// Called via fetch() from client components - clears the cookie and hands back
 // a redirect target rather than issuing an HTTP redirect itself (a redirected
 // fetch() response isn't useful to a client that expects JSON). Direct-navigation
 // logout (e.g. a plain <a href="/recruit/logout"> link) is handled by the separate

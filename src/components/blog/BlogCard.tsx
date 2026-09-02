@@ -11,7 +11,7 @@ interface BlogCardProps {
     authorName: string;
     publishedAt?: string | null;
     visibility?: BlogVisibility;
-    // Only passed by admin/lead-only contexts (never the public site) — shows a small
+    // Only passed by admin/lead-only contexts (never the public site) - shows a small
     // edit affordance without making the whole card an admin control.
     editHref?: string;
 }

@@ -5,7 +5,7 @@ import { getSession, requireRole } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 // Internal feed: every approved blog (public + private) visible to any logged-in
-// dashboard user. Public visitors never hit this route — see /api/blogs for that.
+// dashboard user. Public visitors never hit this route - see /api/blogs for that.
 export async function GET() {
     const session = await getSession();
     if (!requireRole(session, ["member", "lead", "admin"])) {

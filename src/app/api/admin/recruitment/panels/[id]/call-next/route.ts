@@ -54,12 +54,12 @@ type TokenRow = {
 // Concurrency: "one called recruit per panel" used to exist only in the dashboard UI, which
 // learns about state through a 5s poll. Two devices on the same panel (or one impatient
 // double-click) both read the same oldest waiting token and both updated it by id with no
-// status guard — two students called at once, and since the dashboard only renders the FIRST
+// status guard - two students called at once, and since the dashboard only renders the FIRST
 // `called` token, Call Next stayed disabled forever and the panel jammed. Two guards now:
 //
-//   1. Idempotency — if a `called` token already exists for this panel, return it instead of
+//   1. Idempotency - if a `called` token already exists for this panel, return it instead of
 //      calling anyone else. A second click/device gets the same recruit back, not a new one.
-//   2. Compare-and-swap — the update is conditioned on `.eq("status", "waiting")`, so only
+//   2. Compare-and-swap - the update is conditioned on `.eq("status", "waiting")`, so only
 //      one concurrent request can win. The loser gets zero rows back and either returns the
 //      winner's now-`called` token or moves on to the next waiting number.
 export async function POST(_request: NextRequest, context: RouteContext) {
@@ -132,7 +132,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
     //
     // Deliberately NOT `.gt("queue_position", afterPosition)`: Postgres's NULL > x is
     // NULL (never true), so that filter silently drops any row whose queue_position is
-    // null from EVERY attempt, including the first — a panel with real waiting tokens
+    // null from EVERY attempt, including the first - a panel with real waiting tokens
     // reports `queue_empty` forever. It happened live: a batch of tokens ended up with
     // null queue_position (a migration backfill that never ran against this DB) and
     // every affected panel's Call Next was permanently stuck despite a visibly nonempty
@@ -186,10 +186,10 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       triedIds.push(next.id);
     }
 
-    // Every attempt lost its race and nothing is `called` — extremely unlikely, and safe to
+    // Every attempt lost its race and nothing is `called` - extremely unlikely, and safe to
     // retry from the client.
     return NextResponse.json(
-      { error: "Queue is busy right now — try Call Next again" },
+      { error: "Queue is busy right now - try Call Next again" },
       { status: 409 }
     );
   } catch (error) {

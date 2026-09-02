@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
-// GET /api/admin/recruitment/kb/documents — list uploaded knowledge-base files with a
+// GET /api/admin/recruitment/kb/documents - list uploaded knowledge-base files with a
 // chunk count each, for the admin KB page.
 export async function GET() {
     const session = await getSession();
@@ -48,9 +48,9 @@ export async function GET() {
     return NextResponse.json({ data });
 }
 
-// POST /api/admin/recruitment/kb/documents — upload a .txt file, chunk it, embed the
+// POST /api/admin/recruitment/kb/documents - upload a .txt file, chunk it, embed the
 // chunks, and store them. If embedding fails partway through, the document row can end
-// up with 0/partial chunks — the admin KB page surfaces chunk_count so a broken upload
+// up with 0/partial chunks - the admin KB page surfaces chunk_count so a broken upload
 // is visibly obvious and can be deleted/re-uploaded (no transactional rollback across
 // the external Voyage API call).
 export async function POST(request: NextRequest) {

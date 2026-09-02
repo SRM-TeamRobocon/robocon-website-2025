@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith('/api/admin') &&
         pathname !== '/api/admin/login';
 
-    // Protect /dashboard, /scanner, /recruit-scanner (UI) and /api/admin (backend) routes — everything else is public
+    // Protect /dashboard, /scanner, /recruit-scanner (UI) and /api/admin (backend) routes - everything else is public
     if (isProtectedPage || isProtectedApi) {
         const token = request.cookies.get('admin_token')?.value;
 
@@ -43,11 +43,11 @@ export async function proxy(request: NextRequest) {
     }
 
     // Protect /recruit/dashboard and /api/recruit/* (except auth routes) with the
-    // separate recruit_token cookie — completely independent from admin_token above.
+    // separate recruit_token cookie - completely independent from admin_token above.
     const isProtectedRecruitPage = pathname.startsWith('/recruit/dashboard');
     // /api/recruit/tables is a deliberate public exception: it backs the /recruit/tables
     // kiosk screen, meant to run on a lobby TV or a recruit's own phone with no login.
-    // /api/recruit/public-chat is the same idea for the homepage "Ask a Doubt" widget —
+    // /api/recruit/public-chat is the same idea for the homepage "Ask a Doubt" widget -
     // has to work for visitors who haven't registered yet, rate-limited by IP instead
     // (recruit-migration-014) since there's no session to lean on.
     const isProtectedRecruitApi =
@@ -82,7 +82,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-    // /signup, /verify are public pre-login flows — no gating needed.
+    // /signup, /verify are public pre-login flows - no gating needed.
     // /api/member/* routes check role themselves via src/lib/session.ts.
     matcher: ['/dashboard/:path*', '/scanner/:path*', '/recruit-scanner/:path*', '/api/admin/:path*', '/recruit/dashboard/:path*', '/api/recruit/:path*'],
 };

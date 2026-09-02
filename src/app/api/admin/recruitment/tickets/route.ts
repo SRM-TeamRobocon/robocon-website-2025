@@ -13,7 +13,7 @@ async function getActiveCycleId(supabase: SupabaseClient): Promise<string | null
 // GET /api/admin/recruitment/tickets
 // Every ticket for the active cycle, open first then newest-first, joined with the
 // recruit's identity. Read access is broad (member/lead/admin, matching every other
-// recruitment sub-page) — the resolve action itself is lead/admin-only, enforced in
+// recruitment sub-page) - the resolve action itself is lead/admin-only, enforced in
 // [id]/resolve/route.ts regardless of who can view this list.
 export async function GET() {
     const session = await getSession();
@@ -33,7 +33,7 @@ export async function GET() {
             "id, category, message, current_sub_domains, from_sub_domain, requested_sub_domain, status, resolution_note, resolved_by, resolved_at, created_at, recruit_id"
         )
         .eq("cycle_id", cycleId)
-        .order("status", { ascending: true }) // 'open' < 'resolved' alphabetically — open first
+        .order("status", { ascending: true }) // 'open' < 'resolved' alphabetically - open first
         .order("created_at", { ascending: false });
 
     if (error) {

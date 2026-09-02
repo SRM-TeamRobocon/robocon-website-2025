@@ -85,7 +85,7 @@ export async function POST(request: Request) {
             if (existing.email_verified) {
                 return NextResponse.json({ success: false, error: "An account with this email already exists." }, { status: 409 });
             }
-            // Never verified (mail may have failed to send, or link expired) — the email
+            // Never verified (mail may have failed to send, or link expired) - the email
             // isn't "used" yet, so let this attempt replace the stale unverified row.
             const { error: deleteError } = await supabase.from("member_accounts").delete().eq("id", existing.id);
             if (deleteError) {
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
                 })
                 .catch((err) => console.error("verification email failed", err));
         } else {
-            console.warn("SMTP not configured — skipping verification email");
+            console.warn("SMTP not configured - skipping verification email");
         }
 
         return NextResponse.json({ success: true });

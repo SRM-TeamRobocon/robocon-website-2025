@@ -1,5 +1,5 @@
 // Greedy character-based sliding-window chunking for admin-uploaded .txt knowledge-base
-// files. No tokenizer dependency — character counts are a fine enough proxy for chunk
+// files. No tokenizer dependency - character counts are a fine enough proxy for chunk
 // size at this scale (a handful of admin-authored documents, not a bulk corpus).
 export function chunkText(text: string, chunkSize = 1000, overlap = 150): string[] {
     const trimmed = text.trim();

@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 // Legacy env-based staff (LEAD_ACCOUNTS) have no member_accounts row, so Google
-// connect doesn't apply to them — the dashboard hides the section on a 403 here.
+// connect doesn't apply to them - the dashboard hides the section on a 403 here.
 export async function GET() {
     const session = await getSession();
     if (!session || !session.memberAccountId) {

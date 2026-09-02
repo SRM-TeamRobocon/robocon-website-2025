@@ -28,7 +28,7 @@ function ConnectedAccounts() {
     useEffect(() => {
         fetch("/api/member/google-status")
             .then(async (res) => {
-                if (!res.ok) return; // legacy env-based staff — section stays hidden
+                if (!res.ok) return; // legacy env-based staff - section stays hidden
                 const data = await res.json();
                 if (data.success) setStatus({ connected: data.connected, email: data.email });
             })

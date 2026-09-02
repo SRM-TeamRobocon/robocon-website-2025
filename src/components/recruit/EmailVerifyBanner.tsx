@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { recruitFetch } from "@/lib/recruit-fetch-client";
 
-// Soft, dismissible prompt for a recruit to verify their SRM email post-signup — SRM
+// Soft, dismissible prompt for a recruit to verify their SRM email post-signup - SRM
 // email OTP verification was moved out of the registration wizard (see
 // src/app/api/recruit/auth/complete-registration/route.ts), so a recruit can land on the
 // dashboard with srm_email_verified = false. This never blocks anything; it's a nudge.
 //
-// Sharp red/white/black poster theme to match the redesigned dashboard this sits in —
+// Sharp red/white/black poster theme to match the redesigned dashboard this sits in -
 // NOT the old dark-glass look used elsewhere in this directory (GlassCard, RecruitBackdrop).
 export default function EmailVerifyBanner({
     srmEmail,
@@ -39,7 +39,7 @@ export default function EmailVerifyBanner({
                 headers: { "Content-Type": "application/json" },
             });
             if (res.status === 401) {
-                // Session expired — same dead-end as TicketsSection's raw "Unauthorized
+                // Session expired - same dead-end as TicketsSection's raw "Unauthorized
                 // access" body; send them to log back in instead of showing it inline.
                 router.push("/recruit/login");
                 return;

@@ -11,7 +11,7 @@ export const TIME_SLOTS = [
     "4:00-4:50",
 ] as const;
 
-// Row labels as used in the source spreadsheet — not day names.
+// Row labels as used in the source spreadsheet - not day names.
 export const DAYS = ["DO1", "DO2", "DO3", "DO4", "DO5"] as const;
 
 export const CELL_OPTIONS = [
@@ -30,7 +30,7 @@ export function isLocatedStatus(status: string): boolean {
     return LOCATED_STATUSES.has(status);
 }
 
-// Which of the two campuses a member's whole week is on — set once per timetable,
+// Which of the two campuses a member's whole week is on - set once per timetable,
 // not per slot, since a member doesn't switch campuses class-to-class.
 export const CAMPUS_OPTIONS = [
     { value: "main", label: "Main Campus" },
@@ -55,7 +55,7 @@ export function emptySchedule(): TimetableSchedule {
 }
 
 // Accepts a plain status string as well as the legacy { status, location } object shape
-// saved before per-slot locations were removed — the location is simply dropped.
+// saved before per-slot locations were removed - the location is simply dropped.
 function normalizeCell(raw: unknown): string {
     if (typeof raw === "string") {
         return CELL_VALUES.has(raw) ? raw : "";
@@ -101,7 +101,7 @@ export const TIME_SLOT_RANGES: { start: number; end: number }[] = [
     { start: 960, end: 1010 }, // 4:00-4:50
 ];
 
-// Every distinct slot boundary, for populating "from"/"to" dropdowns — there's no point
+// Every distinct slot boundary, for populating "from"/"to" dropdowns - there's no point
 // offering times that don't line up with an actual slot edge.
 export const TIME_BOUNDARIES: number[] = Array.from(
     new Set(TIME_SLOT_RANGES.flatMap((r) => [r.start, r.end]))
@@ -115,8 +115,8 @@ export function formatMinutes(totalMinutes: number): string {
     return `${h12}:${m.toString().padStart(2, "0")} ${meridiem}`;
 }
 
-// Snaps an arbitrary minute value to the nearest slot boundary — "down" for a range
-// start, "up" for a range end — so free-text times like "1pm" (not itself a boundary)
+// Snaps an arbitrary minute value to the nearest slot boundary - "down" for a range
+// start, "up" for a range end - so free-text times like "1pm" (not itself a boundary)
 // still land on a value the From/To dropdowns can actually display.
 export function snapToBoundary(min: number, direction: "down" | "up"): number {
     if (direction === "down") {

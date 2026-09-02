@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
         }
 
         console.log(
-            `⏳ Manual UPI registration submitted — UTR: ${transactionId}, Name: ${formData.Name}`
+            `⏳ Manual UPI registration submitted - UTR: ${transactionId}, Name: ${formData.Name}`
         );
 
-        // Tickets aren't sent immediately for manual registrations — a lead/admin must
+        // Tickets aren't sent immediately for manual registrations - a lead/admin must
         // verify the payment first via the dashboard (`/api/admin/verify`), which triggers
         // the official ticket email.
 

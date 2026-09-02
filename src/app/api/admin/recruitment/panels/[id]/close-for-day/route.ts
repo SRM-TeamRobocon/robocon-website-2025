@@ -12,7 +12,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 // Distinct from PATCH .../close, which is a reversible PAUSE (Reopen brings stranded
 // `waiting` tokens right back). This is the non-reversible "done for the day" action: the
 // panel is deactivated AND every recruit still `waiting` on it is either moved onto another
-// currently-open table for the same domain, or flipped to `deferred` if none is open — see
+// currently-open table for the same domain, or flipped to `deferred` if none is open - see
 // redistributeWaitingTokens for the balancing/ordering rules (also shared with panel
 // deletion, which needs the exact same redistribution before it can drop a table's row).
 export async function PATCH(_request: NextRequest, context: RouteContext) {
@@ -53,11 +53,11 @@ export async function PATCH(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ closed_for_day: true, moved, deferred });
   } catch (error) {
     console.error("close-for-day: redistribution error", error);
-    // The panel is already deactivated at this point — that part succeeded and won't be
+    // The panel is already deactivated at this point - that part succeeded and won't be
     // retried, only the redistribution failed. Surface it distinctly so a lead knows to
     // manually check on stranded waiting tokens rather than assuming nothing happened.
     return NextResponse.json(
-      { error: "Table closed, but some recruits could not be redistributed — check the queue manually." },
+      { error: "Table closed, but some recruits could not be redistributed - check the queue manually." },
       { status: 500 }
     );
   }

@@ -80,10 +80,10 @@ export default function AttendanceBoardPage() {
     const [overnightIds, setOvernightIds] = useState<Set<string>>(new Set());
     const eventsRef = useRef<AttendanceEvent[]>([]);
 
-    // Viewer's own role + card-link status — role gates the admin controls in the member
+    // Viewer's own role + card-link status - role gates the admin controls in the member
     // modal below; linked (specifically false, not just falsy) gates the "Link My Card"
     // nav CTA. viewerHasAccount distinguishes "no card linked yet" from "this login has
-    // no member_accounts row at all" (e.g. a LEAD_ACCOUNTS-only login) — the latter has
+    // no member_accounts row at all" (e.g. a LEAD_ACCOUNTS-only login) - the latter has
     // nothing to link, so it must not show the CTA.
     const [viewerRole, setViewerRole] = useState<"member" | "lead" | "admin" | null>(null);
     const [viewerHasAccount, setViewerHasAccount] = useState(false);
@@ -122,7 +122,7 @@ export default function AttendanceBoardPage() {
             }
             setOnLeaveMap(map);
         } catch {
-            // Non-critical — the board still works without leave overlay.
+            // Non-critical - the board still works without leave overlay.
         }
     }, []);
 
@@ -467,7 +467,7 @@ export default function AttendanceBoardPage() {
                                 {leaderboard.map((m) => {
                                     const leave = onLeaveMap.get(m.memberAccountId);
                                     const onLeaveNow = leave && isWithinLeaveWindow(leave, now);
-                                    // Only worth flagging while they're actually in the lab — a pass
+                                    // Only worth flagging while they're actually in the lab - a pass
                                     // claimed by someone who's already tapped out reads as noise.
                                     const stayingOvernight = m.status === "IN" && overnightIds.has(m.memberAccountId);
                                     return (
@@ -498,7 +498,7 @@ export default function AttendanceBoardPage() {
                                                 )}
                                             </td>
                                             <td className="py-2.5 font-mono text-gray-300">{formatDuration(m.totalTimeMs)}</td>
-                                            <td className="py-2.5 text-amber-400">{m.currentStreak > 0 ? `🔥 ${m.currentStreak}` : "—"}</td>
+                                            <td className="py-2.5 text-amber-400">{m.currentStreak > 0 ? `🔥 ${m.currentStreak}` : "-"}</td>
                                         </tr>
                                     );
                                 })}

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Formerly the 5 domain leads (spacedlead/roboconlead/siesedlead/mcsocdlead/sambedlead) —
+// Formerly the 5 domain leads (spacedlead/roboconlead/siesedlead/mcsocdlead/sambedlead) -
 // removed now that they've moved to mentor status, so they no longer surface as leads
 // anywhere in the dashboard (topbar name, "who's free" timetable roster, recruitment
 // "done by" attribution). Their LEAD_ACCOUNTS login credentials are a separate env-var
@@ -21,7 +21,7 @@ export function displayNameForUsername(username: string | undefined | null) {
 }
 
 // Recruitment tables store the raw JWT `user` claim in "done by" columns (scanned_by,
-// evaluator_username, interviewer_username, set_by, marked_by, ...) — a short LEAD_ACCOUNTS
+// evaluator_username, interviewer_username, set_by, marked_by, ...) - a short LEAD_ACCOUNTS
 // username for env-based staff logins, or a member's email for member_accounts logins. Server
 // only: resolves a batch of those raw values to display names for the recruitment dashboard,
 // falling back to the raw value when nothing matches (e.g. a deleted member account).

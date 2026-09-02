@@ -3,7 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import type { GhostStat } from "@/lib/attendance";
 
-// Team-wide attendance board data for the dashboard. No longer public — every
+// Team-wide attendance board data for the dashboard. No longer public - every
 // teammate can see every other teammate's live status, but only from inside the
 // dashboard, not the open internet.
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ const DASHBOARD_ROLES = ["member", "lead", "admin"] as const;
 const LOOKBACK_DAYS = 60;
 // Ghost counts are all-time (unlike the 60-day session window), so this cap is what
 // keeps an unbounded scan off the table. Only auto_checkout rows match, so it's a
-// small slice — one row per forgotten tap-out, team-wide.
+// small slice - one row per forgotten tap-out, team-wide.
 const GHOST_ROW_CAP = 5000;
 
 export async function GET() {
@@ -49,7 +49,7 @@ export async function GET() {
     }
 
     // Ghosts are all-time while `logs` is a 60-day window, so someone can appear on the
-    // ghost board without any recent taps — resolve names across the union of both.
+    // ghost board without any recent taps - resolve names across the union of both.
     const memberAccountIds = Array.from(
         new Set([...(logs || []).map((l) => l.member_account_id), ...(ghostLogs || []).map((l) => l.member_account_id)])
     );

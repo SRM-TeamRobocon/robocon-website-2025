@@ -15,12 +15,12 @@ const MAX_BODY_LENGTH = 5000;
 // function timeout mid-send.
 const MAX_RECIPIENTS = 3000;
 // A plain Gmail account caps recipients (to+cc+bcc) at ~500 per message. Recipients are
-// batched into BCC-only sends of this size, sequentially — no personalization, everyone in
+// batched into BCC-only sends of this size, sequentially - no personalization, everyone in
 // a chunk gets the identical email, so this is purely a Gmail-limit workaround, not a
 // per-recruit send.
 const BCC_CHUNK_SIZE = 450;
 
-// POST /api/admin/recruitment/send-mail — bulk-email selected recruits in the active cycle
+// POST /api/admin/recruitment/send-mail - bulk-email selected recruits in the active cycle
 // with an admin-composed subject/body and an optional date & time (e.g. an interview slot
 // or deadline) rendered into the email.
 export async function POST(request: NextRequest) {
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     const failures: { recruit_id: string; name: string; error: string }[] = [];
 
-    // Everyone selected goes into one shared BCC blast (no personalization) — split only to
+    // Everyone selected goes into one shared BCC blast (no personalization) - split only to
     // stay under Gmail's per-message recipient cap, never per recruit.
     const emailToRecruitIds = new Map<string, Set<string>>();
     for (const r of recruits as { id: string; name: string; srm_email: string | null; personal_email: string | null }[]) {

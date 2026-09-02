@@ -19,7 +19,7 @@ async function getActiveCycleId(supabase: ReturnType<typeof createRecruitSupabas
 
 // GET /api/admin/recruitment/marks?domain=coding&cycle_id=<optional, defaults to active cycle>
 // Returns every recruit who selected `domain`, with existing marks (if any) and exam
-// attendance status (day 1 / day 2 booleans). Not filtered by attendance — see
+// attendance status (day 1 / day 2 booleans). Not filtered by attendance - see
 // 06-EXAM-AND-SHORTLISTING.md: "Marks entry is NOT gated by exam attendance."
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   // Supabase's untyped client can't confirm this is a to-one relationship, so it may type
   // recruit_accounts as an array even though recruit_domain_selections.recruit_id -> recruit_accounts.id
   // is many-to-one. Normalize defensively either way.
-  // phone is nullable on recruit_accounts — typed honestly so callers can't assume a string.
+  // phone is nullable on recruit_accounts - typed honestly so callers can't assume a string.
   const accountOf = (row: SelectionRow): { id: string; name: string; reg_no: string; phone: string | null; year: string; gender: string | null; department: string; course: string } | null =>
     (Array.isArray(row.recruit_accounts) ? row.recruit_accounts[0] : row.recruit_accounts) as any;
   const recruitIds = rows.map((r) => r.recruit_id);
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         .in("recruit_id", chunk)
     ),
     // Scoped to this sub_domain: attendance is per-exam, so the Day 1/Day 2 ticks
-    // reflect whether they sat THIS domain's exam — not some other domain's.
+    // reflect whether they sat THIS domain's exam - not some other domain's.
     selectInChunks(recruitIds, (chunk) =>
       supabase
         .from("recruit_exam_attendance")
@@ -133,11 +133,11 @@ export async function GET(request: NextRequest) {
         recruit_id: acc.id,
         name: acc.name,
         reg_no: acc.reg_no,
-        // Searchable-only on the marks page (never rendered) — it's the fastest handle an
+        // Searchable-only on the marks page (never rendered) - it's the fastest handle an
         // evaluator has when a recruit turns up without their reg no.
         phone: acc.phone,
         year: acc.year,
-        // Filter-only on the marks page, never rendered — but cutoffs ARE gender-scoped, so
+        // Filter-only on the marks page, never rendered - but cutoffs ARE gender-scoped, so
         // an evaluator working one gender's papers needs to narrow to them.
         gender: acc.gender,
         department: acc.department,
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ success: true, data, cycle_id: cycleId });
 }
 
-// POST /api/admin/recruitment/marks — upsert a single recruit's marks for a sub_domain.
+// POST /api/admin/recruitment/marks - upsert a single recruit's marks for a sub_domain.
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Optional free-text note ("answered 3 of 5"). Absent and blank both mean "no note" and
-  // must persist as NULL, not "" — otherwise clearing a note leaves an empty string behind
+  // must persist as NULL, not "" - otherwise clearing a note leaves an empty string behind
   // that reads as a saved-but-empty comment. The 500 cap mirrors the column's CHECK, so a
   // too-long note fails here with a readable message instead of a Postgres constraint error.
   const noteRaw = body?.note;
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Echo back who saved it and when, resolved the same way the GET does. Without this the
-  // marks page would show a stale (or missing) "Saved by ..." line until a full reload —
+  // marks page would show a stale (or missing) "Saved by ..." line until a full reload -
   // the one moment an evaluator most wants to see their own entry confirmed.
   const evaluatorNames = await resolveDisplayNames(supabase, [session.user]);
 

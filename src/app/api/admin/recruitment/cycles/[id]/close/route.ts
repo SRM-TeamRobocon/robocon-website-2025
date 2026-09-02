@@ -6,17 +6,17 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// PATCH /api/admin/recruitment/cycles/:id/close — admin only. Sets closed_at = now(),
+// PATCH /api/admin/recruitment/cycles/:id/close - admin only. Sets closed_at = now(),
 // is_active = false.
 //
 // This takes the whole recruitment module offline for students: with no active cycle every
 // `.single()` active-cycle lookup (signup, dashboard, scanners, marks, interviews) returns
-// 503. That is recoverable — PATCH .../cycles/:id/activate re-activates any cycle — but the
+// 503. That is recoverable - PATCH .../cycles/:id/activate re-activates any cycle - but the
 // UI must warn before calling this, and does.
 export async function PATCH(_request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["admin"])) {
-    return NextResponse.json({ success: false, error: "Forbidden — admin only." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "Forbidden - admin only." }, { status: 403 });
   }
 
   const { id } = await context.params;

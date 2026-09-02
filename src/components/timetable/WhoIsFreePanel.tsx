@@ -94,7 +94,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
         if (!query.trim()) return;
         const parsed = parseFreeTextQuery(query);
         if (parsed.dayIndex === null && parsed.startMin === null) {
-            setQueryError('Could not understand that — try something like "do1 1pm to 3pm", or use the filters below.');
+            setQueryError('Could not understand that - try something like "do1 1pm to 3pm", or use the filters below.');
             return;
         }
         setQueryError("");
@@ -122,7 +122,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
         () => filteredMembers.filter((m) => !schedules[m.username]),
         [filteredMembers, schedules]
     );
-    // Free for the ENTIRE window, not just some slot within it — free in every
+    // Free for the ENTIRE window, not just some slot within it - free in every
     // overlapping slot, not merely one of them.
     const fullyFree = useMemo(() => {
         if (overlappingSlots.length === 0) return [];
@@ -291,7 +291,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                             Free the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyFree.length})
                         </p>
                         {fullyFree.length === 0 ? (
-                            <span className="text-xs text-gray-500">Nobody&apos;s free for the whole window — see the slot-by-slot breakdown below.</span>
+                            <span className="text-xs text-gray-500">Nobody&apos;s free for the whole window - see the slot-by-slot breakdown below.</span>
                         ) : (
                             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                 {fullyFreeGroups.map((bucket) => (
@@ -372,7 +372,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                                                 {STATUS_LABELS[statusKey]} ({groups[statusKey].length})
                                             </p>
                                             {groups[statusKey].length === 0 ? (
-                                                <span className="text-xs text-gray-600">—</span>
+                                                <span className="text-xs text-gray-600">-</span>
                                             ) : (
                                                 <div className="space-y-2">
                                                     {groupByCampus(groups[statusKey]).map((bucket) => (

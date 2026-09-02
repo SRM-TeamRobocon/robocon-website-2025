@@ -4,7 +4,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 
 const BUCKET = "recruit-kb";
 
-// Not a reuse of /api/admin/content/upload — that route is image-only and always
+// Not a reuse of /api/admin/content/upload - that route is image-only and always
 // public. This bucket is private (admin-only knowledge-base .txt files, never served
 // directly to a client), so there's no getPublicUrl() call; reads happen via
 // .download() from the service-role client, inside the ingestion route only.

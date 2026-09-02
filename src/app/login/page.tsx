@@ -413,7 +413,7 @@ export default function LoginPage() {
                     return;
                 }
             } catch {
-                // Not logged in as a team member — keep checking.
+                // Not logged in as a team member - keep checking.
             }
             try {
                 const res = await fetch("/api/recruit/me");
@@ -423,7 +423,7 @@ export default function LoginPage() {
                     return;
                 }
             } catch {
-                // Not logged in as a recruit either — show the chooser.
+                // Not logged in as a recruit either - show the chooser.
             }
             if (!cancelled) setCheckingSession(false);
         })();

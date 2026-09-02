@@ -30,7 +30,7 @@ interface RecruitRow {
   name: string;
   reg_no: string;
   // Returned on the per-session roster only, so the mark-present gender filter can narrow
-  // it. Nullable on recruit_accounts — a recruit with none on file matches neither option
+  // it. Nullable on recruit_accounts - a recruit with none on file matches neither option
   // and stays visible only under "All genders". Left off the overview summary shape, like
   // phone below, since nothing there filters on it.
   gender: string | null;
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   // Both of these are scoped to a whole cycle rather than a bounded ID list, so at the
   // module's target scale (1000-2000 recruits, most picking 1-2 domains) they can exceed
-  // PostgREST's default 1000-row response cap — paginate rather than risk a silent
+  // PostgREST's default 1000-row response cap - paginate rather than risk a silent
   // truncation that would quietly under-report attendance for whoever got cut.
   const { data: recruitList, error: recruitsError } = await fetchAllRows<RecruitRow>((from, to) =>
     supabase
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
   });
 
   function isEligible(recruitId: string, sessionSubDomain: string | null): boolean {
-    if (!sessionSubDomain) return true; // all-hands session — everyone counts
+    if (!sessionSubDomain) return true; // all-hands session - everyone counts
     return domainsByRecruit.get(recruitId)?.has(sessionSubDomain) ?? false;
   }
 
@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
 
   let allAttendance: AttendanceRow[] = [];
   if (sessionIds.length > 0) {
-    // Bounded by (recruits × sessions), not just recruits — a full multi-week programme
+    // Bounded by (recruits × sessions), not just recruits - a full multi-week programme
     // easily clears 1000 rows well before hitting the recruit-count target scale.
     const { data: attendanceRows, error: attendanceError } = await fetchAllRows<AttendanceRow>((from, to) =>
       supabase
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
     allAttendance = attendanceRows;
   }
 
-  // A day with no session row for a domain simply isn't in sessionList at all — it never
+  // A day with no session row for a domain simply isn't in sessionList at all - it never
   // enters anyone's denominator, i.e. it's a holiday, not an absence. Only actual session
   // rows (created by "Start Attendance" or a volunteer's first scan of the day) count.
   const today = todayInIst();
@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
 
   const recruitsSummary = recruitList.map((recruit) => {
     // Denominator: held sessions this recruit is actually eligible for (own domain(s) +
-    // any all-hands session) — not every session ever held. Numerator is intersected with
+    // any all-hands session) - not every session ever held. Numerator is intersected with
     // the same set so a stray attendance row from outside the recruit's domain(s) can't
     // push their count past their own denominator.
     const ownHeldSessionIds = sessionList

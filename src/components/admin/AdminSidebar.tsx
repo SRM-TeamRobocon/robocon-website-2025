@@ -83,11 +83,11 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
             )}
 
             {/* Plain (non-motion) element: `position: sticky` only works while the element
-                has no `transform` at all — Framer Motion's `motion.*` components always
+                has no `transform` at all - Framer Motion's `motion.*` components always
                 apply their own inline transform (even an identity one, for otherwise
                 unrelated animations like this width change), and any non-"none" transform
                 value on the element itself breaks sticky by giving it a new containing
-                block. The width animation below is plain CSS instead for the same reason —
+                block. The width animation below is plain CSS instead for the same reason -
                 `lg:translate-x-0` would have set an explicit (if zero) transform at desktop
                 sizes too, so that's `lg:transform-none` now, not a translate utility. */}
             <aside

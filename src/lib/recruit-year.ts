@@ -1,11 +1,11 @@
 // Canonical year-of-study list for the recruitment module. Same checked-text-column pattern
-// as src/lib/gender.ts — `recruit_accounts.year` and `recruit_cutoffs.year` are both
+// as src/lib/gender.ts - `recruit_accounts.year` and `recruit_cutoffs.year` are both
 // `text check (year in ('1','2'))`, not a Postgres enum, so adding a third year later is a
 // CHECK change rather than an ALTER TYPE (see supabase/recruit-migration-016-drop-year-3.sql,
 // which tightened this back down from ('1','2','3')).
 //
 // Feeds year-scoped cutoffs on recruit_cutoffs (migration 018): a domain now has FOUR
-// cutoffs — one per (gender, year) — because 1st and 2nd years sit different papers.
+// cutoffs - one per (gender, year) - because 1st and 2nd years sit different papers.
 
 export const RECRUIT_YEARS = [
   { key: "1", label: "Year 1" },

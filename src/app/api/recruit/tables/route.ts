@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 
 // GET /api/recruit/tables
 //
-// Fully public, no session of any kind — see the carve-out in src/proxy.ts. Backs the
+// Fully public, no session of any kind - see the carve-out in src/proxy.ts. Backs the
 // /recruit/tables kiosk screen: a lobby-TV/own-phone view of every open interview table
 // so recruits can see which line to join without asking a volunteer. Payload is the same
 // "safe" shape role "member" gets from the per-panel queue route (token number + first
-// name only) — never reg_no, department, marks, or shortlist state.
+// name only) - never reg_no, department, marks, or shortlist state.
 export async function GET() {
     const supabase = createRecruitSupabaseAdminClient();
 
@@ -62,7 +62,7 @@ export async function GET() {
         (byPanel.get(t.panel_id) ?? byPanel.set(t.panel_id, []).get(t.panel_id)!).push(entry);
     }
 
-    // Full waiting line, not capped — the kiosk page renders it in a scrollable box so an
+    // Full waiting line, not capped - the kiosk page renders it in a scrollable box so an
     // arbitrarily long line doesn't need a server-side limit.
     const tables = (panels ?? []).map((p) => {
         const panelTokens = byPanel.get(p.id) ?? [];

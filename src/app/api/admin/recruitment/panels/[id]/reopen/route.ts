@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 // PATCH /api/admin/recruitment/panels/:id/reopen
 // The inverse of ../close. Closing a panel is a normal end-of-slot action, but it also
-// disables Call Next and makes the scanner refuse interview check-ins — so a panel closed
+// disables Call Next and makes the scanner refuse interview check-ins - so a panel closed
 // while recruits were still `waiting` used to strand them permanently, fixable only by
 // hand-editing is_active in SQL. Reopening flips is_active back to true; token rows are
 // untouched (they were never mutated on close), so the queue resumes exactly where it was.
@@ -25,7 +25,7 @@ export async function PATCH(_request: NextRequest, context: RouteContext) {
 
   const supabase = createRecruitSupabaseAdminClient();
 
-  // Only reopen a panel in the currently active cycle — reviving a panel from a previous
+  // Only reopen a panel in the currently active cycle - reviving a panel from a previous
   // recruitment season would put it back in the scanner's picker.
   const { data: cycle } = await supabase
     .from("recruitment_cycles")

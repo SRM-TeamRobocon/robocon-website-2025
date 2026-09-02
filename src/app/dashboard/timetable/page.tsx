@@ -37,7 +37,7 @@ export default function TimetableDirectoryPage() {
             .catch(() => {})
             .finally(() => setLoading(false));
 
-        // "Approved Busy" indicator — cross-referenced by email (owner_username for
+        // "Approved Busy" indicator - cross-referenced by email (owner_username for
         // member_accounts logins is their login email).
         fetch("/api/dashboard/leave-requests/today")
             .then((res) => res.json())

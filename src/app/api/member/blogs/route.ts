@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     }
 }
 
-// Editing your own blog resubmits it for approval — content that already went live
+// Editing your own blog resubmits it for approval - content that already went live
 // shouldn't change without a lead re-reviewing it. The exception is a lead/admin editing
 // a post (their own or someone else's) that's already approved: they already have
 // approval authority, so their edit keeps the post live instead of pulling it from the

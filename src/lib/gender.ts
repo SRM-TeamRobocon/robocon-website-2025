@@ -1,7 +1,7 @@
 // Canonical gender list for the recruitment module. Same checked-text-column pattern as
 // src/lib/travel-method.ts (see supabase/recruit-migration-013-gender-cutoffs.sql for why
 // this is a checked text column rather than a Postgres enum). Feeds gender-scoped cutoffs
-// on recruit_cutoffs — every domain now has a separate male and female cutoff.
+// on recruit_cutoffs - every domain now has a separate male and female cutoff.
 
 export const GENDERS = [
   { key: "male", label: "Male" },

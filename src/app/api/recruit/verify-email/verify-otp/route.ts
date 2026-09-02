@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const MAX_OTP_ATTEMPTS = 5;
 
 // POST /api/recruit/verify-email/verify-otp
-// Post-registration counterpart to /api/recruit/auth/verify-otp — see send-otp/route.ts
+// Post-registration counterpart to /api/recruit/auth/verify-otp - see send-otp/route.ts
 // in this directory for why this pair exists separately from the pre-registration one.
 export async function POST(request: Request) {
     try {

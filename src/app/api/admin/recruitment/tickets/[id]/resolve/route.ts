@@ -16,7 +16,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 // (from_sub_domain -> requested_sub_domain, or new_sub_domain to override the
 // recruit's original request). Deliberately does NOT touch recruit_marks,
 // recruit_shortlist_status, recruit_interview_tokens/results, or training attendance
-// for the old domain — those are the historical record of what already happened under
+// for the old domain - those are the historical record of what already happened under
 // that domain (exam sat, interview called, etc.) and moving/deleting them would
 // silently rewrite that history. A lead who needs the recruit re-evaluated under the
 // new domain does that manually through the existing per-domain tooling (marks,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: "Ticket not found or already resolved" }, { status: 404 });
     }
 
-    // Best-effort notification, but AWAITED rather than fired-and-forgotten — a serverless
+    // Best-effort notification, but AWAITED rather than fired-and-forgotten - a serverless
     // function's execution can be frozen the instant the response is sent, so a detached
     // promise here risks the email silently never going out. Failure still can't turn into
     // a 500 for an action that already went through (see the try/catch inside), and it's

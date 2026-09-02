@@ -16,7 +16,7 @@ interface Cycle {
 }
 
 // A destructive action that needs the cycle's name typed out before it will run.
-// Only used when real recruit data is at stake — a cycle with zero recruits just runs.
+// Only used when real recruit data is at stake - a cycle with zero recruits just runs.
 interface PendingAction {
     title: string;
     warning: string;
@@ -312,7 +312,7 @@ export default function RecruitmentCyclesPage() {
                                             {new Date(c.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="px-5 py-3 text-gray-400">
-                                            {c.closed_at ? new Date(c.closed_at).toLocaleDateString() : "—"}
+                                            {c.closed_at ? new Date(c.closed_at).toLocaleDateString() : "-"}
                                         </td>
                                         {isAdmin && (
                                             <td className="px-5 py-3 text-right">

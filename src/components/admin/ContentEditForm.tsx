@@ -26,7 +26,7 @@ interface ContentEditFormProps {
     initialValues?: Row;
     submitLabel?: string;
     submitting?: boolean;
-    /** Resource key (e.g. "gallery", "projects") — enables the upload button for image fields. */
+    /** Resource key (e.g. "gallery", "projects") - enables the upload button for image fields. */
     resource?: string;
     onSubmit: (payload: Row) => void;
 }

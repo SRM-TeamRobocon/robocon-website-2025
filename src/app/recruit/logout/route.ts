@@ -4,7 +4,7 @@ import { RECRUIT_COOKIE_NAME } from "@/lib/recruit-session";
 
 export const dynamic = "force-dynamic";
 
-// Direct-navigation logout (e.g. a plain link) — clears the cookie and redirects.
+// Direct-navigation logout (e.g. a plain link) - clears the cookie and redirects.
 export async function GET(request: NextRequest) {
     const origin = new URL(request.url).origin;
     const response = NextResponse.redirect(`${origin}/recruit/login`);

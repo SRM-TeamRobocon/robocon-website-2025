@@ -10,16 +10,16 @@ export type RecruitSession = {
 };
 
 // Fail closed in production rather than silently signing recruit tokens with a
-// value that is committed to this repository — anyone could then mint a token for
+// value that is committed to this repository - anyone could then mint a token for
 // any recruit. In development a fallback keeps local setup frictionless, but it
 // warns loudly so it can't be mistaken for a working configuration.
 export function recruitJwtSecret(): Uint8Array {
   const configured = process.env.RECRUIT_JWT_SECRET;
   if (!configured) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("RECRUIT_JWT_SECRET is not set — refusing to issue or verify recruit tokens.");
+      throw new Error("RECRUIT_JWT_SECRET is not set - refusing to issue or verify recruit tokens.");
     }
-    console.warn("[recruit-auth] RECRUIT_JWT_SECRET is unset — using an insecure development fallback.");
+    console.warn("[recruit-auth] RECRUIT_JWT_SECRET is unset - using an insecure development fallback.");
     return new TextEncoder().encode("fallback_recruit_secret_!@#");
   }
   return new TextEncoder().encode(configured);
@@ -36,7 +36,7 @@ export const OAUTH_STATE_COOKIE = "recruit_oauth_state";
 const OAUTH_STATE_TTL = "15m";
 
 // `lax` (not `strict`) because this cookie is also set on the Google OAuth callback's
-// redirect response — a hop inside a navigation that *started* as a cross-site redirect
+// redirect response - a hop inside a navigation that *started* as a cross-site redirect
 // from accounts.google.com. Browsers evaluate SameSite over the whole redirect chain, so
 // a `strict` cookie set mid-chain can be silently dropped on the very next same-origin
 // hop even though it's genuinely first-party by then. Same reasoning as
@@ -112,7 +112,7 @@ export async function issueRecruitToken(payload: RecruitSession): Promise<string
 
 export const RECRUIT_COOKIE_NAME = "recruit_token";
 
-// `lax` for the same reason as OAUTH_STATE_COOKIE_OPTIONS above — this is also set on
+// `lax` for the same reason as OAUTH_STATE_COOKIE_OPTIONS above - this is also set on
 // the Google OAuth callback's redirect response (the login-via-Google path), where
 // `strict` risks being dropped mid-redirect-chain.
 export const RECRUIT_COOKIE_OPTIONS = {

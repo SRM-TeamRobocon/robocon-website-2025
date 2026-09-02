@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const OAUTH_NONCE_COOKIE = "recruit_oauth_nonce";
 
 // Kicks off the Google OAuth consent flow for recruit login/registration.
-// Used for both login (existing google_uid) and registration (new user) — the
+// Used for both login (existing google_uid) and registration (new user) - the
 // callback route decides which path applies once it has the Google profile.
 export async function GET(request: NextRequest) {
     const origin = new URL(request.url).origin;
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-        // Google OAuth credentials aren't filled in yet (see .env.local) — fail
+        // Google OAuth credentials aren't filled in yet (see .env.local) - fail
         // loud with a redirect back to login rather than crashing.
         return NextResponse.redirect(`${origin}/recruit/login?error=google_not_configured`);
     }
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     // CSRF / account-fixation defence: bind the callback to the browser that started
     // the flow. Without this, an attacker can complete the Google step themselves and
-    // hand the victim a callback URL carrying the ATTACKER's code — the victim then
+    // hand the victim a callback URL carrying the ATTACKER's code - the victim then
     // finishes registration with the attacker's google_uid stamped on their account,
     // letting the attacker log in as them via "Continue with Google".
     const nonce = randomBytes(16).toString("hex");

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // POST -> start today's (or a picked date's) attendance for a domain. Body: { sub_domain, session_date? }.
 //   sub_domain is one of the 6 recruit_subdomain values, or null/omitted for an all-hands
 //   session. This mirrors the QR scanner's training-mode upsert in
-//   src/app/api/admin/recruitment/scan/route.ts — a lead "starting attendance" from the
+//   src/app/api/admin/recruitment/scan/route.ts - a lead "starting attendance" from the
 //   dashboard is the same find-or-create-today's-session-for-this-domain operation as a
 //   volunteer's first scan of the day, just triggered by hand instead of a scan. The label
 //   is always auto-derived (no free-text field) so the two paths can never produce two
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 // Both require an authenticated lead/admin session (see recruitment.md: all
 // /dashboard/recruitment/* admin routes require role "lead" or "admin").
 //
-// (cycle_id, session_date, sub_domain) is unique as of migration 005 — a double-clicked
+// (cycle_id, session_date, sub_domain) is unique as of migration 005 - a double-clicked
 // "Start Attendance" resolves to the existing session rather than creating a duplicate that
 // would silently drag every recruit's attendance percentage down forever. See ./[id]/route.ts
 // for DELETE.
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
   const payload = (body ?? {}) as Record<string, unknown>;
 
-  // Empty string / undefined / null all mean "all-hands" — matches the scan route's
+  // Empty string / undefined / null all mean "all-hands" - matches the scan route's
   // treatment of an omitted sub_domain.
   const rawSubDomain = typeof payload.sub_domain === "string" ? payload.sub_domain.trim() : "";
   if (rawSubDomain && !isRecruitSubDomain(rawSubDomain)) {
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
   }
 
   const domainLabel = subDomain ? subDomainFullLabel(subDomain) : "All Domains";
-  const sessionLabel = `${domainLabel} — ${sessionDate}`;
+  const sessionLabel = `${domainLabel} - ${sessionDate}`;
 
   const { data, error } = await supabase
     .from("recruit_training_sessions")
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
   if (error) {
     if (isUniqueViolation(error)) {
       // Attendance for this domain today was already started (by this lead, another lead,
-      // or a volunteer's QR scan) — hand back the existing session rather than erroring, so
+      // or a volunteer's QR scan) - hand back the existing session rather than erroring, so
       // "Start Attendance" is idempotent and just opens the day that's already running.
       let existingQuery = supabase
         .from("recruit_training_sessions")

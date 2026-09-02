@@ -5,8 +5,8 @@ import { phoneSearchTerm } from "@/lib/recruit-validation";
 // Supabase/PostgREST caps any single response at 1000 rows by default (the project's
 // db_max_rows setting), applied silently: a query that would match 1500 rows just comes
 // back with the first 1000 and no error, no warning. At the recruitment module's target
-// scale (1000-2000 recruits, some picking 2 domains each) several tables — domain
-// selections, exam attendance, training attendance — comfortably exceed 1000 rows for a
+// scale (1000-2000 recruits, some picking 2 domains each) several tables - domain
+// selections, exam attendance, training attendance - comfortably exceed 1000 rows for a
 // single cycle. Any endpoint that must see every matching row (analytics, attendance
 // eligibility, CSV export) has to paginate instead of trusting one fetch.
 
@@ -40,7 +40,7 @@ export async function fetchAllRows<T>(
     return { data: all, error: null };
 }
 
-// Keeps `.in("col", ids)` query strings well under any reverse-proxy/URL-length limit —
+// Keeps `.in("col", ids)` query strings well under any reverse-proxy/URL-length limit -
 // at 2000 recruits, a single .in() with every id would be a ~70KB query string.
 const IN_CHUNK_SIZE = 150;
 
@@ -86,7 +86,7 @@ export function recruitSearchOrFilter(search: string): string | null {
     const clauses = [`name.ilike.%${raw}%`, `reg_no.ilike.%${raw}%`];
 
     // Phone is stored as bare digits, so a pasted "+91 98765 43210" only matches once the
-    // separators are stripped — but stripping them from the name/reg_no terms would break
+    // separators are stripped - but stripping them from the name/reg_no terms would break
     // those, hence two different terms off the one input. phoneSearchTerm() returns null
     // under 3 digits so a lone digit inside a name search can't match hundreds of numbers.
     const phone = phoneSearchTerm(trimmed);

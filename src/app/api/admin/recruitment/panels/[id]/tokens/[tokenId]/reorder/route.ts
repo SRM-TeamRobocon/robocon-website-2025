@@ -10,15 +10,15 @@ type RouteContext = { params: Promise<{ id: string; tokenId: string }> };
 const POSITION_GAP = 1000;
 
 // PATCH /api/admin/recruitment/panels/:id/tokens/:tokenId/reorder
-// Body: { after_token_id: string | null } — "place this token immediately after
+// Body: { after_token_id: string | null } - "place this token immediately after
 // after_token_id in the waiting queue" (null = move to the very front).
 //
 // Drag-and-drop reordering only ever touches the moved row: queue_position is a float,
-// so the new value is just the midpoint between its new neighbours' positions — no
+// so the new value is just the midpoint between its new neighbours' positions - no
 // renumbering of the rest of the queue, no lock contention with a concurrent Call Next.
 // token_number (the recruit's permanent, dashboard-visible "#12") is never touched here.
 //
-// Only `waiting` tokens can be reordered — a `called`/`done`/`no_show` token isn't part
+// Only `waiting` tokens can be reordered - a `called`/`done`/`no_show` token isn't part
 // of "who's next" any more.
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const session = await getSession();
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Only waiting tokens can be reordered" }, { status: 400 });
   }
 
-  // The rest of the waiting queue, excluding the token being moved, in current order —
+  // The rest of the waiting queue, excluding the token being moved, in current order -
   // enough to compute both possible neighbour positions from one query.
   const { data: rest, error: restError } = await supabase
     .from("recruit_interview_tokens")

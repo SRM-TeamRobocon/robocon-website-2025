@@ -17,7 +17,7 @@ function todayInIst(): string {
   }).format(new Date());
 }
 
-// Same idea for a timestamptz — which IST calendar day did this happen on. Used for the
+// Same idea for a timestamptz - which IST calendar day did this happen on. Used for the
 // registrations-over-time series, where bucketing by UTC day would shift every sign-up
 // between 00:00 and 05:30 IST onto the previous day.
 function istDate(ts: string): string {
@@ -31,11 +31,11 @@ function istDate(ts: string): string {
   }).format(d);
 }
 
-// `department` is free text with no allow-list (see complete-registration/route.ts — it gets
+// `department` is free text with no allow-list (see complete-registration/route.ts - it gets
 // a trim and a 60-char cap, nothing else), so the raw column holds "ECE" and "Ece" and
 // "CSE AIML"/"CSE-AIML"/"CSE AI ML" as separate values. Grouping on the raw string produces
 // a meaningless chart, so group on this key and display the most common original spelling
-// within each group. Display-only — nothing here writes back to recruit_accounts.
+// within each group. Display-only - nothing here writes back to recruit_accounts.
 function departmentKey(raw: unknown): string {
   const cleaned = String(raw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   return cleaned || "UNKNOWN";
@@ -48,7 +48,7 @@ type Bucket = { key: string; label: string; count: number; eligible: number };
 type YearSplit = { count: number; eligible: number };
 
 // The domain breakdown carries its own year split so the page can show, per domain, how many
-// Year 1s and how many Year 2s reached this stage — not just the domain total. The two years
+// Year 1s and how many Year 2s reached this stage - not just the domain total. The two years
 // sit different papers and convert at different rates, so a combined domain number hides the
 // thing worth looking at.
 type DomainBucket = Bucket & {
@@ -72,9 +72,9 @@ type Stage = {
   by_residence: Bucket[];
 };
 
-// GET /api/admin/recruitment/analytics — funnel stats for the active cycle, overall and
+// GET /api/admin/recruitment/analytics - funnel stats for the active cycle, overall and
 // per sub-domain, plus training attendance % per session. Read-only aggregation across the
-// recruit_ tables — no dependency on any other route.
+// recruit_ tables - no dependency on any other route.
 //
 // The `stages` block (2026-08-31) is what the tabbed analytics page renders: one entry per
 // pipeline stage, each carrying the SAME four breakdowns (domain / year / gender / residence)
@@ -83,7 +83,7 @@ type Stage = {
 // percentage reads as "conversion from the step before", not "% of everyone".
 //
 // The older top-level fields (`overall`, `by_domain`, `by_domain_gender`, `by_domain_year`,
-// `by_domain_hosteller`, `training`) are unchanged and still returned — the recruitment hub
+// `by_domain_hosteller`, `training`) are unchanged and still returned - the recruitment hub
 // page reads `overall`/`by_domain` from here too.
 export async function GET() {
   const session = await getSession();
@@ -105,8 +105,8 @@ export async function GET() {
 
   // Every one of these is scoped to the whole cycle rather than a bounded ID list, so at
   // the module's target scale (1000-2000 recruits, most picking 1-2 domains) several of
-  // them can exceed PostgREST's default 1000-row response cap. That cap is silent — no
-  // error, just the first 1000 rows — so an un-paginated fetch here would make the funnel
+  // them can exceed PostgREST's default 1000-row response cap. That cap is silent - no
+  // error, just the first 1000 rows - so an un-paginated fetch here would make the funnel
   // numbers quietly wrong past that point rather than fail loudly. fetchAllRows pages
   // through with .range() until it sees a short page.
   const [
@@ -218,7 +218,7 @@ export async function GET() {
   // Exam attendance is keyed per sub-domain since migration 001, so it can be attributed to
   // the exam the recruit actually sat. Previously a flat "anyone with an exam row" set was
   // intersected with each domain's applicants, which credited a coding+vfx_gfx student who
-  // sat only the coding exam to VFX/GFX too — a stage that domain doesn't even have.
+  // sat only the coding exam to VFX/GFX too - a stage that domain doesn't even have.
   const examIdsByDomain = new Map<string, Set<string>>();
   for (const row of examAttendance as any[]) {
     if (!row.sub_domain) continue;
@@ -239,7 +239,7 @@ export async function GET() {
     selected: selectedIds.size,
   };
 
-  // Interview results carry three outcomes, not just "selected" — rejected/waitlisted were
+  // Interview results carry three outcomes, not just "selected" - rejected/waitlisted were
   // being discarded even though the same `interviews` rows already have them, so this is a
   // client-side tabulation of data already in memory, not a new query.
   const outcomeCounts = (rows: { result: string }[]) => {
@@ -256,7 +256,7 @@ export async function GET() {
 
   // gender/is_hosteller live on recruit_accounts, not recruit_domain_selections, so a
   // recruit_id -> account lookup is needed to attribute each domain's registrants by these
-  // fields. Registered counts only (no funnel breakdown) — same "one row per domain
+  // fields. Registered counts only (no funnel breakdown) - same "one row per domain
   // selection" semantics as domainRecruitIds above, so a recruit who picked two domains is
   // counted once per domain, same as everywhere else on this page.
   const accountsById = new Map<string, any>(accounts.map((a: any) => [a.id, a]));
@@ -278,7 +278,7 @@ export async function GET() {
   });
 
   // Year is free text on recruit_accounts ("1"/"2" in practice), so anything that isn't a
-  // recognised year falls into `other` rather than being dropped — a silently missing recruit
+  // recognised year falls into `other` rather than being dropped - a silently missing recruit
   // would make this table disagree with the registration counts right above it.
   const byDomainYear = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const domainRecruitIds = domainSelections
@@ -480,7 +480,7 @@ export async function GET() {
   });
 
   // Each stage's denominator is the stage before it, so the percentages read as
-  // step-to-step conversion. Registration has none — it IS the denominator.
+  // step-to-step conversion. Registration has none - it IS the denominator.
   const stages: Stage[] = [
     buildStage(
       "registration",
@@ -587,7 +587,7 @@ export async function GET() {
     else if (row.day === 2) examByDay.day_2 += 1;
   }
 
-  // 0-9, 10-19, ... 80-89, 90-100 — the top bucket is 11 wide so a perfect 100 has a home.
+  // 0-9, 10-19, ... 80-89, 90-100 - the top bucket is 11 wide so a perfect 100 has a home.
   const MARK_BUCKETS = 10;
   const marksHistogram = Array.from({ length: MARK_BUCKETS }, (_, i) => ({
     label: i === MARK_BUCKETS - 1 ? "90-100" : `${i * 10}-${i * 10 + 9}`,
@@ -601,7 +601,7 @@ export async function GET() {
   }
 
   // Per-domain Day 1 / Day 2 split. Attendance is unique on (recruit, cycle, sub_domain), so
-  // these are sittings — a recruit sitting two domains' exams appears once under each, and
+  // these are sittings - a recruit sitting two domains' exams appears once under each, and
   // `total` per domain equals that domain's distinct attendees.
   const examByDomainDay = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const rows = (examAttendance as any[]).filter((r) => r.sub_domain === domain);
@@ -645,7 +645,7 @@ export async function GET() {
   });
 
   // Cutoffs are scoped by gender (migration 013) AND year (migration 018), so a domain has
-  // four. shortlist/compute skips a domain entirely unless ALL FOUR are set — so a null here
+  // four. shortlist/compute skips a domain entirely unless ALL FOUR are set - so a null here
   // is the reason a domain shows zero shortlisted, and is worth surfacing rather than
   // rendering as a blank cell.
   const cutoffByDomain = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
@@ -696,7 +696,7 @@ export async function GET() {
   const sessions = sessionsRes.data;
   const trainingAttendance = trainingAttendanceRes.data;
 
-  // Training rosters key off recruit_accounts.is_selected — that is the flag the training
+  // Training rosters key off recruit_accounts.is_selected - that is the flag the training
   // QR scanner and /api/admin/recruitment/training-attendance both gate on, so the
   // denominator here has to match it rather than the interview-result set used above.
   const trainingRosterIds = new Set(accounts.filter((a: any) => a.is_selected).map((a: any) => a.id));
@@ -707,7 +707,7 @@ export async function GET() {
       ? trainingRosterIds.size
       : new Set(trainingAttendance.map((row: any) => row.recruit_id)).size;
 
-  // Sessions that have not happened yet are reported but excluded from every aggregate —
+  // Sessions that have not happened yet are reported but excluded from every aggregate -
   // a lead who pre-creates a whole 3-week programme should not see the average collapse.
   const today = todayInIst();
   const sessionStats = sessions.map((s: any) => {

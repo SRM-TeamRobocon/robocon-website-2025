@@ -1,6 +1,6 @@
 import "server-only";
 
-// Voyage AI embeddings — used to turn admin-uploaded .txt chunks (input_type: "document")
+// Voyage AI embeddings - used to turn admin-uploaded .txt chunks (input_type: "document")
 // and recruit chat questions (input_type: "query") into comparable vectors for
 // recruit_kb_chunks' pgvector column. Plain fetch, no SDK: this is a single simple
 // JSON-in/JSON-out endpoint, matching this repo's convention of not adding a dependency
@@ -16,7 +16,7 @@ export async function embedTexts(
     inputType: "document" | "query" = "document"
 ): Promise<number[][]> {
     if (!VOYAGE_API_KEY) {
-        throw new Error("VOYAGE_API_KEY is not configured — cannot generate embeddings.");
+        throw new Error("VOYAGE_API_KEY is not configured - cannot generate embeddings.");
     }
     if (texts.length === 0) return [];
 

@@ -14,7 +14,7 @@ import Select from "@/components/ui/select";
 
 const DOMAIN_GROUPS = groupBySubsystem();
 
-// Same shape as SRM_EMAIL_RE in src/app/api/recruit/auth/send-otp/route.ts — kept in sync
+// Same shape as SRM_EMAIL_RE in src/app/api/recruit/auth/send-otp/route.ts - kept in sync
 // by hand since this is a client-side pre-check only; the server (complete-registration)
 // re-validates against its own copy regardless.
 const SRM_EMAIL_RE = /^[a-zA-Z0-9._%+-]+@srmist\.edu\.in$/;
@@ -210,7 +210,7 @@ function RecruitRegisterInner() {
         window.location.href = "/api/recruit/auth/google";
     };
 
-    // SRM-email OTP verification now happens later, from the dashboard (EmailVerifyBanner) —
+    // SRM-email OTP verification now happens later, from the dashboard (EmailVerifyBanner) -
     // this step just captures + format-checks the address so registration isn't blocked on
     // a mail round-trip. Server-side, complete-registration re-validates the same shape.
     const handleContinueFromEmail = (e: React.FormEvent) => {
@@ -505,7 +505,7 @@ function RecruitRegisterInner() {
                                                 ...prev,
                                                 isHosteller: opt.value,
                                                 // Clear block/room when switching to day scholar, and
-                                                // clear area/travel method when switching to hosteller —
+                                                // clear area/travel method when switching to hosteller -
                                                 // in both directions this stops a half-filled residence
                                                 // pairing from being submitted (the DB check constraint
                                                 // rejects a hosteller carrying day-scholar fields anyway).

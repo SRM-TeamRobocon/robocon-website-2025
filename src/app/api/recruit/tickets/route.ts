@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 const TICKET_COLUMNS =
     "id, category, message, current_sub_domains, from_sub_domain, requested_sub_domain, status, resolution_note, resolved_at, created_at";
 
-// GET /api/recruit/tickets — the recruit's own ticket history, newest first. Also used
+// GET /api/recruit/tickets - the recruit's own ticket history, newest first. Also used
 // by the dashboard to decide whether the "raise a ticket" form should be shown (an open
-// ticket blocks a new one — see the partial unique index in
+// ticket blocks a new one - see the partial unique index in
 // recruit-migration-009-tickets.sql).
 export async function GET() {
     const session = await getRecruitSession();
@@ -35,7 +35,7 @@ export async function GET() {
     return NextResponse.json({ success: true, data: data ?? [] });
 }
 
-// POST /api/recruit/tickets — raise a new ticket. Body:
+// POST /api/recruit/tickets - raise a new ticket. Body:
 //   { category: "general", message }
 //   { category: "domain_change", message, from_sub_domain, requested_sub_domain }
 export async function POST(request: NextRequest) {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         .single();
 
     if (error) {
-        // Postgres unique_violation — the partial unique index on (recruit_id) where
+        // Postgres unique_violation - the partial unique index on (recruit_id) where
         // status='open' means this recruit already has an open ticket.
         if (error.code === "23505") {
             return NextResponse.json(

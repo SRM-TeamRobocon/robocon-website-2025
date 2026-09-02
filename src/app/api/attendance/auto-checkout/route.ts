@@ -4,27 +4,27 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 // Cron-triggered (see vercel.json, "30 18 * * *" = midnight IST). Vercel Cron only ever
 // sends GET and injects `Authorization: Bearer $CRON_SECRET` when the env var is named
 // exactly CRON_SECRET. Since this fires once per day at day's end, anyone whose latest
-// tap is still "IN" gets swept to "OUT" — no stale-duration math needed anymore.
+// tap is still "IN" gets swept to "OUT" - no stale-duration math needed anymore.
 //
 // Exception: members holding an active overnight pass are left checked in for this one
 // sweep. Every active pass is resolved here regardless of whether it was used, which is
-// what makes a pass strictly one night — it can't still be active at the next sweep.
+// what makes a pass strictly one night - it can't still be active at the next sweep.
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     const authHeader = req.headers.get("authorization");
     // Fail closed when the env var is missing. The old `|| "local-dev"` fallback meant
-    // an unset CRON_SECRET silently turned this into a public endpoint — and for the
+    // an unset CRON_SECRET silently turned this into a public endpoint - and for the
     // cron in particular it was worse than that: Vercel only attaches the
     // Authorization header when CRON_SECRET exists, so an unset var meant the real
     // caller got 401 every night while anyone sending "local-dev" got through.
     const expected = process.env.CRON_SECRET;
     if (!expected) {
         if (process.env.NODE_ENV === "production") {
-            console.error("CRON_SECRET is not set — refusing the request.");
+            console.error("CRON_SECRET is not set - refusing the request.");
             return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
         }
-        console.warn("CRON_SECRET unset — accepting the local-dev fallback (development only).");
+        console.warn("CRON_SECRET unset - accepting the local-dev fallback (development only).");
     }
     if (authHeader !== `Bearer ${expected || "local-dev"}`) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     }
     if (passError) {
         // Without the pass list we'd sweep out people who explicitly said they're
-        // staying — that's worse than skipping tonight's sweep entirely.
+        // staying - that's worse than skipping tonight's sweep entirely.
         console.error("auto-checkout: overnight pass fetch failed", passError);
         return NextResponse.json({ error: passError.message }, { status: 500 });
     }
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
     // Burn every pass this sweep saw. 'used' for the people it actually kept checked
     // in, 'expired' for passes claimed by someone who ended up tapping out normally
-    // (or never came in) — either way none of them reach tomorrow's sweep.
+    // (or never came in) - either way none of them reach tomorrow's sweep.
     const usedPassIds = (activePasses || [])
         .filter((p) => stayingOvernight.includes(p.member_account_id))
         .map((p) => p.id);

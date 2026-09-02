@@ -41,7 +41,7 @@ export async function POST() {
         .eq("status", "pending");
 
     // ...and only one team-wide. The tap route can't tell whose card just touched the
-    // reader — it binds the oldest open window to whatever UID arrives. With two
+    // reader - it binds the oldest open window to whatever UID arrives. With two
     // windows open, the first card tapped is bound to the wrong person, silently:
     // both dashboards report success and every later tap logs attendance for someone
     // else. Serialising here is what makes that impossible, so don't relax it to a

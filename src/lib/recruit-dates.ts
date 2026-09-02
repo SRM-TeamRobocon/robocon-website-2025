@@ -1,6 +1,6 @@
 // Date helpers for the recruitment module.
 //
-// Every recruitment date is a calendar day on campus, not an instant — "today's
+// Every recruitment date is a calendar day on campus, not an instant - "today's
 // training session", "the day of the exam". Those must be resolved in IST regardless
 // of where the server runs, otherwise a session created on the evening of the 9th IST
 // lands on the 8th (or the 10th) once the server's clock is UTC.

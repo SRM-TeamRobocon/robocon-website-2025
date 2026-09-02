@@ -21,7 +21,7 @@ export async function GET() {
     const today = todayIST();
     const supabase = createSupabaseAdminClient();
     // owner_username on timetables is the member's login email, which is also
-    // member_accounts.email — join it here so callers (e.g. the timetable directory,
+    // member_accounts.email - join it here so callers (e.g. the timetable directory,
     // keyed by owner_username) can match a leave request to a row without a second round trip.
     const { data, error } = await supabase
         .from("leave_requests")

@@ -221,7 +221,7 @@ export default function LeaveRequestPage() {
                                                 {row.status}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-3 text-gray-400">{row.review_note || "—"}</td>
+                                        <td className="px-5 py-3 text-gray-400">{row.review_note || "-"}</td>
                                     </tr>
                                 ))}
                             </tbody>

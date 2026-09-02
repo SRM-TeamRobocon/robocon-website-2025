@@ -3,7 +3,7 @@
 // Mirrors the block options in the workshop registration form
 // (src/app/workshopReg2/page.tsx), which is where this list has been maintained. The
 // one difference: that form folds "Day Scholar" into the same dropdown as a sentinel
-// value, whereas recruitment asks "are you a hosteller?" as a separate boolean first —
+// value, whereas recruitment asks "are you a hosteller?" as a separate boolean first -
 // so this list holds real blocks only and never a day-scholar entry.
 //
 // Kept as plain text rather than a Postgres enum because the list changes between

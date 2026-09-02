@@ -93,7 +93,7 @@ import {
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
 
-// Scoped to a single, already-known sub_domain — every call site now lives inside that
+// Scoped to a single, already-known sub_domain - every call site now lives inside that
 // domain's own row, so there's no dropdown to pick from any more (the row IS the pick).
 // table_number/routing is still auto-allocated server-side regardless of the name typed
 // here.
@@ -176,12 +176,12 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
 }
 
 // Shared by TableSlot's own control strip (open tables) and PanelCard (closed tables /
-// legacy no-domain panels) — one place for the Pause / Close-for-Day / Delete network
+// legacy no-domain panels) - one place for the Pause / Close-for-Day / Delete network
 // calls so the two presentations can't drift apart.
 function usePanelActions(panel: Panel, onChanged: () => void) {
     const [busy, setBusy] = useState(false);
 
-    // Reversible pause — Reopen brings back any stranded `waiting` tokens exactly as they
+    // Reversible pause - Reopen brings back any stranded `waiting` tokens exactly as they
     // were. Nobody is moved anywhere.
     const closePanel = async () => {
         if (!confirm(`Pause "${panel.domain_label}"? Remaining waiting tokens are left as-is. Reopen brings them back.`)) return;
@@ -227,7 +227,7 @@ function usePanelActions(panel: Panel, onChanged: () => void) {
         }
     };
 
-    // Hard delete — drops the panel row entirely. Waiting recruits are redistributed just
+    // Hard delete - drops the panel row entirely. Waiting recruits are redistributed just
     // like Close for the Day, and any historical tokens (called/done/no_show/deferred) are
     // silently reattached to another table so the row can go. Interview results already
     // logged are keyed on recruit+domain, not panel, so they are unaffected either way.
@@ -292,7 +292,7 @@ function TableControls({ panel, onChanged }: { panel: Panel; onChanged: () => vo
 
 // Read-only-ish fallback card: counts + status alongside Pause/Close-for-Day/Delete,
 // without the full call/interview flow. Used for a sub-domain row's own CLOSED tables,
-// and for any legacy panel with no sub_domain at all (pre-2026-08-13 free-text panels) —
+// and for any legacy panel with no sub_domain at all (pre-2026-08-13 free-text panels) -
 // the new subsystem-column layout groups strictly by sub_domain, so a null-domain panel
 // has nowhere else to render; without this fallback it would be invisible and
 // unmanageable (can't Pause/Close/Delete it) even though its row in the DB still exists.
@@ -413,7 +413,7 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                             {subDomainLabel(d)}
                         </span>
                     ))}
-                    {r.domains.length === 0 && <span className="text-xs text-gray-500">—</span>}
+                    {r.domains.length === 0 && <span className="text-xs text-gray-500">-</span>}
                 </div>
             </div>
 
@@ -438,9 +438,9 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
 
 // One OPEN table's own card: its "Now Serving" slot (centerpiece: recruit name + this
 // table's own display name, per the exact ask), its own Call Next (front of ITS OWN
-// queue_position-ordered waiting list — unchanged FIFO behaviour), result logging, and
+// queue_position-ordered waiting list - unchanged FIFO behaviour), result logging, and
 // its Pause/Close/Delete controls. Manual cross-table calling into this slot happens
-// from SharedWaitingQueue below, not here — both actions land the same recruit in the
+// from SharedWaitingQueue below, not here - both actions land the same recruit in the
 // same "called" slot either way.
 function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueToken[]; onChanged: () => void }) {
     const called = tokens.find((t) => t.status === "called") ?? null;
@@ -615,7 +615,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
 
 // One row inside the shared, per-sub-domain waiting queue. Shows which table currently
 // holds this recruit's token isn't rendered here (grouping headers above do that job in
-// SharedWaitingQueue) — this row's own job is the recruit summary plus one "Call to X"
+// SharedWaitingQueue) - this row's own job is the recruit summary plus one "Call to X"
 // button per currently open table, so an interviewer at ANY table in this sub-domain can
 // pull this recruit to their own desk regardless of which table they checked into.
 function SortableSharedRow({
@@ -683,11 +683,11 @@ function SortableSharedRow({
 }
 
 // ONE shared waiting list for the whole sub-domain, combining every currently open
-// table's `waiting` tokens — the core of the manual, cross-table calling model. Grouped
+// table's `waiting` tokens - the core of the manual, cross-table calling model. Grouped
 // visually by table (with a sub-header) rather than flattened into one global order,
 // because the drag-reorder endpoint is scoped to a single panel_id: it can only place a
 // token relative to OTHER waiting tokens on that SAME panel, so a per-table DndContext
-// keeps every drag operation valid by construction — a token can never be dragged into
+// keeps every drag operation valid by construction - a token can never be dragged into
 // another table's queue (that's what the "Call to X" buttons are for instead).
 function SharedWaitingQueue({
     subDomain,
@@ -893,7 +893,7 @@ const RESULT_STYLES: Record<InterviewResultRow["result"], string> = {
 };
 
 // Groups results by domain, RECRUIT_SUBDOMAINS order first (so sections always appear in
-// the same place regardless of interview order), any unrecognised domain appended after —
+// the same place regardless of interview order), any unrecognised domain appended after -
 // defensive only, the DB enum should never produce one.
 function groupResultsByDomain(rows: InterviewResultRow[]): { sub_domain: string; rows: InterviewResultRow[] }[] {
     const bySub = new Map<string, InterviewResultRow[]>();
@@ -918,10 +918,10 @@ function groupResultsByDomain(rows: InterviewResultRow[]): { sub_domain: string;
 }
 
 // Editing a past decision re-POSTs to the same upsert endpoint the panel dashboard
-// uses, WITHOUT a panel_id — per the route's documented judgment call, omitting it
+// uses, WITHOUT a panel_id - per the route's documented judgment call, omitting it
 // means the correction only touches the result row (and recomputes is_selected),
 // never token state. This is the only place in the app a logged result can be seen
-// or fixed after the fact — logging a result removes it from the panel dashboard
+// or fixed after the fact - logging a result removes it from the panel dashboard
 // entirely once the token flips to `done`.
 function EditResultRow({ row, onSaved, onCancel }: { row: InterviewResultRow; onSaved: () => void; onCancel: () => void }) {
     const [notes, setNotes] = useState(row.notes ?? "");
@@ -999,7 +999,7 @@ function EditResultRow({ row, onSaved, onCancel }: { row: InterviewResultRow; on
     );
 }
 
-// One collapsible section per domain — counts in the header so a lead can see at a glance
+// One collapsible section per domain - counts in the header so a lead can see at a glance
 // how a domain's interviews went without opening it, and the table itself carries the
 // existing Fix/edit flow unchanged (see EditResultRow above).
 function DomainResultsSection({
@@ -1092,12 +1092,12 @@ function DomainResultsSection({
                                         </td>
                                         <td className="px-5 py-2.5 max-w-[240px]">
                                             <span className="block truncate text-xs text-gray-400" title={row.notes ?? undefined}>
-                                                {row.notes || "—"}
+                                                {row.notes || "-"}
                                             </span>
                                         </td>
                                         <td className="px-5 py-2.5 text-gray-400 text-xs">{row.interviewer_username}</td>
                                         <td className="px-5 py-2.5 text-gray-400 text-xs">
-                                            {row.decided_at ? new Date(row.decided_at).toLocaleString() : "—"}
+                                            {row.decided_at ? new Date(row.decided_at).toLocaleString() : "-"}
                                         </td>
                                         <td className="px-5 py-2.5 text-right">
                                             <button
@@ -1257,11 +1257,11 @@ export default function InterviewManagementPage() {
     );
 
     // 4 columns, one per subsystem, in RECRUIT_SUBSYSTEMS order (SPACED, SIESED, MCSOCD,
-    // SAMBED) — SPACED/MCSOCD naturally end up with 2 stacked SubDomainBoards since they
+    // SAMBED) - SPACED/MCSOCD naturally end up with 2 stacked SubDomainBoards since they
     // have 2 sub-domains each; SIESED/SAMBED get exactly 1, filling the column alone.
     const subsystemGroups = groupBySubsystem();
     // Pre-2026-08-13 free-text panels (or any panel somehow created with no sub_domain)
-    // don't belong to any column above — surfaced separately so they stay manageable
+    // don't belong to any column above - surfaced separately so they stay manageable
     // instead of silently disappearing from the page.
     const legacyPanels = panels.filter((p) => !p.sub_domain);
 

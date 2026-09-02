@@ -25,7 +25,7 @@ function cutoffKey(sub_domain: string, gender: string, year: string) {
 }
 
 // GET /api/admin/recruitment/cutoffs?cycle_id=<optional, defaults to active cycle>
-// Always returns one row per (exam domain, gender, year) — 6 domains x 2 genders x 2 years —
+// Always returns one row per (exam domain, gender, year) - 6 domains x 2 genders x 2 years -
 // so the Cutoffs page can render all 24 cells up front. cutoff_marks is null for a
 // domain/gender/year triple that hasn't had a cutoff set yet.
 export async function GET(request: NextRequest) {
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ success: true, data: result, cycle_id: cycleId });
 }
 
-// POST /api/admin/recruitment/cutoffs — body is an array: [{ sub_domain, gender, year, cutoff_marks }]
+// POST /api/admin/recruitment/cutoffs - body is an array: [{ sub_domain, gender, year, cutoff_marks }]
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["lead", "admin"])) {

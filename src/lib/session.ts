@@ -53,7 +53,7 @@ export interface SessionClaims {
 }
 
 // Shared by /api/admin/login (password) and the member Google OAuth callback so both
-// entry points mint identical tokens — keeping the signing logic in one place avoids
+// entry points mint identical tokens - keeping the signing logic in one place avoids
 // the two paths drifting apart on claim shape or secret handling.
 export async function signSession(claims: SessionClaims, expiresIn: string): Promise<string> {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback_secret_robocon_2026_!@#");
@@ -68,7 +68,7 @@ export function adminCookieOptions(maxAge: number) {
     return {
         name: ADMIN_COOKIE_NAME,
         httpOnly: true,
-        // Must be Secure in production — Safari's ITP silently drops/fast-expires
+        // Must be Secure in production - Safari's ITP silently drops/fast-expires
         // non-Secure cookies on HTTPS, which was causing iPhone users to get bounced
         // back to /login. `false` locally so it still works over plain HTTP in dev.
         secure: process.env.NODE_ENV === "production",

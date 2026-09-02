@@ -9,7 +9,7 @@ function secret(): Uint8Array {
 // CSRF nonce for the "sign in with Google" (login) flow, started at /api/member/auth/google.
 export const MEMBER_OAUTH_NONCE_COOKIE = "member_oauth_nonce";
 // Separate nonce for the "connect Gmail" (link-to-existing-session) flow, started at
-// /api/member/auth/google/connect — kept distinct so a login attempt and a connect
+// /api/member/auth/google/connect - kept distinct so a login attempt and a connect
 // attempt in different tabs can't cross-contaminate each other's state.
 export const MEMBER_OAUTH_CONNECT_NONCE_COOKIE = "member_oauth_connect_nonce";
 
@@ -17,7 +17,7 @@ export const NONCE_COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     // `lax` (not `strict`) because this cookie must survive the cross-site redirect
-    // chain back from accounts.google.com — same reasoning as the recruit OAuth flow.
+    // chain back from accounts.google.com - same reasoning as the recruit OAuth flow.
     sameSite: "lax" as const,
     path: "/",
     maxAge: 60 * 15,

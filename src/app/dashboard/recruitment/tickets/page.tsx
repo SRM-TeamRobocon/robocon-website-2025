@@ -204,10 +204,10 @@ export default function TicketsPage() {
                                     </div>
                                     {t.category === "domain_change" && (
                                         <p className="mt-1 text-xs text-gray-400">
-                                            {t.from_sub_domain ? subDomainFullLabel(t.from_sub_domain) : "—"}
+                                            {t.from_sub_domain ? subDomainFullLabel(t.from_sub_domain) : "-"}
                                             {" → "}
                                             <span className="text-white font-semibold">
-                                                {t.requested_sub_domain ? subDomainFullLabel(t.requested_sub_domain) : "—"}
+                                                {t.requested_sub_domain ? subDomainFullLabel(t.requested_sub_domain) : "-"}
                                             </span>
                                         </p>
                                     )}

@@ -13,7 +13,7 @@ interface DayOrderEntry {
 }
 
 interface DayOrderBannerProps {
-    // Only lead/admin get the manual-override control — the Academia sync bot will
+    // Only lead/admin get the manual-override control - the Academia sync bot will
     // fail sometimes, and without this the whole day-order feature goes dark until
     // someone fixes the scraper.
     canOverride: boolean;

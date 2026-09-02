@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 // upper(reg_no) and lower(srm_email) added in migration 006.
 const UNIQUE_VIOLATION = "23505";
 
-// Same pattern as SRM_EMAIL_RE in src/app/api/recruit/auth/send-otp/route.ts — the SRM
+// Same pattern as SRM_EMAIL_RE in src/app/api/recruit/auth/send-otp/route.ts - the SRM
 // email is no longer OTP-verified before registration (that now happens later, from the
 // dashboard), so this route is the only server-side gate on its shape.
 const SRM_EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@srmist\.edu\.in$/;
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
             );
         }
 
-        // The Google step is mandatory — see 02-AUTH.md step 1. Re-checked here so the
+        // The Google step is mandatory - see 02-AUTH.md step 1. Re-checked here so the
         // final write can never land without a google_uid.
         if (!statePayload.google_uid) {
             return NextResponse.json(
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
         const hostelBlock = isHosteller ? boundedText(body.hostel_block, FIELD_LIMITS.hostel_block) : null;
         const hostelRoom = isHosteller ? boundedText(body.hostel_room, FIELD_LIMITS.hostel_room) : null;
         // Day-scholar-only counterparts, same (isHosteller ? ... : null) shape as above so a
-        // hosteller can never land with these set — the DB check constraint backstops this.
+        // hosteller can never land with these set - the DB check constraint backstops this.
         const dayScholarArea = !isHosteller ? boundedText(body.day_scholar_area, FIELD_LIMITS.day_scholar_area) : null;
         const travelMethod = !isHosteller && isTravelMethod(body.travel_method) ? body.travel_method : null;
         const domains: string[] = Array.isArray(body.domains) ? body.domains.map((d: unknown) => String(d)) : [];
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
             );
         }
         // Stored upper-cased so the roster reads consistently. Uniqueness does not depend
-        // on this — the unique index in migration 006 is on upper(reg_no) — but it keeps
+        // on this - the unique index in migration 006 is on upper(reg_no) - but it keeps
         // exports and searches from showing the same number in two different spellings.
         const normalizedRegNo = regNo.toUpperCase();
         if (!PHONE_RE.test(phone)) {
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
         }
 
         // Same friendly pre-check for the registration number. Like the email one above
-        // this is racy on its own — the unique index from migration 006 is what actually
+        // this is racy on its own - the unique index from migration 006 is what actually
         // guarantees it, and the 23505 handler below catches the loser of a race.
         const { data: existingRegNo } = await supabase
             .from("recruit_accounts")
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
                 google_uid: statePayload.google_uid || null,
                 personal_email: statePayload.personal_email || null,
                 srm_email: srmEmail,
-                // Genuinely not verified yet at this point — the OTP-verify step was moved
+                // Genuinely not verified yet at this point - the OTP-verify step was moved
                 // out of registration and now happens later, optionally, from the dashboard
                 // (see EmailVerifyBanner / /api/recruit/verify-email/*).
                 srm_email_verified: false,
@@ -210,7 +210,7 @@ export async function POST(request: Request) {
             .single();
 
         if (insertError || !account) {
-            // A unique violation here is not a server fault — it means someone already
+            // A unique violation here is not a server fault - it means someone already
             // holds this email or registration number for this cycle. The pre-checks above
             // catch the ordinary case; this catches the race where two submissions both
             // passed their SELECT, and is the only thing that can catch it.
@@ -258,7 +258,7 @@ export async function POST(request: Request) {
                     domainLabels: domains.map(subDomainFullLabel),
                 });
 
-                // Both addresses collected at registration — send to whichever exist,
+                // Both addresses collected at registration - send to whichever exist,
                 // deduped in case Google's personal address happens to be the SRM one.
                 const recipients = Array.from(
                     new Set(
@@ -285,7 +285,7 @@ export async function POST(request: Request) {
                 console.error("id card email build failed", err);
             }
         } else {
-            console.warn("SMTP not configured — skipping ID card email (local dev)");
+            console.warn("SMTP not configured - skipping ID card email (local dev)");
         }
 
         const token = await issueRecruitToken({

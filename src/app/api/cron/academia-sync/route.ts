@@ -10,7 +10,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 //
 //     "date_to_day_order": { "2026-08-17": 5, "2026-08-18": 1, ... }
 //
-// which is the entire semester in one call — so this route is a periodic *reconciliation*
+// which is the entire semester in one call - so this route is a periodic *reconciliation*
 // of a published calendar, not a daily scrape whose failure blacks out the feature. That
 // avoids the headless-browser path entirely (no puppeteer-core/@sparticuz/chromium, no
 // Zoho SSO iframe, no "Maximum concurrent sessions" interstitial).
@@ -18,10 +18,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 // Two things about the upstream worth knowing:
 //   - It echoes the submitted credentials back in the response body (`_username` /
 //     `_password`, plaintext), i.e. it stores the password rather than a hash. Never log
-//     a raw response from it, and treat ACADEMIA_BOT_PASSWORD as disclosed to that host —
+//     a raw response from it, and treat ACADEMIA_BOT_PASSWORD as disclosed to that host -
 //     it must be a dedicated bot account, never a personal login.
 //   - Coverage stops at the last published planner (as of 2026-08-17: 2026-12-07; the
-//     2026_27_EVEN planner exists but is empty). Dates past that simply won't appear —
+//     2026_27_EVEN planner exists but is empty). Dates past that simply won't appear -
 //     hence PATCH /api/admin/day-order as the manual backstop.
 //
 // Holidays and weekends are absent from the upstream map rather than zero-valued, so a
@@ -51,7 +51,7 @@ async function fetchDayOrderSchedule(): Promise<DayOrderRow[]> {
     });
 
     if (!loginRes.ok) {
-        // Deliberately not echoing the body — see the credential-echo note above.
+        // Deliberately not echoing the body - see the credential-echo note above.
         throw new Error(`academia-sync: login failed (${loginRes.status}).`);
     }
 
@@ -82,7 +82,7 @@ async function fetchDayOrderSchedule(): Promise<DayOrderRow[]> {
 
         const dayOrder = typeof value === "number" ? value : Number(value);
         // Anything outside 1..5 (nulls, holiday markers, a format change upstream) is
-        // dropped rather than guessed — the day_order CHECK constraint would reject it
+        // dropped rather than guessed - the day_order CHECK constraint would reject it
         // anyway, and one bad entry shouldn't fail the whole batch.
         if (!VALID_DAY_ORDERS.has(dayOrder)) continue;
 
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
         .map((row) => ({ ...row, source: "academia_sync" as const, synced_at: syncedAt }));
 
     // Chunked so a full-year backfill (~300 rows) stays well inside PostgREST's payload
-    // limits; steady-state re-syncs are the same rows again, which is the point — the
+    // limits; steady-state re-syncs are the same rows again, which is the point - the
     // upsert is idempotent on `date`.
     const CHUNK_SIZE = 100;
     let written = 0;

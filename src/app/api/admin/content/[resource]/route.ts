@@ -36,7 +36,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Mentors are historical roster entries, not active members/leads — keep them out of the
+  // Mentors are historical roster entries, not active members/leads - keep them out of the
   // website content manager (they aren't meant to be edited or re-published from here).
   const rows =
     config.table === "members"

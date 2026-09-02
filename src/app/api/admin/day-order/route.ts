@@ -10,7 +10,7 @@ function todayIST(): string {
     return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 }
 
-// Manual override for day_order_log — the Academia sync bot will fail sometimes
+// Manual override for day_order_log - the Academia sync bot will fail sometimes
 // (holiday quirks, portal changes, outages); without this the whole day-order
 // feature goes dark until someone fixes the scraper.
 export async function PATCH(request: Request) {

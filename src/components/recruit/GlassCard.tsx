@@ -1,13 +1,13 @@
 "use client";
 
 // Standard dark-card recipe used across the recruitment pages: a solid dark panel
-// with a hairline border and a soft drop shadow — no backdrop-filter, no SVG filter
+// with a hairline border and a soft drop shadow - no backdrop-filter, no SVG filter
 // chain. The old version (GlassSurface) rebuilt a 3-channel SVG displacement filter
 // per instance and re-encoded it on every resize, then asked the GPU to resample a
 // live, always-animating background (ParticlesCom) through it every frame. That was
 // the single heaviest thing on these pages, multiplied by however many cards were on
 // screen at once (register/dashboard stack several). This trades the "real glass"
-// refraction look for a flat, cheap panel — same dark-material read, none of the cost.
+// refraction look for a flat, cheap panel - same dark-material read, none of the cost.
 export default function GlassCard({
   children,
   className = "",

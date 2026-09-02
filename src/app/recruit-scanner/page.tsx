@@ -16,9 +16,9 @@ type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "trainin
 
 // TEMPORARY (2026-09-01, exam day 2): every mode except "Exam: Day 2" is commented out so a
 // volunteer physically cannot pick the wrong one and silently write attendance into the wrong
-// table. The server still accepts all five modes — this is a UI lock only, nothing was deleted.
+// table. The server still accepts all five modes - this is a UI lock only, nothing was deleted.
 //
-// TO RESTORE: uncomment the lines below. Everything else adapts on its own — the mode picker
+// TO RESTORE: uncomment the lines below. Everything else adapts on its own - the mode picker
 // re-appears once this array has more than one entry (see `modeIsLocked`), and the default
 // `selectedMode` falls back to MODE_OPTIONS[0].
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
@@ -29,7 +29,7 @@ const MODE_OPTIONS: { value: Mode; label: string }[] = [
     // { value: "training", label: "Training" },
 ];
 
-// When only one mode is available there is nothing to choose — the picker is hidden and the
+// When only one mode is available there is nothing to choose - the picker is hidden and the
 // mode is stated as a fact instead. Derived, not hardcoded, so restoring the list above is a
 // one-place edit.
 const modeIsLocked = MODE_OPTIONS.length === 1;
@@ -45,7 +45,7 @@ type ScanResult = {
     session_id?: string;
 };
 
-// Held while a "not shortlisted" interview check-in is waiting on a human decision — the
+// Held while a "not shortlisted" interview check-in is waiting on a human decision - the
 // scan endpoint deliberately doesn't check anyone in until the volunteer/lead confirms a
 // walk-in, so this is what the confirm button re-sends with `force: true`. Either payload
 // (QR) or recruit_id (manual entry) is set, matching whichever path triggered the gate.
@@ -57,7 +57,7 @@ type PendingWalkin = {
     name: string;
 };
 
-// One row of the "who's been marked present" table below the scanner — backed by
+// One row of the "who's been marked present" table below the scanner - backed by
 // GET /api/admin/recruitment/scan/roster, scoped to the currently selected mode/domain.
 type RosterEntry = {
     recruit_id: string;
@@ -76,7 +76,7 @@ type RecruitSearchResult = {
     department?: string;
 };
 
-// What a recorded scan can be undone as. Interview check-ins have no undo here —
+// What a recorded scan can be undone as. Interview check-ins have no undo here -
 // removing someone from a live token queue is a queue operation, not an attendance
 // delete, and belongs on the interview dashboard.
 type UndoTarget =
@@ -100,7 +100,7 @@ const MAX_RECENT = 10;
 
 // The QR payload is base64url JSON of { rid, cid, sig }. The signature can only be
 // checked server-side (QR_SECRET never reaches the browser), but reading `rid` here is
-// enough to offer an undo — the DELETE endpoint re-validates the recruit against the
+// enough to offer an undo - the DELETE endpoint re-validates the recruit against the
 // active cycle and requires lead/admin anyway.
 function recruitIdFromPayload(payload: string): string | null {
     try {
@@ -124,7 +124,7 @@ function beep() {
         osc.start();
         setTimeout(() => osc.stop(), 120);
     } catch {
-        // Audio isn't essential to the scan flow — ignore failures (e.g. no user gesture yet).
+        // Audio isn't essential to the scan flow - ignore failures (e.g. no user gesture yet).
     }
 }
 
@@ -247,7 +247,7 @@ export default function RecruitScannerPage() {
             const data = await res.json();
             if (data.success) setRoster(data.data);
         } catch {
-            // Non-critical — the roster table just stays stale until the next poll.
+            // Non-critical - the roster table just stays stale until the next poll.
         } finally {
             setRosterLoading(false);
         }
@@ -260,10 +260,10 @@ export default function RecruitScannerPage() {
         return () => clearInterval(interval);
     }, [scanning, fetchRoster]);
 
-    // Releases the scan lock and clears the overlay after a delay — shared by every path
+    // Releases the scan lock and clears the overlay after a delay - shared by every path
     // EXCEPT "not shortlisted", which instead waits on a human decision (see below). A clean
     // "ok" is confirmed by the beep + green flash alone, so it doesn't need as long on screen
-    // as a warning/error the volunteer actually has to read before scanning the next person —
+    // as a warning/error the volunteer actually has to read before scanning the next person -
     // holding every outcome to the same 2.5s was the single biggest thing making back-to-back
     // scanning feel slow.
     const scheduleReset = useCallback((ms: number) => {
@@ -274,7 +274,7 @@ export default function RecruitScannerPage() {
         }, ms);
     }, []);
 
-    // Shared by the QR scan path, the manual-entry fallback, and the forced walk-in retry —
+    // Shared by the QR scan path, the manual-entry fallback, and the forced walk-in retry -
     // `force: true` on the body is what tells the server to bypass the "not shortlisted"
     // gate for mode 'interview'. Exactly one of payload/recruit_id is set.
     const runScan = useCallback(
@@ -291,7 +291,7 @@ export default function RecruitScannerPage() {
                 setResult(json);
 
                 if (json.status === "not_shortlisted") {
-                    // Hold the lock and the overlay open — nothing is checked in yet, and
+                    // Hold the lock and the overlay open - nothing is checked in yet, and
                     // scanning again while this is up would be confusing. The decision
                     // buttons below (confirmWalkin/cancelWalkin) resolve it.
                     setPendingWalkin({
@@ -359,7 +359,7 @@ export default function RecruitScannerPage() {
         await runScan({ payload, recruit_id, mode, sub_domain, force: true });
     }, [pendingWalkin, runScan]);
 
-    // Manual-entry search — debounced, only while the panel is open. Reuses the existing
+    // Manual-entry search - debounced, only while the panel is open. Reuses the existing
     // admin recruits list route rather than a dedicated endpoint; narrow search results
     // make the extra fields it also returns cheap to ignore.
     useEffect(() => {
@@ -379,7 +379,7 @@ export default function RecruitScannerPage() {
                 const data = await res.json();
                 if (data.success) setManualResults((data.data || []).slice(0, 8));
             } catch {
-                // Non-critical — an empty results list just reads as "no matches".
+                // Non-critical - an empty results list just reads as "no matches".
             } finally {
                 setManualSearching(false);
             }
@@ -404,7 +404,7 @@ export default function RecruitScannerPage() {
         [runScan, selectedMode, activeSubDomain]
     );
 
-    // Volunteer/lead declines — nothing was ever checked in, so there's nothing to undo,
+    // Volunteer/lead declines - nothing was ever checked in, so there's nothing to undo,
     // just release the lock so the next QR can be scanned.
     const cancelWalkin = useCallback(() => {
         setPendingWalkin(null);
@@ -476,7 +476,7 @@ export default function RecruitScannerPage() {
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Recruitment Scanner</h1>
                     <p className="text-sm text-white/60 mt-2">
                         {modeIsLocked
-                            ? `Scan recruit QR codes — ${MODE_OPTIONS[0].label} only today.`
+                            ? `Scan recruit QR codes - ${MODE_OPTIONS[0].label} only today.`
                             : "Scan recruit QR codes for orientation, exams, interviews, and training."}
                     </p>
                 </div>
@@ -488,7 +488,7 @@ export default function RecruitScannerPage() {
                                 <p className="text-xs uppercase tracking-widest font-bold text-white/40">Scan mode</p>
                                 <p className="mt-1 text-lg font-black tracking-tight text-white">{MODE_OPTIONS[0].label}</p>
                                 <p className="mt-1 text-xs text-white/50">
-                                    Locked for today — there is nothing else to pick. Just choose the exam below.
+                                    Locked for today - there is nothing else to pick. Just choose the exam below.
                                 </p>
                             </div>
                         ) : (
@@ -766,7 +766,7 @@ export default function RecruitScannerPage() {
                                                     <td className="py-2 font-mono text-xs text-white/50">{r.reg_no}</td>
                                                     {selectedMode === "interview" && (
                                                         <td className="py-2 font-mono text-xs text-white/50">
-                                                            {typeof r.token_number === "number" ? `#${r.token_number}` : "—"}
+                                                            {typeof r.token_number === "number" ? `#${r.token_number}` : "-"}
                                                         </td>
                                                     )}
                                                     <td className="py-2 text-xs text-white/40">{clockTime(Date.parse(r.at))}</td>

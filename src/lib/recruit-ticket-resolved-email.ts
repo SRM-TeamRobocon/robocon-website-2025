@@ -1,6 +1,6 @@
 // HTML template for the email a recruit gets when their support ticket is resolved.
 // message/resolutionNote are recruit- and lead-authored free text respectively, so both
-// are escaped before interpolation — same reasoning as buildBulkMailHtml: this renders in
+// are escaped before interpolation - same reasoning as buildBulkMailHtml: this renders in
 // the recipient's mail client, and a ticket is something anyone can submit pre-approval.
 function escapeHtml(input: string): string {
     return input

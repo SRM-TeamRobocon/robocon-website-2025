@@ -1,5 +1,5 @@
 // Builds a wa.me deep link that opens a chat with a prefilled message.
-// wa.me needs the full international number with no leading zero, spaces, or "+" —
+// wa.me needs the full international number with no leading zero, spaces, or "+" -
 // just digits. Recruit phone numbers are stored as bare 10-digit Indian mobile
 // numbers (validated at registration, see recruit-validation.ts), so the country
 // code is prepended here rather than asked of every caller.

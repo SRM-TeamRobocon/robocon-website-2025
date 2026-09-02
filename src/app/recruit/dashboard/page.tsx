@@ -56,7 +56,7 @@ type InterviewInfo = {
 
 import { subDomainLabel, subDomainSubsystem } from "@/lib/recruit-domains";
 
-// Hidden for now — flip back on when attendance is ready to be shown to recruits.
+// Hidden for now - flip back on when attendance is ready to be shown to recruits.
 const SHOW_TRAINING_ATTENDANCE = false;
 
 // Keep status badges readable on the light dashboard cards while preserving their meanings.
@@ -154,7 +154,7 @@ export default function RecruitDashboardPage() {
                 if (!cancelled) setBadgeImage(dataUrl);
             })
             .catch(() => {
-                // Non-essential — the plain QR image below still works fine without the badge.
+                // Non-essential - the plain QR image below still works fine without the badge.
             });
         return () => {
             cancelled = true;
@@ -162,7 +162,7 @@ export default function RecruitDashboardPage() {
     }, [profile, qrDataUrl]);
 
     // Live queue position polling. Only runs while the recruit currently has an active
-    // (waiting/called) interview token — once a poll comes back with `interview: null`
+    // (waiting/called) interview token - once a poll comes back with `interview: null`
     // (resolved to done/no_show, or never had one), this effect's dependency drops out and
     // the interval is cleared, so it's naturally self-limiting rather than polling forever.
     const isInterviewActive = interview?.status === "waiting" || interview?.status === "called";
@@ -177,7 +177,7 @@ export default function RecruitDashboardPage() {
                     setInterview(json.interview ?? null);
                 }
             } catch {
-                // Transient network error — just wait for the next tick.
+                // Transient network error - just wait for the next tick.
             }
         }, 10000);
 

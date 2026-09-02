@@ -58,10 +58,10 @@ interface RecruitSessionRow {
     recruit_id: string;
     name: string;
     reg_no: string;
-    // Filter-only — never rendered in a row. Nullable, so a recruit with no gender on file
+    // Filter-only - never rendered in a row. Nullable, so a recruit with no gender on file
     // matches neither option and shows only under "All genders".
     gender: string | null;
-    // Search-only — never rendered in a row.
+    // Search-only - never rendered in a row.
     phone: string | null;
     attended: boolean;
     method: "qr" | "manual" | null;
@@ -267,7 +267,7 @@ export default function TrainingAttendancePage() {
             row.reg_no.toLowerCase().includes(query) ||
             (phoneQuery !== null && (row.phone ?? "").includes(phoneQuery));
         // gender is nullable on recruit_accounts, so a recruit with none on file matches
-        // neither option — "All genders" (the empty value) is what keeps them listed.
+        // neither option - "All genders" (the empty value) is what keeps them listed.
         const matchesGender = (row: RecruitSessionRow) => !genderFilter || row.gender === genderFilter;
 
         return {

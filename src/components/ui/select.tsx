@@ -2,7 +2,7 @@
 
 // Custom-styled dropdown to replace native <select> across the dark-themed recruitment
 // pages. A native <select>'s OPEN option list is rendered by the OS/browser, not by our
-// CSS — on a dark page it shows up as a plain white popup with no way to theme it, which
+// CSS - on a dark page it shows up as a plain white popup with no way to theme it, which
 // reads as broken. This renders its own listbox instead, so it always matches the page.
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
@@ -22,7 +22,7 @@ const ACCENTS = {
     // Matches the bg-gray-900 "portal" pages (/login, /signup, /forgot-password).
     blue: { ring: "focus:ring-blue-500", selectedBg: "bg-blue-500/15", check: "text-blue-400" },
     // Matches the sharp red/white/black poster theme (RecruitmentSection, /recruit/register,
-    // /recruit/login) — the only accent that also swaps the trigger chrome and popup to a
+    // /recruit/login) - the only accent that also swaps the trigger chrome and popup to a
     // light surface; red/blue above assume the dark-glass card this component was built for.
     sharp: { ring: "focus:ring-red/40", selectedBg: "bg-red/10", check: "text-red" },
 } as const;
@@ -46,7 +46,7 @@ export default function Select({
 }: {
     value: string;
     onChange: (value: string) => void;
-    // Flat list — always required, used for the "currently selected" label lookup even
+    // Flat list - always required, used for the "currently selected" label lookup even
     // when `groups` supplies the grouped rendering.
     options: SelectOption[];
     // Optional grouped rendering (optgroup equivalent). `leadingOptions` render flat,
@@ -72,7 +72,7 @@ export default function Select({
     useEffect(() => setMounted(true), []);
 
     // Dropdown is portaled to <body> (see render below) so it always paints above
-    // every ancestor's stacking context — a card, sidebar, or table wrapper with its
+    // every ancestor's stacking context - a card, sidebar, or table wrapper with its
     // own z-index/overflow would otherwise trap a merely-child-positioned dropdown
     // and clip or bury it, no matter how high its own z-index is set.
     useLayoutEffect(() => {

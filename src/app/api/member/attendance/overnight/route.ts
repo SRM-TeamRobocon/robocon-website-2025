@@ -5,7 +5,7 @@ import { OVERNIGHT_PASS_TTL_MS, istNightOf } from "@/lib/attendance";
 
 // Self-service "I'm staying overnight" pass. Claiming one exempts you from exactly
 // the next midnight auto-checkout sweep (see /api/attendance/auto-checkout), so an
-// all-nighter isn't recorded as a forgotten tap-out. No lead approval — the whole
+// all-nighter isn't recorded as a forgotten tap-out. No lead approval - the whole
 // point is that it works at 2am.
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         const body = await request.json();
         reason = body?.reason ? String(body.reason).trim().slice(0, MAX_REASON_LENGTH) || null : null;
     } catch {
-        // Body is optional — a bare POST with no reason is the common case.
+        // Body is optional - a bare POST with no reason is the common case.
     }
 
     const supabase = createSupabaseAdminClient();

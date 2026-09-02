@@ -33,7 +33,7 @@ export type QueueToken = {
   recruit: RecruitProfile;
   checked_in_at: string;
   called_at?: string;
-  // Set when this check-in bypassed the "shortlisted for this domain" gate — the recruit
+  // Set when this check-in bypassed the "shortlisted for this domain" gate - the recruit
   // never sat the exam, or sat it and missed cutoff, but was let through as a walk-in.
   is_walkin: boolean;
 };
@@ -48,7 +48,7 @@ export type PublicQueueToken = {
   recruit: { first_name: string };
 };
 
-// "Arjun Sharma" -> "Arjun S." — enough to identify yourself on a projector without
+// "Arjun Sharma" -> "Arjun S." - enough to identify yourself on a projector without
 // putting a full roster of shortlisted candidates on a public screen.
 export function displayFirstName(fullName: string): string {
   const trimmed = (fullName ?? "").trim();
@@ -82,8 +82,8 @@ const EMPTY_PROFILE = (recruitId: string): RecruitProfile => ({
 //
 // Every child query is ordered by sub_domain so `domains`, `exam_marks` and especially
 // `shortlisted_for` come back in a stable, reproducible order. Unordered Postgres output
-// previously made `shortlisted_for[0]` — which the panel dashboard used as its default
-// "log result for" domain — effectively arbitrary between requests.
+// previously made `shortlisted_for[0]` - which the panel dashboard used as its default
+// "log result for" domain - effectively arbitrary between requests.
 export async function buildRecruitProfiles(
   supabase: SupabaseClient,
   recruitIds: string[]
@@ -138,7 +138,7 @@ export async function buildRecruitProfiles(
   }
   for (const m of marks ?? []) {
     // numeric(5,2) via the untyped recruit client, so this can arrive as "72.50". The
-    // interview card renders it verbatim — coerce so it reads "72.5" (and "72", not "72.00").
+    // interview card renders it verbatim - coerce so it reads "72.5" (and "72", not "72.00").
     map.get(m.recruit_id)?.exam_marks.push({ sub_domain: m.sub_domain, marks: Number(m.marks) });
   }
   for (const s of shortlist ?? []) {
@@ -148,7 +148,7 @@ export async function buildRecruitProfiles(
   return map;
 }
 
-// Ordered by queue_position (manually reorderable — "who comes next"), NOT
+// Ordered by queue_position (manually reorderable - "who comes next"), NOT
 // token_number (the recruit's permanent, never-renumbered check-in number).
 export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string): Promise<QueueToken[]> {
   const { data: tokens, error } = await supabase
@@ -176,7 +176,7 @@ export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string)
 }
 
 // Member-facing path. Skips the domain/marks/shortlist joins entirely rather than fetching
-// them and stripping afterwards — the confidential data never leaves Postgres.
+// them and stripping afterwards - the confidential data never leaves Postgres.
 async function fetchPublicPanelQueue(supabase: SupabaseClient, panelId: string): Promise<PublicQueueToken[]> {
   const { data: tokens, error } = await supabase
     .from("recruit_interview_tokens")
@@ -207,10 +207,10 @@ async function fetchPublicPanelQueue(supabase: SupabaseClient, panelId: string):
 // dashboard's own polling both run as role "member" for volunteers on duty. The PAYLOAD,
 // however, is branched: lead/admin get the full interviewer profile (reg_no, department,
 // portfolio, exam marks, shortlist state); "member" gets only token number, status and a
-// first name. The full shape is pre-publication evaluation data — previously any logged-in
+// first name. The full shape is pre-publication evaluation data - previously any logged-in
 // member could curl a panel's queue and read every shortlisted candidate's marks. The public
-// kiosk screen (/recruit/tables, no login at all) uses a separate route entirely —
-// src/app/api/recruit/tables/route.ts — not this one.
+// kiosk screen (/recruit/tables, no login at all) uses a separate route entirely -
+// src/app/api/recruit/tables/route.ts - not this one.
 export async function GET(_request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {

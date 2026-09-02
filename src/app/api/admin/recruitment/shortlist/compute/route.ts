@@ -22,12 +22,12 @@ function cutoffKey(sub_domain: string, gender: string, year: string) {
 }
 
 // POST /api/admin/recruitment/shortlist/compute
-// Body (optional): { sub_domain?: string } — scopes the run to a single domain instead of
+// Body (optional): { sub_domain?: string } - scopes the run to a single domain instead of
 // all 6. Omit the body (or send `{}`) to run every domain, same as before.
 //
 // Idempotent and safe to re-run: rows with method = 'manual_override' are left untouched.
 // Cutoffs are scoped by BOTH gender (migration 013) and year (migration 018), so a domain
-// has four of them — male/year1, male/year2, female/year1, female/year2. A domain needs ALL
+// has four of them - male/year1, male/year2, female/year1, female/year2. A domain needs ALL
 // FOUR set before it runs at all; if any is missing the whole domain is skipped (not just
 // the recruits of the missing combination), same "skip, don't fail the batch" behavior a
 // domain with no cutoff at all had before any of this scoping existed. Running
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    // No body (or invalid JSON) — the global "Run Shortlist (All)" button sends nothing.
+    // No body (or invalid JSON) - the global "Run Shortlist (All)" button sends nothing.
     body = {};
   }
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   // Marks and cutoffs are `numeric(5,2)` (migration 020) read through the UNTYPED recruit
   // client, so PostgREST can hand them back as strings ("72.50") rather than numbers. They
   // are compared with `>=` below, and `"9.5" >= "72.5"` is a lexicographic comparison that
-  // is true — it would silently shortlist recruits who failed. Coerce on the way into the
+  // is true - it would silently shortlist recruits who failed. Coerce on the way into the
   // Map so every consumer downstream is guaranteed a real number.
   const cutoffMap = new Map(
     (cutoffRows ?? []).map((row: any) => [cutoffKey(row.sub_domain, row.gender, row.year), Number(row.cutoff_marks)])
@@ -96,14 +96,14 @@ export async function POST(request: NextRequest) {
       RECRUIT_YEARS.some((y) => cutoffMap.get(cutoffKey(domain, g.key, y.key)) === undefined)
     );
     if (missingCutoff) {
-      // Some (gender, year) cutoff isn't set for this domain yet — skip the WHOLE domain
+      // Some (gender, year) cutoff isn't set for this domain yet - skip the WHOLE domain
       // rather than only the recruits of the missing combination, so a domain never runs
       // half-configured.
       skippedDomains.push(domain);
       continue;
     }
 
-    // Unbounded by a small ID list — a popular domain at the module's 2000-recruit target
+    // Unbounded by a small ID list - a popular domain at the module's 2000-recruit target
     // scale can clear PostgREST's default 1000-row response cap on its own.
     const { data: selections, error: selectionsError } = await fetchAllRows<{ recruit_id: string }>((from, to) =>
       supabase.from("recruit_domain_selections").select("recruit_id").eq("cycle_id", cycleId).eq("sub_domain", domain).range(from, to)
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: `Could not load marks for ${domain}` }, { status: 500 });
     }
 
-    // Same coercion as cutoffMap above — both sides of the `marks >= applicableCutoff`
+    // Same coercion as cutoffMap above - both sides of the `marks >= applicableCutoff`
     // comparison must be real numbers, never numeric strings.
     const marksMap = new Map((marksRows ?? []).map((m: any) => [m.recruit_id, Number(m.marks)]));
     const existingMap = new Map(
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       const gender = genderMap.get(recruitId);
       const year = yearMap.get(recruitId);
       // A recruit with no gender on file (registered before migration 013, or an admin
-      // cleared it) has no cutoff to compare against — same "can't decide yet" treatment
+      // cleared it) has no cutoff to compare against - same "can't decide yet" treatment
       // as missing marks, not an error that blocks the rest of the domain. `year` is NOT
       // NULL in the schema so it should always resolve, but an unexpected value gets the
       // same treatment rather than being silently compared against the wrong year's bar.

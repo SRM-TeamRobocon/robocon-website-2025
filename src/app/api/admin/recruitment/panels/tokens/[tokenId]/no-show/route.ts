@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ tokenId: string }> };
 
 // PATCH /api/admin/recruitment/panels/tokens/:tokenId/no-show
-// Sets a token's status to no_show. Does NOT create a recruit_interview_results row —
+// Sets a token's status to no_show. Does NOT create a recruit_interview_results row -
 // the recruit never interviewed. The panel dashboard can then call-next again.
 //
 // Guarded to tokens still in play (`waiting` / `called`) so a stale tab can't retroactively
@@ -39,7 +39,7 @@ export async function PATCH(_request: NextRequest, context: RouteContext) {
 
   if (!data) {
     return NextResponse.json(
-      { error: "This token is no longer waiting or called — refresh the queue" },
+      { error: "This token is no longer waiting or called - refresh the queue" },
       { status: 409 }
     );
   }

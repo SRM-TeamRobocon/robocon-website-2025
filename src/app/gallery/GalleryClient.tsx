@@ -73,7 +73,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
       <div className="flex flex-col items-center gap-2 py-24 text-center px-4">
         <p className="text-lg font-medium text-white/80">No albums yet</p>
         <p className="text-sm text-white/50">
-          Check back soon — we&apos;re still uploading photos.
+          Check back soon - we&apos;re still uploading photos.
         </p>
       </div>
     );

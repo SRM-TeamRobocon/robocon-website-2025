@@ -7,13 +7,13 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// DELETE /api/admin/recruitment/panels/:id — permanently remove an interview table.
+// DELETE /api/admin/recruitment/panels/:id - permanently remove an interview table.
 // Unlike `close`/`close-for-day` (which just flip is_active), this drops the row entirely.
 //
 // Before that can happen: every `waiting` recruit is redistributed exactly like
-// close-for-day (moved to another open same-domain table, or `deferred` if none is open —
+// close-for-day (moved to another open same-domain table, or `deferred` if none is open -
 // see redistributeWaitingTokens), and every OTHER token still pointing at this panel
-// (called/done/no_show/deferred) is reattached to some other still-existing panel — the FK
+// (called/done/no_show/deferred) is reattached to some other still-existing panel - the FK
 // on recruit_interview_tokens.panel_id is NOT NULL with no ON DELETE CASCADE, so a token
 // left pointing at a deleted row simply isn't possible; see reattachHistoricalTokens for
 // why that reattachment is always safe (none of those statuses render via panel affiliation
@@ -53,7 +53,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     deferred = result.deferred;
   } catch (error) {
     console.error("panel delete: redistribution error", error);
-    return NextResponse.json({ error: "Could not redistribute waiting recruits — table not deleted" }, { status: 500 });
+    return NextResponse.json({ error: "Could not redistribute waiting recruits - table not deleted" }, { status: 500 });
   }
 
   const reattached = await reattachHistoricalTokens(supabase, panel);

@@ -22,13 +22,13 @@ const SHAPE: Record<keyof typeof VARIANTS, string> = {
     glass: "rounded-full",
 };
 
-// Sharp red/white/black theme — matches RecruitmentSection and the redesigned
-// recruit-facing pages (login, register, dashboard). No blur, no rounded pill — angular
+// Sharp red/white/black theme - matches RecruitmentSection and the redesigned
+// recruit-facing pages (login, register, dashboard). No blur, no rounded pill - angular
 // clipped corners like the rest of that theme's buttons/cards.
 // A CSS `border` doesn't render along a clip-path's angled edge (it only follows the
 // original rectangle, leaving the diagonal side gapped), so instead of a border this
 // renders as two nested elements: an outer one filled with the border color and padded
-// by the border width, and an inner one with the real fill — see the JSX below.
+// by the border width, and an inner one with the real fill - see the JSX below.
 const SHARP_CLIP = "polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)";
 const SHARP_OUTER = "group inline-block max-w-[48%] p-[2px] shadow-sm transition-all active:scale-[0.97] bg-red";
 const SHARP_INNER =

@@ -52,7 +52,7 @@ function VerifyContent() {
                             <h2 className="text-2xl font-bold text-white mb-3">Email verified</h2>
                             <p className="text-sm text-gray-400">
                                 Your email is confirmed. An admin still needs to approve your account before you can log
-                                in — you'll be able to sign in once that's done.
+                                in - you'll be able to sign in once that's done.
                             </p>
                             <Link
                                 href="/login"

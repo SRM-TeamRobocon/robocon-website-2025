@@ -6,7 +6,7 @@ import { issueRecruitToken, RECRUIT_COOKIE_NAME, RECRUIT_COOKIE_OPTIONS } from "
 export const dynamic = "force-dynamic";
 
 // A precomputed cost-12 hash of a value nobody can supply. Compared against when no
-// account matches, so a miss costs the same ~250ms as a hit — otherwise the response
+// account matches, so a miss costs the same ~250ms as a hit - otherwise the response
 // time difference is a clean oracle for enumerating which students have registered.
 const DUMMY_HASH = "$2a$12$C6UzMDM.H6dfI/f/IKcEe.eS7uqxGSbmt/8fZ1oHV7ZVvUJ7Zx0Iq";
 

@@ -10,13 +10,13 @@ export const dynamic = "force-dynamic";
 const VALID_DOMAINS = RECRUIT_SUBDOMAIN_KEYS as string[];
 
 // Departments are free text on recruit_accounts, so the filter can't be validated against
-// an enum — bound its length instead so it can't be used to push arbitrarily large strings
+// an enum - bound its length instead so it can't be used to push arbitrarily large strings
 // into a query.
 const MAX_DEPARTMENT_LENGTH = 120;
 
-// GET /api/admin/recruitment/recruits — list recruits for the active cycle.
+// GET /api/admin/recruitment/recruits - list recruits for the active cycle.
 // Query params: domain, year, gender, department (exact match), search (name or reg_no
-// case-insensitive, or phone — see recruitSearchOrFilter for how the one term is normalized
+// case-insensitive, or phone - see recruitSearchOrFilter for how the one term is normalized
 // differently per column). Phone is searchable here but is NOT newly surfaced in any UI.
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   }
   const cycleId = cycle.id;
 
-  // Unbounded by recruit count — a popular domain at 2000 total registrants can plausibly
+  // Unbounded by recruit count - a popular domain at 2000 total registrants can plausibly
   // clear PostgREST's default 1000-row response cap on its own, so this pages too.
   let recruitIdFilter: string[] | null = null;
   if (domain) {
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     if (year) query = query.eq("year", year);
     // recruit_accounts.gender is nullable, so an .eq() here drops rows with no gender on
-    // file — exactly like the year filter. That's only ever reachable when a specific
+    // file - exactly like the year filter. That's only ever reachable when a specific
     // gender is picked; "All genders" sends no param at all and keeps every row visible.
     if (gender) query = query.eq("gender", gender);
     if (department) query = query.eq("department", department);
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     selectInChunks<{ recruit_id: string }>(recruitIds, (chunk) =>
       supabase.from("recruit_orientation_attendance").select("recruit_id").eq("cycle_id", cycleId).in("recruit_id", chunk)
     ),
-    // Exam attendance is keyed (recruit_id, cycle_id, sub_domain) — a recruit sitting two
+    // Exam attendance is keyed (recruit_id, cycle_id, sub_domain) - a recruit sitting two
     // domain exams has one row each, so the day flags alone can't tell you WHICH exam they
     // actually sat. Return the per-domain rows too.
     selectInChunks<{ recruit_id: string; day: number; sub_domain: string }>(recruitIds, (chunk) =>
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
     domains: domainsByRecruit.get(r.id) || [],
     orientation: orientationSet.has(r.id),
     exams: examsByRecruit.get(r.id) || [],
-    // Legacy day flags. Nothing reads these any more — the roster renders `exams` instead,
+    // Legacy day flags. Nothing reads these any more - the roster renders `exams` instead,
     // and the CSV export runs its own query. Don't reach for them in new code: they say
     // "showed up on some day" without saying WHICH exam, which is meaningless for a recruit
     // who applied to two domains.

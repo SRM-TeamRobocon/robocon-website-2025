@@ -51,7 +51,7 @@ function csvResponse(rows: string[][]) {
   });
 }
 
-// GET /api/admin/recruitment/recruits/export — CSV export of the same filtered/active-cycle
+// GET /api/admin/recruitment/recruits/export - CSV export of the same filtered/active-cycle
 // dataset as the recruits list route. Query params: domain, year, gender, search.
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Same helper the list route uses, so the CSV can never hold a different set of rows than
-  // the table the download was triggered from — including the phone-search normalization.
+  // the table the download was triggered from - including the phone-search normalization.
   const searchOrFilter = recruitSearchOrFilter(search);
 
   function buildExportQuery(from: number, to: number) {
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
 
     if (year) query = query.eq("year", year);
     // Same clause the list route applies, so the CSV holds exactly the rows on screen.
-    // gender is nullable, so .eq() excludes rows with none on file — only reachable once a
+    // gender is nullable, so .eq() excludes rows with none on file - only reachable once a
     // specific gender is picked; "All genders" sends no param and keeps every row.
     if (gender) query = query.eq("gender", gender);
     if (recruitIdFilter) query = query.in("id", recruitIdFilter);

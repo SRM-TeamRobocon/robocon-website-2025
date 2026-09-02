@@ -1,25 +1,25 @@
 // Shared attendance math: used by the device-facing tap route, the member self-service
 // routes, the auto-checkout cron, and the dashboard board. Domain/name are never stored
-// per-tap — callers resolve those live from member_accounts -> members and pass them in.
+// per-tap - callers resolve those live from member_accounts -> members and pass them in.
 
 export const PAIRING_WINDOW_MS = 60_000;
 export const TAP_DEBOUNCE_MS = 3_000;
 
 // Backstop lifetime for an overnight pass. The midnight sweep normally resolves a
 // pass the same night it's claimed, so this only matters if the cron doesn't fire at
-// all — it stops a pass from sitting "active" forever and silently covering some
+// all - it stops a pass from sitting "active" forever and silently covering some
 // later night. Long enough that a pass claimed at any hour still covers the next
 // midnight sweep.
 export const OVERNIGHT_PASS_TTL_MS = 26 * 60 * 60 * 1000;
 
-// IST is a fixed UTC+5:30 with no DST, so a plain offset is exact — no tz library.
+// IST is a fixed UTC+5:30 with no DST, so a plain offset is exact - no tz library.
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-// The IST calendar date a timestamp falls on, as "YYYY-MM-DD" — independent of the
+// The IST calendar date a timestamp falls on, as "YYYY-MM-DD" - independent of the
 // server process's own local timezone (Vercel runs UTC). Shifting by the offset before
 // reading UTC fields back out gives the IST date regardless of where this runs.
 // Streak/attendance-day bucketing must go through this rather than Date.prototype
-// .toDateString()/.setHours(), which read the *server's* local time — on Vercel that's
+// .toDateString()/.setHours(), which read the *server's* local time - on Vercel that's
 // UTC, so anyone tapping between 00:00-05:29 IST (an ordinary time to still be in the
 // lab) got bucketed onto the wrong calendar day and their streak silently broke.
 function istDateKey(ts: number): string {
@@ -28,7 +28,7 @@ function istDateKey(ts: number): string {
 
 // Which "night" a pass belongs to, as an IST calendar date. Claimed at 23:00 on the
 // 17th → "…-17"; claimed at 02:00 on the 18th you're still in the same night, so it's
-// also "…-17". This is a label for the UI ("pass active for the night of X") — the
+// also "…-17". This is a label for the UI ("pass active for the night of X") - the
 // sweep's skip decision runs off `status`, never off this date.
 export function istNightOf(nowMs: number): string {
   const ist = new Date(nowMs + IST_OFFSET_MS);
@@ -39,7 +39,7 @@ export function istNightOf(nowMs: number): string {
 // Used only to estimate a duration when a session's matching OUT is missing/anomalous
 // (e.g. the auto-checkout cron closed it, or a session spans an absurd length).
 const FIXED_SESSION_MS = 4 * 60 * 60 * 1000; // 4 hours
-const MAX_SESSION_MS = 30 * 60 * 60 * 1000; // 30 hours — beyond this we treat it as anomalous
+const MAX_SESSION_MS = 30 * 60 * 60 * 1000; // 30 hours - beyond this we treat it as anomalous
 
 export function normalizeRfidUid(raw: string): string {
   return String(raw || "")
@@ -155,7 +155,7 @@ function calculateStreak(datesVisited: Set<string>, nowMs: number): number {
   const ONE_DAY = 86_400_000;
 
   // A streak still counts as "current" if today has no visit yet but yesterday does
-  // (e.g. checking the board at 9am before anyone's tapped in today) — start walking
+  // (e.g. checking the board at 9am before anyone's tapped in today) - start walking
   // from whichever of the two is the most recent IST day actually present.
   let cursor: number;
   if (datesVisited.has(istDateKey(nowMs))) {
@@ -175,7 +175,7 @@ function calculateStreak(datesVisited: Set<string>, nowMs: number): number {
 }
 
 // Formats a Date for an <input type="datetime-local"> value, in the browser's own
-// local time (deliberately NOT IST-shifted — this reflects what the input element
+// local time (deliberately NOT IST-shifted - this reflects what the input element
 // itself expects to render/parse against the viewer's clock).
 export function toLocalDatetimeValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -240,7 +240,7 @@ export function buildSessions(events: AttendanceEvent[], nowMs: number): Attenda
 }
 
 // Server-side "broadcast without a websocket" send, via Supabase Realtime's REST
-// broadcast endpoint — the tap route runs as a one-shot serverless function, so it
+// broadcast endpoint - the tap route runs as a one-shot serverless function, so it
 // can't hold a subscribed channel open to push a message the normal client-side way.
 export async function broadcastAttendanceEvent(payload: {
   event: "tap" | "linked";
@@ -265,7 +265,7 @@ export async function broadcastAttendanceEvent(payload: {
       }),
     });
   } catch (err) {
-    // Live board falls back to its periodic re-fetch — never let this fail the tap.
+    // Live board falls back to its periodic re-fetch - never let this fail the tap.
     console.error("attendance broadcast failed", err);
   }
 }

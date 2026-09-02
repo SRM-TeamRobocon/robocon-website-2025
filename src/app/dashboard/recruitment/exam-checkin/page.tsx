@@ -17,7 +17,7 @@ const DAY_OPTIONS: { value: DayFilter; label: string }[] = [
 type GenderFilter = string;
 
 // "All" first, mirroring the Day pills' trailing "All", except a gender has no natural
-// default — the board opens unfiltered.
+// default - the board opens unfiltered.
 const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
     { value: "all", label: "All" },
     ...GENDERS.map((g) => ({ value: g.key as GenderFilter, label: g.label })),
@@ -26,7 +26,7 @@ const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
 type YearBucket = "year1" | "year2" | "other";
 
 // Rendered in this order inside every domain column. "other" only appears when a recruit
-// somehow has a year that isn't 1 or 2 — never dropped, because they still sat the exam.
+// somehow has a year that isn't 1 or 2 - never dropped, because they still sat the exam.
 const YEAR_SECTIONS: { key: YearBucket; label: string }[] = [
     { key: "year1", label: "Year 1" },
     { key: "year2", label: "Year 2" },
@@ -38,12 +38,12 @@ interface CheckIn {
     name: string;
     reg_no: string;
     year: string;
-    // FILTER-ONLY — NEVER RENDER THIS. Same rule as `phone` below: the board is projected on
+    // FILTER-ONLY - NEVER RENDER THIS. Same rule as `phone` below: the board is projected on
     // a screen at the exam hall, so a recruit's gender must not appear in a row. It exists
     // solely to back the gender pills above the columns. Nullable, so a recruit with no
     // gender on file matches neither pill and is only listed under "All".
     gender: string | null;
-    // SEARCH-ONLY — NEVER RENDER THIS. The board is projected on a screen at the exam hall
+    // SEARCH-ONLY - NEVER RENDER THIS. The board is projected on a screen at the exam hall
     // in front of the whole queue; a recruit's phone number must not appear in a row. It
     // exists solely so someone can find themselves by typing their own number.
     phone: string | null;
@@ -75,7 +75,7 @@ export default function ExamCheckInBoardPage() {
     const [gender, setGender] = useState<GenderFilter>("all");
     const [domains, setDomains] = useState<DomainColumn[]>([]);
     const [search, setSearch] = useState("");
-    // Only guards the very first paint. Later polls swap the data in silently — a spinner
+    // Only guards the very first paint. Later polls swap the data in silently - a spinner
     // every 5s on a screen people are staring at is worse than a momentarily stale list.
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export default function ExamCheckInBoardPage() {
     // Null under 3 digits, so a stray digit in a name search can't match every phone.
     const phoneTerm = phoneSearchTerm(search);
 
-    // True when anything is narrowing the lists — drives the "N shown" counts and the empty
+    // True when anything is narrowing the lists - drives the "N shown" counts and the empty
     // -section copy below. With gender on "All" this is exactly `term`, as it always was.
     const filtering = Boolean(term) || gender !== "all";
 
@@ -125,7 +125,7 @@ export default function ExamCheckInBoardPage() {
             c.reg_no.toLowerCase().includes(term) ||
             (phoneTerm !== null && (c.phone ?? "").includes(phoneTerm));
         // gender is nullable on recruit_accounts, so a recruit with none on file matches
-        // neither specific pill — "All" is what keeps them on the board. FILTER-ONLY: the
+        // neither specific pill - "All" is what keeps them on the board. FILTER-ONLY: the
         // value itself is never rendered in a row (see the CheckIn type).
         const matchesGender = (c: CheckIn) => gender === "all" || c.gender === gender;
         const match = (c: CheckIn) => matchesSearch(c) && matchesGender(c);
@@ -186,7 +186,7 @@ export default function ExamCheckInBoardPage() {
                     ))}
                 </div>
 
-                {/* Filters only — a recruit's gender is never printed in a row on this board. */}
+                {/* Filters only - a recruit's gender is never printed in a row on this board. */}
                 <div className="flex items-center gap-2">
                     {GENDER_OPTIONS.map((opt) => (
                         <button
@@ -209,7 +209,7 @@ export default function ExamCheckInBoardPage() {
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Find yourself — name, reg no or phone..."
+                        placeholder="Find yourself - name, reg no or phone..."
                         className="w-full border-0 bg-white/5 py-2 pl-9 pr-9 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-600"
                     />
                     {search && (
@@ -233,7 +233,7 @@ export default function ExamCheckInBoardPage() {
                 </span>
             </div>
 
-            {/* A search that matches nobody anywhere IS the answer — say so plainly rather than
+            {/* A search that matches nobody anywhere IS the answer - say so plainly rather than
                 leaving six empty columns for the recruit to interpret. */}
             {term && matchCount === 0 && !loading && (
                 <div className="border border-red/40 bg-red/10 px-4 py-3 text-sm text-white">
@@ -273,7 +273,7 @@ export default function ExamCheckInBoardPage() {
                                     const registered = d.registered[section.key];
 
                                     // Skip the "Other" section entirely unless it has someone in
-                                    // it — it's a data-quality escape hatch, not a real year.
+                                    // it - it's a data-quality escape hatch, not a real year.
                                     if (section.key === "other" && scanned === 0 && registered === 0) return null;
 
                                     return (

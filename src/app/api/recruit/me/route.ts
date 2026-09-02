@@ -19,7 +19,7 @@ type InterviewResultRow = { sub_domain: string; result: string };
 //
 // Everything here is scoped to ONE sub-domain. A recruit who applied to two domains
 // runs this function twice and can legitimately be DEPLOYED in one and
-// DIAGNOSTIC: FAIL in the other — no signal may leak between the two.
+// DIAGNOSTIC: FAIL in the other - no signal may leak between the two.
 function computeDomainStatus(params: {
     hasOrientation: boolean;
     hasExamAttendance: boolean;
@@ -51,21 +51,21 @@ function computeDomainStatus(params: {
     if (shortlistStatus === "not_shortlisted") label = "DIAGNOSTIC: FAIL";
 
     // hasInterviewToken is scoped to THIS sub_domain (recruit_interview_tokens.sub_domain
-    // is a denormalized copy of the panel's domain, set at check-in — see migration 004),
+    // is a denormalized copy of the panel's domain, set at check-in - see migration 004),
     // so a token checked into the recruit's OTHER domain can't flip this one to
     // CALIBRATION. Also gated on this domain actually being shortlisted, same reasoning.
     if (hasInterviewToken && !interviewResult && shortlistStatus === "shortlisted") label = "CALIBRATION";
 
     // Selection is per-domain: only an interview result logged against THIS sub_domain
     // counts. The account-level `recruit_accounts.is_selected` flag is deliberately not
-    // consulted — it says "this person joined the team", not "this person passed every
+    // consulted - it says "this person joined the team", not "this person passed every
     // domain they applied to", and using it previously showed DEPLOYED against domains
     // the recruit had been explicitly rejected from.
     const selectedForDomain = interviewResult === "selected";
 
     if (selectedForDomain) label = "DEPLOYED";
     if (selectedForDomain && trainingStarted) {
-        label = `RUNTIME — Day ${attendedSessions} / ${totalSessions}`;
+        label = `RUNTIME - Day ${attendedSessions} / ${totalSessions}`;
     }
 
     return label;
@@ -136,7 +136,7 @@ export async function GET() {
                 .eq("recruit_id", recruit_id)
                 .eq("cycle_id", cycle_id),
             // Only sessions that have actually happened count towards the attendance
-            // denominator — a lead pre-creating the full training calendar must not make
+            // denominator - a lead pre-creating the full training calendar must not make
             // every recruit look like they're failing attendance on day one.
             supabase
                 .from("recruit_training_sessions")
@@ -149,7 +149,7 @@ export async function GET() {
                 .eq("recruit_id", recruit_id)
                 .eq("cycle_id", cycle_id),
             // Recruit's own queue position on interview day. Not tied to a sub_domain (a panel
-            // is a free-text label, not a sub_domain foreign key) — same reasoning as
+            // is a free-text label, not a sub_domain foreign key) - same reasoning as
             // `hasInterviewToken` above, so this is recruit-level, not per-domain.
             supabase
                 .from("recruit_interview_tokens")
@@ -163,12 +163,12 @@ export async function GET() {
         }
 
         const hasOrientation = (orientationRows?.length ?? 0) > 0;
-        // Exam attendance is per sub-domain — a recruit who sat only their coding exam
+        // Exam attendance is per sub-domain - a recruit who sat only their coding exam
         // must not show "DIAGNOSTIC RUNNING" against their webdev application.
         const examAttendedSubDomains = new Set(
             ((examRows as { day: number; sub_domain: string }[] | null) ?? []).map((row) => row.sub_domain)
         );
-        // Scoped per sub_domain (denormalized onto the token at check-in, migration 004) —
+        // Scoped per sub_domain (denormalized onto the token at check-in, migration 004) -
         // a recruit checked into one domain's interview must not show CALIBRATION against
         // an unrelated shortlisted domain they haven't checked into yet.
         const interviewTokenSubDomains = new Set(
@@ -222,8 +222,8 @@ export async function GET() {
         });
 
         // Live interview queue position. Only ever surfaces the recruit's OWN token and an
-        // aggregate count of how many others are ahead of them — never other recruits'
-        // identities — since this response is readable by the recruit themselves.
+        // aggregate count of how many others are ahead of them - never other recruits'
+        // identities - since this response is readable by the recruit themselves.
         let interview: {
             panel_label: string;
             token_number: number;
@@ -232,9 +232,9 @@ export async function GET() {
         } | null = null;
 
         // A recruit shortlisted for 2 domains can legitimately hold tokens on 2 tables (or a
-        // table + a deferral) at once. Prefer 'called' over 'waiting' over 'deferred' — "you're
+        // table + a deferral) at once. Prefer 'called' over 'waiting' over 'deferred' - "you're
         // being called right now" is strictly more urgent than a queue position, which is more
-        // actionable than "come back another day" — rather than picking whichever row Postgres
+        // actionable than "come back another day" - rather than picking whichever row Postgres
         // happens to return first (unordered, so it could otherwise flip between page loads).
         const ownActiveTokens = (
             (ownInterviewTokenRows as
@@ -255,7 +255,7 @@ export async function GET() {
 
         if (activeToken?.status === "deferred") {
             // Whatever table this token is still attached to (its original one, or a
-            // reassigned placeholder if that table was since deleted) isn't meaningful here —
+            // reassigned placeholder if that table was since deleted) isn't meaningful here -
             // the recruit needs to know the DOMAIN they're deferred for, not a table name.
             interview = {
                 panel_label: activeToken.sub_domain ? subDomainFullLabel(activeToken.sub_domain) : "Interview",
@@ -271,7 +271,7 @@ export async function GET() {
                     .eq("id", activeToken.panel_id)
                     .maybeSingle(),
                 // Ahead-of-me count follows queue_position (the manually-reorderable "who's
-                // next" order), not token_number — a drag-reorder on the dashboard should be
+                // next" order), not token_number - a drag-reorder on the dashboard should be
                 // reflected here immediately.
                 activeToken.status === "waiting"
                     ? supabase

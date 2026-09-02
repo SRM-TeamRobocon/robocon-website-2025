@@ -7,12 +7,12 @@ import toast from "react-hot-toast";
 import { useRequireRole } from "@/hooks/use-require-role";
 
 const SESSIONS = [
-    { key: "day1Morning", label: "Day 1 — Morning" },
-    { key: "day1Evening", label: "Day 1 — Evening" },
-    { key: "day2Morning", label: "Day 2 — Morning" },
-    { key: "day2Evening", label: "Day 2 — Evening" },
-    { key: "day3Morning", label: "Day 3 — Morning" },
-    { key: "day3Evening", label: "Day 3 — Evening" },
+    { key: "day1Morning", label: "Day 1 - Morning" },
+    { key: "day1Evening", label: "Day 1 - Evening" },
+    { key: "day2Morning", label: "Day 2 - Morning" },
+    { key: "day2Evening", label: "Day 2 - Evening" },
+    { key: "day3Morning", label: "Day 3 - Morning" },
+    { key: "day3Evening", label: "Day 3 - Evening" },
 ] as const;
 
 type SessionKey = typeof SESSIONS[number]["key"];
@@ -120,7 +120,7 @@ function ScannerComponent() {
 
     useEffect(() => {
         // Guard on `ready`: until the role check resolves, the component renders
-        // null and the #qr-reader div doesn't exist yet — constructing the scanner
+        // null and the #qr-reader div doesn't exist yet - constructing the scanner
         // before then throws (it looks up the element synchronously).
         if (!ready) return;
 
@@ -132,7 +132,7 @@ function ScannerComponent() {
                     qrbox: { width: 250, height: 250 },
                     supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
                     // See src/components/recruit/Html5QrcodeScanner.tsx for why each of
-                    // these speeds up decoding — same reasoning applies to this scanner.
+                    // these speeds up decoding - same reasoning applies to this scanner.
                     formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
                     useBarCodeDetectorIfSupported: true,
                     disableFlip: true,

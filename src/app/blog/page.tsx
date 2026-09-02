@@ -41,7 +41,7 @@ export default async function BlogListPage() {
 
             <section className="mx-auto max-w-6xl px-4 pb-24">
                 {blogs.length === 0 ? (
-                    <p className="text-center text-white/40">No posts yet — check back soon.</p>
+                    <p className="text-center text-white/40">No posts yet - check back soon.</p>
                 ) : (
                     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                         {blogs.map((blog) => (

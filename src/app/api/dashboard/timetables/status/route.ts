@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Feeds the "who's free" search: the full dashboard roster (so members with no saved
 // timetable can be shown as "no data" instead of silently vanishing) plus every saved
-// schedule, keyed by owner_username exactly as /api/member/timetable stores it — the
+// schedule, keyed by owner_username exactly as /api/member/timetable stores it - the
 // email for member_accounts logins, the env username for legacy lead/admin logins.
 export async function GET() {
     const session = await getSession();

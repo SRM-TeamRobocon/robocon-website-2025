@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             .eq("email", email)
             .maybeSingle();
 
-        // Only send a reset code to real, active account holders — unverified
+        // Only send a reset code to real, active account holders - unverified
         // or not-yet-approved rows can't log in anyway, so don't let them reset.
         if (account && account.email_verified && account.is_approved) {
             const otp = crypto.randomInt(100000, 1000000).toString();
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
                     })
                     .catch((err) => console.error("otp email failed", err));
             } else {
-                console.warn("SMTP not configured — skipping OTP email");
+                console.warn("SMTP not configured - skipping OTP email");
             }
         }
 

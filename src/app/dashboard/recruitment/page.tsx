@@ -44,7 +44,7 @@ interface AnalyticsData {
 }
 
 // `leadOnly` marks the sections whose own pages redirect anyone below lead. Members do
-// get the rest of recruitment (roster, marks, interview day, training, analytics) — see
+// get the rest of recruitment (roster, marks, interview day, training, analytics) - see
 // the matching role lists on each page and API route.
 const SECTIONS = [
     { label: "Cycles", href: "/dashboard/recruitment/cycles", icon: CalendarRange, desc: "Create and manage recruitment seasons", leadOnly: true },
@@ -60,7 +60,7 @@ const SECTIONS = [
     { label: "Tickets", href: "/dashboard/recruitment/tickets", icon: Ticket, desc: "Domain change and general requests from recruits", leadOnly: false },
     { label: "Knowledge Base", href: "/dashboard/recruitment/knowledge-base", icon: BookOpen, desc: "Upload .txt files for the recruit chatbot", leadOnly: true },
     // FAQ itself lives in the generic content CMS (src/lib/content-resources.ts), not under
-    // /dashboard/recruitment — it's just linked from here too since it's recruit-facing
+    // /dashboard/recruitment - it's just linked from here too since it's recruit-facing
     // content (shown in FaqSection on /recruit/dashboard) and belongs alongside the rest of
     // the recruitment admin surface.
     { label: "FAQ", href: "/dashboard/content/faq", icon: HelpCircle, desc: "Manage the FAQ shown on the recruit dashboard", leadOnly: true },
@@ -105,7 +105,7 @@ export default function RecruitmentOverviewPage() {
                     Recruitment
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Run the junior recruitment pipeline — cycles, registrations, exams, shortlisting, interviews, and training.
+                    Run the junior recruitment pipeline - cycles, registrations, exams, shortlisting, interviews, and training.
                 </p>
             </div>
 
@@ -117,7 +117,7 @@ export default function RecruitmentOverviewPage() {
                 <div className="border border-red bg-black p-8 text-center text-gray-400 text-sm flex flex-col items-center gap-3">
                     <AlertTriangle className="w-6 h-6 text-amber-400" />
                     <p>{error || "No active recruitment cycle."}</p>
-                    {/* Only leads can open a cycle — pointing a member at /cycles would just
+                    {/* Only leads can open a cycle - pointing a member at /cycles would just
                         bounce them straight back here. */}
                     {isLead ? (
                         <Link
@@ -201,7 +201,7 @@ export default function RecruitmentOverviewPage() {
                         </span>
                         <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Recruitment Scanner</h3>
                         <p className="text-gray-300 mb-6 text-sm leading-relaxed">
-                            Scan recruit QR codes to mark attendance. Pick a mode before scanning — Orientation, Exam Day 1,
+                            Scan recruit QR codes to mark attendance. Pick a mode before scanning - Orientation, Exam Day 1,
                             Exam Day 2, Interview Check-In, or Training.
                         </p>
                         <div className="flex items-center text-sm font-medium text-gray-300 group-hover:text-emerald-400">

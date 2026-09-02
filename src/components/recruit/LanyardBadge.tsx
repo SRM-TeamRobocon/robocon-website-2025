@@ -1,14 +1,14 @@
 "use client";
 
 // A lightweight CSS-only lanyard: a strap (glossy) + clip + card hang together as one
-// pendulum, idly swaying on its own. Not pointer-interactive — it doesn't tilt or
+// pendulum, idly swaying on its own. Not pointer-interactive - it doesn't tilt or
 // respond to hover/drag. A plain click opens the badge full-size, since that's how
 // recruits actually read their QR code clearly.
 import { useState } from "react";
 import { createPortal } from "react-dom";
 
 interface LanyardBadgeProps {
-    badgeImage: string; // data URL from generateBadgeImage — logo + name + QR
+    badgeImage: string; // data URL from generateBadgeImage - logo + name + QR
     className?: string;
 }
 
@@ -75,7 +75,7 @@ export default function LanyardBadge({ badgeImage, className = "" }: LanyardBadg
                     justify-content: center;
                     /* Both axes must be non-"visible" together: per the CSS overflow spec, a
                        lone overflow-y: visible next to overflow-x: hidden computes to auto,
-                       not visible — and since the pendulum's rotate() transform continuously
+                       not visible - and since the pendulum's rotate() transform continuously
                        changes its scrollable-overflow bounds via the idle sway animation,
                        that auto toggled a real scrollbar in and out on every cycle. The
                        swing's vertical extent barely changes at these angles, so clipping it
@@ -96,7 +96,7 @@ export default function LanyardBadge({ badgeImage, className = "" }: LanyardBadg
                     width: 52px;
                     /* Scales with the card so the whole assembly grows/shrinks together
                        instead of drifting apart like the old vh-based height did. Shorter
-                       ratio than before — the strap was dominating the composition with
+                       ratio than before - the strap was dominating the composition with
                        empty space above a comparatively small card. */
                     height: calc(var(--lb-w) * 1);
                     min-height: 200px;

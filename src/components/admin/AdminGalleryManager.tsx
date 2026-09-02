@@ -440,7 +440,7 @@ export default function AdminGalleryManager({ role }: { role: "member" | "lead" 
 
               {albumPhotos.length === 0 ? (
                 <div className="border border-dashed border-white/10 p-10 text-center text-gray-500">
-                  No photos in this album yet — add some above.
+                  No photos in this album yet - add some above.
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">

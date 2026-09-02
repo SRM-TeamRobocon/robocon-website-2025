@@ -28,7 +28,7 @@ export async function GET() {
         return NextResponse.json({ success: true, claimed: true, data });
     }
 
-    // Legacy env-based staff login — no member_accounts row, link by env username instead.
+    // Legacy env-based staff login - no member_accounts row, link by env username instead.
     const { data: claimedRow } = await supabase
         .from("members")
         .select(PROFILE_SELECT)

@@ -16,7 +16,7 @@ const nameOf = (acc: Account) => (Array.isArray(acc) ? acc[0] : acc);
 
 // GET /api/admin/recruitment/scan/roster?mode=X&sub_domain=Y
 // Live "who's been marked present" list for the scanner page, scoped to whichever mode
-// (and sub_domain, where relevant) is currently selected — lets a volunteer visually
+// (and sub_domain, where relevant) is currently selected - lets a volunteer visually
 // confirm a scan actually registered, without relying only on the scanner's ephemeral
 // per-device "Recent scans" list, which is lost on reload and never shared across devices.
 export async function GET(request: NextRequest) {
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
             token_number: r.token_number,
         }));
     } else {
-        // Training has no lead-created session step — today's (cycle, date, domain) session
+        // Training has no lead-created session step - today's (cycle, date, domain) session
         // is created on demand by the first scan (see the scan route), so if nobody's
         // tapped in yet today there's simply no session row and thus nothing to show.
         const sessionDate = todayInIST();

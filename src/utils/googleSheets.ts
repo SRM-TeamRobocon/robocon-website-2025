@@ -32,7 +32,7 @@ export interface RegistrationRow {
     paymentStatus: string;
     timestamp: string;
     ticketId: string;
-    // Legacy single-column attendance (col R) — kept for backward compat
+    // Legacy single-column attendance (col R) - kept for backward compat
     attendance: string;
     // Per-session attendance (cols S–X)
     day1Morning: string;
@@ -177,7 +177,7 @@ export async function updateTicketId(rowIndex: number, ticketId: string): Promis
     }
 }
 
-/** Legacy — writes to column R. Kept for backward compatibility. */
+/** Legacy - writes to column R. Kept for backward compatibility. */
 export async function updateAttendanceStatus(rowIndex: number, status: "PRESENT" | "ABSENT"): Promise<boolean> {
     if (!SPREADSHEET_ID) return false;
 

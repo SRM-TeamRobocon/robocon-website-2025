@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { username, password } = body;
 
-        // Hardcoded credentials as requested — env-based staff accounts are the top-tier "admin" role.
+        // Hardcoded credentials as requested - env-based staff accounts are the top-tier "admin" role.
         let userRole: "admin" | null = null;
 
         try {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
             return response;
         }
 
-        // Not a staff username — try it as a member email login.
+        // Not a staff username - try it as a member email login.
         if (typeof username === "string" && username.includes("@") && password) {
             const supabase = createSupabaseAdminClient();
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
                 );
 
                 // If they arrived here via "Sign in with Google" not matching any account,
-                // a pending Google profile was stashed in a short-lived cookie — a successful
+                // a pending Google profile was stashed in a short-lived cookie - a successful
                 // password login is the signal to link it now, so the connection happens
                 // without a separate trip to the dashboard.
                 let linkedGoogleEmail: string | null = null;

@@ -36,7 +36,7 @@ export function useGoogleConnect(onResult: (result: GoogleConnectResult) => void
     const connect = useCallback(() => {
         const popup = window.open("/api/member/auth/google/connect", "connect-google", "width=480,height=640");
         if (!popup) {
-            onResultRef.current({ success: false, message: "Popup blocked — allow popups for this site and try again.", email: null });
+            onResultRef.current({ success: false, message: "Popup blocked - allow popups for this site and try again.", email: null });
             return;
         }
         setConnecting(true);

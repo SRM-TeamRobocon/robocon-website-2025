@@ -10,7 +10,7 @@ const TIMELINE: TimelineEntry[] = [
   { years: "2016-17", highlight: "National Rank 13 of 110" },
   { years: "2018" },
   { years: "2023", highlight: "Back on the national stage" },
-  { years: "2026", highlight: "AIR 5 — DD Robocon" },
+  { years: "2026", highlight: "AIR 5 - DD Robocon" },
 ];
 
 export default function AchievementsHistory() {

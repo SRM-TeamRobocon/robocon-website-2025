@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// DELETE /api/admin/recruitment/kb/documents/:id — removes the Storage object and the
+// DELETE /api/admin/recruitment/kb/documents/:id - removes the Storage object and the
 // document row (recruit_kb_chunks cascade-deletes with it).
 export async function DELETE(_request: Request, context: RouteContext) {
     const session = await getSession();
@@ -39,7 +39,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     try {
         await deleteKbFile(document.storage_path);
     } catch (err) {
-        // Non-fatal — proceed to delete the row anyway rather than leaving an orphaned
+        // Non-fatal - proceed to delete the row anyway rather than leaving an orphaned
         // document a lead can't remove because Storage cleanup failed.
         console.error("kb document delete: storage cleanup error", err);
     }

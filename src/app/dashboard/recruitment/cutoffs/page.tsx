@@ -80,7 +80,7 @@ export default function RecruitmentCutoffsPage() {
       for (const g of GENDERS) {
         for (const y of RECRUIT_YEARS) {
           const raw = inputs[inputKey(domain, g.key, y.key)] ?? "";
-          // Blank cells are skipped, not sent — a domain can be configured one cell at a time.
+          // Blank cells are skipped, not sent - a domain can be configured one cell at a time.
           if (raw.trim() === "") continue;
           const value = parseMarksValue(raw);
           if (value === null) {
@@ -119,7 +119,7 @@ export default function RecruitmentCutoffsPage() {
   };
 
   // domain === null runs every domain in one request (the original global button);
-  // otherwise scopes the run to just that domain — a domain still needs BOTH male and
+  // otherwise scopes the run to just that domain - a domain still needs BOTH male and
   // female cutoffs set or the server skips it regardless of scope.
   const runShortlist = async (domain: string | null) => {
     setComputing(domain ?? "all");
@@ -157,7 +157,7 @@ export default function RecruitmentCutoffsPage() {
           Cutoffs &amp; Shortlist Engine
         </h1>
         <p className="mt-2 text-gray-400 text-sm max-w-xl">
-          Set a pass mark per domain for each gender <em>and</em> year — 1st and 2nd years sit
+          Set a pass mark per domain for each gender <em>and</em> year - 1st and 2nd years sit
           different papers, so they need different bars. Then run the shortlist engine to
           auto-compute status for every recruit who selected that domain. A domain is skipped
           until all four of its cutoffs are set.
@@ -193,7 +193,7 @@ export default function RecruitmentCutoffsPage() {
                   const domainRows = rows.filter((r) => r.sub_domain === domain);
                   const rowFor = (gender: Gender, year: RecruitYear) =>
                     domainRows.find((r) => r.gender === gender && r.year === year);
-                  // All four (gender, year) cells, matching the engine's skip rule exactly —
+                  // All four (gender, year) cells, matching the engine's skip rule exactly -
                   // read from `inputs` so the Run button reflects what is typed, not just what
                   // was last saved.
                   const allSet = GENDERS.every((g) =>

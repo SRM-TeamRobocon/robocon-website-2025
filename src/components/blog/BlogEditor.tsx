@@ -76,7 +76,7 @@ export default function BlogEditor({ authorName, submitting, submitLabel = "Subm
             const current = blocks[index];
             if (current.type === "image") updateBlock(index, { ...current, url });
         } catch {
-            // ignore — user can retry the upload
+            // ignore - user can retry the upload
         } finally {
             setUploadingBlock(null);
         }

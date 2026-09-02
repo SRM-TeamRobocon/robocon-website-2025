@@ -12,7 +12,7 @@ const OTP_RATE_LIMIT = 3;
 const OTP_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const OTP_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
-// crypto.randomInt, not Math.random — Math.random is a fast non-cryptographic PRNG
+// crypto.randomInt, not Math.random - Math.random is a fast non-cryptographic PRNG
 // whose output is predictable from prior samples, which would make OTPs guessable.
 function generateOtp(): string {
     return String(randomInt(100000, 1000000));
@@ -43,7 +43,7 @@ export async function POST() {
             return NextResponse.json({ success: false, error: "Recruit account not found" }, { status: 404 });
         }
 
-        // Already verified — no-op rather than an error, so a stale dashboard tab clicking
+        // Already verified - no-op rather than an error, so a stale dashboard tab clicking
         // "Send OTP" a second time doesn't surface a confusing failure.
         if (account.srm_email_verified) {
             return NextResponse.json({ sent: true });
@@ -70,7 +70,7 @@ export async function POST() {
             );
         }
 
-        // Invalidate any earlier live OTPs for this address so only the newest code works —
+        // Invalidate any earlier live OTPs for this address so only the newest code works -
         // otherwise all 3 codes in the rate-limit window stay guessable simultaneously.
         await supabase
             .from("recruit_email_otps")
@@ -106,7 +106,7 @@ export async function POST() {
                 })
                 .catch((err) => console.error("verify-email otp email send failed", err));
         } else {
-            console.warn("SMTP not configured — skipping OTP email (local dev)");
+            console.warn("SMTP not configured - skipping OTP email (local dev)");
         }
 
         return NextResponse.json({ sent: true });

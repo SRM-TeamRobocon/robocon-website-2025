@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 // PATCH /api/admin/recruitment/panels/:id/close
 // Sets is_active = false. Any remaining `waiting` tokens are left as-is (per
-// 07-INTERVIEW-MODULE.md) — no cascade update to token rows. Closing is reversible via the
+// 07-INTERVIEW-MODULE.md) - no cascade update to token rows. Closing is reversible via the
 // sibling /reopen route, so stranded waiting tokens are recoverable; we return
 // `waiting_left` so the UI can surface the count in its confirm dialog and afterwards.
 export async function PATCH(_request: NextRequest, context: RouteContext) {

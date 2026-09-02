@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// DELETE /api/admin/recruitment/training-sessions/:id — lead/admin.
+// DELETE /api/admin/recruitment/training-sessions/:id - lead/admin.
 //
 // Before this route a mistyped or double-clicked session was permanent, and because it
 // counted towards the attendance denominator it dragged every recruit's percentage down

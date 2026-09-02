@@ -1,7 +1,7 @@
-// Single source of truth for the 6 recruitment sub-domains — mirrors the
+// Single source of truth for the 6 recruitment sub-domains - mirrors the
 // `recruit_subdomain` Postgres enum in supabase/recruit-schema.sql and the domain
 // table in 01-OVERVIEW.md. To add/rename a domain, edit exactly one place: here
-// (plus the DB enum). Isomorphic — no server-only imports, safe in both
+// (plus the DB enum). Isomorphic - no server-only imports, safe in both
 // "use client" pages and API routes.
 
 export type RecruitSubDomain = "coding" | "webdev" | "siesed" | "corporate" | "vfx_gfx" | "sambed";
@@ -15,7 +15,7 @@ export interface SubDomainMeta {
 }
 
 // All six domains run the same written-exam pipeline (exam attendance, marks,
-// cutoff-based auto-shortlist) — there is no portfolio-only track anymore.
+// cutoff-based auto-shortlist) - there is no portfolio-only track anymore.
 // portfolio_url still exists on recruit_accounts, but as a LinkedIn URL collected
 // from every recruit at registration, not a domain-gated requirement.
 export const RECRUIT_SUBDOMAINS: SubDomainMeta[] = [
@@ -46,13 +46,13 @@ export function subDomainSubsystem(key: string): string {
     return BY_KEY.get(key as RecruitSubDomain)?.subsystem ?? "";
 }
 
-// "SPACED — Coding" style combined label, for places with no visual grouping (CSV cells, toasts).
+// "SPACED - Coding" style combined label, for places with no visual grouping (CSV cells, toasts).
 export function subDomainFullLabel(key: string): string {
     const meta = BY_KEY.get(key as RecruitSubDomain);
-    return meta ? `${meta.subsystem} — ${meta.label}` : key;
+    return meta ? `${meta.subsystem} - ${meta.label}` : key;
 }
 
-// Groups domains by subsystem, preserving RECRUIT_SUBSYSTEMS order — for grouped
+// Groups domains by subsystem, preserving RECRUIT_SUBSYSTEMS order - for grouped
 // checkboxes/optgroups. Pass a filtered list to scope it.
 export function groupBySubsystem(domains: SubDomainMeta[] = RECRUIT_SUBDOMAINS) {
     return RECRUIT_SUBSYSTEMS.map((subsystem) => ({

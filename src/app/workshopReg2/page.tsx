@@ -273,10 +273,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main Content — Payment Card + Form */}
+      {/* Main Content - Payment Card + Form */}
       <div className="max-w-6xl mx-auto px-5 md:px-4 pb-6">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-5 md:gap-8 justify-center items-start">
-          {/* Payment Card — order 1 on mobile, top-left on desktop */}
+          {/* Payment Card - order 1 on mobile, top-left on desktop */}
           <div className="order-1 lg:col-start-1 lg:row-start-1">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-gray-850 to-gray-900 border border-gray-700/30 p-6 shadow-2xl shadow-rose-500/5">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(225,29,72,0.06),transparent_70%)] pointer-events-none" />
@@ -398,7 +398,7 @@ export default function App() {
 
           </div>
 
-          {/* Registration Form — order 2 on mobile, right column on desktop spanning both rows */}
+          {/* Registration Form - order 2 on mobile, right column on desktop spanning both rows */}
           <div className="order-2 lg:col-start-2 lg:row-start-1 lg:row-span-2">
             <div className="rounded-2xl bg-gradient-to-br from-gray-900/80 to-gray-950/80 border border-gray-700/30 p-5 md:p-8 shadow-2xl backdrop-blur-sm">
               <h3 className="text-white font-bold text-xl mb-6 flex items-center gap-2">
@@ -718,7 +718,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* What You Get — order 3 on mobile, bottom-left on desktop */}
+          {/* What You Get - order 3 on mobile, bottom-left on desktop */}
           <div className="order-3 lg:col-start-1 lg:row-start-2">
             <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-700/30 p-5">
               <h4 className="text-white font-bold text-sm mb-3 uppercase tracking-wider">

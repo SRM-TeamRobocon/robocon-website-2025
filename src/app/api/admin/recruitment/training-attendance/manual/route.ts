@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Not a selected recruit" }, { status: 400 });
   }
 
-  // A domain-scoped session only concerns recruits who applied to that domain — a NULL
+  // A domain-scoped session only concerns recruits who applied to that domain - a NULL
   // sub_domain (all-hands) concerns everyone. Mirrors the eligibility rule the overview
   // endpoint (../route.ts) uses to decide who even shows up as "pending" for this session.
   if (sessionRow.sub_domain) {

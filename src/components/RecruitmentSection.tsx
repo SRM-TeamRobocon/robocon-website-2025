@@ -49,7 +49,7 @@ const RecruitmentSection = () => {
 
     return (
         <section className="relative isolate w-full overflow-hidden bg-white py-16 md:py-24 px-4 md:px-8">
-            {/* Deliberately breaks from the site's dark/glass theme — a bold white
+            {/* Deliberately breaks from the site's dark/glass theme - a bold white
                 poster block meant to interrupt the page and grab attention, with
                 angled red edges echoing the clip-path cuts used elsewhere on site
                 (see the video cards below, and the join-popup modal in page.tsx). */}
@@ -158,14 +158,14 @@ const RecruitmentSection = () => {
                     </div>
                 </div>
 
-                {/* Join WhatsApp / follow Instagram — same card used on the recruit
+                {/* Join WhatsApp / follow Instagram - same card used on the recruit
                     dashboard (src/components/recruit/SocialSection.tsx), reused here
                     so visitors who haven't registered yet can still find these. */}
                 <div className="w-full max-w-xl">
                     <SocialSection />
                 </div>
 
-                {/* Ask a Doubt — inline chatbot, sharp red/white/black to match the
+                {/* Ask a Doubt - inline chatbot, sharp red/white/black to match the
                     rest of this section rather than the dashboard's dark glass theme.
                     Public endpoint (/api/recruit/public-chat): works for visitors who
                     haven't registered yet. */}

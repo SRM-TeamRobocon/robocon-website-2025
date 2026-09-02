@@ -70,7 +70,7 @@ export default function EditBlogPage() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                toast.success(staysLive ? "Saved" : "Updated — resubmitted for approval");
+                toast.success(staysLive ? "Saved" : "Updated - resubmitted for approval");
                 router.push(backHref);
             } else {
                 toast.error(data.error || "Could not update blog");
@@ -99,7 +99,7 @@ export default function EditBlogPage() {
                 <p className="mt-2 max-w-xl text-sm text-gray-400">
                     {!isOwnPost && <>Editing {authorName}&apos;s post. </>}
                     {staysLive
-                        ? "This post is already live — saving keeps it published immediately, no re-approval needed."
+                        ? "This post is already live - saving keeps it published immediately, no re-approval needed."
                         : "Saving changes sends this post back to a lead for approval, so it will leave the live feed until re-approved."}
                 </p>
             </div>

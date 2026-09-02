@@ -11,11 +11,11 @@ const MATCH_COUNT = 5;
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-// POST /api/recruit/public-chat — same RAG pipeline as /api/recruit/chat, but with no
+// POST /api/recruit/public-chat - same RAG pipeline as /api/recruit/chat, but with no
 // recruit_token requirement (explicitly carved out of the gate in src/proxy.ts) so
 // homepage visitors who haven't registered yet can use the "Ask a Doubt" widget on
 // RecruitmentSection. Rate-limited by hashed IP instead of session, since there's no
-// auth to lean on for abuse control — see recruit-migration-014.
+// auth to lean on for abuse control - see recruit-migration-014.
 function clientIp(request: NextRequest): string {
     const forwardedFor = request.headers.get("x-forwarded-for");
     if (forwardedFor) return forwardedFor.split(",")[0].trim();
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const ipHash = hashIp(clientIp(request));
     const supabase = createRecruitSupabaseAdminClient();
 
-    // Opportunistic cleanup — keeps the log table bounded without needing a cron job.
+    // Opportunistic cleanup - keeps the log table bounded without needing a cron job.
     // Best-effort: a failure here shouldn't block an otherwise-valid request.
     void supabase
         .from("recruit_public_chat_requests")
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if ((count ?? 0) >= RATE_LIMIT) {
         return NextResponse.json(
-            { success: false, error: "Too many questions from this connection — try again in a few minutes." },
+            { success: false, error: "Too many questions from this connection - try again in a few minutes." },
             { status: 429 }
         );
     }

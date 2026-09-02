@@ -8,7 +8,7 @@ export type SortState<K extends string> = { key: K; direction: SortDirection } |
 // Drop-in replacement for a plain `<th>` in the admin recruitment tables. Renders the
 // label plus a click target that cycles asc -> desc -> asc, with a chevron showing the
 // current direction (or a neutral up/down glyph when this column isn't the active sort).
-// Sorting itself stays in the page — this component only owns the header UI, since every
+// Sorting itself stays in the page - this component only owns the header UI, since every
 // table's row shape and comparator differ.
 export function SortableTh<K extends string>({
   label,

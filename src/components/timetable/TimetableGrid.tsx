@@ -25,7 +25,7 @@ interface LeaveWindow {
     endTime: string | null;
 }
 
-// Which TIME_SLOTS indexes an approved leave for "today" covers — null start/end
+// Which TIME_SLOTS indexes an approved leave for "today" covers - null start/end
 // means a full-day leave, so every slot is covered.
 function leaveSlotIndexes(leave: LeaveWindow): Set<number> {
     if (!leave.startTime || !leave.endTime) {
@@ -56,10 +56,10 @@ interface TimetableGridProps {
     editable?: boolean;
     onChange?: (day: string, slotIndex: number, value: string) => void;
     onCampusChange?: (campus: string) => void;
-    // Today's real Day Order (from /api/dashboard/day-order), if known — used to
+    // Today's real Day Order (from /api/dashboard/day-order), if known - used to
     // default the tab selection to "today" instead of always DO1.
     todayDayOrder?: string | null;
-    // The viewed member's approved leave covering today, if any — overlaid as an
+    // The viewed member's approved leave covering today, if any - overlaid as an
     // "On Leave" badge on the affected slots, but only while the "today" tab is active
     // (a leave is a real-date fact, not something that applies to every DO-tab).
     leaveToday?: LeaveWindow | null;
@@ -78,7 +78,7 @@ export default function TimetableGrid({
 }: TimetableGridProps) {
     const [activeDay, setActiveDay] = useState<(typeof DAYS)[number]>(DAYS[0]);
 
-    // One-time sync once the parent's day-order fetch resolves — doesn't fight a
+    // One-time sync once the parent's day-order fetch resolves - doesn't fight a
     // manual tab click afterwards since todayDayOrder only transitions null -> value once.
     useEffect(() => {
         if (todayDayOrder && (DAYS as readonly string[]).includes(todayDayOrder)) {

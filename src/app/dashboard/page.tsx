@@ -90,7 +90,7 @@ const APPROVALS_ACTION: QuickAction = {
 const BLOG_ACTION: QuickAction = {
     href: "/dashboard/blogs",
     title: "Blog",
-    description: "Read team stories — public posts and members-only posts in one feed.",
+    description: "Read team stories - public posts and members-only posts in one feed.",
     icon: Newspaper,
     badge: "Everyone",
     accent: "border border-amber-500/30 hover:shadow-[0_0_30px_rgba(245,158,11,0.2)]",
@@ -266,7 +266,7 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [today, setToday] = useState("");
 
-    // Stat cards temporarily disabled — the counts below drove 2-4 extra sequential
+    // Stat cards temporarily disabled - the counts below drove 2-4 extra sequential
     // API calls on every dashboard load, which is what made the page feel slow to
     // paint. Re-enable by restoring this state + fetch block and the <StatGrid .../>
     // calls in the JSX below (search "STAT CARDS DISABLED").
@@ -289,7 +289,7 @@ export default function AdminDashboard() {
                 setDisplayName(userData.name || displayNameForUsername(userData.user));
                 setRole(userRole);
 
-                // STAT CARDS DISABLED — see comment above.
+                // STAT CARDS DISABLED - see comment above.
                 // // Everyone can author blogs, so these two apply to every role.
                 // const [ownBlogs, feed] = await Promise.all([
                 //     fetchJson("/api/member/blogs"),
@@ -339,7 +339,7 @@ export default function AdminDashboard() {
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-400 sm:text-base">
                 {role === "member"
                     ? "Update your profile, propose content, or write a blog for the team."
-                    : "SRM Team Robocon Hub — everything the team needs, in one place."}
+                    : "SRM Team Robocon Hub - everything the team needs, in one place."}
             </p>
         </div>
     );
@@ -384,7 +384,7 @@ export default function AdminDashboard() {
         );
     }
     if (role === "member") {
-        // STAT CARDS DISABLED — see comment near the effect above. Was:
+        // STAT CARDS DISABLED - see comment near the effect above. Was:
         // const cards: StatCard[] = [
         //     { label: "Proposals Pending", value: myProposals.pending, tone: "text-amber-400", href: "/dashboard/my-submissions" },
         //     { label: "Proposals Live", value: myProposals.approved, tone: "text-emerald-400", href: "/dashboard/my-submissions" },
@@ -401,7 +401,7 @@ export default function AdminDashboard() {
         );
     }
 
-    // STAT CARDS DISABLED — see comment near the effect above. Was:
+    // STAT CARDS DISABLED - see comment near the effect above. Was:
     // const staffCards: StatCard[] = [
     //     { label: "Pending Signups", value: staffQueue.signups, tone: "text-amber-400", href: "/dashboard/approvals" },
     //     { label: "Pending Content", value: staffQueue.content, tone: "text-amber-400", href: "/dashboard/approvals" },

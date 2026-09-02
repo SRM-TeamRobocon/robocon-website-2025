@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { Mail, X } from "lucide-react";
 import { useGoogleConnect } from "@/hooks/use-google-connect";
 
-// Only nag once per browser session — reopening the dashboard tomorrow shouldn't
+// Only nag once per browser session - reopening the dashboard tomorrow shouldn't
 // re-show this the moment someone dismissed it today.
 const DISMISS_KEY = "google_connect_reminder_dismissed";
 
@@ -16,7 +16,7 @@ export default function GoogleConnectReminder() {
         if (window.sessionStorage.getItem(DISMISS_KEY)) return;
         fetch("/api/member/google-status")
             .then(async (res) => {
-                if (!res.ok) return; // legacy env-based staff (no member_accounts row) — nothing to connect
+                if (!res.ok) return; // legacy env-based staff (no member_accounts row) - nothing to connect
                 const data = await res.json();
                 if (data.success && !data.connected) setVisible(true);
             })
@@ -59,7 +59,7 @@ export default function GoogleConnectReminder() {
                     </button>
                 </div>
                 <p className="mb-6 text-sm text-gray-400">
-                    Link your Google account so you can sign in with one click next time — no password needed.
+                    Link your Google account so you can sign in with one click next time - no password needed.
                 </p>
                 <div className="flex items-center justify-end gap-4">
                     <button onClick={dismiss} className="text-xs text-gray-400 hover:text-white transition">

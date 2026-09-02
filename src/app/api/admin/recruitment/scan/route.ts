@@ -25,11 +25,11 @@ function scanResponse(
 }
 
 // POST /api/admin/recruitment/scan
-// Requires admin_token (any of member/lead/admin — all volunteers have at least member).
+// Requires admin_token (any of member/lead/admin - all volunteers have at least member).
 // Body: { payload, mode, sub_domain? } for a QR scan, OR { recruit_id, mode, sub_domain? }
-// for the scanner page's manual-entry fallback (lost/dead phone, camera trouble) — same
+// for the scanner page's manual-entry fallback (lost/dead phone, camera trouble) - same
 // mode-specific business logic either way, just a different source for `rid`. See
-// 05-QR-AND-SCANNING.md. Interview mode takes a sub_domain, not a panel_id — the server
+// 05-QR-AND-SCANNING.md. Interview mode takes a sub_domain, not a panel_id - the server
 // auto-routes to the least-loaded open table for that domain, same UX as exam mode's
 // domain picker. Training mode takes a sub_domain (not a session_id): the day's session
 // row is created on demand by the first scan, so no lead has to set one up in advance.
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Domain-scoped modes need a valid sub_domain regardless of whether this is a QR scan
-    // or a manual entry — checked up front, before any DB call.
+    // or a manual entry - checked up front, before any DB call.
     if ((mode === "exam_day_1" || mode === "exam_day_2" || mode === "interview" || mode === "training") && !isRecruitSubDomain(sub_domain)) {
         return scanResponse(
             "error",
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // `knownCid` is set from the QR payload itself when scanning (it's embedded in the
-    // HMAC-signed payload, no DB round trip needed) — null for a manual entry, which has
+    // HMAC-signed payload, no DB round trip needed) - null for a manual entry, which has
     // no QR to carry a cycle id and instead just trusts whichever cycle is active.
     const isManual = !body.payload;
     let rid: string;
@@ -89,10 +89,10 @@ export async function POST(request: NextRequest) {
 
     // Mode-specific reads that don't depend on the recruit/cycle validation results can be
     // batched into the SAME network round trip as the recruit/cycle lookup when we already
-    // know the cycle id (the QR-scan hot path) — cuts a full round trip off every
+    // know the cycle id (the QR-scan hot path) - cuts a full round trip off every
     // exam/interview scan, which matters a lot when a volunteer is working through a queue
     // back to back. A manual entry doesn't know cid until the cycle lookup resolves, so it
-    // pays one extra sequential hop instead; that's fine — manual entry is a deliberate,
+    // pays one extra sequential hop instead; that's fine - manual entry is a deliberate,
     // occasional fallback, not the high-volume path this is optimizing.
     const modeReads =
         knownCid && (mode === "exam_day_1" || mode === "exam_day_2")
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
                 const domainLabel = subDomainFullLabel(sub_domain as string);
 
                 // The eligibility check (did they apply to this domain?) and the
-                // already-scanned check are independent reads — run them together instead
+                // already-scanned check are independent reads - run them together instead
                 // of one-after-another. Only mark attendance for an exam the recruit
                 // actually applied to, otherwise a mis-set scanner mode silently creates
                 // bogus attendance.
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
                     throw insertError;
                 }
 
-                return scanResponse("ok", recruit.name, `${domainLabel} exam — Day ${day} attendance marked`);
+                return scanResponse("ok", recruit.name, `${domainLabel} exam - Day ${day} attendance marked`);
             }
 
             case "interview": {
@@ -300,7 +300,7 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                // Not shortlisted (never sat the exam, or sat it and missed cutoff) — don't
+                // Not shortlisted (never sat the exam, or sat it and missed cutoff) - don't
                 // hard-block. Interview day is walk-in, and a lead/volunteer standing in
                 // front of the recruit is in a better position to decide than a cutoff
                 // computed days earlier. Report back and let the scanner UI ask "let them
@@ -311,13 +311,13 @@ export async function POST(request: NextRequest) {
                     return scanResponse(
                         "not_shortlisted",
                         recruit.name,
-                        `${recruit.name} is not shortlisted for ${domainLabel} — allow as a walk-in interview?`,
+                        `${recruit.name} is not shortlisted for ${domainLabel} - allow as a walk-in interview?`,
                         undefined,
                         200
                     );
                 }
 
-                // Which open table for this domain has the shortest waiting line — panels
+                // Which open table for this domain has the shortest waiting line - panels
                 // and their live waiting counts in one round trip (recruit_interview_open_panels).
                 const { data: openPanels, error: openPanelsError } = await supabase.rpc("recruit_interview_open_panels", {
                     p_cycle_id: cid,
@@ -327,7 +327,7 @@ export async function POST(request: NextRequest) {
                 if (openPanelsError) throw openPanelsError;
 
                 if (!openPanels || openPanels.length === 0) {
-                    return scanResponse("error", recruit.name, `No open table for ${domainLabel} yet — ask a lead to open one`, undefined, 400);
+                    return scanResponse("error", recruit.name, `No open table for ${domainLabel} yet - ask a lead to open one`, undefined, 400);
                 }
 
                 // Least-loaded table for this domain; ties broken by table_number (openPanels
@@ -342,7 +342,7 @@ export async function POST(request: NextRequest) {
                 // it's the (recruit_id, cycle_id, sub_domain) constraint (this recruit truly
                 // is already checked in for this domain) vs. the (panel_id, token_number)
                 // constraint (a concurrent scan of a DIFFERENT recruit grabbed the same token
-                // number on the same table — recompute and retry rather than incorrectly
+                // number on the same table - recompute and retry rather than incorrectly
                 // reporting this recruit as already checked in). recruit_allocate_interview_token
                 // does the max()-then-insert as one round trip; the retry loop's correctness
                 // is otherwise unchanged from before.
@@ -364,8 +364,8 @@ export async function POST(request: NextRequest) {
                             "ok",
                             recruit.name,
                             isWalkin
-                                ? `Walk-in checked in for ${targetPanel.domain_label} — token #${allocated.token_number}`
-                                : `Checked in for ${targetPanel.domain_label} — token #${allocated.token_number}`,
+                                ? `Walk-in checked in for ${targetPanel.domain_label} - token #${allocated.token_number}`
+                                : `Checked in for ${targetPanel.domain_label} - token #${allocated.token_number}`,
                             { token_number: allocated.token_number, panel_label: targetPanel.domain_label }
                         );
                     }
@@ -393,13 +393,13 @@ export async function POST(request: NextRequest) {
 
                     // No row for this recruit on this domain, so the 23505 must have been a
                     // (panel_id, token_number) collision from a concurrent scan of a different
-                    // recruit onto the same table — loop around and recompute the max token.
+                    // recruit onto the same table - loop around and recompute the max token.
                 }
 
                 return scanResponse(
                     "error",
                     recruit.name,
-                    "Could not allocate a check-in token — please try scanning again.",
+                    "Could not allocate a check-in token - please try scanning again.",
                     undefined,
                     500
                 );
@@ -415,9 +415,9 @@ export async function POST(request: NextRequest) {
 
                 const sessionDate = todayInIST();
                 const domainLabel = subDomainFullLabel(sub_domain as string);
-                const sessionLabel = `${domainLabel} — ${sessionDate}`;
+                const sessionLabel = `${domainLabel} - ${sessionDate}`;
 
-                // Find-or-create today's session for this domain — but check for it first
+                // Find-or-create today's session for this domain - but check for it first
                 // rather than always upserting: after the very first scan of the day for a
                 // domain, every subsequent scan (the overwhelming majority) can skip the
                 // write entirely and go straight to a plain select.
@@ -432,7 +432,7 @@ export async function POST(request: NextRequest) {
                 let trainingSessionId = existingSession?.id as string | undefined;
 
                 if (!trainingSessionId) {
-                    // First scan of the day for this domain — create it. Plain insert (not
+                    // First scan of the day for this domain - create it. Plain insert (not
                     // upsert): two volunteers scanning the same new domain within a few ms
                     // of each other could both land here, so a unique_violation is expected
                     // and handled by re-reading the row the other request created, rather
@@ -465,7 +465,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Insert directly rather than checking-then-inserting, same reasoning as
-                // orientation mode above — the unique (recruit_id, session_id) constraint
+                // orientation mode above - the unique (recruit_id, session_id) constraint
                 // is the actual arbiter either way.
                 const { error: insertError } = await supabase.from("recruit_training_attendance").insert({
                     cycle_id: cid,
@@ -488,8 +488,8 @@ export async function POST(request: NextRequest) {
                 }
 
                 // session_id goes back to the scanner so its Undo can target this exact
-                // session — the client no longer picks one, so it has no other way to know.
-                return scanResponse("ok", recruit.name, `Training attendance marked — ${domainLabel}`, {
+                // session - the client no longer picks one, so it has no other way to know.
+                return scanResponse("ok", recruit.name, `Training attendance marked - ${domainLabel}`, {
                     session_id: trainingSessionId,
                 });
             }

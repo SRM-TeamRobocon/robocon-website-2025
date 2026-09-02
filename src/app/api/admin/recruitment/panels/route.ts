@@ -7,7 +7,7 @@ import { FIELD_LIMITS, boundedText } from "@/lib/recruit-validation";
 
 export const dynamic = "force-dynamic";
 
-// Explicit column list — never `select("*")`. New columns added to
+// Explicit column list - never `select("*")`. New columns added to
 // recruit_interview_panels should be opted into here deliberately rather than
 // leaking to every caller (including role "member") the moment they're created.
 const PANEL_COLUMNS = "id, cycle_id, domain_label, sub_domain, table_number, is_active, created_at, created_by";
@@ -25,7 +25,7 @@ async function getActiveCycleId(supabase: SupabaseClient): Promise<string | null
 // Read access is intentionally broader than lead/admin: the recruit-scanner's "Interview
 // Check-In" mode needs any volunteer (role "member") to be able to list active panels for
 // its picker dropdown, and the live queue display page reads this list to resolve a panel's
-// domain_label. Members get a reduced projection (no created_by / cycle_id) — see the
+// domain_label. Members get a reduced projection (no created_by / cycle_id) - see the
 // queue route for the same role-branching rationale.
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -99,13 +99,13 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/recruitment/panels
 // Body: { sub_domain: string, name?: string }
 //
-// Domain is required — table_number (used by auto-routing and the kiosk screen's
+// Domain is required - table_number (used by auto-routing and the kiosk screen's
 // grouping/sorting) is always allocated server-side regardless of what's typed, so
 // routing never depends on the human-editable name.
 //
 // `name`, when given, becomes domain_label verbatim (must be unique, case-insensitive,
-// among this cycle's tables for the same domain — see the pre-insert check below). When
-// omitted, domain_label falls back to the old auto-generated "<Domain> — Table N" — the
+// among this cycle's tables for the same domain - see the pre-insert check below). When
+// omitted, domain_label falls back to the old auto-generated "<Domain> - Table N" - the
 // UI always sends a prefilled default ("SPACED-Coding-" style) so this fallback is really
 // just a safety net for direct API callers, not the normal path.
 //
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     const table_number = (maxRow?.table_number ?? 0) + 1;
-    const domain_label = customName || `${subDomainFullLabel(sub_domain)} — Table ${table_number}`;
+    const domain_label = customName || `${subDomainFullLabel(sub_domain)} - Table ${table_number}`;
 
     const { data, error } = await supabase
       .from("recruit_interview_panels")
@@ -193,12 +193,12 @@ export async function POST(request: NextRequest) {
       console.error("recruitment panels POST error", error);
       return NextResponse.json({ error: "Could not create panel" }, { status: 500 });
     }
-    // Another table for this domain was created concurrently and took this number —
+    // Another table for this domain was created concurrently and took this number -
     // loop around and recompute the max.
   }
 
   return NextResponse.json(
-    { error: "Could not allocate a table number — please try again" },
+    { error: "Could not allocate a table number - please try again" },
     { status: 409 }
   );
 }

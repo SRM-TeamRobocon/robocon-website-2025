@@ -19,7 +19,7 @@ type Ticket = {
     created_at: string;
 };
 
-// Sharp red/white/black poster theme — matches the rest of the reskinned dashboard
+// Sharp red/white/black poster theme - matches the rest of the reskinned dashboard
 // (see src/app/recruit/dashboard/page.tsx). Only used on that page, so no dark-glass
 // remnants need to survive here.
 export default function TicketsSection({ currentDomains }: { currentDomains: string[] }) {
@@ -58,7 +58,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
 
     const fromOptions = RECRUIT_SUBDOMAINS.filter((d) => currentDomains.includes(d.key));
     // "To" excludes every domain the recruit already holds, not just the selected "from"
-    // one — switching to a domain they're already registered in is never valid.
+    // one - switching to a domain they're already registered in is never valid.
     const toOptions = RECRUIT_SUBDOMAINS.filter((d) => !currentDomains.includes(d.key));
     const toGroups = groupBySubsystem(toOptions).map((g) => ({
         label: g.subsystem,
@@ -69,7 +69,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
         setCategory(next);
         setError(null);
         if (next === "domain_change") {
-            // Auto-pick when there's only one domain to switch out of — nothing to choose.
+            // Auto-pick when there's only one domain to switch out of - nothing to choose.
             setFromSubDomain(fromOptions.length === 1 ? fromOptions[0].key : "");
         } else {
             setFromSubDomain("");
@@ -107,7 +107,7 @@ export default function TicketsSection({ currentDomains }: { currentDomains: str
             });
             if (res.status === 401) {
                 // Confirmed-dead session (recruitFetch only surfaces a 401 once its probe has
-                // verified that) — but navigating to /recruit/login here would discard the
+                // verified that) - but navigating to /recruit/login here would discard the
                 // message they just typed. Show the prompt inline instead and leave every
                 // field untouched, so logging back in and hitting Submit again is all it takes.
                 setSessionExpired(true);

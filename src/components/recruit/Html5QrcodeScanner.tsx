@@ -5,7 +5,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { ScanLine, Camera, RotateCcw } from "lucide-react";
 
 interface Html5QrcodeScannerProps {
-    /** Called on every successful decode. Fires once per frame that decodes cleanly —
+    /** Called on every successful decode. Fires once per frame that decodes cleanly -
      *  callers are responsible for debouncing/ignoring repeats while a scan is in flight. */
     onScan: (decodedText: string) => void;
     /** DOM id for the reader container. Only needs to change if multiple instances mount at once. */
@@ -15,7 +15,7 @@ interface Html5QrcodeScannerProps {
 type Status = "starting" | "running" | "error";
 
 // Client-only wrapper around html5-qrcode's bare Html5Qrcode class (not the library's
-// Html5QrcodeScanner) — that full-UI class injects its own camera-select/start-stop
+// Html5QrcodeScanner) - that full-UI class injects its own camera-select/start-stop
 // controls, which render as unstyled default browser chrome that clashes badly with this
 // page's dark theme (overlapping text, plain white brackets on a raw video feed). Using
 // the bare class means zero library-injected DOM: every control and the whole HUD overlay
@@ -78,7 +78,7 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
                 if (cancelled) return;
                 setCameras(devices.map((d) => ({ id: d.id, label: d.label })));
             } catch {
-                // Permission denied or nothing enumerable — the facingMode start below has
+                // Permission denied or nothing enumerable - the facingMode start below has
                 // its own permission prompt and will surface a clear error if that fails too.
             }
             if (cancelled) return;
@@ -94,7 +94,7 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
             isRunningRef.current = false;
             // Routing even the initial call through .then() means a synchronous throw from
             // .stop() (some builds don't reliably return a rejected promise) still lands in
-            // .catch() instead of crashing the unmount — this cleanup must never throw.
+            // .catch() instead of crashing the unmount - this cleanup must never throw.
             Promise.resolve()
                 .then(() => (wasRunning ? inst.stop() : undefined))
                 .catch(() => {})
@@ -102,11 +102,11 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
                     try {
                         inst.clear();
                     } catch {
-                        // Element may already be torn down — ignore cleanup errors.
+                        // Element may already be torn down - ignore cleanup errors.
                     }
                 });
         };
-        // Intentionally only re-run if the container id changes — onScan updates flow through the ref.
+        // Intentionally only re-run if the container id changes - onScan updates flow through the ref.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [elementId]);
 
@@ -123,7 +123,7 @@ export default function Html5QrcodeScanner({ onScan, elementId = "recruit-qr-rea
                 className="w-full [&_video]:w-full [&_video]:object-cover [&_video]:block"
             />
 
-            {/* Static overlay — plain frame + status text, no motion. */}
+            {/* Static overlay - plain frame + status text, no motion. */}
             <div className="pointer-events-none absolute inset-0">
                 <div className="hud-corner hud-corner-tl" />
                 <div className="hud-corner hud-corner-tr" />

@@ -54,7 +54,7 @@ function buildApprovalEmailHtml(name: string, email: string, password: string, l
 async function sendApprovalEmail(request: Request, account: { name: string; email: string; password_enc: string | null }) {
     const transporter = getTransporter();
     if (!transporter) {
-        console.warn("SMTP not configured — skipping approval email");
+        console.warn("SMTP not configured - skipping approval email");
         return;
     }
     const password = account.password_enc ? decryptPassword(account.password_enc) : null;

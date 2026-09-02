@@ -11,16 +11,16 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// PATCH /api/admin/recruitment/recruits/:id — edit a recruit's own profile fields, and
+// PATCH /api/admin/recruitment/recruits/:id - edit a recruit's own profile fields, and
 // optionally their domain selections. Deliberately does NOT allow editing srm_email/password
-// (auth-sensitive — email is the login identity and unique per cycle).
+// (auth-sensitive - email is the login identity and unique per cycle).
 //
 // An optional `domains: string[]` in the body swaps the recruit's recruit_domain_selections
-// rows to exactly that set (diffed against what's currently there — only the delta is
+// rows to exactly that set (diffed against what's currently there - only the delta is
 // deleted/inserted). Same reasoning as the ticket-resolve route's domain-change logic (see
 // src/app/api/admin/recruitment/tickets/[id]/resolve/route.ts): this deliberately does NOT
 // touch recruit_marks, recruit_shortlist_status, recruit_interview_tokens/results, or
-// training attendance tied to a removed domain — those are the historical record of what
+// training attendance tied to a removed domain - those are the historical record of what
 // already happened under that domain (exam sat, interview called, etc.), and moving/deleting
 // them would silently rewrite that history. A lead who needs the recruit re-evaluated under
 // a newly-added domain does that manually through the existing per-domain tooling (marks,
@@ -47,7 +47,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const name = boundedText(body.name, FIELD_LIMITS.name);
   const reg_no = boundedText(body.reg_no, FIELD_LIMITS.reg_no);
   const year = typeof body.year === "string" ? body.year : "";
-  // Not hard-required here (same leniency as day_scholar_area/travel_method below) — this
+  // Not hard-required here (same leniency as day_scholar_area/travel_method below) - this
   // route also has to accept legacy recruits that predate this column.
   const gender = isGender(body.gender) ? body.gender : null;
   const department = boundedText(body.department, FIELD_LIMITS.department);
@@ -66,7 +66,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   // Mirrors complete-registration's rule: a non-hosteller is forced to (false, null, null)
-  // rather than trusting the client to clear block/room when the toggle flips off — the DB
+  // rather than trusting the client to clear block/room when the toggle flips off - the DB
   // check constraint from migration 004 rejects a block/room on a non-hosteller outright.
   const hostel_block = isHosteller ? boundedText(body.hostel_block, FIELD_LIMITS.hostel_block) : null;
   const hostel_room = isHosteller ? boundedText(body.hostel_room, FIELD_LIMITS.hostel_room) : null;
@@ -74,12 +74,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ success: false, error: "Select a valid hostel block." }, { status: 400 });
   }
   // Day-scholar-only counterparts, same shape as hostel_block/hostel_room above. Not
-  // required here (same leniency as hostel_room isn't required on this admin-edit path) —
+  // required here (same leniency as hostel_room isn't required on this admin-edit path) -
   // this route also has to accept legacy day-scholar rows that predate these fields.
   const day_scholar_area = !isHosteller ? boundedText(body.day_scholar_area, FIELD_LIMITS.day_scholar_area) : null;
   const travel_method = !isHosteller && isTravelMethod(body.travel_method) ? body.travel_method : null;
 
-  // `domains` is optional — omitting it (or sending it as `undefined`) leaves the recruit's
+  // `domains` is optional - omitting it (or sending it as `undefined`) leaves the recruit's
   // domain selections untouched. When present it's treated as the recruit's complete new
   // selection set, same shape as complete-registration's own rule (1-2 distinct domains).
   const domainsProvided = Array.isArray(body.domains);
@@ -201,11 +201,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   });
 }
 
-// DELETE /api/admin/recruitment/recruits/:id — permanently remove a recruit.
+// DELETE /api/admin/recruitment/recruits/:id - permanently remove a recruit.
 // Every recruit_* child table references recruit_accounts(id) with `on delete cascade`
 // (see supabase/recruit-schema.sql), so this single delete also drops their domain
 // selections, attendance scans, marks, shortlist status, interview tokens/results and
-// training attendance. There is no undo — the UI confirms before calling this.
+// training attendance. There is no undo - the UI confirms before calling this.
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["lead", "admin"])) {

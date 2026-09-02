@@ -26,7 +26,7 @@ interface LeaveToday {
 export default function ViewTimetablePage() {
     const rawParams = useParams<{ username: string }>();
     // Next.js hasn't decoded this segment yet at this point, so decode it ourselves
-    // before re-encoding for the API call — otherwise "@" (encoded as %40 in the
+    // before re-encoding for the API call - otherwise "@" (encoded as %40 in the
     // link) gets encoded a second time into "%2540", and the lookup 404s forever.
     const username = decodeURIComponent(rawParams.username);
     const ready = useRequireRole(["member", "lead", "admin"]);
@@ -68,7 +68,7 @@ export default function ViewTimetablePage() {
             })
             .catch(() => {});
 
-        // Best-effort only — used to decide whether to show the "Edit" button. A
+        // Best-effort only - used to decide whether to show the "Edit" button. A
         // failure here shouldn't affect whether the fetched timetable is shown.
         fetch("/api/admin/me")
             .then((res) => res.json())

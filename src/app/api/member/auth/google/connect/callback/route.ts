@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     const session = await getSession();
     if (!session || !session.memberAccountId) {
-        return popupResponse(false, "You're no longer logged in — close this window and log in again.");
+        return popupResponse(false, "You're no longer logged in - close this window and log in again.");
     }
 
     if (oauthError || !code) {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     const expectedNonce = request.cookies.get(MEMBER_OAUTH_CONNECT_NONCE_COOKIE)?.value;
     if (!state || !expectedNonce || !nonceMatches(state, expectedNonce)) {
         console.warn("member google connect state mismatch", { hasState: Boolean(state), hasNonceCookie: Boolean(expectedNonce) });
-        return popupResponse(false, "Security check failed — please try again.");
+        return popupResponse(false, "Security check failed - please try again.");
     }
 
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -116,12 +116,12 @@ export async function GET(request: NextRequest) {
             .eq("id", session.memberAccountId);
 
         if (error) {
-            return popupResponse(false, "Could not save the connection — please try again.");
+            return popupResponse(false, "Could not save the connection - please try again.");
         }
 
         return popupResponse(true, `Connected to ${googleEmail}.`, googleEmail);
     } catch (error) {
         console.error("member google connect callback error", error);
-        return popupResponse(false, "Something went wrong connecting Google — please try again.");
+        return popupResponse(false, "Something went wrong connecting Google - please try again.");
     }
 }

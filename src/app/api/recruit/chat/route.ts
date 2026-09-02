@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 const MAX_MESSAGE_LENGTH = 2000;
 const MATCH_COUNT = 5;
 
-// POST /api/recruit/chat — RAG chat over admin-uploaded .txt knowledge-base files only.
+// POST /api/recruit/chat - RAG chat over admin-uploaded .txt knowledge-base files only.
 // Non-streaming for v1 (no streaming-route precedent exists anywhere in this codebase
-// yet). No chat history is persisted server-side — the widget keeps it in local state.
+// yet). No chat history is persisted server-side - the widget keeps it in local state.
 export async function POST(request: NextRequest) {
     const session = await getRecruitSession();
     if (!session) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
         const contextChunks = (matches ?? []).map((m: any) => m.content as string);
 
-        // No KB content to retrieve from at all (e.g. nothing uploaded yet) — return the
+        // No KB content to retrieve from at all (e.g. nothing uploaded yet) - return the
         // fallback directly rather than calling the LLM with empty context.
         if (contextChunks.length === 0) {
             return NextResponse.json({ success: true, answer: NO_CONTEXT_FALLBACK });

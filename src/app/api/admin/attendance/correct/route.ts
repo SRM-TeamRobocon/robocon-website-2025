@@ -5,7 +5,7 @@ import { broadcastAttendanceEvent } from "@/lib/attendance";
 
 export const dynamic = "force-dynamic";
 
-// Lead/admin version of /api/member/attendance/correct — same event-log model (attendance_logs
+// Lead/admin version of /api/member/attendance/correct - same event-log model (attendance_logs
 // is append-only; a "correction" is a new row, never an edit of an existing one), but scoped to
 // an arbitrary member instead of the caller's own account, and with no backdate cap: a self-
 // correction caps at 24h to limit a member gaming their own hours, but a lead fixing someone
