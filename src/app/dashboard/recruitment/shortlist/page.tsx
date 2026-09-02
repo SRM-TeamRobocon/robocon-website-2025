@@ -258,7 +258,7 @@ function ExamDomainsTab() {
     // The date line REPLACES the "shared soon" placeholder rather than sitting beside it, so
     // the message never states a time and promises the time separately in the same breath.
     const schedule = when
-      ? `🗓️ Interview: ${when}`
+      ? `Interview: ${when}`
       : "Further details regarding the interview schedule will be shared soon.";
 
     // Deliberately flush against column 0. A template literal keeps its source indentation,
@@ -266,16 +266,16 @@ function ExamDomainsTab() {
     // front of every line the recruit actually receives on WhatsApp.
     const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
       row.sub_domain
-    )}! 🤖🔥
+    )}! 
 
-📍 Venue: SRM Team Robocon Lab, 1st Floor, SRM IST Canteen, near HiTech Block, Main Campus
-🗺️ Location: https://maps.app.goo.gl/y6auhbSeuUGh2o2N8
+Venue: SRM Team Robocon Lab, 1st Floor, SRM IST Canteen, near HiTech Block, Main Campus
+Location: https://maps.app.goo.gl/y6auhbSeuUGh2o2N8
 
 ${schedule}
 
-We're excited to meet you and see what you've got! 🚀
+We're excited to meet you and see what you've got! 
 
-All the best! 💪🤖
+All the best! 
 
 - SRM Team Robocon`;
 
