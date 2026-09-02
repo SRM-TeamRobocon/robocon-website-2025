@@ -11,6 +11,7 @@ import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
 import { GENDERS } from "@/lib/gender";
+import { RECRUIT_YEARS } from "@/lib/recruit-year";
 import Select from "@/components/ui/select";
 
 type ExamDomain = RecruitSubDomain;
@@ -20,6 +21,11 @@ const STATUS_OPTIONS = ["all", "pending", "shortlisted", "not_shortlisted"] as c
 const GENDER_OPTIONS = [
   { value: "all", label: "All Genders" },
   ...GENDERS.map((g) => ({ value: g.key, label: g.label })),
+];
+
+const YEAR_OPTIONS = [
+  { value: "all", label: "All Years" },
+  ...RECRUIT_YEARS.map((y) => ({ value: y.key as string, label: y.label })),
 ];
 
 interface ShortlistRow {
@@ -48,7 +54,7 @@ interface ShortlistRow {
   };
 }
 
-type ShortlistSortKey = "name" | "reg_no" | "domain" | "status";
+type ShortlistSortKey = "name" | "reg_no" | "year" | "domain" | "marks" | "status";
 
 function sortValueFor(row: ShortlistRow, key: ShortlistSortKey): string | number | null {
   switch (key) {
@@ -56,8 +62,16 @@ function sortValueFor(row: ShortlistRow, key: ShortlistSortKey): string | number
       return row.recruit.name;
     case "reg_no":
       return row.recruit.reg_no;
+    // Sorted numerically, not as the "1"/"2" strings the column stores, so the order stays
+    // right if a third year is ever added (a plain string sort would put "10" before "2").
+    case "year":
+      return Number(row.recruit.year);
     case "domain":
       return row.sub_domain;
+    // Null (nobody has marked them yet) sorts last in both directions - compareBy handles
+    // that - so an unmarked recruit never masquerades as a zero at the top of the list.
+    case "marks":
+      return row.marks;
     case "status":
       return row.status;
     default:
@@ -157,6 +171,7 @@ function ExamDomainsTab() {
   const [domain, setDomain] = useState<ExamDomain | "all">("all");
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("all");
   const [gender, setGender] = useState("all");
+  const [year, setYear] = useState("all");
   const [rows, setRows] = useState<ShortlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -208,7 +223,7 @@ function ExamDomainsTab() {
     // Name/reg_no match the raw term; phone matches a digits-only copy of it, because
     // numbers are stored bare and a pasted "+91 98765 43210" has to normalize first.
     // phoneQ is null under 3 digits, so a stray digit in a name search matches no phones.
-    // Searchable only — phone stays out of the rendered row.
+    // Searchable only - phone stays out of the rendered row.
     const phoneQ = phoneSearchTerm(search);
     const filtered = q
       ? rows.filter(
@@ -220,13 +235,17 @@ function ExamDomainsTab() {
       : rows;
 
     // Gender is nullable on recruit_accounts, so a recruit with none on file matches neither
-    // "Male" nor "Female" — "All Genders" is the option that keeps them in the list. Applied
+    // "Male" nor "Female" - "All Genders" is the option that keeps them in the list. Applied
     // client-side (unlike domain/status) because the column lives on the joined account.
     const byGender = gender === "all" ? filtered : filtered.filter((row) => row.recruit.gender === gender);
 
-    if (!sort) return byGender;
-    return [...byGender].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
-  }, [rows, search, gender, sort]);
+    // Same client-side treatment as gender: `year` lives on the joined account, not on
+    // recruit_shortlist_status, so it can't ride the server-side domain/status query.
+    const byYear = year === "all" ? byGender : byGender.filter((row) => row.recruit.year === year);
+
+    if (!sort) return byYear;
+    return [...byYear].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
+  }, [rows, search, gender, year, sort]);
 
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
@@ -324,6 +343,15 @@ function ExamDomainsTab() {
             options={GENDER_OPTIONS}
           />
         </div>
+        <div className="w-36">
+          <Select
+            accent="blue"
+            value={year}
+            onChange={setYear}
+            className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+            options={YEAR_OPTIONS}
+          />
+        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
@@ -348,7 +376,9 @@ function ExamDomainsTab() {
                 <tr className="text-left text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
                   <SortableTh label="Name" sortKey="name" sort={sort} onSort={handleSort} />
                   <SortableTh label="Reg No" sortKey="reg_no" sort={sort} onSort={handleSort} />
+                  <SortableTh label="Year" sortKey="year" sort={sort} onSort={handleSort} />
                   <SortableTh label="Domain" sortKey="domain" sort={sort} onSort={handleSort} />
+                  <SortableTh label="Marks" sortKey="marks" sort={sort} onSort={handleSort} />
                   <SortableTh label="Status" sortKey="status" sort={sort} onSort={handleSort} />
                   <th className="px-5 py-3">Called</th>
                   <th className="px-5 py-3 text-right">Override</th>
@@ -365,10 +395,14 @@ function ExamDomainsTab() {
                           {row.recruit.name}
                         </ExpandToggleCell>
                         <td className="px-5 py-3 text-gray-300">{row.recruit.reg_no}</td>
+                        <td className="px-5 py-3 text-gray-300">{row.recruit.year || "-"}</td>
                         <td className="px-5 py-3 text-gray-300">
                           {subDomainLabel(row.sub_domain)}
                           <span className="ml-1.5 text-xs text-gray-500">{subDomainSubsystem(row.sub_domain)}</span>
                         </td>
+                        {/* Null means nobody has marked them yet, which is NOT a zero, so the
+                            dash keeps that distinction visible next to the status badge. */}
+                        <td className="px-5 py-3 text-white font-semibold">{row.marks ?? "-"}</td>
                         <td className="px-5 py-3">
                           <StatusBadge status={row.status} />
                         </td>
@@ -380,13 +414,12 @@ function ExamDomainsTab() {
                         </td>
                       </tr>
                       {expanded && (
-                        <DetailRow colSpan={6}>
-                          <DetailField label="Marks" value={row.marks ?? "—"} />
+                        <DetailRow colSpan={8}>
                           <DetailField
                             label="Method"
                             value={<span className="capitalize">{row.method.replace("_", " ")}</span>}
                           />
-                          <DetailField label="Phone" value={row.recruit.phone || "—"} />
+                          <DetailField label="Phone" value={row.recruit.phone || "-"} />
                           <DetailField
                             label="WhatsApp"
                             value={

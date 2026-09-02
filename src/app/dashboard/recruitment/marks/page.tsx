@@ -25,7 +25,7 @@ interface MarksRow {
   recruit_id: string;
   name: string;
   reg_no: string;
-  // Searchable only — never rendered. Evaluators recognise a recruit by the number they
+  // Searchable only - never rendered. Evaluators recognise a recruit by the number they
   // were messaged from far faster than by reg no, but the column stays off the table.
   phone: string | null;
   year: string;
@@ -52,7 +52,7 @@ const ATTENDANCE_FILTERS: Array<{ value: AttendanceFilter; label: string }> = [
 
 // Only years 1 and 2 are recruited, so those are the only options offered. A row carrying
 // anything else (bad import, future year) simply matches neither pill and stays visible
-// under "All" — never silently dropped from every view.
+// under "All" - never silently dropped from every view.
 const YEAR_FILTERS: Array<{ value: YearFilter; label: string }> = [
   { value: "all", label: "All" },
   { value: "1", label: "Year 1" },
@@ -75,7 +75,7 @@ function marksToInput(marks: number | null): string {
 }
 
 // This table is already scoped to one sub-domain, and exam attendance is keyed
-// (recruit, cycle, sub_domain) — so a recruit has at most ONE attendance row here and
+// (recruit, cycle, sub_domain) - so a recruit has at most ONE attendance row here and
 // `day1`/`day2` are mutually exclusive. Two columns implied both could be ticked; show
 // the single day they sat this domain's exam instead.
 function ExamAttendance({ day1, day2 }: { day1: boolean; day2: boolean }) {
@@ -96,6 +96,26 @@ function ExamAttendance({ day1, day2 }: { day1: boolean; day2: boolean }) {
   );
 }
 
+// Stats are descriptive, not stored marks, so they are NOT snapped to half steps - the median
+// of an even-sized set (17 and 21.5) is legitimately 19.25. Trim to 2dp and drop trailing
+// zeros so a clean 19 doesn't render as "19.00".
+function formatStat(value: number): string {
+  if (!Number.isFinite(value)) return "-";
+  return String(Math.round(value * 100) / 100);
+}
+
+// Linear interpolation between closest ranks (same method as Excel's PERCENTILE.INC). For
+// p = 0.5 this reduces to the usual "average the two middle values" median.
+function percentile(sortedAsc: number[], p: number): number {
+  if (sortedAsc.length === 0) return NaN;
+  if (sortedAsc.length === 1) return sortedAsc[0];
+  const index = (sortedAsc.length - 1) * p;
+  const lo = Math.floor(index);
+  const hi = Math.ceil(index);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (index - lo);
+}
+
 function DistributionTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || !payload.length) return null;
   const count = payload[0]?.value as number;
@@ -109,7 +129,7 @@ function DistributionTooltip({ active, payload, label }: TooltipContentProps) {
   );
 }
 
-// "31 Aug, 2:14 pm". Deliberately short — this sits under a number input in a dense table,
+// "31 Aug, 2:14 pm". Deliberately short - this sits under a number input in a dense table,
 // so a full timestamp would wrap and push the row height around.
 function savedAtLabel(iso: string): string {
   const d = new Date(iso);
@@ -135,7 +155,7 @@ interface MarkRowProps {
 }
 
 // Memoized, and this is load-bearing rather than a micro-optimisation. A popular domain puts
-// 600+ recruits in this table, each with two controlled inputs — roughly 6000 DOM nodes. When
+// 600+ recruits in this table, each with two controlled inputs - roughly 6000 DOM nodes. When
 // every row was inline JSX, a single keystroke or a save re-reconciled all of them, which is
 // what made the page appear to freeze and reload on save.
 //
@@ -154,7 +174,7 @@ const MarkRow = memo(function MarkRow({
   onToggle,
   onSave,
 }: MarkRowProps) {
-  // Save has to light up for a note-only edit too, not just a changed number — an evaluator
+  // Save has to light up for a note-only edit too, not just a changed number - an evaluator
   // who only adds context would otherwise have no way to store it.
   const dirty = markValue !== marksToInput(row.marks) || noteValue !== (row.note ?? "");
 
@@ -188,7 +208,7 @@ const MarkRow = memo(function MarkRow({
             maxLength={500}
             value={noteValue}
             onChange={(e) => onNoteChange(row.recruit_id, e.target.value)}
-            placeholder="Optional — e.g. answered 3 of 5"
+            placeholder="Optional - e.g. answered 3 of 5"
             className="w-full min-w-[14rem] border-0 bg-white/5 py-1.5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-600"
           />
         </td>
@@ -307,7 +327,7 @@ export default function RecruitmentMarksPage() {
         const data = await res.json();
         if (res.ok && data.saved) {
           toast.success("Marks saved");
-          // Carry the server's attribution back into the row too, not just `marks` — otherwise
+          // Carry the server's attribution back into the row too, not just `marks` - otherwise
           // the "Saved by ..." line under the input stays stale (or stays absent on a first
           // entry) until someone reloads the page.
           const savedNote: string | null = data.note ?? null;
@@ -325,7 +345,7 @@ export default function RecruitmentMarksPage() {
             )
           );
           // The server trims the note and turns blank into null, and normalises the number,
-          // so mirror what it actually stored back into both inputs — otherwise a trailing
+          // so mirror what it actually stored back into both inputs - otherwise a trailing
           // space or a typed "72.0" keeps the row looking permanently dirty.
           setInputs((prev) => ({ ...prev, [recruitId]: marksToInput(marks) }));
           setNoteInputs((prev) => ({ ...prev, [recruitId]: savedNote ?? "" }));
@@ -348,7 +368,7 @@ export default function RecruitmentMarksPage() {
   const visibleRows = useMemo(() => {
     const term = search.trim().toLowerCase();
     // Phone is stored as bare 10 digits, so a typed "+91 98765" or "98765-43210" only matches
-    // once punctuation is stripped. Name/reg_no still match the raw term — stripping there
+    // once punctuation is stripped. Name/reg_no still match the raw term - stripping there
     // would break "RA24" style searches.
     const phoneTerm = phoneSearchTerm(search);
 
@@ -386,7 +406,7 @@ export default function RecruitmentMarksPage() {
     genderFilter !== "all";
 
   // Students-per-mark distribution for whatever is currently on screen. Built from
-  // `visibleRows`, so every filter — domain, year, gender, attendance, search — already
+  // `visibleRows`, so every filter - domain, year, gender, attendance, search - already
   // applies; narrowing to "Year 2 / Female" re-shapes the chart with no extra plumbing.
   //
   // Recruits with no mark entered yet are EXCLUDED rather than counted as zero. Mid-entry
@@ -401,23 +421,37 @@ export default function RecruitmentMarksPage() {
     const marked = visibleRows.filter((r) => r.marks !== null);
     if (marked.length === 0) return null;
 
-    const max = marked.reduce((m, r) => Math.max(m, Number(r.marks)), 0);
+    const values = marked.map((r) => Number(r.marks)).sort((a, b) => a - b);
+    const max = values[values.length - 1];
+    const min = values[0];
     const bucketCount = Math.round(max * 2) + 1;
     const counts = new Array<number>(bucketCount).fill(0);
 
-    for (const r of marked) {
-      const index = Math.round(Number(r.marks) * 2);
+    for (const value of values) {
+      const index = Math.round(value * 2);
       if (index >= 0 && index < bucketCount) counts[index] += 1;
     }
 
+    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    // Population standard deviation, not sample: these ARE every marked recruit under the
+    // current filter, not a sample drawn from a larger pool, so dividing by n (not n-1) is
+    // the right spread for what's on screen.
+    const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+
     return {
       max,
-      markedCount: marked.length,
+      min,
+      mean,
+      median: percentile(values, 0.5),
+      p25: percentile(values, 0.25),
+      p75: percentile(values, 0.75),
+      stdDev: Math.sqrt(variance),
+      markedCount: values.length,
       data: counts.map((count, i) => ({ label: String(i / 2), Students: count })),
     };
   }, [visibleRows]);
 
-  // Keep the x-axis labels from overlapping once the range gets long — recharts' `interval`
+  // Keep the x-axis labels from overlapping once the range gets long - recharts' `interval`
   // is "ticks to SKIP between labels", so 0 means label every bar.
   const tickInterval = distribution
     ? Math.max(0, Math.ceil(distribution.data.length / 24) - 1)
@@ -433,7 +467,7 @@ export default function RecruitmentMarksPage() {
           Marks Entry
         </h1>
         <p className="mt-2 text-gray-400 text-sm max-w-xl">
-          Enter written-exam marks per recruit — whole or half marks, 0 to 100. Attendance is
+          Enter written-exam marks per recruit - whole or half marks, 0 to 100. Attendance is
           shown for reference only; marks can be entered regardless of whether a recruit&apos;s
           QR was scanned.
         </p>
@@ -545,17 +579,42 @@ export default function RecruitmentMarksPage() {
             <h2 className="text-lg font-bold text-white">Marks Distribution</h2>
             <p className="mt-1 text-xs text-gray-500">
               {distribution
-                ? `Students per mark for the current filter — ${distribution.markedCount} of ${visibleRows.length} marked so far. Axis runs 0 to ${distribution.max}, the highest mark scored here, in steps of 0.5. Recruits with no mark entered are not counted.`
+                ? `Students per mark for the current filter - ${distribution.markedCount} of ${visibleRows.length} marked so far. Axis runs 0 to ${distribution.max}, the highest mark scored here, in steps of 0.5. Recruits with no mark entered are not counted.`
                 : "Students per mark for the current filter."}
             </p>
           </div>
 
           {distribution === null ? (
             <p className="p-8 text-center text-sm text-gray-500">
-              No marks entered yet for this filter — nothing to plot.
+              No marks entered yet for this filter - nothing to plot.
             </p>
           ) : (
-            <div className="px-5 py-4" style={{ width: "100%", height: 300 }}>
+            <>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-white/10">
+                {(
+                  [
+                    ["Marked", String(distribution.markedCount)],
+                    ["Average", formatStat(distribution.mean)],
+                    ["Median", formatStat(distribution.median)],
+                    ["Std dev", formatStat(distribution.stdDev)],
+                    ["Lowest", formatStat(distribution.min)],
+                    ["Highest", formatStat(distribution.max)],
+                    // Quartiles earn their place on this page specifically: cutoffs are set
+                    // per (domain, gender, year), and "what mark does the top quarter clear"
+                    // is the question a lead is actually asking when they pick one.
+                    ["P25 / P75", `${formatStat(distribution.p25)} / ${formatStat(distribution.p75)}`],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label} className="bg-black px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">
+                      {label}
+                    </p>
+                    <p className="text-lg font-black text-white">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-5 py-4" style={{ width: "100%", height: 300 }}>
               <ResponsiveContainer>
                 <BarChart data={distribution.data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff12" vertical={false} />
@@ -573,10 +632,11 @@ export default function RecruitmentMarksPage() {
                     allowDecimals={false}
                   />
                   <Tooltip content={DistributionTooltip} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-                  <Bar dataKey="Students" fill="#3987e5" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+                    <Bar dataKey="Students" fill="#3987e5" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
           )}
         </div>
       )}
