@@ -183,6 +183,10 @@ function ExamDomainsTab() {
   // shortlisted gets told the same day. Typing it once here also stops a lead retyping the
   // same string for every recruit they message.
   const [interviewDate, setInterviewDate] = useState("");
+  // Per-recruit override, keyed by row id - for the recruit whose slot differs from the
+  // shared date above (e.g. one domain's interviews run a different day). Empty for a row
+  // means "use the shared date"; it does not mean "no date was set for this recruit".
+  const [rowInterviewDates, setRowInterviewDates] = useState<Record<string, string>>({});
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (id: string) => {
@@ -254,7 +258,11 @@ function ExamDomainsTab() {
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
   const sendWhatsApp = (row: ShortlistRow) => {
-    const when = interviewDate.trim();
+    // Row override wins when set; otherwise fall back to the shared date typed once at the
+    // top. Covers the recruit whose slot differs (a domain interviewing on a different day)
+    // without forcing every other message to be typed out individually.
+    const rowOverride = (rowInterviewDates[row.id] ?? "").trim();
+    const when = rowOverride || interviewDate.trim();
     // The date line REPLACES the "shared soon" placeholder rather than sitting beside it, so
     // the message never states a time and promises the time separately in the same breath.
     const schedule = when
@@ -264,7 +272,7 @@ function ExamDomainsTab() {
     // Deliberately flush against column 0. A template literal keeps its source indentation,
     // so indenting these lines to match the surrounding code would put four leading spaces in
     // front of every line the recruit actually receives on WhatsApp.
-    const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
+    const message = `Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
       row.sub_domain
     )}! 
 
@@ -393,7 +401,7 @@ All the best!
           value={interviewDate}
           onChange={(e) => setInterviewDate(e.target.value)}
           placeholder="Interview date/time (optional)"
-          title="Included in every WhatsApp message sent from this page. Leave blank and the message says the schedule follows separately."
+          title="Default for every WhatsApp message sent from this page. A recruit's own row can override it. Leave blank and the message says the schedule follows separately."
           className="h-10 w-60 border-0 bg-white/5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
         />
       </div>
@@ -458,6 +466,16 @@ All the best!
                             label="WhatsApp"
                             value={
                               <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={rowInterviewDates[row.id] ?? ""}
+                                  onChange={(e) =>
+                                    setRowInterviewDates((prev) => ({ ...prev, [row.id]: e.target.value }))
+                                  }
+                                  placeholder={interviewDate.trim() ? `Default: ${interviewDate.trim()}` : "Date/time for this recruit"}
+                                  title="Overrides the shared date above for this recruit only. Leave blank to use the shared date."
+                                  className="w-40 border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
+                                />
                                 <button
                                   type="button"
                                   onClick={() => sendWhatsApp(row)}
