@@ -250,16 +250,28 @@ function ExamDomainsTab() {
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
   const sendWhatsApp = (row: ShortlistRow) => {
-    const message = `Congratulations! You've cleared the SRM Team Robocon shortlist for ${subDomainLabel(row.sub_domain
-    )}. Venue of your interview is https://maps.app.goo.gl/y6auhbSeuUGh2o2N8 {1st floor, SRM IST Canteen, near HiTech block, Main Campus} is scheduled on: ${interviewDates[row.id] ?? ""}.`;
-    const url = buildWhatsAppLink(row.recruit.phone ?? "", message);
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    } else {
-      toast.error("No valid phone number on file for this recruit");
-    }
-  };
+    const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainLabel(
+      row.sub_domain
+    )} sub-domain! 🤖🔥
 
+    📍 Venue: SRM Team Robocon Lab, 1st Floor, SRM IST Canteen, near HiTech Block, Main Campus
+    🗺️ Location: https://maps.app.goo.gl/y6auhbSeuUGh2o2N8
+
+    We’re excited to meet you and see what you’ve got! 🚀
+
+    Further details regarding the interview schedule will be shared soon.
+
+    All the best! 💪🤖
+
+    — SRM Team Robocon`;
+      
+      const url = buildWhatsAppLink(row.recruit.phone ?? "", message);
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error("No valid phone number on file for this recruit");
+      }
+  };
   const decide = async (id: string, newStatus: "shortlisted" | "not_shortlisted", reason: string) => {
     setBusyId(id);
     try {
