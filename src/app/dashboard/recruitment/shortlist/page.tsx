@@ -12,6 +12,7 @@ import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
 import { GENDERS } from "@/lib/gender";
 import { RECRUIT_YEARS } from "@/lib/recruit-year";
+import { travelMethodLabel } from "@/lib/travel-method";
 import Select from "@/components/ui/select";
 
 type ExamDomain = RecruitSubDomain;
@@ -51,6 +52,11 @@ interface ShortlistRow {
     course: string;
     portfolio_url: string | null;
     phone: string | null;
+    is_hosteller: boolean;
+    hostel_block: string | null;
+    hostel_room: string | null;
+    day_scholar_area: string | null;
+    travel_method: string | null;
   };
 }
 
@@ -255,6 +261,35 @@ function ExamDomainsTab() {
     return [...byYear].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
   }, [rows, search, gender, year, sort]);
 
+  // Hosteller vs Day Scholar, split by gender, over whatever is currently in `visibleRows` -
+  // so it moves with every filter on this page (domain, status, gender, year, search), not
+  // just some of them. If the Gender pill is narrowed to Male, this naturally collapses to a
+  // single populated column, since that's what's actually in view.
+  const residenceStats = useMemo(() => {
+    const empty = () => ({ hosteller: 0, dayScholar: 0 });
+    const buckets = { male: empty(), female: empty(), unspecified: empty() };
+    for (const row of visibleRows) {
+      const key = row.recruit.gender === "male" ? "male" : row.recruit.gender === "female" ? "female" : "unspecified";
+      if (row.recruit.is_hosteller) buckets[key].hosteller += 1;
+      else buckets[key].dayScholar += 1;
+    }
+    return buckets;
+  }, [visibleRows]);
+
+  const residenceHasUnspecified =
+    residenceStats.unspecified.hosteller + residenceStats.unspecified.dayScholar > 0;
+  const residenceGenderCols = (
+    [
+      { key: "male" as const, label: "Male" },
+      { key: "female" as const, label: "Female" },
+      ...(residenceHasUnspecified ? [{ key: "unspecified" as const, label: "Unspecified" }] : []),
+    ]
+  );
+  const residenceTotals = {
+    hosteller: residenceStats.male.hosteller + residenceStats.female.hosteller + residenceStats.unspecified.hosteller,
+    dayScholar: residenceStats.male.dayScholar + residenceStats.female.dayScholar + residenceStats.unspecified.dayScholar,
+  };
+
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
   const sendWhatsApp = (row: ShortlistRow) => {
@@ -406,6 +441,63 @@ All the best!
         />
       </div>
 
+      {!loading && visibleRows.length > 0 && (
+        <div className="border border-white/10 bg-black p-4">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">
+            Residence Breakdown
+            <span className="ml-2 normal-case font-normal text-gray-600">
+              ({visibleRows.length} in view, matching the filters above)
+            </span>
+          </h2>
+          <div className="overflow-x-auto mt-3">
+            <table className="text-sm">
+              <thead>
+                <tr className="text-left text-[10px] font-bold uppercase tracking-widest text-gray-500 border-b border-white/10">
+                  <th className="pr-8 py-2" />
+                  {residenceGenderCols.map((g) => (
+                    <th key={g.key} className="px-4 py-2 text-right">
+                      {g.label}
+                    </th>
+                  ))}
+                  <th className="pl-4 py-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-white/5">
+                  <td className="pr-8 py-2 text-gray-300">Hosteller</td>
+                  {residenceGenderCols.map((g) => (
+                    <td key={g.key} className="px-4 py-2 text-right text-gray-200">
+                      {residenceStats[g.key].hosteller}
+                    </td>
+                  ))}
+                  <td className="pl-4 py-2 text-right text-white font-semibold">{residenceTotals.hosteller}</td>
+                </tr>
+                <tr>
+                  <td className="pr-8 py-2 text-gray-300">Day Scholar</td>
+                  {residenceGenderCols.map((g) => (
+                    <td key={g.key} className="px-4 py-2 text-right text-gray-200">
+                      {residenceStats[g.key].dayScholar}
+                    </td>
+                  ))}
+                  <td className="pl-4 py-2 text-right text-white font-semibold">{residenceTotals.dayScholar}</td>
+                </tr>
+                <tr className="border-t border-white/10">
+                  <td className="pr-8 py-2 text-gray-500">Total</td>
+                  {residenceGenderCols.map((g) => (
+                    <td key={g.key} className="px-4 py-2 text-right text-gray-500">
+                      {residenceStats[g.key].hosteller + residenceStats[g.key].dayScholar}
+                    </td>
+                  ))}
+                  <td className="pl-4 py-2 text-right text-gray-400 font-semibold">
+                    {residenceTotals.hosteller + residenceTotals.dayScholar}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="border border-white/10 bg-black">
         {loading ? (
           <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
@@ -462,6 +554,28 @@ All the best!
                             value={<span className="capitalize">{row.method.replace("_", " ")}</span>}
                           />
                           <DetailField label="Phone" value={row.recruit.phone || "-"} />
+                          <DetailField
+                            label="Residence"
+                            value={
+                              row.recruit.is_hosteller ? (
+                                <>
+                                  <span className="text-white">{row.recruit.hostel_block || "-"}</span>
+                                  {row.recruit.hostel_room && (
+                                    <span className="text-gray-500"> · {row.recruit.hostel_room}</span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-gray-500">
+                                    Day Scholar{row.recruit.day_scholar_area ? ` · ${row.recruit.day_scholar_area}` : ""}
+                                  </span>
+                                  {row.recruit.travel_method && (
+                                    <span className="text-gray-500"> · {travelMethodLabel(row.recruit.travel_method)}</span>
+                                  )}
+                                </>
+                              )
+                            }
+                          />
                           <DetailField
                             label="WhatsApp"
                             value={

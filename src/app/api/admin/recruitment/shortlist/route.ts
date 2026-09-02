@@ -20,7 +20,9 @@ async function getActiveCycleId(supabase: ReturnType<typeof createRecruitSupabas
 
 // GET /api/admin/recruitment/shortlist?domain=&status=
 // Returns all recruit_shortlist_status rows for the active cycle, joined with recruit
-// name/reg_no/year/gender/department/portfolio_url and their marks.
+// name/reg_no/year/gender/department/portfolio_url/residence and their marks. Residence
+// fields (is_hosteller/hostel_block/hostel_room/day_scholar_area/travel_method) feed the
+// page's residence-breakdown panel and the per-row "Residence" detail field.
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["lead", "admin"])) {
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("recruit_shortlist_status")
       .select(
-        "id, recruit_id, sub_domain, status, method, override_reason, overridden_by, overridden_at, computed_at, called_by, called_at, recruit_accounts(id, name, reg_no, year, gender, department, course, portfolio_url, phone)"
+        "id, recruit_id, sub_domain, status, method, override_reason, overridden_by, overridden_at, computed_at, called_by, called_at, recruit_accounts(id, name, reg_no, year, gender, department, course, portfolio_url, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method)"
       )
       .eq("cycle_id", cycleId)
       .order("sub_domain", { ascending: true });
@@ -128,6 +130,11 @@ export async function GET(request: NextRequest) {
         course: acc.course,
         portfolio_url: acc.portfolio_url,
         phone: acc.phone,
+        is_hosteller: acc.is_hosteller,
+        hostel_block: acc.hostel_block,
+        hostel_room: acc.hostel_room,
+        day_scholar_area: acc.day_scholar_area,
+        travel_method: acc.travel_method,
       },
     }));
 
