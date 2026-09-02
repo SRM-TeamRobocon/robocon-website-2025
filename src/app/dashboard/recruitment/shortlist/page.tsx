@@ -250,9 +250,8 @@ function ExamDomainsTab() {
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
   const sendWhatsApp = (row: ShortlistRow) => {
-    const message = `Congratulations! You've cleared the SRM Team Robocon shortlist for ${subDomainLabel(
-      row.sub_domain
-    )}. Your interview is scheduled on: ${interviewDates[row.id] ?? ""}.`;
+    const message = `Congratulations! You've cleared the SRM Team Robocon shortlist for ${subDomainLabel(row.sub_domain
+    )}. Venue of your interview is https://maps.app.goo.gl/y6auhbSeuUGh2o2N8 {1st floor, SRM IST Canteen, near HiTech block, Main Campus} is scheduled on: ${interviewDates[row.id] ?? ""}.`;
     const url = buildWhatsAppLink(row.recruit.phone ?? "", message);
     if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
