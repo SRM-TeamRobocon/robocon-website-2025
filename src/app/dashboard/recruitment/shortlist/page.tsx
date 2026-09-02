@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { ListChecks, Check, X, Search, MessageCircle } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 
-import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainSubsystem, type RecruitSubDomain } from "@/lib/recruit-domains";
+import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem, type RecruitSubDomain } from "@/lib/recruit-domains";
 import { SortableTh, compareBy, nextSortState, type SortState } from "@/components/recruit/SortableTh";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
@@ -264,7 +264,7 @@ function ExamDomainsTab() {
     // Deliberately flush against column 0. A template literal keeps its source indentation,
     // so indenting these lines to match the surrounding code would put four leading spaces in
     // front of every line the recruit actually receives on WhatsApp.
-    const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainLabel(
+    const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
       row.sub_domain
     )} sub-domain! 🤖🔥
 
