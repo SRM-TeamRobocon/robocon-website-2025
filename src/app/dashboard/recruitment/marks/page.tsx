@@ -2,7 +2,17 @@
 
 import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { ClipboardList, Check, X, Search } from "lucide-react";
+import { ClipboardList, Check, X, Search, BarChart3 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  type TooltipContentProps,
+} from "recharts";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainLabel, type RecruitSubDomain } from "@/lib/recruit-domains";
 import { phoneSearchTerm, parseMarksValue, MARKS_ERROR } from "@/lib/recruit-validation";
@@ -83,6 +93,19 @@ function ExamAttendance({ day1, day2 }: { day1: boolean; day2: boolean }) {
     <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
       <Check className="w-3 h-3" /> Day {day}
     </span>
+  );
+}
+
+function DistributionTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload || !payload.length) return null;
+  const count = payload[0]?.value as number;
+  return (
+    <div className="border border-white/10 bg-black/90 px-3 py-2 text-xs backdrop-blur-xl">
+      <p className="text-gray-400 font-semibold mb-0.5">{label} marks</p>
+      <p className="font-bold text-white">
+        {count} {count === 1 ? "student" : "students"}
+      </p>
+    </div>
   );
 }
 
@@ -207,6 +230,7 @@ export default function RecruitmentMarksPage() {
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
   const [sort, setSort] = useState<SortState<"name" | "reg_no" | "marks">>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [showGraph, setShowGraph] = useState(false);
 
   // Every one of these uses the functional setState form and takes the recruit id as an
   // argument, so their identity never changes and <MarkRow>'s memo holds across renders.
@@ -361,6 +385,44 @@ export default function RecruitmentMarksPage() {
     yearFilter !== "all" ||
     genderFilter !== "all";
 
+  // Students-per-mark distribution for whatever is currently on screen. Built from
+  // `visibleRows`, so every filter — domain, year, gender, attendance, search — already
+  // applies; narrowing to "Year 2 / Female" re-shapes the chart with no extra plumbing.
+  //
+  // Recruits with no mark entered yet are EXCLUDED rather than counted as zero. Mid-entry
+  // that would pile hundreds of un-marked people onto the 0 bar and drown the real shape;
+  // the caption reports how many of the filtered set are actually marked instead.
+  //
+  // The axis runs 0 -> the highest mark actually SCORED under this filter, not 0 -> 100.
+  // A domain where the top score so far is 25 gets 51 half-mark bars, not 201 mostly-empty
+  // ones. Buckets are 0.5 wide throughout; `marks` is numeric(5,2) restricted to half steps,
+  // so `round(mark * 2)` is an exact bucket index with no float drift.
+  const distribution = useMemo(() => {
+    const marked = visibleRows.filter((r) => r.marks !== null);
+    if (marked.length === 0) return null;
+
+    const max = marked.reduce((m, r) => Math.max(m, Number(r.marks)), 0);
+    const bucketCount = Math.round(max * 2) + 1;
+    const counts = new Array<number>(bucketCount).fill(0);
+
+    for (const r of marked) {
+      const index = Math.round(Number(r.marks) * 2);
+      if (index >= 0 && index < bucketCount) counts[index] += 1;
+    }
+
+    return {
+      max,
+      markedCount: marked.length,
+      data: counts.map((count, i) => ({ label: String(i / 2), Students: count })),
+    };
+  }, [visibleRows]);
+
+  // Keep the x-axis labels from overlapping once the range gets long — recharts' `interval`
+  // is "ticks to SKIP between labels", so 0 means label every bar.
+  const tickInterval = distribution
+    ? Math.max(0, Math.ceil(distribution.data.length / 24) - 1)
+    : 0;
+
   if (!ready) return null;
 
   return (
@@ -456,6 +518,18 @@ export default function RecruitmentMarksPage() {
               </button>
             ))}
           </div>
+
+          <button
+            onClick={() => setShowGraph((v) => !v)}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
+              showGraph
+                ? "bg-red/15 text-white ring-1 ring-inset ring-red/40"
+                : "text-gray-400 hover:bg-white/5"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            {showGraph ? "Hide graph" : "Show graph"}
+          </button>
         </div>
 
         {filtersActive && !loading && (
@@ -464,6 +538,48 @@ export default function RecruitmentMarksPage() {
           </p>
         )}
       </div>
+
+      {showGraph && !loading && (
+        <div className="border border-white/10 bg-black">
+          <div className="p-5 pb-0">
+            <h2 className="text-lg font-bold text-white">Marks Distribution</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              {distribution
+                ? `Students per mark for the current filter — ${distribution.markedCount} of ${visibleRows.length} marked so far. Axis runs 0 to ${distribution.max}, the highest mark scored here, in steps of 0.5. Recruits with no mark entered are not counted.`
+                : "Students per mark for the current filter."}
+            </p>
+          </div>
+
+          {distribution === null ? (
+            <p className="p-8 text-center text-sm text-gray-500">
+              No marks entered yet for this filter — nothing to plot.
+            </p>
+          ) : (
+            <div className="px-5 py-4" style={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart data={distribution.data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff12" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "#9ca3af", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={tickInterval}
+                  />
+                  <YAxis
+                    tick={{ fill: "#9ca3af", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip content={DistributionTooltip} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                  <Bar dataKey="Students" fill="#3987e5" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="border border-white/10 bg-black">
         {loading ? (
