@@ -264,7 +264,7 @@ function ExamDomainsTab() {
     // Deliberately flush against column 0. A template literal keeps its source indentation,
     // so indenting these lines to match the surrounding code would put four leading spaces in
     // front of every line the recruit actually receives on WhatsApp.
-    const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
+    const message = `Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
       row.sub_domain
     )}! 
 
