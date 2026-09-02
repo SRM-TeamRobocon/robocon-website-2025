@@ -266,7 +266,7 @@ function ExamDomainsTab() {
     // front of every line the recruit actually receives on WhatsApp.
     const message = `🎉 Congratulations! You've been shortlisted for the SRM Team Robocon interview for the ${subDomainFullLabel(
       row.sub_domain
-    )} sub-domain! 🤖🔥
+    )}! 🤖🔥
 
 📍 Venue: SRM Team Robocon Lab, 1st Floor, SRM IST Canteen, near HiTech Block, Main Campus
 🗺️ Location: https://maps.app.goo.gl/y6auhbSeuUGh2o2N8
