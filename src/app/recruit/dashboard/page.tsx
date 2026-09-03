@@ -67,12 +67,6 @@ function statusBadgeClass(label: string): string {
             return "text-black/50 border-black/20 bg-black/5";
         case "SYSTEM CHECK: PASS":
             return "text-blue-700 border-blue-600 bg-blue-50";
-        case "DIAGNOSTIC RUNNING":
-            return "text-amber-700 border-amber-600 bg-amber-50 animate-pulse";
-        case "DIAGNOSTIC: PASS":
-            return "text-emerald-700 border-emerald-600 bg-emerald-50";
-        case "DIAGNOSTIC: FAIL":
-            return "text-red border-red bg-red/10";
         case "CALIBRATION":
             return "text-purple-700 border-purple-600 bg-purple-50";
         case "DEPLOYED":

@@ -18,11 +18,10 @@ type InterviewResultRow = { sub_domain: string; result: string };
 // earlier ones as the pipeline progresses) per 04-PAGES-AND-ROUTES.md / 05-QR-AND-SCANNING.md.
 //
 // Everything here is scoped to ONE sub-domain. A recruit who applied to two domains
-// runs this function twice and can legitimately be DEPLOYED in one and
-// DIAGNOSTIC: FAIL in the other - no signal may leak between the two.
+// runs this function twice and can legitimately be DEPLOYED in one and stuck at
+// SYSTEM CHECK: PASS in the other - no signal may leak between the two.
 function computeDomainStatus(params: {
     hasOrientation: boolean;
-    hasExamAttendance: boolean;
     shortlistStatus: string | undefined; // 'pending' | 'shortlisted' | 'not_shortlisted' | undefined
     hasInterviewToken: boolean;
     interviewResult: string | undefined; // 'selected' | 'rejected' | 'waitlisted' | undefined
@@ -32,7 +31,6 @@ function computeDomainStatus(params: {
 }): string {
     const {
         hasOrientation,
-        hasExamAttendance,
         shortlistStatus,
         hasInterviewToken,
         interviewResult,
@@ -44,11 +42,6 @@ function computeDomainStatus(params: {
     let label = "POWER ON";
 
     if (hasOrientation) label = "SYSTEM CHECK: PASS";
-
-    if (hasExamAttendance) label = "DIAGNOSTIC RUNNING";
-
-    if (shortlistStatus === "shortlisted") label = "DIAGNOSTIC: PASS";
-    if (shortlistStatus === "not_shortlisted") label = "DIAGNOSTIC: FAIL";
 
     // hasInterviewToken is scoped to THIS sub_domain (recruit_interview_tokens.sub_domain
     // is a denormalized copy of the panel's domain, set at check-in - see migration 004),
@@ -89,7 +82,6 @@ export async function GET() {
             { data: account, error: accountError },
             { data: selections },
             { data: orientationRows },
-            { data: examRows },
             { data: shortlistRows },
             { data: interviewTokenRows },
             { data: interviewResultRows },
@@ -113,11 +105,6 @@ export async function GET() {
             supabase
                 .from("recruit_orientation_attendance")
                 .select("id")
-                .eq("recruit_id", recruit_id)
-                .eq("cycle_id", cycle_id),
-            supabase
-                .from("recruit_exam_attendance")
-                .select("day, sub_domain")
                 .eq("recruit_id", recruit_id)
                 .eq("cycle_id", cycle_id),
             supabase
@@ -163,11 +150,6 @@ export async function GET() {
         }
 
         const hasOrientation = (orientationRows?.length ?? 0) > 0;
-        // Exam attendance is per sub-domain - a recruit who sat only their coding exam
-        // must not show "DIAGNOSTIC RUNNING" against their webdev application.
-        const examAttendedSubDomains = new Set(
-            ((examRows as { day: number; sub_domain: string }[] | null) ?? []).map((row) => row.sub_domain)
-        );
         // Scoped per sub_domain (denormalized onto the token at check-in, migration 004) -
         // a recruit checked into one domain's interview must not show CALIBRATION against
         // an unrelated shortlisted domain they haven't checked into yet.
@@ -210,7 +192,6 @@ export async function GET() {
             const sub_domain = row.sub_domain;
             const status = computeDomainStatus({
                 hasOrientation,
-                hasExamAttendance: examAttendedSubDomains.has(sub_domain),
                 shortlistStatus: shortlistBySubDomain.get(sub_domain),
                 hasInterviewToken: interviewTokenSubDomains.has(sub_domain),
                 interviewResult: interviewResultBySubDomain.get(sub_domain),
