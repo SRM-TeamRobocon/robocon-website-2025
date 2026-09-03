@@ -8,28 +8,15 @@ import {
     ArrowLeft,
     PhoneCall,
     CheckCircle2,
-    Clock3,
     UserX,
     Award,
     Star,
     Ban,
     Hourglass,
     Pencil,
-    GripVertical,
     Footprints,
-    ChevronDown,
     Users,
 } from "lucide-react";
-import {
-    DndContext,
-    closestCenter,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { subDomainLabel, subDomainFullLabel } from "@/lib/recruit-domains";
 import { travelMethodLabel } from "@/lib/travel-method";
@@ -37,9 +24,13 @@ import { genderLabel } from "@/lib/gender";
 import EditRecruitModal, { type EditableRecruit } from "@/components/recruit/EditRecruitModal";
 
 // The dedicated page for ONE interview table, reached by joining or creating a table from
-// /dashboard/recruitment/interview. Everything here is scoped to a single panel_id - there
-// is no cross-table calling any more (that lived in the old shared-queue board and made no
-// sense once only one table is ever in view).
+// /dashboard/recruitment/interview. Table controls (Pause/Close/Delete) and result logging
+// are scoped to this one panel_id, but the WAITING LIST is not (migration 024, 2026-09-03):
+// recruits no longer get auto-routed to a specific table at check-in, so every open table
+// for this domain shares ONE waiting pool. This page shows that shared pool and lets this
+// table either Call Next (claims the oldest waiting recruit domain-wide) or manually call a
+// specific one - both call-next and call-token do the actual per-panel assignment server-side
+// the moment someone is called, not before.
 
 type TokenStatus = "waiting" | "called" | "done" | "no_show";
 
@@ -85,9 +76,13 @@ interface DomainWaitingToken {
     token_number: number;
     checked_in_at: string;
     is_walkin: boolean;
-    panel_id: string;
-    panel_label: string;
     recruit: RecruitProfile;
+    review_note: string | null;
+    rating: "bad" | "average" | "good" | null;
+    interested_other_clubs: string | null;
+    interested_other_domains: string | null;
+    review_updated_by: string | null;
+    review_updated_at: string | null;
 }
 
 interface QueueToken {
@@ -123,7 +118,7 @@ function savedAtLabel(iso: string): string {
 // Verbatim copy of the finished/verified RecruitProfileCard from the old board - full
 // recruit detail including the review-note/rating/interested-in-other-clubs/domains
 // fields. Reused as-is for both the "Now Serving" recruit (via TableSlot) and each
-// expanded waiting-list row (via PanelWaitingList) below.
+// expanded row in the shared domain waiting pool (via DomainWaitingPool) below.
 function RecruitProfileCard({ token, onChanged }: { token: QueueToken; onChanged: () => void }) {
     const r = token.recruit;
 
@@ -517,7 +512,6 @@ function TableControls({ panel, onChanged }: { panel: Panel; onChanged: () => vo
 // page instead of one card among many.
 function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueToken[]; onChanged: () => void }) {
     const called = tokens.find((t) => t.status === "called") ?? null;
-    const waitingCount = tokens.filter((t) => t.status === "waiting").length;
     const [notes, setNotes] = useState("");
     const [busy, setBusy] = useState(false);
 
@@ -686,88 +680,29 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
     );
 }
 
-// One row inside this table's own waiting list - drag handle + token number + name +
-// expand-to-RecruitProfileCard, matching SortableSharedRow's visual conventions for those
-// parts (the old board's per-domain shared queue). No "Call to X" buttons here: there is
-// only ever one table in view now, so there is nothing else to call this recruit to.
-function WaitingRow({ token, onChanged }: { token: QueueToken; onChanged: () => void }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: token.token_id,
-    });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-    const [expanded, setExpanded] = useState(false);
-
-    return (
-        <div ref={setNodeRef} style={style} className="border border-white/10 bg-black/20">
-            <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                <button
-                    type="button"
-                    {...attributes}
-                    {...listeners}
-                    className="shrink-0 cursor-grab touch-none text-gray-500 transition hover:text-white active:cursor-grabbing"
-                    aria-label="Drag to reorder"
-                >
-                    <GripVertical className="h-4 w-4" />
-                </button>
-                <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{token.token_number}</span>
-                <button
-                    type="button"
-                    onClick={() => setExpanded((e) => !e)}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-                    aria-expanded={expanded}
-                    aria-label={expanded ? "Collapse profile" : "Expand profile"}
-                >
-                    <ChevronDown
-                        className={`h-3.5 w-3.5 shrink-0 text-gray-500 transition-transform duration-150 ${expanded ? "" : "-rotate-90"}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
-                </button>
-                {token.is_walkin && (
-                    <span
-                        title="Not shortlisted, walk-in"
-                        className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
-                    >
-                        <Footprints className="h-3 w-3" /> Walk-in
-                    </span>
-                )}
-                <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
-            </div>
-            {expanded && (
-                <div className="border-t border-white/10 p-3">
-                    <RecruitProfileCard token={token} onChanged={onChanged} />
-                </div>
-            )}
-        </div>
-    );
-}
-
-// Domain-wide visibility, added 2026-09-03: everyone `waiting` on every OTHER open table
-// for this same sub_domain (this panel's own waiting recruits are already in
-// PanelWaitingList below - no need to double-list them here). Lets an interviewer pull a
-// specific recruit over to THIS table even though auto-routing (or a drag-reorder) sent
-// them somewhere else, via the existing (previously unused) call-token route. Hidden
-// entirely once loaded if nobody else is waiting anywhere, so it doesn't clutter a page
-// with a single table open for the domain.
-function OtherTablesWaiting({ panelId, subDomain, onChanged }: { panelId: string; subDomain: string; onChanged: () => void }) {
+// The ONE shared waiting list for this table's domain (migration 024, 2026-09-03): every
+// table open for the same sub_domain shows this exact same pool, oldest check-in first -
+// there is no "this table's own queue" any more, since nobody is assigned a table until
+// they're actually called. Each row can be pulled to THIS table via the existing
+// (previously cross-table-only) call-token route; Call Next up in TableSlot claims the
+// front of this same pool automatically. No drag-reorder - a domain-wide line shared live
+// across however many tables are open isn't a single owner's order to manually rearrange;
+// fairness is FIFO by check-in time instead.
+function DomainWaitingPool({ panelId, subDomain, onChanged }: { panelId: string; subDomain: string; onChanged: () => void }) {
     const [rows, setRows] = useState<DomainWaitingToken[]>([]);
     const [loading, setLoading] = useState(true);
     const [callingId, setCallingId] = useState<string | null>(null);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         try {
             const res = await fetch(`/api/admin/recruitment/panels/waiting-by-domain?sub_domain=${subDomain}`);
             const data = await res.json();
-            if (res.ok) {
-                setRows(((data.data ?? []) as DomainWaitingToken[]).filter((r) => r.panel_id !== panelId));
-            }
+            if (res.ok) setRows((data.data ?? []) as DomainWaitingToken[]);
         } finally {
             setLoading(false);
         }
-    }, [subDomain, panelId]);
+    }, [subDomain]);
 
     useEffect(() => {
         load();
@@ -796,112 +731,79 @@ function OtherTablesWaiting({ panelId, subDomain, onChanged }: { panelId: string
         }
     };
 
-    if (!loading && rows.length === 0) return null;
-
-    return (
-        <div className="border border-amber-500/20 bg-black">
-            <div className="px-4 py-2.5 border-b border-white/10">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-amber-400" /> Waiting on other tables ({rows.length})
-                </h3>
-                <p className="mt-0.5 text-xs text-gray-500">Waiting elsewhere for this same domain. Call one here instead.</p>
-            </div>
-            {loading ? (
-                <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
-            ) : (
-                <div className="p-3 space-y-1.5">
-                    {rows.map((r) => (
-                        <div
-                            key={r.token_id}
-                            className="flex flex-wrap items-center gap-2 border border-white/10 bg-black/20 px-3 py-2.5"
-                        >
-                            <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{r.token_number}</span>
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">
-                                {r.recruit?.name ?? "Unknown"}
-                            </span>
-                            {r.is_walkin && (
-                                <span
-                                    title="Not shortlisted, walk-in"
-                                    className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
-                                >
-                                    <Footprints className="h-3 w-3" /> Walk-in
-                                </span>
-                            )}
-                            <span className="shrink-0 text-xs text-gray-500">{r.panel_label}</span>
-                            <button
-                                type="button"
-                                onClick={() => callHere(r.token_id)}
-                                disabled={callingId === r.token_id}
-                                className="shrink-0 inline-flex items-center gap-1 bg-red/15 px-2.5 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
-                            >
-                                <PhoneCall className="h-3 w-3" /> {callingId === r.token_id ? "Calling..." : "Call Here"}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
-// This table's own waiting list - tokens are already scoped to one panel_id (fetched via
-// GET .../panels/:id/queue), so this just filters to `waiting`, sorts by queue_position, and
-// wires up drag-reorder against the same endpoint the old shared queue used, scoped to this
-// panel. Replaces SortableSharedRow + SharedWaitingQueue (cross-table, removed - there's
-// nothing to call to any more).
-function PanelWaitingList({ panelId, tokens, onChanged }: { panelId: string; tokens: QueueToken[]; onChanged: () => void }) {
-    const waiting = tokens.filter((t) => t.status === "waiting").sort((a, b) => a.queue_position - b.queue_position);
-    const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-
-        const oldIndex = waiting.findIndex((t) => t.token_id === active.id);
-        const newIndex = waiting.findIndex((t) => t.token_id === over.id);
-        if (oldIndex === -1 || newIndex === -1) return;
-
-        const reordered = arrayMove(waiting, oldIndex, newIndex);
-        const movedToken = reordered[newIndex];
-        const afterToken = newIndex > 0 ? reordered[newIndex - 1] : null;
-
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/${panelId}/tokens/${movedToken.token_id}/reorder`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ after_token_id: afterToken ? afterToken.token_id : null }),
-            });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                toast.error(data.error || "Could not reorder queue");
-            }
-        } catch {
-            toast.error("Network error while reordering");
-        } finally {
-            onChanged();
-        }
-    };
-
     return (
         <div className="border border-white/10 bg-black">
             <div className="px-4 py-2.5 border-b border-white/10">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" /> Waiting ({waiting.length})
+                    <Users className="h-4 w-4 text-gray-400" /> Waiting ({rows.length})
                 </h3>
-                <p className="mt-0.5 text-xs text-gray-500">Drag to reorder. Click a row to expand the full profile.</p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                    Shared across every open table for this domain. Click a name for the full profile, or call one straight to this table.
+                </p>
             </div>
-            {waiting.length === 0 ? (
+            {loading ? (
+                <div className="p-5 text-center text-gray-500 text-sm">Loading...</div>
+            ) : rows.length === 0 ? (
                 <div className="p-5 text-center text-gray-500 text-sm">Nobody is waiting.</div>
             ) : (
-                <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={waiting.map((t) => t.token_id)} strategy={verticalListSortingStrategy}>
-                        <div className="p-3 space-y-1.5">
-                            {waiting.map((t) => (
-                                <WaitingRow key={t.token_id} token={t} onChanged={onChanged} />
-                            ))}
+                <div className="p-3 space-y-1.5">
+                    {rows.map((r) => (
+                        <div key={r.token_id} className="border border-white/10 bg-black/20">
+                            <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+                                <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{r.token_number}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setExpandedId((id) => (id === r.token_id ? null : r.token_id))}
+                                    className="min-w-0 flex-1 truncate text-left text-sm font-medium text-white hover:underline"
+                                >
+                                    {r.recruit?.name ?? "Unknown"}
+                                </button>
+                                {r.is_walkin && (
+                                    <span
+                                        title="Not shortlisted, walk-in"
+                                        className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+                                    >
+                                        <Footprints className="h-3 w-3" /> Walk-in
+                                    </span>
+                                )}
+                                <span className="shrink-0 text-xs text-gray-500">{r.recruit?.reg_no}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => callHere(r.token_id)}
+                                    disabled={callingId === r.token_id}
+                                    className="shrink-0 inline-flex items-center gap-1 bg-red/15 px-2.5 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
+                                >
+                                    <PhoneCall className="h-3 w-3" /> {callingId === r.token_id ? "Calling..." : "Call Here"}
+                                </button>
+                            </div>
+                            {expandedId === r.token_id && r.recruit && (
+                                <div className="border-t border-white/10 p-3">
+                                    <RecruitProfileCard
+                                        token={{
+                                            token_id: r.token_id,
+                                            token_number: r.token_number,
+                                            queue_position: 0,
+                                            status: "waiting",
+                                            recruit: r.recruit,
+                                            checked_in_at: r.checked_in_at,
+                                            is_walkin: r.is_walkin,
+                                            review_note: r.review_note,
+                                            rating: r.rating,
+                                            interested_other_clubs: r.interested_other_clubs,
+                                            interested_other_domains: r.interested_other_domains,
+                                            review_updated_by: r.review_updated_by,
+                                            review_updated_at: r.review_updated_at,
+                                        }}
+                                        onChanged={() => {
+                                            load();
+                                            onChanged();
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
-                    </SortableContext>
-                </DndContext>
+                    ))}
+                </div>
             )}
         </div>
     );
@@ -1034,9 +936,8 @@ export default function PanelInterviewPage() {
 
                     <TableSlot panel={panel} tokens={tokens} onChanged={load} />
                     {panel.sub_domain && (
-                        <OtherTablesWaiting panelId={panel.id} subDomain={panel.sub_domain} onChanged={load} />
+                        <DomainWaitingPool panelId={panel.id} subDomain={panel.sub_domain} onChanged={load} />
                     )}
-                    <PanelWaitingList panelId={panel.id} tokens={tokens} onChanged={load} />
                 </>
             )}
         </div>

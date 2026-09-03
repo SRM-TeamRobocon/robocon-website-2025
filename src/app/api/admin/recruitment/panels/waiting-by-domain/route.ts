@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { isRecruitSubDomain } from "@/lib/recruit-domains";
 import { buildRecruitProfiles } from "../[id]/queue/route";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +18,13 @@ async function getActiveCycleId(supabase: ReturnType<typeof createRecruitSupabas
 
 // GET /api/admin/recruitment/panels/waiting-by-domain?sub_domain=X
 //
-// Emergency add, 2026-09-03, alongside the queue-route crash fix in ../[id]/queue: with
-// several tables open for one domain (live on SAMBED right now), a single panel's own
-// /queue only shows tokens auto-routed onto THAT specific panel - there was no way for a
-// table to see, or call, someone waiting on a different table for the same domain. This
-// aggregates every `waiting` token across every currently OPEN panel for one sub_domain,
-// oldest check-in first, so any table can see the whole domain's line and pull a specific
-// recruit over via the existing (previously unused) POST .../panels/:id/call-token.
+// Added 2026-09-03 alongside the queue-route crash fix in ../[id]/queue, then simplified
+// the same day once check-in stopped auto-routing to a specific table (migration 024): a
+// `waiting` token now has no panel_id at all - everyone waiting for a domain sits in ONE
+// shared pool until a table actually calls them. This is that pool: every `waiting` token
+// for one sub_domain, oldest check-in first, so any open table can see the whole domain's
+// line and pull a specific recruit over via POST .../panels/:id/call-token (or just Call
+// Next, which claims the front of this same pool automatically).
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -41,11 +42,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No active recruitment cycle" }, { status: 503 });
   }
 
-  // sub_domain is denormalized onto tokens (migration 004), so this is one filter rather
-  // than a join through panels.
+  // sub_domain is denormalized onto tokens (migration 004), so this is one filter, no join.
   const { data: tokens, error: tokensError } = await supabase
     .from("recruit_interview_tokens")
-    .select("id, token_number, checked_in_at, is_walkin, recruit_id, panel_id")
+    .select(
+      "id, token_number, checked_in_at, is_walkin, recruit_id, review_note, rating, interested_other_clubs, interested_other_domains, review_updated_by, review_updated_at"
+    )
     .eq("cycle_id", cycleId)
     .eq("sub_domain", sub_domain)
     .eq("status", "waiting")
@@ -60,39 +62,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: [] });
   }
 
-  const panelIds = Array.from(new Set(tokens.map((t: any) => t.panel_id as string)));
-  const { data: panels, error: panelsError } = await supabase
-    .from("recruit_interview_panels")
-    .select("id, domain_label, is_active")
-    .in("id", panelIds);
-
-  if (panelsError) {
-    console.error("waiting-by-domain GET panels error", panelsError);
-    return NextResponse.json({ error: "Could not load waiting list" }, { status: 500 });
-  }
-
-  // Only offer up tokens whose table is still open - Close for the Day / Delete already
-  // redistribute `waiting` tokens away from a closing panel, so a waiting token on a
-  // closed panel shouldn't normally exist, but this is a cheap guard against surfacing a
-  // dead-end "call" button if it ever does.
-  const panelById = new Map((panels ?? []).filter((p: any) => p.is_active).map((p: any) => [p.id, p]));
-  const liveTokens = tokens.filter((t: any) => panelById.has(t.panel_id));
-
-  const recruitIds = Array.from(new Set(liveTokens.map((t: any) => t.recruit_id as string)));
+  const recruitIds = Array.from(new Set(tokens.map((t: any) => t.recruit_id as string)));
   const profiles = await buildRecruitProfiles(supabase, recruitIds);
+  const reviewerNames = await resolveDisplayNames(
+    supabase,
+    tokens.map((t: any) => t.review_updated_by)
+  );
 
-  const data = liveTokens.map((t: any) => {
-    const panel = panelById.get(t.panel_id);
-    return {
-      token_id: t.id,
-      token_number: t.token_number,
-      checked_in_at: t.checked_in_at,
-      is_walkin: Boolean(t.is_walkin),
-      panel_id: t.panel_id,
-      panel_label: panel?.domain_label ?? "",
-      recruit: profiles.get(t.recruit_id) ?? null,
-    };
-  });
+  const data = tokens.map((t: any) => ({
+    token_id: t.id,
+    token_number: t.token_number,
+    checked_in_at: t.checked_in_at,
+    is_walkin: Boolean(t.is_walkin),
+    recruit: profiles.get(t.recruit_id) ?? null,
+    // Included so a review already written while someone was waiting (rare, but possible -
+    // a walk-in interview cycle can bounce a recruit back to waiting) isn't shown blank and
+    // then clobbered by an unrelated save from this expanded view.
+    review_note: t.review_note ?? null,
+    rating: t.rating ?? null,
+    interested_other_clubs: t.interested_other_clubs ?? null,
+    interested_other_domains: t.interested_other_domains ?? null,
+    review_updated_by: t.review_updated_by ? reviewerNames.get(t.review_updated_by) ?? t.review_updated_by : null,
+    review_updated_at: t.review_updated_at ?? null,
+  }));
 
   return NextResponse.json({ data });
 }

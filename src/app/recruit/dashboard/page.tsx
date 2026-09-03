@@ -320,80 +320,12 @@ export default function RecruitDashboardPage() {
                                     <span className="text-black/40 text-xs">{subDomainSubsystem(d.sub_domain)} · </span>
                                     {subDomainLabel(d.sub_domain)}
                                 </span>
-                                <span
-                                    className={`shrink-0 font-mono text-xs font-bold uppercase tracking-widest border px-3 py-1 ${statusBadgeClass(
-                                        d.status
-                                    )}`}
-                                >
-                                    {d.status}
-                                </span>
                             </div>
                         ))}
                     </div>
 
-                    {SHOW_TRAINING_ATTENDANCE && training?.started && (
-                        <div className="mt-6 pt-6 border-t border-black/10">
-                            <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-2">
-                                Training Attendance
-                            </p>
-                            <div className="flex items-center gap-4">
-                                <div className="flex-1 h-2.5 bg-black/10 overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
-                                        style={{ width: `${training.percentage ?? 0}%` }}
-                                    />
-                                </div>
-                                <span className="font-mono text-sm font-bold text-blue-700 whitespace-nowrap">
-                                    {training.attended} / {training.total} ({training.percentage ?? 0}%)
-                                </span>
-                            </div>
-                        </div>
-                    )}
                 </div>
                 </div>
-
-                {interview && (
-                    <div className={CARD_OUTER}>
-                    <div
-                        className={`${CARD_INNER} ${
-                            interview.status === "called" ? "animate-pulse" : ""
-                        }`}
-                    >
-                        <p className="font-mono text-xs uppercase tracking-widest text-black/40 mb-1">
-                            // interview queue
-                        </p>
-                        <h2 className="text-xl font-bold mb-4 text-black">{interview.panel_label}</h2>
-                        {interview.status === "called" ? (
-                            <div className="flex items-center gap-3">
-                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-purple-600 bg-purple-50 text-purple-700 px-3 py-1 animate-pulse">
-                                    You&apos;re being called now
-                                </span>
-                                <span className="text-sm text-black/60">Head to the panel!</span>
-                            </div>
-                        ) : interview.status === "deferred" ? (
-                            <div className="flex items-center gap-3">
-                                <span className="font-mono text-xs font-bold uppercase tracking-widest border border-amber-600 bg-amber-50 text-amber-700 px-3 py-1">
-                                    Table closed for the day
-                                </span>
-                                <span className="text-sm text-black/60">You&apos;ll be interviewed on another day. Watch for an announcement.</span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-4">
-                                <span className="font-mono text-2xl font-black text-red">
-                                    #{interview.waiting_ahead + 1}
-                                </span>
-                                <span className="text-sm text-black/60">
-                                    {interview.waiting_ahead === 0
-                                        ? "You're next!"
-                                        : `${interview.waiting_ahead} recruit${
-                                              interview.waiting_ahead === 1 ? "" : "s"
-                                          } ahead of you`}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                    </div>
-                )}
 
                 <SocialSection />
                 <FaqSection />

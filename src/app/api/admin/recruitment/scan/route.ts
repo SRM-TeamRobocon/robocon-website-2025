@@ -272,10 +272,16 @@ export async function POST(request: NextRequest) {
             }
 
             case "interview": {
-                // Auto-routed by domain, not a manually-picked panel_id: the volunteer
-                // selects which domain they're checking recruits in for (same UX as exam
-                // mode), and the server sends the recruit to whichever open table for that
-                // domain currently has the shortest waiting line.
+                // 2026-09-03: no longer auto-routed to a specific table. The volunteer still
+                // just picks the domain (same UX as exam mode) - the recruit joins that
+                // domain's ONE shared waiting pool (panel_id left null) instead of being
+                // assigned a table at check-in. A table only "claims" someone the moment an
+                // interviewer actually calls them (Call Next, or manually via call-token) -
+                // see recruit_allocate_interview_token (migration 024). This replaced the
+                // old least-loaded-table auto-routing, which was silently stranding recruits
+                // on whichever table happened to be open first while other tables sat with
+                // an empty queue and no way to see or pull from the recruits routed
+                // elsewhere.
                 const domainLabel = subDomainFullLabel(sub_domain as string);
 
                 const [{ data: shortlisted }, { data: existingToken }] = (modeReadsResult as [
@@ -331,8 +337,12 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                // Which open table for this domain has the shortest waiting line - panels
-                // and their live waiting counts in one round trip (recruit_interview_open_panels).
+                // Still require at least one open table for this domain before letting someone
+                // join its shared pool - a domain nobody has opened a table for yet has
+                // nowhere for the recruit to eventually be called to. Reuses
+                // recruit_interview_open_panels purely for this existence check now (its
+                // per-panel waiting_count is no longer needed - nobody's waiting-count belongs
+                // to a specific panel any more).
                 const { data: openPanels, error: openPanelsError } = await supabase.rpc("recruit_interview_open_panels", {
                     p_cycle_id: cid,
                     p_sub_domain: sub_domain as string,
@@ -344,14 +354,7 @@ export async function POST(request: NextRequest) {
                     return scanResponse("error", recruit.name, `No open table for ${domainLabel} yet - ask a lead to open one`, undefined, 400);
                 }
 
-                // Least-loaded table for this domain; ties broken by table_number (openPanels
-                // is already ordered that way, so the first minimum found wins).
-                let targetPanel = openPanels[0];
-                for (const p of openPanels.slice(1)) {
-                    if (p.waiting_count < targetPanel.waiting_count) targetPanel = p;
-                }
-
-                // Allocating token_number and queue_position is a read-then-write race, so
+                // Allocating token_number is a read-then-write race, so
                 // retry a bounded number of times: on a unique_violation, first check whether
                 // it's the (recruit_id, cycle_id, sub_domain) constraint (this recruit truly
                 // is already checked in for this domain) vs. the (panel_id, token_number)
@@ -364,7 +367,7 @@ export async function POST(request: NextRequest) {
                 for (let attempt = 0; attempt < MAX_TOKEN_ALLOCATION_ATTEMPTS; attempt++) {
                     const { data: allocatedRaw, error: allocError } = await supabase
                         .rpc("recruit_allocate_interview_token", {
-                            p_panel_id: targetPanel.id,
+                            p_panel_id: null,
                             p_cycle_id: cid,
                             p_recruit_id: rid,
                             p_sub_domain: sub_domain as string,
@@ -378,9 +381,9 @@ export async function POST(request: NextRequest) {
                             "ok",
                             recruit.name,
                             isWalkin
-                                ? `Walk-in checked in for ${targetPanel.domain_label} - token #${allocated.token_number}`
-                                : `Checked in for ${targetPanel.domain_label} - token #${allocated.token_number}`,
-                            { token_number: allocated.token_number, panel_label: targetPanel.domain_label }
+                                ? `Walk-in checked in for ${domainLabel} - token #${allocated.token_number}`
+                                : `Checked in for ${domainLabel} - token #${allocated.token_number}`,
+                            { token_number: allocated.token_number, panel_label: domainLabel }
                         );
                     }
 

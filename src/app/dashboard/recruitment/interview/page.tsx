@@ -245,9 +245,9 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
                     )}
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-[11px]">
-                    <span className="inline-flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
-                        <Clock3 className="h-3 w-3" /> {panel.counts.waiting}
-                    </span>
+                    {/* No per-table "waiting" badge any more (migration 024) - waiting
+                        recruits belong to the whole domain's shared pool, not this specific
+                        table. See the domain-wide count above the table list instead. */}
                     <span className="inline-flex items-center gap-1 bg-blue-500/10 px-1.5 py-0.5 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
                         <PhoneCall className="h-3 w-3" /> {panel.counts.called}
                     </span>
@@ -610,6 +610,10 @@ export default function InterviewManagementPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
     const router = useRouter();
     const [panels, setPanels] = useState<Panel[]>([]);
+    // Domain-wide waiting counts (migration 024 - waiting recruits belong to the domain's
+    // shared pool, not any specific table, so this can't be summed from panel.counts.waiting
+    // any more). Sibling state, keyed by sub_domain, from the same /panels response.
+    const [waitingByDomain, setWaitingByDomain] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
     const [noCycle, setNoCycle] = useState(false);
     const [selectedDomain, setSelectedDomain] = useState<RecruitSubDomain | null>(null);
@@ -622,6 +626,7 @@ export default function InterviewManagementPage() {
                 setNoCycle(false);
                 const list: Panel[] = data.data ?? [];
                 setPanels(list);
+                setWaitingByDomain(data.waiting_by_domain ?? {});
                 return list;
             } else if (res.status === 503) {
                 setNoCycle(true);
@@ -664,15 +669,15 @@ export default function InterviewManagementPage() {
 
     const subsystemGroups = groupBySubsystem();
 
-    // Sums every panel's counts.waiting for a domain (open or paused - recruits waiting on
-    // a paused table are still waiting somewhere), and counts how many of that domain's
-    // tables are currently open. Purely client-side from the one list already being
-    // polled - no new endpoint needed just to show "3 tables open, 12 waiting".
+    // How many tables are open (client-side from the panel list already being polled), plus
+    // the domain-wide waiting count from the server (migration 024 - waiting recruits sit in
+    // one shared pool per domain, not attached to any specific table, so this can't be
+    // summed from individual panels any more).
     const domainSummary = (key: string) => {
         const domainPanels = panels.filter((p) => p.sub_domain === key);
         return {
             open: domainPanels.filter((p) => p.is_active).length,
-            waiting: domainPanels.reduce((n, p) => n + p.counts.waiting, 0),
+            waiting: waitingByDomain[key] ?? 0,
         };
     };
 

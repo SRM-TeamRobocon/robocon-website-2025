@@ -80,6 +80,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // 2026-09-03 (migration 024): `waiting` tokens no longer belong to any panel - everyone
+  // waiting for a domain sits in one shared pool (panel_id null) until a table calls them.
+  // So counts[panelId].waiting above is now always 0 by construction (the query above only
+  // ever matches non-null panel_id), and "how many are waiting" is a per-DOMAIN number, not
+  // a per-panel one. Computed here as a sibling map rather than folded into `counts` so a
+  // panel's own counts object stays "things true about this specific table".
+  const waitingByDomain: Record<string, number> = {};
+  const { data: waitingTokens, error: waitingError } = await supabase
+    .from("recruit_interview_tokens")
+    .select("sub_domain")
+    .eq("cycle_id", cycleId)
+    .eq("status", "waiting");
+
+  if (waitingError) {
+    console.error("recruitment panels GET domain waiting counts error", waitingError);
+    return NextResponse.json({ error: "Could not load panels" }, { status: 500 });
+  }
+  for (const t of waitingTokens ?? []) {
+    const key = t.sub_domain as string | null;
+    if (!key) continue;
+    waitingByDomain[key] = (waitingByDomain[key] ?? 0) + 1;
+  }
+
   const data = (panels ?? []).map((p: any) => {
     const base = {
       id: p.id,
@@ -93,7 +116,7 @@ export async function GET(request: NextRequest) {
     return isStaff ? { ...base, cycle_id: p.cycle_id, created_by: p.created_by } : base;
   });
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, waiting_by_domain: waitingByDomain });
 }
 
 // POST /api/admin/recruitment/panels
