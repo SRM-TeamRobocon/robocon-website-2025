@@ -682,7 +682,7 @@ in the same transaction as the insert. Do this in the API route, not a DB trigge
 
 **Reordering (`queue_position`, not `token_number`):** All queue ordering - the dashboard's drag-and-drop "Up Next" list, `call-next`'s pick of who's up, the recruit's own "N ahead of you" count - sorts by `queue_position`, a float. A drag-reorder only ever touches the ONE moved row, setting its `queue_position` to the midpoint between its new neighbours (`PATCH /api/admin/recruitment/panels/:id/tokens/:tokenId/reorder`, body `{ after_token_id: string | null }`) - no renumbering cascade, and `token_number` (the number shown to the recruit as "#12") never changes.
 
-**Not shown in the SQL block above, added by later migrations:** `is_walkin boolean not null default false` (migration 008 - true when check-in bypassed the "shortlisted for this domain" gate) and, as of **migration 022 (2026-09-03)**, `review_note text`, `review_updated_by text`, `review_updated_at timestamptz` - a panel's running note on a recruit, independent of the final result, written via `PATCH /api/admin/recruitment/panels/tokens/:tokenId/review`. Same table, so the note survives a cross-panel reassignment (which updates `panel_id` in place rather than inserting a new token row).
+**Not shown in the SQL block above, added by later migrations:** `is_walkin boolean not null default false` (migration 008 - true when check-in bypassed the "shortlisted for this domain" gate), **migration 022 (2026-09-03)** `review_note text`, `review_updated_by text`, `review_updated_at timestamptz` - a panel's running note on a recruit, independent of the final result, written via `PATCH /api/admin/recruitment/panels/tokens/:tokenId/review` - and **migration 023 (2026-09-03)** `rating text` (checked `null | 'bad' | 'average' | 'good'`), `interested_other_clubs text`, `interested_other_domains text` (both nullable free text, 500-char cap) - saved through the SAME PATCH route and the same `review_updated_by`/`review_updated_at` pair, so a panel edits all four fields together as one review. Same table for all of it, so everything survives a cross-panel reassignment (which updates `panel_id` in place rather than inserting a new token row).
 
 ### Table: `recruit_interview_results`
 
@@ -1061,12 +1061,12 @@ The older top-level response fields (`overall`, `by_domain`, `by_domain_gender`,
 | PATCH | `/api/admin/recruitment/panels/:id/close-for-day` | **Non-reversible.** Deactivates the table AND redistributes every `waiting` token to the least-loaded other open table for the same domain (landing at the position matching their original check-in time), or flips them to `deferred` if no other table for that domain is open. Returns `{ closed_for_day: true, moved, deferred }` |
 | GET | `/api/admin/recruitment/panels/:id/queue` | Get token queue for a table, ordered by `queue_position` (not `token_number`) |
 | POST | `/api/admin/recruitment/panels/:id/call-next` | Mark the front of the `queue_position` order as `called`, return recruit profile. Compare-and-swap guarded |
-| POST | `/api/admin/recruitment/panels/:id/call-token` | **New 2026-08-16.** Body: `{ token_id }`. Manually call a SPECIFIC waiting recruit to THIS panel, even if they're currently attached to a different open panel for the same `sub_domain` - reassigns `panel_id` (allocating a fresh `token_number` scoped to the new panel, same allocation discipline as check-in) if needed, then marks `called`. 400 if the token isn't `waiting` or its `sub_domain` doesn't match this panel's. See [Interview Module](#7-interview-module) 2026-08-16 update. |
+| POST | `/api/admin/recruitment/panels/:id/call-token` | **New 2026-08-16, unused by any UI as of 2026-09-03.** Body: `{ token_id }`. Manually call a SPECIFIC waiting recruit to THIS panel, even if they're currently attached to a different open panel for the same `sub_domain` - reassigns `panel_id` (allocating a fresh `token_number` scoped to the new panel, same allocation discipline as check-in) if needed, then marks `called`. 400 if the token isn't `waiting` or its `sub_domain` doesn't match this panel's. Made sense on the 2026-08-16 shared cross-table board; the 2026-09-03 single-table-per-page rebuild has no view left that this could be called from, so the route is dead code from the UI's side but was deliberately left in place. See [Interview Module](#7-interview-module) 2026-08-16 and 2026-09-03 updates. |
 | PATCH | `/api/admin/recruitment/panels/:id/tokens/:tokenId/reorder` | Drag-and-drop reorder. Body: `{ after_token_id: string \| null }` (`null` = move to front) - recomputes only the moved token's `queue_position` as the midpoint of its new neighbours. Still scoped to one panel - kept alongside the new cross-panel `call-token` above, not replaced by it. |
 | PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/no-show` | Mark a `called` token as `no_show` |
-| PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/review` | **New 2026-09-03.** Body: `{ review_note }`. A running note a panel can write on a recruit at any point - independent of the final Selected/Rejected/Waitlisted result, so it can exist before any decision. Role `member`/`lead`/`admin` (a note, not a decision, so the same gate as marks entry). Blank clears it to null. One note per token, `review_updated_by`/`review_updated_at` for attribution. See migration 022 |
-| GET | `/api/admin/recruitment/interview-results/export?sub_domain=X` | **New 2026-09-03.** CSV of everyone checked in for that domain's interview (name through hostel/day-scholar details, marks, token status, walk-in flag, logged result if any, and the review note above) - the roster, not just those with a result, so it also shows who's still waiting. One domain per download, matching whichever tab is open on `/dashboard/recruitment/interview` |
-| GET | `/api/admin/recruitment/interview-results` | List logged results for active cycle, newest first |
+| PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/review` | **New 2026-09-03, extended same day.** Body: `{ review_note?, rating?, interested_other_clubs?, interested_other_domains? }` - every field independently optional, so a panel can save just one without re-sending the rest. `rating` is `'bad' \| 'average' \| 'good' \| null`. A running review a panel can write on a recruit at any point - independent of the final Selected/Rejected/Waitlisted result, so it can exist before any decision. Role `member`/`lead`/`admin` (a note, not a decision, so the same gate as marks entry). Blank text fields clear to null. One review per token, one shared `review_updated_by`/`review_updated_at` pair for attribution. See migrations 022 and 023 |
+| GET | `/api/admin/recruitment/interview-results/export?sub_domain=X` | **New 2026-09-03.** CSV of everyone checked in for that domain's interview (name through hostel/day-scholar details, **which table they're checked into**, marks, token status, walk-in flag, logged result if any, and rating/review note/other-interests above) - the roster, not just those with a result, so it also shows who's still waiting. One domain per download |
+| GET | `/api/admin/recruitment/interview-results` | List logged results for active cycle, newest first. **Extended 2026-09-03**: each row also carries `panel_id`, `panel_is_active`, `panel_label` - resolved by joining the recruit's current `recruit_interview_tokens` row for the same `(cycle_id, sub_domain)`, not stored on the result row itself, so it always points at wherever that recruit is checked in right now (survives a cross-panel reassignment) rather than where they were when the result was logged. All three are `null` if no matching token exists (shouldn't happen - logging a result requires a prior call) or its panel was hard-deleted (not just closed - a closed panel still resolves so the UI can show a "this table is closed" state). Powers the Interview Results list's "go to panel" navigation |
 | POST | `/api/admin/recruitment/interview-results` | Log **or correct** a result. Body: `{ recruit_id, sub_domain, result, notes?, panel_id? }`. Upsert; recomputes `is_selected` |
 
 #### Admin - Training
@@ -1585,16 +1585,72 @@ Within a sub-domain row: every currently-open table for that sub-domain gets its
 
 Existing per-table actions (Pause / Close for the Day / Delete, and the "Add Table" form) still exist within this layout, just relocated per-row instead of a standalone left-hand list. `InterviewResultsList`/`DomainResultsSection`/the "Fix" correction flow at the bottom of the page are unchanged. **The admin page's color theme did NOT change** - still the dark `border-white/10 bg-white/[0.03] backdrop-blur-xl` look; this was a layout/interaction redesign only, separate from the recruit-facing sharp red/white/black theme migration (see [UI Notes](#ui-notes--sharp-redwhiteblack-theme-rewritten-2026-08-16-supersedes-the-original-spec-below) in the Auth section). No schema/migration change was needed - `panel_id`, `token_number`, `queue_position`, `sub_domain`, `status` all already existed.
 
+### Update 2026-09-03 - 4-column board replaced by domain picker + one dedicated page per table
+
+The 2026-08-16 board above is gone. `/dashboard/recruitment/interview` is now step 1/2 of a
+picker, not a dashboard itself:
+
+1. **Step 1** - six domain buttons grouped by subsystem, each showing "N tables open / M
+   waiting" (summed client-side from `GET /api/admin/recruitment/panels`, no new endpoint).
+2. **Step 2** (after picking a domain) - that domain's open tables as cards (name, live
+   counts, Pause/Close for the Day/Delete), each with its own "Join This Table" button below
+   it, plus the existing `AddPanelForm` to start a new one. Creating a table auto-navigates
+   into it (the picker diffs that domain's active panel ids before/after the create-triggered
+   refetch to find the new one, since `AddPanelForm`'s `onCreated` takes no arguments).
+3. Both routes land on **`/dashboard/recruitment/interview/[panelId]`**, a full page scoped to
+   exactly one table: the same "Now Serving" `TableSlot` (Call Next, result logging,
+   `RecruitProfileCard` with review/rating/interests) and the same table controls as before,
+   now sized as the page's centerpiece instead of one card among many, plus this table's own
+   waiting list (`PanelWaitingList` - drag-reorder via the existing `reorder` route, no
+   cross-table "call to X" buttons since there's only ever one table in view). A "Switch
+   table" link at the top returns to the picker; any staff role (member/lead/admin) can use
+   it. A table that's been paused/closed or hard-deleted since the link was followed shows a
+   plain "no longer available" / "was paused or closed" message with a way back, rather than
+   an empty or broken page - checked client-side against the same panel list the picker uses,
+   since there's no `GET /api/admin/recruitment/panels/:id` (the `[id]` route only implements
+   `DELETE`).
+
+**Retired along with the board**: the per-sub-domain SHARED waiting queue
+(`SharedWaitingQueue`/`SortableSharedRow`) and manual cross-table calling via
+`POST /api/admin/recruitment/panels/:id/call-token` (added 2026-08-16, described above) - a
+recruit is now only ever called from the one table they're actually checked into, so there is
+no "call to a different table" gesture any more. **The `call-token` route itself was left in
+place, unmodified and still functional** - just unreferenced by any current UI. Don't delete
+it without checking nothing else (a script, a future feature) depends on it.
+
+**Kept unchanged, just relocated**: `AddPanelForm`, table Pause/Close for the Day/Delete,
+`TableSlot`'s Call Next/result-logging, `RecruitProfileCard` (review note, rating, interested-
+in-other-clubs/domains), and `InterviewResultsList` (the cycle-wide results-by-domain list
+with its "Fix" correction flow) - still rendered on the picker page below the domain
+steps, unaffected by which table (if any) is currently selected.
+
+**New: click a result to jump to its table.** `InterviewResultsList` rows now show the
+recruit's name as a link (only when a panel could be resolved - see `panel_id` on
+`GET /api/admin/recruitment/interview-results` above) to
+`/dashboard/recruitment/interview/[panelId]?recruit=<recruit_id>`. On the panel page, a
+`?recruit=` param highlights that recruit in a "You came here for X" banner above `TableSlot`,
+showing their full `RecruitProfileCard` even though a `done` token (which is what a logged
+result almost always means) doesn't otherwise appear anywhere on that page - `TableSlot` only
+shows the `called` token and `PanelWaitingList` only shows `waiting` ones. The banner is
+suppressed if the matched token happens to be the current `called` one (already the giant
+Now Serving card, so highlighting it again would just duplicate it), and a "recruit not found
+on this table" note appears if `?recruit=` doesn't match anything once the queue has loaded
+(stale link, or the recruit was since moved). The existing inline "Fix" button in
+`InterviewResultsList` is unchanged and still the only way to correct a result's Selected/
+Rejected/Waitlisted outcome - the new link only navigates, it doesn't edit anything itself.
+
 ### Design Philosophy
 
 Interviews are walk-in - no time slots, no pre-booking. On interview day:
 
-1. Lead opens `/dashboard/recruitment/interview`
-2. Clicks "Add Table", picks a domain, edits the pre-filled name if they want → table is live instantly, numbered automatically
-3. Recruits walk in, volunteer scans their QR in "Interview Check-In" mode, having picked the DOMAIN (not a specific table)
-4. System auto-routes the recruit to the least-loaded open table for that domain, gives them a token number
-5. Table interviewer clicks "Call Next" → sees recruit's full profile
-6. Logs result → next recruit
+1. Lead opens `/dashboard/recruitment/interview`, picks a domain, then either joins an
+   existing open table or clicks "Add Table" and edits the pre-filled name if they want →
+   table is live instantly, numbered automatically, and they land on that table's own
+   dedicated page (see 2026-09-03 update above)
+2. Recruits walk in, volunteer scans their QR in "Interview Check-In" mode, having picked the DOMAIN (not a specific table)
+3. System auto-routes the recruit to the least-loaded open table for that domain, gives them a token number
+4. Table interviewer clicks "Call Next" → sees recruit's full profile
+5. Logs result → next recruit
 
 Multiple tables per domain can run simultaneously; the system balances load between them so volunteers never have to eyeball queue lengths and redirect people by hand (this is a change from the original design, which had no load balancing - see [Known Gaps / History](#8-known-gaps--history)).
 
@@ -2070,6 +2126,16 @@ Migration **021** applied via the Supabase MCP `apply_migration` tool, mirrored 
 
 **Not yet built** (a separate, larger ask surfaced the same session, deliberately not started to avoid colliding with the in-flight interview-page work above): inline profile editing on the interview page, a running per-recruit review note independent of the Selected/Rejected/Waitlisted result, and a CSV export of interview-day data with that review. Scoped and clarified with the user but not implemented as of this entry.
 
+### Interview page: profile editing, a running review note, and CSV export (2026-09-03)
+
+Migration **022** applied via the Supabase MCP `apply_migration` tool, mirrored into `recruit-schema.sql`. Landed right after the walk-in exam work above, on the same interview page - sequenced carefully so a background UI agent was never mid-edit on `interview/page.tsx` at the same time as another writer.
+
+1. **`EditRecruitModal` extracted into a shared component** (`src/components/recruit/EditRecruitModal.tsx`, exporting the `EditableRecruit` type alongside it) - it used to be a ~285-line function defined inline in `src/app/dashboard/recruitment/recruits/page.tsx`. That page now imports the shared version instead; the interview page's new Edit button opens the same component, so both surfaces edit through the exact same form and the exact same `PATCH /api/admin/recruitment/recruits/:id`, with zero duplicated validation logic to drift apart later.
+2. **The interview queue payload (`RecruitProfile`) doesn't carry `course`**, which the edit form requires as non-empty. Rather than open the modal with a blank `course` and risk a save silently wiping a real value, the Edit button fetches the full recruit record on click via `GET /api/admin/recruitment/recruits?search=<reg_no>`, then filters for an **exact** `reg_no` match (that endpoint's `search` is a substring `ilike`, so a raw result could contain more than one row) before opening the modal. A fetch failure or no exact match shows a toast and never opens it.
+3. **A running review note per (recruit, domain)** - migration 022 adds `review_note`/`review_updated_by`/`review_updated_at` to `recruit_interview_tokens`, deliberately independent of `recruit_interview_results` (which only gets a row once a decision is logged) so a panel can write notes before, during, or after deciding. New `PATCH /api/admin/recruitment/panels/tokens/:tokenId/review`, `member`/`lead`/`admin` (a note, not a decision - same gate as marks entry, not the tighter lead/admin-only gate the shortlist override routes have). Textarea + Save + a "Last saved by X at Y" line live in `RecruitProfileCard`, which by now renders in three places (Now Serving, every expandable waiting-list row, and implicitly anywhere else that card is reused) - so the note is visible and editable everywhere that card already shows up, with no extra plumbing per surface.
+4. **Per-domain CSV export** - `GET /api/admin/recruitment/interview-results/export?sub_domain=X` (new, sibling to the existing `interview-results` route) returns the full interview roster for one domain: registration/hostel/day-scholar fields, marks, token status, walk-in flag, logged result (if any), and the review note above. Deliberately the **roster**, not just decided results, so it also shows who's still waiting. A plain `<a download>` per domain next to its "Waiting: {label} (N)" header - same-origin GET, cookies ride along automatically, no fetch/blob JS needed.
+5. **`RecruitProfile` gained `phone` and `hostel_room`** (`panels/[id]/queue/route.ts`, shared by `call-next` too) - both were missing before this and are needed for the edit form / full detail view respectively.
+
 ### Known remaining gaps (not fixed yet)
 
 - **Concurrency edges not fully load-tested**: `call-next` has a compare-and-swap guard, and the interview check-in token-number race now has a retry loop (see above) - but neither has been hit with real concurrent traffic yet. Worth a real load test (or at least a multi-tab manual test) before relying on it during an actual interview day with multiple scanners on one panel. The 2026-08-13 auto-routing/redistribution logic inherits the same caveat - verified by reading the code and by manual testing against seeded data (via Supabase MCP + a Playwright screenshot of the kiosk screen), not load-tested.
@@ -2092,7 +2158,7 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 ### File map
 
 - `supabase/recruit-schema.sql` - full current schema (already reflects all pending migrations - it's the target state, not what's live)
-- `supabase/recruit-migration-0NN-*.sql` - the numbered migrations, apply in order (highest is 022). 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the public chatbot; 016 = drop year '3'; 018 (2026-09-01) = year-scoped cutoffs; 019 (2026-09-01) = `recruit_marks.note`; 020 (2026-09-01) = half marks (marks + cutoffs integer -> numeric); 021 (2026-09-03) = walk-in exam attendance (`recruit_exam_attendance.is_walkin`, `day` made nullable); 022 (2026-09-03) = `recruit_interview_tokens.review_note` + attribution columns. Note 004 and 005 each got used twice by different files - a pre-existing collision, don't reuse a number again
+- `supabase/recruit-migration-0NN-*.sql` - the numbered migrations, apply in order (highest is 023). 004 = table_number/queue_position/denormalized sub_domain; 005 = the `deferred` enum value; 013 = gender-scoped cutoffs; 014 (2026-08-16) = `recruit_public_chat_requests`, the rate-limit table for the public chatbot; 016 = drop year '3'; 018 (2026-09-01) = year-scoped cutoffs; 019 (2026-09-01) = `recruit_marks.note`; 020 (2026-09-01) = half marks (marks + cutoffs integer -> numeric); 021 (2026-09-03) = walk-in exam attendance (`recruit_exam_attendance.is_walkin`, `day` made nullable); 022 (2026-09-03) = `recruit_interview_tokens.review_note` + attribution columns; 023 (2026-09-03) = `recruit_interview_tokens.rating` + `interested_other_clubs`/`interested_other_domains`. Note 004 and 005 each got used twice by different files - a pre-existing collision, don't reuse a number again
 - `src/lib/recruit-domains.ts` - domain/subsystem source of truth
 - `src/lib/recruit-year.ts` (new, 2026-09-01) - year-of-study source of truth ('1'/'2'), the counterpart to `gender.ts`; both feed the 4-cell cutoff grid
 - `src/lib/recruit-validation.ts` - also holds `PHONE_RE`, `digitsOnly` and `phoneSearchTerm` (2026-09-01), the shared normalizer every phone search goes through
@@ -2102,7 +2168,7 @@ What's live instead: `src/components/recruit/LanyardBadge.tsx`, a pure CSS/React
 - `src/app/api/recruit/**` - student-facing API (auth, me, qr), the public kiosk API (`tables/route.ts`, 2026-08-13), the new public chat API (`public-chat/route.ts`, 2026-08-16 - the other exception carved out of the `recruit_token` gate), and the new session-gated post-signup verification routes (`verify-email/send-otp`, `verify-email/verify-otp`, 2026-08-16)
 - `src/app/api/admin/recruitment/**` - staff-facing API (~25 routes as of 2026-08-16: +call-token; the old panel-scoped queue-display page's route is gone, it never had its own API)
 - `src/app/recruit/**` (incl. `tables/page.tsx`, 2026-08-13 - the public kiosk page), `src/app/recruit-scanner/**` - student/public pages + scanner. `register`/`login`/`dashboard` moved to the sharp red/white/black theme 2026-08-16, `tables`/`recruit-scanner` did not.
-- `src/app/dashboard/recruitment/**` - admin pages (`interview/panel/[panelId]` removed 2026-08-13 - superseded by `/recruit/tables`; `interview/page.tsx` rebuilt into a 4-column board 2026-08-16; `exam-checkin/page.tsx` added 2026-08-31 - the live exam check-in board)
+- `src/app/dashboard/recruitment/**` - admin pages (`interview/panel/[panelId]` - the old public-facing TV display route, unrelated to the one below - removed 2026-08-13, superseded by `/recruit/tables`; `interview/page.tsx` rebuilt into a 4-column board 2026-08-16, then rebuilt again 2026-09-03 into a domain picker; `interview/[panelId]/page.tsx` - new 2026-09-03, the dedicated single-table page the picker routes into (note: no `panel/` path segment, so it does not collide with the older, unrelated, still-removed `interview/panel/[panelId]`); `exam-checkin/page.tsx` added 2026-08-31 - the live exam check-in board)
 - `src/components/recruit/EmailVerifyBanner.tsx` (new, 2026-08-16) - dismissible post-signup SRM-email verify prompt, used on `/recruit/dashboard`
 - `src/components/recruit/GlassCard.tsx` (rewritten 2026-08-16) - flat CSS panel, replaced the old SVG-filter `GlassSurface` (deleted) for performance; same prop API
 - `src/components/ConditionalParticles.tsx` (new, 2026-08-16) - skips `Particles.tsx` on `/recruit/register`/`/recruit/login` only

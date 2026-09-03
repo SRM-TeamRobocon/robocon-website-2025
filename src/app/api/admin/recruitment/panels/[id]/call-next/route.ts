@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { buildRecruitProfiles, displayFirstName } from "../queue/route";
+import { resolveDisplayNames } from "@/lib/admin-users";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const TOKEN_COLUMNS = "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin";
+const TOKEN_COLUMNS =
+  "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin, review_note, rating, interested_other_clubs, interested_other_domains, review_updated_by, review_updated_at";
 
 // Bounded so a pathological race (or a stale read) can never spin.
 const MAX_ATTEMPTS = 5;
@@ -29,9 +31,11 @@ const EMPTY_PROFILE = (recruitId: string) => ({
   shortlisted_for: [] as string[],
   is_hosteller: false,
   hostel_block: null as string | null,
+  hostel_room: null as string | null,
   day_scholar_area: null as string | null,
   travel_method: null as string | null,
   gender: null as string | null,
+  phone: null as string | null,
 });
 
 type TokenRow = {
@@ -43,6 +47,12 @@ type TokenRow = {
   called_at: string | null;
   recruit_id: string;
   is_walkin: boolean;
+  review_note: string | null;
+  rating: "bad" | "average" | "good" | null;
+  interested_other_clubs: string | null;
+  interested_other_domains: string | null;
+  review_updated_by: string | null;
+  review_updated_at: string | null;
 };
 
 // POST /api/admin/recruitment/panels/:id/call-next
@@ -72,7 +82,10 @@ export async function POST(_request: NextRequest, context: RouteContext) {
   const supabase = createRecruitSupabaseAdminClient();
 
   const respond = async (token: TokenRow, alreadyCalled: boolean) => {
-    const profiles = await buildRecruitProfiles(supabase, [token.recruit_id]);
+    const [profiles, reviewerNames] = await Promise.all([
+      buildRecruitProfiles(supabase, [token.recruit_id]),
+      resolveDisplayNames(supabase, [token.review_updated_by]),
+    ]);
     const recruit = profiles.get(token.recruit_id) ?? EMPTY_PROFILE(token.recruit_id);
 
     return NextResponse.json({
@@ -84,6 +97,14 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       called_at: token.called_at ?? undefined,
       already_called: alreadyCalled,
       is_walkin: Boolean(token.is_walkin),
+      review_note: token.review_note ?? null,
+      rating: token.rating ?? null,
+      interested_other_clubs: token.interested_other_clubs ?? null,
+      interested_other_domains: token.interested_other_domains ?? null,
+      review_updated_by: token.review_updated_by
+        ? reviewerNames.get(token.review_updated_by) ?? token.review_updated_by
+        : null,
+      review_updated_at: token.review_updated_at ?? null,
     });
   };
 

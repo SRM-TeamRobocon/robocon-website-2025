@@ -1,39 +1,43 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import {
     Radio,
     Plus,
-    Users,
     PhoneCall,
     CheckCircle2,
     Clock3,
-    UserX,
     Award,
-    Star,
     Ban,
     Hourglass,
     Trash2,
     ClipboardList,
     Pencil,
     X,
-    GripVertical,
-    Footprints,
     ChevronDown,
-    Download,
+    Footprints,
+    ArrowLeft,
 } from "lucide-react";
-import {
-    DndContext,
-    closestCenter,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useRequireRole } from "@/hooks/use-require-role";
+import {
+    RECRUIT_SUBDOMAINS,
+    subDomainLabel,
+    subDomainFullLabel,
+    subDomainSubsystem,
+    groupBySubsystem,
+    type RecruitSubDomain,
+} from "@/lib/recruit-domains";
+
+// This page used to be a single "every table at once" board. It's now step 1/2 of a
+// picker: choose a domain, then either join one of that domain's open tables or start a
+// new one - either way you're routed to /dashboard/recruitment/interview/[panelId], a
+// dedicated page for just that one table (see that file for the actual call/queue UI).
+// This page keeps only: the domain picker, the join/create list for the selected domain,
+// and the cycle-wide InterviewResultsList (still relevant regardless of which table you're
+// working from).
 
 type TokenStatus = "waiting" | "called" | "done" | "no_show";
 
@@ -54,51 +58,6 @@ interface Panel {
     created_by: string;
     counts: PanelCounts;
 }
-
-interface RecruitProfile {
-    id: string;
-    name: string;
-    reg_no: string;
-    year: string;
-    department: string;
-    domains: string[];
-    exam_marks: { sub_domain: string; marks: number }[];
-    portfolio_url?: string;
-    shortlisted_for: string[];
-    is_hosteller: boolean;
-    hostel_block: string | null;
-    hostel_room: string | null;
-    day_scholar_area: string | null;
-    travel_method: string | null;
-    gender: string | null;
-    phone: string | null;
-}
-
-interface QueueToken {
-    token_id: string;
-    token_number: number;
-    queue_position: number;
-    status: TokenStatus;
-    recruit: RecruitProfile;
-    checked_in_at: string;
-    called_at?: string;
-    is_walkin: boolean;
-    review_note: string | null;
-    review_updated_by: string | null;
-    review_updated_at: string | null;
-}
-
-import {
-    RECRUIT_SUBDOMAINS,
-    subDomainLabel,
-    subDomainFullLabel,
-    subDomainSubsystem,
-    groupBySubsystem,
-    type RecruitSubDomain,
-} from "@/lib/recruit-domains";
-import { travelMethodLabel } from "@/lib/travel-method";
-import { genderLabel } from "@/lib/gender";
-import EditRecruitModal, { type EditableRecruit } from "@/components/recruit/EditRecruitModal";
 
 // Scoped to a single, already-known sub_domain - every call site now lives inside that
 // domain's own row, so there's no dropdown to pick from any more (the row IS the pick).
@@ -182,9 +141,9 @@ function AddPanelForm({ subDomain, onCreated }: { subDomain: RecruitSubDomain; o
     );
 }
 
-// Shared by TableSlot's own control strip (open tables) and PanelCard (closed tables /
-// legacy no-domain panels) - one place for the Pause / Close-for-Day / Delete network
-// calls so the two presentations can't drift apart.
+// Shared by PanelCard's Pause / Close-for-Day / Delete network calls (the [panelId] page
+// has its own copy for TableControls) - kept as two small copies rather than a shared
+// module so each page stays self-contained per the two-file split.
 function usePanelActions(panel: Panel, onChanged: () => void) {
     const [busy, setBusy] = useState(false);
 
@@ -266,43 +225,10 @@ function usePanelActions(panel: Panel, onChanged: () => void) {
     return { busy, closePanel, closeForDay, deletePanel };
 }
 
-// Compact action strip for an OPEN table's own slot card.
-function TableControls({ panel, onChanged }: { panel: Panel; onChanged: () => void }) {
-    const { busy, closePanel, closeForDay, deletePanel } = usePanelActions(panel, onChanged);
-    return (
-        <div className="flex shrink-0 flex-wrap gap-1.5">
-            <button
-                onClick={closePanel}
-                disabled={busy}
-                className="inline-flex items-center gap-1 bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
-            >
-                Pause
-            </button>
-            <button
-                onClick={closeForDay}
-                disabled={busy}
-                className="inline-flex items-center gap-1 bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
-            >
-                Close Day
-            </button>
-            <button
-                onClick={deletePanel}
-                disabled={busy}
-                title={`Delete ${panel.domain_label} table`}
-                className="inline-flex items-center gap-1 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
-            >
-                <Trash2 className="h-3 w-3" />
-            </button>
-        </div>
-    );
-}
-
-// Read-only-ish fallback card: counts + status alongside Pause/Close-for-Day/Delete,
-// without the full call/interview flow. Used for a sub-domain row's own CLOSED tables,
-// and for any legacy panel with no sub_domain at all (pre-2026-08-13 free-text panels) -
-// the new subsystem-column layout groups strictly by sub_domain, so a null-domain panel
-// has nowhere else to render; without this fallback it would be invisible and
-// unmanageable (can't Pause/Close/Delete it) even though its row in the DB still exists.
+// Compact summary card for one table (name, counts, its own Pause/Close/Delete). Used here
+// for the "choose an existing open table" list in step 2 - a separate "Join This Table"
+// button sits below each card (see the page component) rather than making the whole card
+// clickable, so a Pause/Delete click here can never also be read as "join".
 function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }) {
     const { busy, closePanel, closeForDay, deletePanel } = usePanelActions(panel, onChanged);
 
@@ -361,699 +287,6 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
     );
 }
 
-// Same "day/month, hour:minute" shape as marks/page.tsx's own savedAtLabel - kept as a
-// separate local copy rather than a shared util since it's a one-line formatter and the
-// two pages don't otherwise share code.
-function savedAtLabel(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleString([], {
-        day: "numeric",
-        month: "short",
-        hour: "numeric",
-        minute: "2-digit",
-    });
-}
-
-function RecruitProfileCard({ token, onChanged }: { token: QueueToken; onChanged: () => void }) {
-    const r = token.recruit;
-
-    const [reviewNote, setReviewNote] = useState(token.review_note ?? "");
-    const [reviewSavedBy, setReviewSavedBy] = useState(token.review_updated_by);
-    const [reviewSavedAt, setReviewSavedAt] = useState(token.review_updated_at);
-    const [savingReview, setSavingReview] = useState(false);
-
-    // Re-sync from the prop whenever it's a genuinely different token (a new recruit swapped
-    // into this slot) or the server-side value moved out from under us (another panel saved
-    // a note on the same token, or a background refresh landed) - without this, switching
-    // "Now Serving" recruits would leave the PREVIOUS recruit's draft note lingering.
-    useEffect(() => {
-        setReviewNote(token.review_note ?? "");
-        setReviewSavedBy(token.review_updated_by);
-        setReviewSavedAt(token.review_updated_at);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token.token_id, token.review_note, token.review_updated_by, token.review_updated_at]);
-
-    const [editRecruit, setEditRecruit] = useState<EditableRecruit | null>(null);
-    const [loadingEdit, setLoadingEdit] = useState(false);
-
-    // RecruitProfile (the queue payload) doesn't carry `course` - the edit form requires a
-    // non-empty one, so rather than open the modal with a blank course and risk a save that
-    // silently wipes a real value, fetch the full recruit record on demand and only open once
-    // it's in hand. Scoped by an exact reg_no match against the search results, since the
-    // list endpoint's `search` is a substring match and could return more than one row.
-    const openEdit = async () => {
-        setLoadingEdit(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/recruits?search=${encodeURIComponent(r.reg_no)}`);
-            const data = await res.json();
-            const match = (data.data ?? []).find((x: any) => x.reg_no === r.reg_no);
-            if (!res.ok || !data.success || !match) {
-                toast.error("Could not load recruit for editing");
-                return;
-            }
-            setEditRecruit({
-                id: match.id,
-                name: match.name,
-                reg_no: match.reg_no,
-                year: match.year,
-                gender: match.gender,
-                department: match.department,
-                course: match.course,
-                phone: match.phone,
-                is_hosteller: match.is_hosteller,
-                hostel_block: match.hostel_block,
-                hostel_room: match.hostel_room,
-                day_scholar_area: match.day_scholar_area,
-                travel_method: match.travel_method,
-                domains: match.domains,
-            });
-        } catch {
-            toast.error("Could not load recruit for editing");
-        } finally {
-            setLoadingEdit(false);
-        }
-    };
-
-    const saveReview = async () => {
-        setSavingReview(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/tokens/${token.token_id}/review`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ review_note: reviewNote }),
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                toast.success("Review note saved");
-                setReviewSavedBy(data.data.review_updated_by);
-                setReviewSavedAt(data.data.review_updated_at);
-                onChanged();
-            } else {
-                toast.error(data.error || "Could not save review note");
-            }
-        } catch {
-            toast.error("Could not save review note");
-        } finally {
-            setSavingReview(false);
-        }
-    };
-
-    return (
-        <div className="border border-white/10 bg-black/30 p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-lg font-black text-white">
-                            #{token.token_number} · {r.name}
-                        </p>
-                        {token.is_walkin && (
-                            <span className="inline-flex items-center gap-1 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30">
-                                <Footprints className="h-3 w-3" /> Walk-in
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-sm text-gray-400">
-                        {r.reg_no} · Year {r.year} · {r.department}
-                        {r.gender ? ` · ${genderLabel(r.gender)}` : ""}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-400">
-                        {r.is_hosteller
-                            ? `Hosteller${r.hostel_block ? ` · ${r.hostel_block}` : ""}`
-                            : ["Day Scholar", r.day_scholar_area, travelMethodLabel(r.travel_method)].filter(Boolean).join(" · ")}
-                    </p>
-                    {token.is_walkin && (
-                        <p className="mt-1 text-xs text-amber-400/80">
-                            Not shortlisted for this domain, let in as a walk-in on interview day.
-                        </p>
-                    )}
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                    {r.portfolio_url && (
-                        <a
-                            href={r.portfolio_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
-                        >
-                            LinkedIn ↗
-                        </a>
-                    )}
-                    <button
-                        type="button"
-                        onClick={openEdit}
-                        disabled={loadingEdit}
-                        title={`Edit ${r.name}`}
-                        className="inline-flex items-center gap-1 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
-                    >
-                        <Pencil className="h-3.5 w-3.5" />
-                        {loadingEdit ? "..." : "Edit"}
-                    </button>
-                </div>
-            </div>
-
-            <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Applied for</p>
-                <div className="flex flex-wrap gap-1.5">
-                    {r.domains.map((d) => (
-                        <span
-                            key={d}
-                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold ring-1 ring-inset ${
-                                r.shortlisted_for.includes(d)
-                                    ? "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30"
-                                    : "bg-white/5 text-gray-400 ring-white/10"
-                            }`}
-                        >
-                            {r.shortlisted_for.includes(d) && <Star className="h-3 w-3" />}
-                            {subDomainLabel(d)}
-                        </span>
-                    ))}
-                    {r.domains.length === 0 && <span className="text-xs text-gray-500">-</span>}
-                </div>
-            </div>
-
-            {r.exam_marks.length > 0 && (
-                <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Exam marks</p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {r.exam_marks.map((m) => (
-                            <span
-                                key={m.sub_domain}
-                                className="bg-white/5 px-2 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10"
-                            >
-                                {subDomainLabel(m.sub_domain)}: {m.marks}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Review note</p>
-                <textarea
-                    value={reviewNote}
-                    onChange={(e) => setReviewNote(e.target.value)}
-                    placeholder="Running note for other panels/leads..."
-                    rows={2}
-                    className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        onClick={saveReview}
-                        disabled={savingReview}
-                        className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
-                    >
-                        {savingReview ? "Saving..." : "Save"}
-                    </button>
-                    {reviewSavedBy && (
-                        <p className="text-[10px] text-gray-500">
-                            Last saved by {reviewSavedBy}
-                            {reviewSavedAt ? ` at ${savedAtLabel(reviewSavedAt)}` : ""}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {editRecruit && (
-                <EditRecruitModal
-                    recruit={editRecruit}
-                    onClose={() => setEditRecruit(null)}
-                    onSaved={() => {
-                        setEditRecruit(null);
-                        onChanged();
-                    }}
-                />
-            )}
-        </div>
-    );
-}
-
-// One OPEN table's own card: its "Now Serving" slot (centerpiece: recruit name + this
-// table's own display name, per the exact ask), its own Call Next (front of ITS OWN
-// queue_position-ordered waiting list - unchanged FIFO behaviour), result logging, and
-// its Pause/Close/Delete controls. Manual cross-table calling into this slot happens
-// from SharedWaitingQueue below, not here - both actions land the same recruit in the
-// same "called" slot either way.
-function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueToken[]; onChanged: () => void }) {
-    const called = tokens.find((t) => t.status === "called") ?? null;
-    const waitingCount = tokens.filter((t) => t.status === "waiting").length;
-    const [notes, setNotes] = useState("");
-    const [busy, setBusy] = useState(false);
-
-    useEffect(() => {
-        if (!called) setNotes("");
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [called?.token_id]);
-
-    const callNext = async () => {
-        setBusy(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/call-next`, { method: "POST" });
-            const data = await res.json();
-            if (!res.ok) {
-                toast.error(data.error || "Could not call next recruit");
-            } else if (data.status === "queue_empty") {
-                toast("Queue is empty", { icon: "📭" });
-            } else {
-                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
-            }
-        } finally {
-            setBusy(false);
-            onChanged();
-        }
-    };
-
-    const logResult = async (result: "selected" | "rejected" | "waitlisted") => {
-        if (!called) return;
-        if (!panel.sub_domain) {
-            toast.error("This table has no domain set, cannot log a result");
-            return;
-        }
-        setBusy(true);
-        try {
-            const res = await fetch("/api/admin/recruitment/interview-results", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    recruit_id: called.recruit.id,
-                    sub_domain: panel.sub_domain,
-                    result,
-                    notes: notes.trim() || undefined,
-                    panel_id: panel.id,
-                }),
-            });
-            const data = await res.json();
-            if (res.ok && data.saved) {
-                toast.success(`Logged: ${result}`);
-                setNotes("");
-            } else {
-                toast.error(data.error || "Could not log result");
-            }
-        } finally {
-            setBusy(false);
-            onChanged();
-        }
-    };
-
-    const markNoShow = async () => {
-        if (!called) return;
-        if (!confirm(`Mark #${called.token_number}: ${called.recruit.name} as no-show?`)) return;
-        setBusy(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/tokens/${called.token_id}/no-show`, {
-                method: "PATCH",
-            });
-            const data = await res.json();
-            if (res.ok && data.no_show) {
-                toast.success("Marked no-show");
-            } else {
-                toast.error(data.error || "Could not mark no-show");
-            }
-        } finally {
-            setBusy(false);
-            onChanged();
-        }
-    };
-
-    return (
-        <div className="border border-white/10 bg-black p-4 space-y-3">
-            <div className="flex items-start justify-between gap-2 flex-wrap">
-                <div className="min-w-0">
-                    <h3 className="truncate font-bold text-white">{panel.domain_label}</h3>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
-                        <span className="inline-flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
-                            <Clock3 className="h-3 w-3" /> {panel.counts.waiting} waiting
-                        </span>
-                        <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                            <CheckCircle2 className="h-3 w-3" /> {panel.counts.done} done
-                        </span>
-                    </div>
-                </div>
-                <TableControls panel={panel} onChanged={onChanged} />
-            </div>
-
-            {called ? (
-                <div className="border border-blue-500/30 bg-blue-500/[0.06] p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-400">
-                        <PhoneCall className="h-4 w-4" /> Now Serving
-                    </div>
-                    {/* Centerpiece per the exact ask: recruit name + this table's display
-                        name, front and center above the fuller profile detail. */}
-                    <div className="text-center py-1">
-                        <p className="text-2xl font-black text-white leading-tight">{called.recruit.name}</p>
-                        <p className="mt-1 text-xs font-bold uppercase tracking-widest text-blue-400">{panel.domain_label}</p>
-                    </div>
-                    <RecruitProfileCard token={called} onChanged={onChanged} />
-
-                    <div className="space-y-3">
-                        <textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Optional notes..."
-                            rows={2}
-                            className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={() => logResult("selected")}
-                                disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                            >
-                                <Award className="h-4 w-4" /> Selected
-                            </button>
-                            <button
-                                onClick={() => logResult("rejected")}
-                                disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
-                            >
-                                <Ban className="h-4 w-4" /> Rejected
-                            </button>
-                            <button
-                                onClick={() => logResult("waitlisted")}
-                                disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
-                            >
-                                <Hourglass className="h-4 w-4" /> Waitlisted
-                            </button>
-                            <button
-                                onClick={markNoShow}
-                                disabled={busy}
-                                className="inline-flex items-center gap-1.5 bg-white/5 px-4 py-2 text-sm font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 ml-auto"
-                            >
-                                <UserX className="h-4 w-4" /> No Show
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <button
-                    onClick={callNext}
-                    disabled={busy || waitingCount === 0}
-                    className="group relative w-full overflow-hidden inline-flex items-center justify-center bg-red px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-events-none"
-                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                >
-                    <span
-                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)", backgroundColor: "#D4AF37" }}
-                    />
-                    <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
-                        <PhoneCall className="h-4 w-4" /> Call Next
-                    </span>
-                </button>
-            )}
-        </div>
-    );
-}
-
-// One row inside the shared, per-sub-domain waiting queue. Shows which table currently
-// holds this recruit's token isn't rendered here (grouping headers above do that job in
-// SharedWaitingQueue) - this row's own job is the recruit summary plus one "Call to X"
-// button per currently open table, so an interviewer at ANY table in this sub-domain can
-// pull this recruit to their own desk regardless of which table they checked into.
-function SortableSharedRow({
-    token,
-    openPanels,
-    onCall,
-    callingId,
-    onChanged,
-}: {
-    token: QueueToken;
-    openPanels: Panel[];
-    onCall: (targetPanelId: string, tokenId: string) => void;
-    callingId: string | null;
-    onChanged: () => void;
-}) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: token.token_id,
-    });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-    const [expanded, setExpanded] = useState(false);
-
-    return (
-        <div ref={setNodeRef} style={style} className="border border-white/10 bg-black/20">
-            <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                <button
-                    type="button"
-                    {...attributes}
-                    {...listeners}
-                    className="shrink-0 cursor-grab touch-none text-gray-500 transition hover:text-white active:cursor-grabbing"
-                    aria-label="Drag to reorder"
-                >
-                    <GripVertical className="h-4 w-4" />
-                </button>
-                <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{token.token_number}</span>
-                <button
-                    type="button"
-                    onClick={() => setExpanded((e) => !e)}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-                    aria-expanded={expanded}
-                    aria-label={expanded ? "Collapse profile" : "Expand profile"}
-                >
-                    <ChevronDown
-                        className={`h-3.5 w-3.5 shrink-0 text-gray-500 transition-transform duration-150 ${expanded ? "" : "-rotate-90"}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
-                </button>
-                {token.is_walkin && (
-                    <span
-                        title="Not shortlisted, walk-in"
-                        className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
-                    >
-                        <Footprints className="h-3 w-3" /> Walk-in
-                    </span>
-                )}
-                <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
-                <div className="flex shrink-0 flex-wrap gap-1">
-                    {openPanels.map((p) => (
-                        <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => onCall(p.id, token.token_id)}
-                            disabled={callingId === token.token_id}
-                            title={`Call to ${p.domain_label}`}
-                            className="inline-flex items-center gap-1 bg-red/15 px-2 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
-                        >
-                            <PhoneCall className="h-3 w-3" /> {p.domain_label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            {expanded && (
-                <div className="border-t border-white/10 p-3">
-                    <RecruitProfileCard token={token} onChanged={onChanged} />
-                </div>
-            )}
-        </div>
-    );
-}
-
-// ONE shared waiting list for the whole sub-domain, combining every currently open
-// table's `waiting` tokens - the core of the manual, cross-table calling model. Grouped
-// visually by table (with a sub-header) rather than flattened into one global order,
-// because the drag-reorder endpoint is scoped to a single panel_id: it can only place a
-// token relative to OTHER waiting tokens on that SAME panel, so a per-table DndContext
-// keeps every drag operation valid by construction - a token can never be dragged into
-// another table's queue (that's what the "Call to X" buttons are for instead).
-function SharedWaitingQueue({
-    subDomain,
-    openPanels,
-    tokensByPanel,
-    loading,
-    onChanged,
-}: {
-    subDomain: string;
-    openPanels: Panel[];
-    tokensByPanel: Record<string, QueueToken[]>;
-    loading: boolean;
-    onChanged: () => void;
-}) {
-    const [callingId, setCallingId] = useState<string | null>(null);
-    const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-    const groups = openPanels.map((p) => ({
-        panel: p,
-        waiting: (tokensByPanel[p.id] ?? []).filter((t) => t.status === "waiting"),
-    }));
-    const totalWaiting = groups.reduce((n, g) => n + g.waiting.length, 0);
-
-    const callToken = async (targetPanelId: string, tokenId: string) => {
-        setCallingId(tokenId);
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/${targetPanelId}/call-token`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token_id: tokenId }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
-            } else {
-                toast.error(data.error || "Could not call this recruit");
-            }
-        } finally {
-            setCallingId(null);
-            onChanged();
-        }
-    };
-
-    const makeDragEndHandler = (panelId: string, waiting: QueueToken[]) => async (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-
-        const oldIndex = waiting.findIndex((t) => t.token_id === active.id);
-        const newIndex = waiting.findIndex((t) => t.token_id === over.id);
-        if (oldIndex === -1 || newIndex === -1) return;
-
-        const reordered = arrayMove(waiting, oldIndex, newIndex);
-        const movedToken = reordered[newIndex];
-        const afterToken = newIndex > 0 ? reordered[newIndex - 1] : null;
-
-        try {
-            const res = await fetch(
-                `/api/admin/recruitment/panels/${panelId}/tokens/${movedToken.token_id}/reorder`,
-                {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ after_token_id: afterToken ? afterToken.token_id : null }),
-                }
-            );
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                toast.error(data.error || "Could not reorder queue");
-            }
-        } catch {
-            toast.error("Network error while reordering");
-        } finally {
-            onChanged();
-        }
-    };
-
-    return (
-        <div className="border border-white/10 bg-black">
-            <div className="px-4 py-2.5 border-b border-white/10">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" /> Waiting: {subDomainLabel(subDomain)} ({totalWaiting})
-                    </h3>
-                    <a
-                        href={`/api/admin/recruitment/interview-results/export?sub_domain=${subDomain}`}
-                        download
-                        title={`Export ${subDomainLabel(subDomain)} interview roster as CSV`}
-                        className="inline-flex shrink-0 items-center gap-1 bg-white/5 px-2 py-1 text-[11px] font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 hover:text-white"
-                    >
-                        <Download className="h-3 w-3" /> Export CSV
-                    </a>
-                </div>
-                <p className="mt-0.5 text-xs text-gray-500">
-                    Click a table button to call that recruit there. Drag to reorder within a table&apos;s own line.
-                </p>
-            </div>
-            {loading ? (
-                <div className="p-5 text-center text-gray-500 text-sm">Loading...</div>
-            ) : totalWaiting === 0 ? (
-                <div className="p-5 text-center text-gray-500 text-sm">Nobody is waiting.</div>
-            ) : (
-                <div className="p-3 space-y-3">
-                    {groups.map(
-                        (g) =>
-                            g.waiting.length > 0 && (
-                                <div key={g.panel.id}>
-                                    {openPanels.length > 1 && (
-                                        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                                            {g.panel.domain_label}
-                                        </p>
-                                    )}
-                                    <DndContext
-                                        sensors={dragSensors}
-                                        collisionDetection={closestCenter}
-                                        onDragEnd={makeDragEndHandler(g.panel.id, g.waiting)}
-                                    >
-                                        <SortableContext items={g.waiting.map((t) => t.token_id)} strategy={verticalListSortingStrategy}>
-                                            <div className="space-y-1.5">
-                                                {g.waiting.map((t) => (
-                                                    <SortableSharedRow
-                                                        key={t.token_id}
-                                                        token={t}
-                                                        openPanels={openPanels}
-                                                        onCall={callToken}
-                                                        callingId={callingId}
-                                                        onChanged={onChanged}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </SortableContext>
-                                    </DndContext>
-                                </div>
-                            )
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-// One sub-domain's full board: its own "Add Table" (domain already fixed), every open
-// table's TableSlot, any closed tables for this domain (compact PanelCard), and the one
-// shared waiting queue for the whole domain.
-function SubDomainBoard({
-    subDomain,
-    panels,
-    tokensByPanel,
-    loading,
-    onChanged,
-}: {
-    subDomain: RecruitSubDomain;
-    panels: Panel[];
-    tokensByPanel: Record<string, QueueToken[]>;
-    loading: boolean;
-    onChanged: () => void;
-}) {
-    const openPanels = panels.filter((p) => p.is_active).sort((a, b) => (a.table_number ?? 0) - (b.table_number ?? 0));
-    const closedPanels = panels.filter((p) => !p.is_active);
-
-    return (
-        <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-black uppercase tracking-wide text-white">{subDomainLabel(subDomain)}</h3>
-                <AddPanelForm subDomain={subDomain} onCreated={onChanged} />
-            </div>
-
-            {openPanels.length === 0 && closedPanels.length === 0 && (
-                <div className="border border-white/10 bg-black p-5 text-center text-xs text-gray-500">
-                    No tables open yet.
-                </div>
-            )}
-
-            {openPanels.map((p) => (
-                <TableSlot key={p.id} panel={p} tokens={tokensByPanel[p.id] ?? []} onChanged={onChanged} />
-            ))}
-
-            {closedPanels.length > 0 && (
-                <div className="space-y-2">
-                    {closedPanels.map((p) => (
-                        <PanelCard key={p.id} panel={p} onChanged={onChanged} />
-                    ))}
-                </div>
-            )}
-
-            {openPanels.length > 0 && (
-                <SharedWaitingQueue
-                    subDomain={subDomain}
-                    openPanels={openPanels}
-                    tokensByPanel={tokensByPanel}
-                    loading={loading}
-                    onChanged={onChanged}
-                />
-            )}
-        </div>
-    );
-}
-
 interface InterviewResultRow {
     id: string;
     recruit_id: string;
@@ -1065,6 +298,12 @@ interface InterviewResultRow {
     is_walkin: boolean;
     interviewer_username: string;
     decided_at: string | null;
+    // Resolved live through this recruit's current interview token - null if no token
+    // matches (shouldn't happen) or the token's panel was hard-deleted (paused/closed
+    // panels still resolve, since the panel page itself shows a "closed" state for those).
+    panel_id: string | null;
+    panel_is_active: boolean | null;
+    panel_label: string | null;
 }
 
 const RESULT_STYLES: Record<InterviewResultRow["result"], string> = {
@@ -1102,7 +341,7 @@ function groupResultsByDomain(rows: InterviewResultRow[]): { sub_domain: string;
 // uses, WITHOUT a panel_id - per the route's documented judgment call, omitting it
 // means the correction only touches the result row (and recomputes is_selected),
 // never token state. This is the only place in the app a logged result can be seen
-// or fixed after the fact - logging a result removes it from the panel dashboard
+// or fixed after the fact - logging a result removes it from a table's own view
 // entirely once the token flips to `done`.
 function EditResultRow({ row, onSaved, onCancel }: { row: InterviewResultRow; onSaved: () => void; onCancel: () => void }) {
     const [notes, setNotes] = useState(row.notes ?? "");
@@ -1254,7 +493,17 @@ function DomainResultsSection({
                                     <tr key={row.id} className="border-b border-white/5 last:border-0">
                                         <td className="px-5 py-2.5">
                                             <div className="flex flex-wrap items-center gap-1.5">
-                                                <span className="font-medium text-white">{row.name}</span>
+                                                {row.panel_id ? (
+                                                    <Link
+                                                        href={`/dashboard/recruitment/interview/${row.panel_id}?recruit=${row.recruit_id}`}
+                                                        title={row.panel_label ? `Go to ${row.panel_label}` : "Go to this recruit's panel"}
+                                                        className="font-medium text-white underline decoration-dotted decoration-gray-600 underline-offset-2 transition hover:text-red hover:decoration-red"
+                                                    >
+                                                        {row.name}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="font-medium text-white">{row.name}</span>
+                                                )}
                                                 {row.is_walkin && (
                                                     <span
                                                         title="Not shortlisted, let in as a walk-in"
@@ -1333,7 +582,7 @@ function InterviewResultsList() {
                 </div>
             ) : rows.length === 0 ? (
                 <div className="border border-white/10 bg-black p-6 text-center text-sm text-gray-500">
-                    No results logged yet. They&apos;ll show up here as panels call recruits in.
+                    No results logged yet. They&apos;ll show up here as tables call recruits in.
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -1359,11 +608,11 @@ function InterviewResultsList() {
 
 export default function InterviewManagementPage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
+    const router = useRouter();
     const [panels, setPanels] = useState<Panel[]>([]);
-    const [tokensByPanel, setTokensByPanel] = useState<Record<string, QueueToken[]>>({});
     const [loading, setLoading] = useState(true);
-    const [queuesLoading, setQueuesLoading] = useState(true);
     const [noCycle, setNoCycle] = useState(false);
+    const [selectedDomain, setSelectedDomain] = useState<RecruitSubDomain | null>(null);
 
     const loadPanels = useCallback(async (): Promise<Panel[]> => {
         try {
@@ -1385,97 +634,62 @@ export default function InterviewManagementPage() {
         return [];
     }, []);
 
-    // Every currently open table's own queue, fetched in parallel. The old master-detail
-    // dashboard only ever fetched one (the selected) panel's queue at a time; the new
-    // all-tables-visible-at-once board needs every open table's queue simultaneously so
-    // it can render each one's own "Now Serving" slot plus the merged shared queue.
-    const loadQueues = useCallback(async (panelList: Panel[]) => {
-        const openIds = panelList.filter((p) => p.is_active).map((p) => p.id);
-        if (openIds.length === 0) {
-            setTokensByPanel({});
-            setQueuesLoading(false);
-            return;
-        }
-        try {
-            const results = await Promise.all(
-                openIds.map(async (id) => {
-                    const res = await fetch(`/api/admin/recruitment/panels/${id}/queue`);
-                    const data = await res.json();
-                    return [id, res.ok ? ((data.data ?? []) as QueueToken[]) : []] as const;
-                })
-            );
-            setTokensByPanel(Object.fromEntries(results));
-        } finally {
-            setQueuesLoading(false);
-        }
-    }, []);
-
-    // Always reads the just-fetched panel list directly (not React state, which wouldn't
-    // have committed yet) so loadQueues never races a stale panels array.
-    const refreshAll = useCallback(async () => {
-        const list = await loadPanels();
-        await loadQueues(list);
-    }, [loadPanels, loadQueues]);
-
+    // Only the panel list is polled here (no per-panel queue fetches) - this page never
+    // shows queue contents, just table counts, so there's nothing else to fetch every 5s.
     useEffect(() => {
         if (!ready) return;
-        refreshAll();
-        const interval = setInterval(refreshAll, 5000);
+        loadPanels();
+        const interval = setInterval(loadPanels, 5000);
         return () => clearInterval(interval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ready]);
 
+    // AddPanelForm's onCreated takes no arguments and its submit logic isn't ours to touch,
+    // so the freshly created panel's id is recovered by diffing this domain's active panel
+    // ids before and after the refetch it triggers - whichever id is new is the one just
+    // created. Safe even if someone else opens a table for the same domain in that instant,
+    // since only a genuinely new id qualifies.
+    const handlePanelCreated = useCallback(async () => {
+        const beforeIds = new Set(
+            panels.filter((p) => p.sub_domain === selectedDomain && p.is_active).map((p) => p.id)
+        );
+        const list = await loadPanels();
+        const created = list.find((p) => p.sub_domain === selectedDomain && p.is_active && !beforeIds.has(p.id));
+        if (created) {
+            router.push(`/dashboard/recruitment/interview/${created.id}`);
+        }
+    }, [panels, selectedDomain, loadPanels, router]);
+
     if (!ready) return null;
 
-    const totals = panels.reduce(
-        (acc, p) => ({
-            open: acc.open + (p.is_active ? 1 : 0),
-            waiting: acc.waiting + p.counts.waiting,
-            called: acc.called + p.counts.called,
-            done: acc.done + p.counts.done,
-        }),
-        { open: 0, waiting: 0, called: 0, done: 0 }
-    );
-
-    // 4 columns, one per subsystem, in RECRUIT_SUBSYSTEMS order (SPACED, SIESED, MCSOCD,
-    // SAMBED) - SPACED/MCSOCD naturally end up with 2 stacked SubDomainBoards since they
-    // have 2 sub-domains each; SIESED/SAMBED get exactly 1, filling the column alone.
     const subsystemGroups = groupBySubsystem();
-    // Pre-2026-08-13 free-text panels (or any panel somehow created with no sub_domain)
-    // don't belong to any column above - surfaced separately so they stay manageable
-    // instead of silently disappearing from the page.
-    const legacyPanels = panels.filter((p) => !p.sub_domain);
+
+    // Sums every panel's counts.waiting for a domain (open or paused - recruits waiting on
+    // a paused table are still waiting somewhere), and counts how many of that domain's
+    // tables are currently open. Purely client-side from the one list already being
+    // polled - no new endpoint needed just to show "3 tables open, 12 waiting".
+    const domainSummary = (key: string) => {
+        const domainPanels = panels.filter((p) => p.sub_domain === key);
+        return {
+            open: domainPanels.filter((p) => p.is_active).length,
+            waiting: domainPanels.reduce((n, p) => n + p.counts.waiting, 0),
+        };
+    };
+
+    const activePanelsForDomain = selectedDomain
+        ? panels.filter((p) => p.sub_domain === selectedDomain && p.is_active)
+        : [];
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                        <Radio className="w-7 h-7 text-red" />
-                        Interview Day
-                    </h1>
-                    <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                        Every subsystem&apos;s tables at once: call recruits in, pull anyone from a shared domain
-                        queue to your own table, and log results. Walk-in, no time slots.
-                    </p>
-                </div>
-
-                {!noCycle && !loading && panels.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1.5 bg-white/5 px-3 py-1.5 font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
-                            {totals.open} of {panels.length} tables open
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
-                            <Clock3 className="h-3.5 w-3.5" /> {totals.waiting} waiting
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 bg-blue-500/10 px-3 py-1.5 font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
-                            <PhoneCall className="h-3.5 w-3.5" /> {totals.called} in progress
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> {totals.done} done
-                        </span>
-                    </div>
-                )}
+            <div>
+                <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                    <Radio className="w-7 h-7 text-red" />
+                    Interview Day
+                </h1>
+                <p className="mt-2 text-gray-400 text-sm max-w-xl">
+                    Pick a domain, then join an open table or start a new one. Walk-in, no time slots.
+                </p>
             </div>
 
             {noCycle ? (
@@ -1483,40 +697,76 @@ export default function InterviewManagementPage() {
                     No active recruitment cycle. Start one from Cycles before opening interview panels.
                 </div>
             ) : loading ? (
-                <div className="p-8 text-center text-gray-500 text-sm">Loading tables...</div>
+                <div className="p-8 text-center text-gray-500 text-sm">Loading domains...</div>
+            ) : !selectedDomain ? (
+                <div className="space-y-6">
+                    {subsystemGroups.map((group) => (
+                        <div key={group.subsystem} className="space-y-3">
+                            <h2 className="text-xs font-black uppercase tracking-widest text-red">{group.subsystem}</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {group.domains.map((d) => {
+                                    const summary = domainSummary(d.key);
+                                    return (
+                                        <button
+                                            key={d.key}
+                                            type="button"
+                                            onClick={() => setSelectedDomain(d.key)}
+                                            className="border border-white/10 bg-black p-4 text-left transition hover:border-red/40 hover:bg-red/[0.04]"
+                                        >
+                                            <h3 className="text-base font-bold text-white">{d.label}</h3>
+                                            <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                                                <span className="inline-flex items-center gap-1 bg-white/5 px-1.5 py-0.5 font-semibold text-gray-300 ring-1 ring-inset ring-white/10">
+                                                    {summary.open} table{summary.open === 1 ? "" : "s"} open
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                                                    <Clock3 className="h-3 w-3" /> {summary.waiting} waiting
+                                                </span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             ) : (
-                <>
-                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
-                        {subsystemGroups.map((group) => (
-                            <div key={group.subsystem} className="space-y-6">
-                                <h2 className="text-xs font-black uppercase tracking-widest text-red">{group.subsystem}</h2>
-                                {group.domains.map((d) => (
-                                    <SubDomainBoard
-                                        key={d.key}
-                                        subDomain={d.key}
-                                        panels={panels.filter((p) => p.sub_domain === d.key)}
-                                        tokensByPanel={tokensByPanel}
-                                        loading={queuesLoading}
-                                        onChanged={refreshAll}
-                                    />
-                                ))}
+                <div className="space-y-4">
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedDomain(null)}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition hover:text-white"
+                        >
+                            <ArrowLeft className="h-3.5 w-3.5" /> All domains
+                        </button>
+                        <h2 className="mt-1 text-xl font-black text-white">{subDomainFullLabel(selectedDomain)}</h2>
+                    </div>
+
+                    <div className="space-y-3">
+                        {activePanelsForDomain.length === 0 && (
+                            <div className="border border-white/10 bg-black p-5 text-center text-xs text-gray-500">
+                                No tables open yet for this domain.
+                            </div>
+                        )}
+                        {activePanelsForDomain.map((p) => (
+                            <div key={p.id} className="space-y-1.5">
+                                <PanelCard panel={p} onChanged={loadPanels} />
+                                <button
+                                    type="button"
+                                    onClick={() => router.push(`/dashboard/recruitment/interview/${p.id}`)}
+                                    className="w-full inline-flex items-center justify-center gap-2 bg-red/15 px-4 py-2 text-sm font-bold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25"
+                                >
+                                    <PhoneCall className="h-4 w-4" /> Join This Table
+                                </button>
                             </div>
                         ))}
                     </div>
 
-                    {legacyPanels.length > 0 && (
-                        <div className="space-y-3">
-                            <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">
-                                Unassigned Tables (no domain)
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {legacyPanels.map((p) => (
-                                    <PanelCard key={p.id} panel={p} onChanged={refreshAll} />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </>
+                    <div>
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-gray-500">Or start a new table</p>
+                        <AddPanelForm subDomain={selectedDomain} onCreated={handlePanelCreated} />
+                    </div>
+                </div>
             )}
 
             {!noCycle && <InterviewResultsList />}

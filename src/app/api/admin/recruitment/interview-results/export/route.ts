@@ -41,6 +41,7 @@ const HEADER = [
   "Area",
   "Travel Method",
   "Domain",
+  "Table",
   "Marks",
   "Token Status",
   "Walk-in",
@@ -48,7 +49,10 @@ const HEADER = [
   "Called At",
   "Result",
   "Result Notes",
+  "Rating",
   "Review Note",
+  "Interested In Other Clubs",
+  "Interested In Other Domains",
   "Reviewed By",
   "Reviewed At",
 ];
@@ -65,10 +69,11 @@ async function getActiveCycleId(supabase: ReturnType<typeof createRecruitSupabas
 // GET /api/admin/recruitment/interview-results/export?sub_domain=coding
 // CSV of everyone checked in for THIS domain's interview - the roster, not just those with
 // a logged result, so it also captures who is still waiting/called/no-show, their marks,
-// and any review note a panel has already written (see migration 022). Scoped to one
-// domain at a time, matching the tab a lead has open on /dashboard/recruitment/interview -
-// exporting all six at once would mix table numbers/statuses that only make sense per
-// domain and force a lead to filter it back out in a spreadsheet anyway.
+// which table they're checked into, and any review note/rating/other-interests a panel has
+// already written (migrations 022 and 023). Scoped to one domain at a time, matching the
+// tab a lead has open on /dashboard/recruitment/interview - exporting all six at once would
+// mix table numbers/statuses that only make sense per domain and force a lead to filter it
+// back out in a spreadsheet anyway.
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -96,7 +101,7 @@ export async function GET(request: NextRequest) {
   const { data: tokens, error: tokensError } = await supabase
     .from("recruit_interview_tokens")
     .select(
-      "id, recruit_id, status, is_walkin, checked_in_at, called_at, review_note, review_updated_by, review_updated_at"
+      "id, recruit_id, panel_id, status, is_walkin, checked_in_at, called_at, review_note, rating, interested_other_clubs, interested_other_domains, review_updated_by, review_updated_at"
     )
     .eq("cycle_id", cycleId)
     .eq("sub_domain", sub_domain)
@@ -112,8 +117,9 @@ export async function GET(request: NextRequest) {
   }
 
   const recruitIds = Array.from(new Set(tokens.map((t) => t.recruit_id)));
+  const panelIds = Array.from(new Set(tokens.map((t: any) => t.panel_id).filter(Boolean)));
 
-  const [{ data: accounts }, { data: marksRows }, { data: results }] = await Promise.all([
+  const [{ data: accounts }, { data: marksRows }, { data: results }, { data: panels }] = await Promise.all([
     supabase
       .from("recruit_accounts")
       .select(
@@ -127,11 +133,18 @@ export async function GET(request: NextRequest) {
       .eq("cycle_id", cycleId)
       .eq("sub_domain", sub_domain)
       .in("recruit_id", recruitIds),
+    // Table name (domain_label, e.g. "SPACED-Coding-1") - which panel a recruit is/was
+    // checked into. A cross-panel reassignment updates panel_id on the same token in
+    // place, so this always reflects whichever table currently holds them.
+    panelIds.length > 0
+      ? supabase.from("recruit_interview_panels").select("id, domain_label").in("id", panelIds)
+      : Promise.resolve({ data: [] as { id: string; domain_label: string }[] }),
   ]);
 
   const accountById = new Map((accounts ?? []).map((a: any) => [a.id, a]));
   const marksByRecruit = new Map((marksRows ?? []).map((m: any) => [m.recruit_id, m.marks]));
   const resultByRecruit = new Map((results ?? []).map((r: any) => [r.recruit_id, r]));
+  const panelLabelById = new Map((panels ?? []).map((p: any) => [p.id, p.domain_label]));
   const reviewerNames = await resolveDisplayNames(
     supabase,
     tokens.map((t: any) => t.review_updated_by)
@@ -157,6 +170,7 @@ export async function GET(request: NextRequest) {
       acc?.is_hosteller ? "" : acc?.day_scholar_area ?? "",
       acc?.is_hosteller ? "" : travelMethodLabel(acc?.travel_method) || "",
       domainLabel,
+      t.panel_id ? panelLabelById.get(t.panel_id) ?? "" : "",
       marks === undefined || marks === null ? "" : Number(marks),
       t.status,
       t.is_walkin ? "Yes" : "No",
@@ -164,7 +178,10 @@ export async function GET(request: NextRequest) {
       t.called_at ?? "",
       result?.result ?? "",
       result?.notes ?? "",
+      t.rating ?? "",
       t.review_note ?? "",
+      t.interested_other_clubs ?? "",
+      t.interested_other_domains ?? "",
       t.review_updated_by ? reviewerNames.get(t.review_updated_by) ?? t.review_updated_by : "",
       t.review_updated_at ?? "",
     ];

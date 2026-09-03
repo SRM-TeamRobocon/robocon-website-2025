@@ -43,6 +43,10 @@ export type QueueToken = {
   // Selected/Rejected/Waitlisted result, so it can exist before any decision is made.
   // Written via PATCH /api/admin/recruitment/panels/tokens/:tokenId/review.
   review_note: string | null;
+  // Migration 023, saved/attributed alongside review_note through the same PATCH route.
+  rating: "bad" | "average" | "good" | null;
+  interested_other_clubs: string | null;
+  interested_other_domains: string | null;
   review_updated_by: string | null;
   review_updated_at: string | null;
 };
@@ -169,7 +173,7 @@ export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string)
   const { data: tokens, error } = await supabase
     .from("recruit_interview_tokens")
     .select(
-      "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin, review_note, review_updated_by, review_updated_at"
+      "id, token_number, queue_position, status, checked_in_at, called_at, recruit_id, is_walkin, review_note, rating, interested_other_clubs, interested_other_domains, review_updated_by, review_updated_at"
     )
     .eq("panel_id", panelId)
     .order("queue_position", { ascending: true });
@@ -194,6 +198,9 @@ export async function fetchPanelQueue(supabase: SupabaseClient, panelId: string)
     called_at: t.called_at ?? undefined,
     is_walkin: Boolean(t.is_walkin),
     review_note: t.review_note ?? null,
+    rating: t.rating ?? null,
+    interested_other_clubs: t.interested_other_clubs ?? null,
+    interested_other_domains: t.interested_other_domains ?? null,
     review_updated_by: t.review_updated_by ? reviewerNames.get(t.review_updated_by) ?? t.review_updated_by : null,
     review_updated_at: t.review_updated_at ?? null,
   }));

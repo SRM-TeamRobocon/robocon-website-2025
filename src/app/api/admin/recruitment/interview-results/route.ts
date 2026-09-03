@@ -110,20 +110,78 @@ export async function GET(_request: NextRequest) {
     }
   }
 
+  // `recruit_interview_results` carries no panel_id (see the POST handler's comment - a
+  // recruit can hold tokens on multiple panels across domains, so it's deliberately not
+  // stored on the result row). To let the results list link "back to this recruit's panel"
+  // we resolve it here via their token for the SAME (recruit, domain): that key is unique
+  // per the (recruit_id, cycle_id, sub_domain) shape check-in enforces, and it survives a
+  // cross-panel reassignment (panel_id updates in place on the same token row), so it always
+  // reflects wherever that recruit is checked in right now - not where they were when the
+  // result was first logged.
+  let tokensByRecruitDomain = new Map<string, { panel_id: string; is_active: boolean; domain_label: string }>();
+  if (recruitIds.length > 0) {
+    const { data: tokenRows, error: tokenError } = await selectInChunks<{
+      recruit_id: string;
+      sub_domain: string;
+      panel_id: string;
+    }>(recruitIds, (chunk) =>
+      supabase
+        .from("recruit_interview_tokens")
+        .select("recruit_id, sub_domain, panel_id")
+        .eq("cycle_id", cycleId)
+        .in("recruit_id", chunk)
+    );
+
+    if (tokenError) {
+      console.error("interview-results GET tokens error", tokenError);
+      // Not fatal - the results list still works, it just can't offer the "go to panel" link.
+    } else if (tokenRows.length > 0) {
+      const panelIds = Array.from(new Set(tokenRows.map((t) => t.panel_id)));
+      const { data: panels } = await supabase
+        .from("recruit_interview_panels")
+        .select("id, is_active, domain_label")
+        .in("id", panelIds);
+      const panelById = new Map((panels ?? []).map((p: any) => [p.id, p]));
+
+      tokensByRecruitDomain = new Map(
+        tokenRows
+          .map((t) => {
+            const panel = panelById.get(t.panel_id);
+            if (!panel) return null;
+            return [
+              `${t.recruit_id}:${t.sub_domain}`,
+              { panel_id: t.panel_id, is_active: Boolean(panel.is_active), domain_label: panel.domain_label as string },
+            ] as const;
+          })
+          .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      );
+    }
+  }
+
   const interviewerNames = await resolveDisplayNames(supabase, rows.map((r) => r.interviewer_username));
 
-  const data = rows.map((r) => ({
-    id: r.id,
-    recruit_id: r.recruit_id,
-    name: recruits.get(r.recruit_id)?.name ?? "Unknown",
-    reg_no: recruits.get(r.recruit_id)?.reg_no ?? "",
-    sub_domain: r.sub_domain,
-    result: r.result,
-    notes: r.notes,
-    is_walkin: Boolean(r.is_walkin),
-    interviewer_username: interviewerNames.get(r.interviewer_username) ?? r.interviewer_username,
-    decided_at: r.decided_at,
-  }));
+  const data = rows.map((r) => {
+    const panel = tokensByRecruitDomain.get(`${r.recruit_id}:${r.sub_domain}`);
+    return {
+      id: r.id,
+      recruit_id: r.recruit_id,
+      name: recruits.get(r.recruit_id)?.name ?? "Unknown",
+      reg_no: recruits.get(r.recruit_id)?.reg_no ?? "",
+      sub_domain: r.sub_domain,
+      result: r.result,
+      notes: r.notes,
+      is_walkin: Boolean(r.is_walkin),
+      interviewer_username: interviewerNames.get(r.interviewer_username) ?? r.interviewer_username,
+      decided_at: r.decided_at,
+      // null when the recruit somehow has no token for this domain (shouldn't happen - a
+      // result can only be logged after a call, which requires one) or the table it
+      // resolves to has since been deleted outright (not just closed - closed panels stay
+      // resolvable so the "closed" state can be shown, only a hard delete removes the row).
+      panel_id: panel?.panel_id ?? null,
+      panel_is_active: panel?.is_active ?? null,
+      panel_label: panel?.domain_label ?? null,
+    };
+  });
 
   return NextResponse.json({ data, cycle_id: cycleId });
 }

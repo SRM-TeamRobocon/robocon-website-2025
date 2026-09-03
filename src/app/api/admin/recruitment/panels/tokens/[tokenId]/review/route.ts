@@ -5,21 +5,35 @@ import { getSession, requireRole } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 const MAX_LENGTH = 2000;
+const MAX_INTEREST_LENGTH = 500;
+const VALID_RATINGS = ["bad", "average", "good"] as const;
 
 type RouteContext = { params: Promise<{ tokenId: string }> };
 
+// Trims a string field to null-or-trimmed, capped at `max`. Returns `{ error }` if the
+// trimmed value exceeds the cap, so callers can short-circuit with one message per field.
+// Absent/undefined/null all mean "leave this field out of the update" - every field here
+// is independently optional, so a panel can save just a rating without re-sending the note.
+function optionalText(raw: unknown, max: number, label: string): { value?: string | null; error?: string } {
+  if (raw === undefined) return {};
+  if (raw !== null && typeof raw !== "string") return { error: `${label} must be a string` };
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  if (trimmed.length > max) return { error: `${label} must be ${max} characters or less` };
+  return { value: trimmed === "" ? null : trimmed };
+}
+
 // PATCH /api/admin/recruitment/panels/tokens/:tokenId/review
-// Body: { review_note: string }
+// Body: { review_note?, rating?, interested_other_clubs?, interested_other_domains? } -
+// every field independently optional, so the UI can save whichever ones changed. All four
+// are a panel's live-during-interview notes, independent of the final
+// Selected/Rejected/Waitlisted result. See supabase/recruit-migration-022 (review_note) and
+// -023 (rating, interested_other_clubs, interested_other_domains).
 //
-// A running note a panel can write on a recruit at any point during interview day -
-// while they're waiting, being interviewed, or after - independent of the final
-// Selected/Rejected/Waitlisted result (that's a separate field on recruit_interview_results,
-// logged only once a decision is made). See supabase/recruit-migration-022.
-//
-// member/lead/admin, same as marks entry: this is a note, not a decision, so it doesn't
-// need the tighter gate the shortlist override endpoints have. Last writer wins - blank
-// clears it to null rather than storing an empty string, matching the recruit_marks.note
-// convention elsewhere in this module.
+// member/lead/admin, same as marks entry: these are notes, not decisions, so they don't
+// need the tighter gate the shortlist override endpoints have. Blank clears a text field to
+// null rather than storing an empty string, matching the recruit_marks.note convention
+// elsewhere in this module. One shared `review_updated_by`/`review_updated_at` pair covers
+// all four fields - they're edited together on one card, not attributed separately.
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
@@ -38,35 +52,59 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const raw = body?.review_note;
-  if (raw !== undefined && raw !== null && typeof raw !== "string") {
-    return NextResponse.json({ success: false, error: "review_note must be a string" }, { status: 400 });
+  const reviewNote = optionalText(body?.review_note, MAX_LENGTH, "review_note");
+  if (reviewNote.error) {
+    return NextResponse.json({ success: false, error: reviewNote.error }, { status: 400 });
   }
-  const trimmed = typeof raw === "string" ? raw.trim() : "";
-  if (trimmed.length > MAX_LENGTH) {
-    return NextResponse.json(
-      { success: false, error: `review_note must be ${MAX_LENGTH} characters or less` },
-      { status: 400 }
-    );
+
+  const clubs = optionalText(body?.interested_other_clubs, MAX_INTEREST_LENGTH, "interested_other_clubs");
+  if (clubs.error) {
+    return NextResponse.json({ success: false, error: clubs.error }, { status: 400 });
   }
-  const review_note = trimmed === "" ? null : trimmed;
+
+  const domainsInterest = optionalText(
+    body?.interested_other_domains,
+    MAX_INTEREST_LENGTH,
+    "interested_other_domains"
+  );
+  if (domainsInterest.error) {
+    return NextResponse.json({ success: false, error: domainsInterest.error }, { status: 400 });
+  }
+
+  let rating: string | null | undefined;
+  if (body?.rating !== undefined) {
+    if (body.rating !== null && !VALID_RATINGS.includes(body.rating)) {
+      return NextResponse.json(
+        { success: false, error: "rating must be 'bad', 'average', 'good', or null" },
+        { status: 400 }
+      );
+    }
+    rating = body.rating;
+  }
+
+  const update: Record<string, unknown> = {
+    review_updated_by: session.user,
+    review_updated_at: new Date().toISOString(),
+  };
+  if (reviewNote.value !== undefined) update.review_note = reviewNote.value;
+  if (clubs.value !== undefined) update.interested_other_clubs = clubs.value;
+  if (domainsInterest.value !== undefined) update.interested_other_domains = domainsInterest.value;
+  if (rating !== undefined) update.rating = rating;
 
   const supabase = createRecruitSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from("recruit_interview_tokens")
-    .update({
-      review_note,
-      review_updated_by: session.user,
-      review_updated_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq("id", tokenId)
-    .select("id, review_note, review_updated_by, review_updated_at")
+    .select(
+      "id, review_note, rating, interested_other_clubs, interested_other_domains, review_updated_by, review_updated_at"
+    )
     .maybeSingle();
 
   if (error) {
     console.error("recruitment token review PATCH error", error);
-    return NextResponse.json({ success: false, error: "Could not save review note" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Could not save review" }, { status: 500 });
   }
 
   if (!data) {
