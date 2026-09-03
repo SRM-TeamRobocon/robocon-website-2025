@@ -6,11 +6,12 @@ import { useRequireRole } from "@/hooks/use-require-role";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { GENDERS } from "@/lib/gender";
 
-type DayFilter = "1" | "2" | "all";
+type DayFilter = "1" | "2" | "walkin" | "all";
 
 const DAY_OPTIONS: { value: DayFilter; label: string }[] = [
     { value: "1", label: "Day 1" },
     { value: "2", label: "Day 2" },
+    { value: "walkin", label: "Walk-in" },
     { value: "all", label: "All" },
 ];
 
@@ -47,7 +48,8 @@ interface CheckIn {
     // in front of the whole queue; a recruit's phone number must not appear in a row. It
     // exists solely so someone can find themselves by typing their own number.
     phone: string | null;
-    day: number;
+    day: number | null;
+    is_walkin: boolean;
     at: string;
 }
 
@@ -151,7 +153,7 @@ export default function ExamCheckInBoardPage() {
         }),
         { year1: 0, year2: 0 }
     );
-    const dayLabel = day === "all" ? "any exam day" : `Day ${day}`;
+    const dayLabel = day === "all" ? "any exam day" : day === "walkin" ? "walk-in exams" : `Day ${day}`;
 
     if (!ready) return null;
 
@@ -306,10 +308,10 @@ export default function ExamCheckInBoardPage() {
                                                                 <span className="text-[11px] font-mono text-gray-500">
                                                                     {c.reg_no}
                                                                 </span>
-                                                                {/* Only meaningful when both days are merged into one list. */}
+                                                                {/* Only meaningful when both days (and walk-ins) are merged into one list. */}
                                                                 {day === "all" && (
                                                                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
-                                                                        Day {c.day}
+                                                                        {c.is_walkin ? "Walk-in" : `Day ${c.day}`}
                                                                     </span>
                                                                 )}
                                                             </div>

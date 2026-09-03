@@ -25,7 +25,8 @@ function cutoffKey(sub_domain: string, gender: string, year: string) {
 // Body (optional): { sub_domain?: string } - scopes the run to a single domain instead of
 // all 6. Omit the body (or send `{}`) to run every domain, same as before.
 //
-// Idempotent and safe to re-run: rows with method = 'manual_override' are left untouched.
+// Idempotent and safe to re-run: rows with method = 'manual_override' or 'walkin_manual'
+// are left untouched (see POST /api/admin/recruitment/walkin-shortlist for the latter).
 // Cutoffs are scoped by BOTH gender (migration 013) and year (migration 018), so a domain
 // has four of them - male/year1, male/year2, female/year1, female/year2. A domain needs ALL
 // FOUR set before it runs at all; if any is missing the whole domain is skipped (not just
@@ -164,9 +165,12 @@ export async function POST(request: NextRequest) {
     for (const recruitId of recruitIds) {
       const existing = existingMap.get(recruitId);
 
-      if (existing?.method === "manual_override") {
-        // Leave manual overrides untouched, but still reflect their status in the stats
-        // returned to the caller so "Run Shortlist" shows the full current picture.
+      if (existing?.method === "manual_override" || existing?.method === "walkin_manual") {
+        // Leave manual overrides untouched - including a member's walk-in-exam decision
+        // from POST /api/admin/recruitment/walkin-shortlist, which is a manual call the
+        // same way a lead's override is, just made by a different role through a narrower
+        // endpoint. Still reflect their status in the stats returned to the caller so
+        // "Run Shortlist" shows the full current picture.
         tally(existing.status);
         continue;
       }

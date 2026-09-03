@@ -275,10 +275,20 @@ create table if not exists recruit_exam_attendance (
   cycle_id    uuid not null references recruitment_cycles(id),
   recruit_id  uuid not null references recruit_accounts(id) on delete cascade,
   sub_domain  recruit_subdomain not null,
-  day         integer not null check (day in (1, 2)),
+  -- Nullable since migration 021: a walk-in catch-up sitting (is_walkin = true) has no
+  -- day, since it isn't tied to either scheduled exam day.
+  day         integer check (day is null or day in (1, 2)),
+  -- Migration 021 — a recruit who already selected this domain but sat neither scheduled
+  -- day gets one more chance, typically during interview day. Eligibility is unchanged
+  -- (still must have selected the domain); this only records WHEN it was sat.
+  is_walkin   boolean not null default false,
   scanned_at  timestamptz default now(),
   scanned_by  text,
-  unique (recruit_id, cycle_id, sub_domain)
+  unique (recruit_id, cycle_id, sub_domain),
+  constraint recruit_exam_attendance_walkin_day_pairing check (
+    (is_walkin = true and day is null)
+    or (is_walkin = false and day in (1, 2))
+  )
 );
 
 alter table recruit_exam_attendance enable row level security;
@@ -345,6 +355,33 @@ do $$ begin
     add constraint recruit_exam_attendance_recruit_cycle_subdomain_key
     unique (recruit_id, cycle_id, sub_domain);
 exception when duplicate_table or duplicate_object then null; end $$;
+
+-- Migration 021 upgrade block, for a DB created before is_walkin existed.
+alter table recruit_exam_attendance
+  add column if not exists is_walkin boolean not null default false;
+
+alter table recruit_exam_attendance
+  alter column day drop not null;
+
+do $$ begin
+  alter table recruit_exam_attendance
+    drop constraint if exists recruit_exam_attendance_day_check;
+exception when undefined_object then null; end $$;
+
+do $$ begin
+  alter table recruit_exam_attendance
+    add constraint recruit_exam_attendance_day_check
+    check (day is null or day in (1, 2));
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter table recruit_exam_attendance
+    add constraint recruit_exam_attendance_walkin_day_pairing
+    check (
+      (is_walkin = true and day is null)
+      or (is_walkin = false and day in (1, 2))
+    );
+exception when duplicate_object then null; end $$;
 
 ---------------------------------------------------------------------------
 -- recruit_marks

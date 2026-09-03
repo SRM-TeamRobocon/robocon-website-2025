@@ -16,7 +16,8 @@ type AttendanceRow = {
     id: string;
     recruit_id: string;
     sub_domain: string;
-    day: number;
+    day: number | null;
+    is_walkin: boolean;
     scanned_at: string;
     recruit_accounts: Account;
 };
@@ -41,7 +42,7 @@ function yearBucket(year: string | undefined | null): YearBucket {
 
 const EMPTY_COUNTS = (): Record<YearBucket, number> => ({ year1: 0, year2: 0, other: 0 });
 
-// GET /api/admin/recruitment/exam-checkin?day=1|2|all
+// GET /api/admin/recruitment/exam-checkin?day=1|2|walkin|all
 //
 // Backs the exam check-in board at /dashboard/recruitment/exam-checkin - the exam-day
 // equivalent of the interview board: one column per domain showing who has been scanned in,
@@ -65,8 +66,8 @@ export async function GET(request: NextRequest) {
     }
 
     const dayParam = new URL(request.url).searchParams.get("day") ?? "1";
-    if (dayParam !== "1" && dayParam !== "2" && dayParam !== "all") {
-        return NextResponse.json({ success: false, error: "day must be 1, 2 or all" }, { status: 400 });
+    if (dayParam !== "1" && dayParam !== "2" && dayParam !== "walkin" && dayParam !== "all") {
+        return NextResponse.json({ success: false, error: "day must be 1, 2, walkin or all" }, { status: 400 });
     }
 
     const supabase = createRecruitSupabaseAdminClient();
@@ -90,9 +91,10 @@ export async function GET(request: NextRequest) {
         fetchAllRows<AttendanceRow>((from, to) => {
             let q = supabase
                 .from("recruit_exam_attendance")
-                .select("id, recruit_id, sub_domain, day, scanned_at, recruit_accounts(name, reg_no, year, gender, phone)")
+                .select("id, recruit_id, sub_domain, day, is_walkin, scanned_at, recruit_accounts(name, reg_no, year, gender, phone)")
                 .eq("cycle_id", cycle.id);
-            if (dayParam !== "all") q = q.eq("day", Number(dayParam));
+            if (dayParam === "walkin") q = q.eq("is_walkin", true);
+            else if (dayParam !== "all") q = q.eq("day", Number(dayParam));
             return q
                 .order("scanned_at", { ascending: false })
                 .order("id", { ascending: false })
@@ -132,7 +134,7 @@ export async function GET(request: NextRequest) {
     // Don't add either to the JSX on /dashboard/recruitment/exam-checkin.
     // gender stays nullable end to end: a recruit with none on file is still listed, and is
     // simply not matched by either specific pill.
-    type CheckIn = { recruit_id: string; name: string; reg_no: string; year: string; gender: string | null; phone: string | null; day: number; at: string };
+    type CheckIn = { recruit_id: string; name: string; reg_no: string; year: string; gender: string | null; phone: string | null; day: number | null; is_walkin: boolean; at: string };
     const checkedInByDomain = new Map<string, Record<YearBucket, CheckIn[]>>();
     for (const row of attendance) {
         const acc = accountOf(row.recruit_accounts);
@@ -145,6 +147,7 @@ export async function GET(request: NextRequest) {
             gender: acc?.gender ?? null,
             phone: acc?.phone ?? null,
             day: row.day,
+            is_walkin: row.is_walkin,
             at: row.scanned_at,
         });
         checkedInByDomain.set(row.sub_domain, buckets);

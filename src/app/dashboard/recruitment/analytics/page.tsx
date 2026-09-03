@@ -104,8 +104,8 @@ interface AnalyticsData {
             email_unverified: number;
         };
         exam: {
-            by_day: { day_1: number; day_2: number };
-            by_domain_day: { sub_domain: string; day_1: number; day_2: number; total: number }[];
+            by_day: { day_1: number; day_2: number; walkin: number };
+            by_domain_day: { sub_domain: string; day_1: number; day_2: number; walkin: number; total: number }[];
             sittings: number;
             marks_entered: number;
             marks_histogram: { label: string; count: number }[];
@@ -870,13 +870,15 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
         name: subDomainLabel(row.sub_domain),
         "Day 1": row.day_1,
         "Day 2": row.day_2,
+        "Walk-in": row.walkin,
     }));
 
     return (
         <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 <StatTile label="Day 1 scans" value={extras.by_day.day_1.toLocaleString()} />
                 <StatTile label="Day 2 scans" value={extras.by_day.day_2.toLocaleString()} />
+                <StatTile label="Walk-in scans" value={extras.by_day.walkin.toLocaleString()} />
                 <StatTile
                     label="Total sittings"
                     value={extras.sittings.toLocaleString()}
@@ -887,8 +889,8 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
 
             <Card>
                 <CardHeader
-                    title="By Domain - Day 1 vs Day 2"
-                    caption="Exam attendance is one row per recruit per domain, so a domain's Day 1 and Day 2 counts add up to its total attendees - nobody is double-counted."
+                    title="By Domain - Day 1 vs Day 2 vs Walk-in"
+                    caption="Exam attendance is one row per recruit per domain, so a domain's Day 1, Day 2 and Walk-in counts add up to its total attendees - nobody is double-counted. Walk-ins are recruits who missed both scheduled days and sat a catch-up exam, typically on interview day."
                 />
                 <div className="px-5 pt-4" style={{ width: "100%", height: 300 }}>
                     <ResponsiveContainer>
@@ -899,7 +901,8 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
                             <Tooltip content={ChartTooltip} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                             <Legend wrapperStyle={legendStyle} iconType="circle" iconSize={8} />
                             <Bar dataKey="Day 1" stackId="day" fill="#3987e5" maxBarSize={56} />
-                            <Bar dataKey="Day 2" stackId="day" fill="#c98500" radius={[4, 4, 0, 0]} maxBarSize={56} />
+                            <Bar dataKey="Day 2" stackId="day" fill="#c98500" maxBarSize={56} />
+                            <Bar dataKey="Walk-in" stackId="day" fill="#6b6b68" radius={[4, 4, 0, 0]} maxBarSize={56} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -910,6 +913,7 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
                                 <th className="px-5 py-3">Domain</th>
                                 <th className="px-5 py-3">Day 1</th>
                                 <th className="px-5 py-3">Day 2</th>
+                                <th className="px-5 py-3">Walk-in</th>
                                 <th className="px-5 py-3">Overall</th>
                             </tr>
                         </thead>
@@ -924,6 +928,7 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
                                     </td>
                                     <td className="px-5 py-3 text-gray-300">{row.day_1}</td>
                                     <td className="px-5 py-3 text-gray-300">{row.day_2}</td>
+                                    <td className="px-5 py-3 text-gray-300">{row.walkin}</td>
                                     <td className="px-5 py-3 text-white font-semibold">{row.total}</td>
                                 </tr>
                             ))}
@@ -931,6 +936,7 @@ function ExamExtras({ extras }: { extras: AnalyticsData["stage_extras"]["exam"] 
                                 <td className="px-5 py-3 text-white font-bold">All domains</td>
                                 <td className="px-5 py-3 text-gray-300 font-semibold">{extras.by_day.day_1}</td>
                                 <td className="px-5 py-3 text-gray-300 font-semibold">{extras.by_day.day_2}</td>
+                                <td className="px-5 py-3 text-gray-300 font-semibold">{extras.by_day.walkin}</td>
                                 <td className="px-5 py-3 text-white font-bold">{extras.sittings}</td>
                             </tr>
                         </tbody>

@@ -637,47 +637,62 @@ function SortableSharedRow({
         transition,
         opacity: isDragging ? 0.5 : 1,
     };
+    const [expanded, setExpanded] = useState(false);
 
     return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className="flex flex-wrap items-center gap-2 border border-white/10 bg-black/20 px-3 py-2.5"
-        >
-            <button
-                type="button"
-                {...attributes}
-                {...listeners}
-                className="shrink-0 cursor-grab touch-none text-gray-500 transition hover:text-white active:cursor-grabbing"
-                aria-label="Drag to reorder"
-            >
-                <GripVertical className="h-4 w-4" />
-            </button>
-            <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{token.token_number}</span>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
-            {token.is_walkin && (
-                <span
-                    title="Not shortlisted, walk-in"
-                    className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+        <div ref={setNodeRef} style={style} className="border border-white/10 bg-black/20">
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+                <button
+                    type="button"
+                    {...attributes}
+                    {...listeners}
+                    className="shrink-0 cursor-grab touch-none text-gray-500 transition hover:text-white active:cursor-grabbing"
+                    aria-label="Drag to reorder"
                 >
-                    <Footprints className="h-3 w-3" /> Walk-in
-                </span>
-            )}
-            <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
-            <div className="flex shrink-0 flex-wrap gap-1">
-                {openPanels.map((p) => (
-                    <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => onCall(p.id, token.token_id)}
-                        disabled={callingId === token.token_id}
-                        title={`Call to ${p.domain_label}`}
-                        className="inline-flex items-center gap-1 bg-red/15 px-2 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
+                    <GripVertical className="h-4 w-4" />
+                </button>
+                <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{token.token_number}</span>
+                <button
+                    type="button"
+                    onClick={() => setExpanded((e) => !e)}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                    aria-expanded={expanded}
+                    aria-label={expanded ? "Collapse profile" : "Expand profile"}
+                >
+                    <ChevronDown
+                        className={`h-3.5 w-3.5 shrink-0 text-gray-500 transition-transform duration-150 ${expanded ? "" : "-rotate-90"}`}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{token.recruit.name}</span>
+                </button>
+                {token.is_walkin && (
+                    <span
+                        title="Not shortlisted, walk-in"
+                        className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
                     >
-                        <PhoneCall className="h-3 w-3" /> {p.domain_label}
-                    </button>
-                ))}
+                        <Footprints className="h-3 w-3" /> Walk-in
+                    </span>
+                )}
+                <span className="shrink-0 text-xs text-gray-500">{token.recruit.reg_no}</span>
+                <div className="flex shrink-0 flex-wrap gap-1">
+                    {openPanels.map((p) => (
+                        <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => onCall(p.id, token.token_id)}
+                            disabled={callingId === token.token_id}
+                            title={`Call to ${p.domain_label}`}
+                            className="inline-flex items-center gap-1 bg-red/15 px-2 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
+                        >
+                            <PhoneCall className="h-3 w-3" /> {p.domain_label}
+                        </button>
+                    ))}
+                </div>
             </div>
+            {expanded && (
+                <div className="border-t border-white/10 p-3">
+                    <RecruitProfileCard token={token} />
+                </div>
+            )}
         </div>
     );
 }

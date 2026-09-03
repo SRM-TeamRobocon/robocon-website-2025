@@ -7,9 +7,9 @@ import { todayInIST } from "@/lib/recruit-dates";
 
 export const dynamic = "force-dynamic";
 
-type ScanMode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "training";
+type ScanMode = "orientation" | "exam_day_1" | "exam_day_2" | "exam_walkin" | "interview" | "training";
 
-const VALID_MODES: ScanMode[] = ["orientation", "exam_day_1", "exam_day_2", "interview", "training"];
+const VALID_MODES: ScanMode[] = ["orientation", "exam_day_1", "exam_day_2", "exam_walkin", "interview", "training"];
 
 // Postgres unique_violation error code.
 const UNIQUE_VIOLATION = "23505";
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // Domain-scoped modes need a valid sub_domain regardless of whether this is a QR scan
     // or a manual entry - checked up front, before any DB call.
-    if ((mode === "exam_day_1" || mode === "exam_day_2" || mode === "interview" || mode === "training") && !isRecruitSubDomain(sub_domain)) {
+    if ((mode === "exam_day_1" || mode === "exam_day_2" || mode === "exam_walkin" || mode === "interview" || mode === "training") && !isRecruitSubDomain(sub_domain)) {
         return scanResponse(
             "error",
             "",
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     // pays one extra sequential hop instead; that's fine - manual entry is a deliberate,
     // occasional fallback, not the high-volume path this is optimizing.
     const modeReads =
-        knownCid && (mode === "exam_day_1" || mode === "exam_day_2")
+        knownCid && (mode === "exam_day_1" || mode === "exam_day_2" || mode === "exam_walkin")
             ? Promise.all([
                   supabase
                       .from("recruit_domain_selections")
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
                       .maybeSingle(),
                   supabase
                       .from("recruit_exam_attendance")
-                      .select("id, day")
+                      .select("id, day, is_walkin")
                       .eq("recruit_id", rid)
                       .eq("cycle_id", knownCid)
                       .eq("sub_domain", sub_domain as string)
@@ -187,18 +187,24 @@ export async function POST(request: NextRequest) {
             }
 
             case "exam_day_1":
-            case "exam_day_2": {
-                const day = mode === "exam_day_1" ? 1 : 2;
+            case "exam_day_2":
+            case "exam_walkin": {
+                // null for a walk-in - it is a catch-up sitting, not tied to either
+                // scheduled day. See supabase/recruit-migration-021-exam-walkin.sql.
+                const day = mode === "exam_day_1" ? 1 : mode === "exam_day_2" ? 2 : null;
+                const isWalkin = mode === "exam_walkin";
                 const domainLabel = subDomainFullLabel(sub_domain as string);
 
                 // The eligibility check (did they apply to this domain?) and the
                 // already-scanned check are independent reads - run them together instead
                 // of one-after-another. Only mark attendance for an exam the recruit
                 // actually applied to, otherwise a mis-set scanner mode silently creates
-                // bogus attendance.
+                // bogus attendance. Walk-in is NOT a bypass of this - it only changes WHEN
+                // the exam was sat, never WHETHER the recruit was eligible to sit it, so
+                // the same "did not apply" block applies to all three modes unchanged.
                 const [{ data: selection }, { data: existing }] = (modeReadsResult as [
                     { data: { id: string } | null },
-                    { data: { id: string; day: number } | null },
+                    { data: { id: string; day: number | null; is_walkin: boolean } | null },
                 ] | null) ??
                     (await Promise.all([
                         supabase
@@ -210,7 +216,7 @@ export async function POST(request: NextRequest) {
                             .maybeSingle(),
                         supabase
                             .from("recruit_exam_attendance")
-                            .select("id, day")
+                            .select("id, day, is_walkin")
                             .eq("recruit_id", rid)
                             .eq("cycle_id", cid)
                             .eq("sub_domain", sub_domain as string)
@@ -228,10 +234,11 @@ export async function POST(request: NextRequest) {
                 }
 
                 if (existing) {
+                    const existingWhen = existing.is_walkin ? "Walk-in" : `Day ${existing.day}`;
                     return scanResponse(
                         "already_scanned",
                         recruit.name,
-                        `${recruit.name} already scanned for the ${domainLabel} exam (Day ${existing.day})`
+                        `${recruit.name} already scanned for the ${domainLabel} exam (${existingWhen})`
                     );
                 }
 
@@ -240,6 +247,7 @@ export async function POST(request: NextRequest) {
                     recruit_id: rid,
                     sub_domain,
                     day,
+                    is_walkin: isWalkin,
                     scanned_by: scannedBy,
                 });
 
@@ -254,7 +262,13 @@ export async function POST(request: NextRequest) {
                     throw insertError;
                 }
 
-                return scanResponse("ok", recruit.name, `${domainLabel} exam - Day ${day} attendance marked`);
+                return scanResponse(
+                    "ok",
+                    recruit.name,
+                    isWalkin
+                        ? `${domainLabel} exam - Walk-in attendance marked`
+                        : `${domainLabel} exam - Day ${day} attendance marked`
+                );
             }
 
             case "interview": {

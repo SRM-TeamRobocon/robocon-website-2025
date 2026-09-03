@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Undo2 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
+import { parseMarksValue, MARKS_ERROR } from "@/lib/recruit-validation";
 import RecruitBackdrop from "@/components/recruit/RecruitBackdrop";
 import Select from "@/components/ui/select";
 
@@ -12,7 +14,7 @@ const Html5QrcodeScanner = dynamic(() => import("@/components/recruit/Html5Qrcod
     ssr: false,
 });
 
-type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "training";
+type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "exam_walkin" | "interview" | "training";
 
 // TEMPORARY (2026-09-01, exam day 2): every mode except "Exam: Day 2" is commented out so a
 // volunteer physically cannot pick the wrong one and silently write attendance into the wrong
@@ -21,11 +23,18 @@ type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "interview" | "trainin
 // TO RESTORE: uncomment the lines below. Everything else adapts on its own - the mode picker
 // re-appears once this array has more than one entry (see `modeIsLocked`), and the default
 // `selectedMode` falls back to MODE_OPTIONS[0].
+//
+// TEMPORARY (2026-09-03, interview day): moved the lock from "Exam: Day 2" to "Walk-in Exam"
+// + "Interview Check-In" - those are the two things happening today (a walk-in catch-up
+// sitting for recruits who missed both scheduled exam days, plus interview check-in).
+// Orientation/exam_day_1/exam_day_2/training stay commented out for the same reason as above.
+// Same restore instructions apply.
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
     // { value: "orientation", label: "Orientation" },
     // { value: "exam_day_1", label: "Exam: Day 1" },
-    { value: "exam_day_2", label: "Exam: Day 2" },
-    // { value: "interview", label: "Interview Check-In" },
+    // { value: "exam_day_2", label: "Exam: Day 2" },
+    { value: "exam_walkin", label: "Walk-in Exam" },
+    { value: "interview", label: "Interview Check-In" },
     // { value: "training", label: "Training" },
 ];
 
@@ -175,7 +184,7 @@ export default function RecruitScannerPage() {
         trainingSubDomainRef.current = trainingSubDomain;
     }, [trainingSubDomain]);
 
-    const isExamMode = selectedMode === "exam_day_1" || selectedMode === "exam_day_2";
+    const isExamMode = selectedMode === "exam_day_1" || selectedMode === "exam_day_2" || selectedMode === "exam_walkin";
 
     const canStart = isExamMode
         ? Boolean(examSubDomain)
@@ -192,9 +201,16 @@ export default function RecruitScannerPage() {
         if (mode === "orientation") {
             what = "Orientation";
             undo = { type: "orientation" };
-        } else if (mode === "exam_day_1" || mode === "exam_day_2") {
+        } else if (mode === "exam_day_1" || mode === "exam_day_2" || mode === "exam_walkin") {
             const sub = examSubDomainRef.current;
-            what = `${subDomainFullLabel(sub)} exam: Day ${mode === "exam_day_1" ? 1 : 2}`;
+            // Walk-in attendance lives in the exact same recruit_exam_attendance table as
+            // Day 1/Day 2 (just tagged is_walkin=true, day=null) and shares the same unique
+            // (recruit_id, cycle_id, sub_domain) key - so the same { type: "exam", sub_domain }
+            // undo target works unchanged, no day needed to disambiguate.
+            what =
+                mode === "exam_walkin"
+                    ? `${subDomainFullLabel(sub)} exam: Walk-in`
+                    : `${subDomainFullLabel(sub)} exam: Day ${mode === "exam_day_1" ? 1 : 2}`;
             undo = { type: "exam", sub_domain: sub };
         } else if (mode === "training") {
             what = `Training: ${subDomainFullLabel(trainingSubDomainRef.current)}`;
@@ -225,16 +241,32 @@ export default function RecruitScannerPage() {
 
     const [pendingWalkin, setPendingWalkin] = useState<PendingWalkin | null>(null);
 
+    // The inline marks + shortlist panel shown after a successful walk-in exam scan - scoped
+    // to exactly one recruit at a time (the most recent walk-in scan), matching the door-side
+    // single-scan workflow. Cleared at the start of every new scan attempt (see runScan) and
+    // by the volunteer's own "Dismiss" button.
+    const [walkinPanel, setWalkinPanel] = useState<{
+        recruit_id: string;
+        name: string;
+        sub_domain: string;
+        marksInput: string;
+        marksSaving: boolean;
+        marksSaved: boolean;
+        marksError: string | null;
+        decision: "shortlisted" | "not_shortlisted" | null;
+        decisionSaving: "shortlisted" | "not_shortlisted" | null;
+        decisionError: string | null;
+    } | null>(null);
+
     // Which sub_domain (if any) the roster/manual-entry features should scope to, matching
     // whichever selector is active for the current mode.
-    const activeSubDomain =
-        selectedMode === "exam_day_1" || selectedMode === "exam_day_2"
-            ? examSubDomain
-            : selectedMode === "interview"
-                ? interviewSubDomain
-                : selectedMode === "training"
-                    ? trainingSubDomain
-                    : undefined;
+    const activeSubDomain = isExamMode
+        ? examSubDomain
+        : selectedMode === "interview"
+            ? interviewSubDomain
+            : selectedMode === "training"
+                ? trainingSubDomain
+                : undefined;
 
     const fetchRoster = useCallback(async () => {
         if (!scanning) return;
@@ -280,6 +312,10 @@ export default function RecruitScannerPage() {
     const runScan = useCallback(
         async (body: { payload?: string; recruit_id?: string; mode: Mode; sub_domain?: string; force?: boolean }) => {
             const recruitId = body.recruit_id ?? (body.payload ? recruitIdFromPayload(body.payload) : null);
+            // A new scan attempt always clears the previous walk-in marks/shortlist panel -
+            // it's scoped to one recruit, the most recent one. It's set again below if this
+            // scan is itself a successful walk-in exam scan.
+            setWalkinPanel(null);
             try {
                 const res = await fetch("/api/admin/recruitment/scan", {
                     method: "POST",
@@ -312,6 +348,24 @@ export default function RecruitScannerPage() {
                     recordScan(recruitId, body.mode, json, body.force === true);
                     scheduleReset(900);
                     fetchRoster();
+
+                    // Walk-in exam scans get the inline marks + shortlist panel. Without a
+                    // resolved recruit_id there's nothing to post marks/decisions against, so
+                    // just skip it rather than show a panel that can't do anything.
+                    if (body.mode === "exam_walkin" && body.sub_domain && recruitId) {
+                        setWalkinPanel({
+                            recruit_id: recruitId,
+                            name: json.name,
+                            sub_domain: body.sub_domain,
+                            marksInput: "",
+                            marksSaving: false,
+                            marksSaved: false,
+                            marksError: null,
+                            decision: null,
+                            decisionSaving: null,
+                            decisionError: null,
+                        });
+                    }
                 } else if (json.status === "already_scanned" || json.status === "already_checked_in") {
                     setFlash("warn");
                     beep();
@@ -342,7 +396,7 @@ export default function RecruitScannerPage() {
             };
             if (mode === "interview") body.sub_domain = interviewSubDomainRef.current;
             if (mode === "training") body.sub_domain = trainingSubDomainRef.current;
-            if (mode === "exam_day_1" || mode === "exam_day_2") body.sub_domain = examSubDomainRef.current;
+            if (mode === "exam_day_1" || mode === "exam_day_2" || mode === "exam_walkin") body.sub_domain = examSubDomainRef.current;
 
             await runScan(body);
         },
@@ -463,6 +517,92 @@ export default function RecruitScannerPage() {
         }
     }, []);
 
+    // Walk-in exam panel: marks first, then a shortlist decision - the shortlist buttons
+    // stay disabled until marksSaved is true (see the JSX below), so this can't be called
+    // out of order from the UI, but the guard is repeated here too.
+    const saveWalkinMarks = useCallback(async () => {
+        if (!walkinPanel) return;
+        const parsed = parseMarksValue(walkinPanel.marksInput);
+        if (parsed === null) {
+            setWalkinPanel((prev) => (prev ? { ...prev, marksError: MARKS_ERROR } : prev));
+            return;
+        }
+
+        setWalkinPanel((prev) => (prev ? { ...prev, marksSaving: true, marksError: null } : prev));
+
+        try {
+            const res = await fetch("/api/admin/recruitment/marks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    recruit_id: walkinPanel.recruit_id,
+                    sub_domain: walkinPanel.sub_domain,
+                    marks: parsed,
+                }),
+            });
+            const json = await res.json().catch(() => null);
+
+            // The marks route's success response is { saved: true, ... } (not { success }).
+            if (!res.ok || !json?.saved) {
+                const message = json?.error || "Could not save marks.";
+                setWalkinPanel((prev) => (prev ? { ...prev, marksSaving: false, marksError: message } : prev));
+                toast.error(message);
+                return;
+            }
+
+            setWalkinPanel((prev) => (prev ? { ...prev, marksSaving: false, marksSaved: true, marksError: null } : prev));
+            toast.success(`Marks saved for ${walkinPanel.name}`);
+        } catch {
+            setWalkinPanel((prev) =>
+                prev ? { ...prev, marksSaving: false, marksError: "Network error, try again." } : prev
+            );
+            toast.error("Network error while saving marks.");
+        }
+    }, [walkinPanel]);
+
+    const saveWalkinDecision = useCallback(
+        async (status: "shortlisted" | "not_shortlisted") => {
+            if (!walkinPanel || !walkinPanel.marksSaved) return;
+
+            setWalkinPanel((prev) => (prev ? { ...prev, decisionSaving: status, decisionError: null } : prev));
+
+            try {
+                const res = await fetch("/api/admin/recruitment/walkin-shortlist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        recruit_id: walkinPanel.recruit_id,
+                        sub_domain: walkinPanel.sub_domain,
+                        status,
+                    }),
+                });
+                const json = await res.json().catch(() => null);
+
+                if (!res.ok || !json?.success) {
+                    const message = json?.error || "Could not save shortlist decision.";
+                    setWalkinPanel((prev) => (prev ? { ...prev, decisionSaving: null, decisionError: message } : prev));
+                    toast.error(message);
+                    return;
+                }
+
+                setWalkinPanel((prev) =>
+                    prev ? { ...prev, decisionSaving: null, decision: status, decisionError: null } : prev
+                );
+                toast.success(
+                    status === "shortlisted" ? `${walkinPanel.name} shortlisted` : `${walkinPanel.name} marked not shortlisted`
+                );
+            } catch {
+                setWalkinPanel((prev) =>
+                    prev ? { ...prev, decisionSaving: null, decisionError: "Network error, try again." } : prev
+                );
+                toast.error("Network error while saving the shortlist decision.");
+            }
+        },
+        [walkinPanel]
+    );
+
+    const dismissWalkinPanel = useCallback(() => setWalkinPanel(null), []);
+
     if (!ready) return null;
 
     const activeInterviewLabel = interviewSubDomain ? subDomainFullLabel(interviewSubDomain) : "";
@@ -471,6 +611,25 @@ export default function RecruitScannerPage() {
     return (
         <div className="min-h-screen relative z-10 px-4 py-8 md:py-12">
             <RecruitBackdrop />
+            {/* This page lives outside /dashboard, which is where the app's only other
+                <Toaster /> is mounted - without one here, toast.success/error calls below
+                would fire into the store but never render anything on screen. */}
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    style: {
+                        background: "#1f2937",
+                        color: "#fff",
+                        border: "1px solid #374151",
+                    },
+                    success: {
+                        iconTheme: { primary: "#10b981", secondary: "#fff" },
+                    },
+                    error: {
+                        iconTheme: { primary: "#ef4444", secondary: "#fff" },
+                    },
+                }}
+            />
             <div className="max-w-2xl mx-auto space-y-8">
                 <div className="text-center">
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Recruitment Scanner</h1>
@@ -612,6 +771,7 @@ export default function RecruitScannerPage() {
                                         setScanning(false);
                                         setResult(null);
                                         setFlash(null);
+                                        setWalkinPanel(null);
                                     }}
                                     className="text-xs font-bold uppercase tracking-widest text-red hover:text-red/80 border border-red/40 px-3 py-1.5 transition-colors"
                                 >
@@ -729,6 +889,109 @@ export default function RecruitScannerPage() {
 
                             <Html5QrcodeScanner onScan={handleScan} />
                         </div>
+
+                        {walkinPanel && (
+                            <div className="border-2 border-red bg-black p-4 md:p-6 space-y-4">
+                                <div className="flex items-baseline justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-widest font-bold text-white/40">
+                                            Walk-in exam &middot; marks &amp; shortlist
+                                        </p>
+                                        <p className="mt-1 text-lg font-black tracking-tight text-white">{walkinPanel.name}</p>
+                                        <p className="text-xs text-white/40">{subDomainFullLabel(walkinPanel.sub_domain)}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={dismissWalkinPanel}
+                                        className="shrink-0 text-xs font-bold uppercase tracking-widest text-white/40 hover:text-white/70 transition-colors"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs uppercase tracking-widest font-bold text-white/40 mb-2">
+                                        Marks (0-100, half marks)
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            step={0.5}
+                                            min={0}
+                                            max={100}
+                                            inputMode="decimal"
+                                            value={walkinPanel.marksInput}
+                                            disabled={walkinPanel.marksSaved}
+                                            onChange={(e) =>
+                                                setWalkinPanel((prev) =>
+                                                    prev ? { ...prev, marksInput: e.target.value, marksError: null } : prev
+                                                )
+                                            }
+                                            placeholder="e.g. 72.5"
+                                            className="flex-1 border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/40 disabled:opacity-50"
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={walkinPanel.marksSaving || walkinPanel.marksSaved || !walkinPanel.marksInput.trim()}
+                                            onClick={saveWalkinMarks}
+                                            className="shrink-0 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white bg-red hover:bg-red/90 disabled:bg-white/10 disabled:text-white/30 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {walkinPanel.marksSaving ? "Saving..." : walkinPanel.marksSaved ? "Saved" : "Save"}
+                                        </button>
+                                    </div>
+                                    {walkinPanel.marksError && (
+                                        <p className="mt-1.5 text-xs text-red-400">{walkinPanel.marksError}</p>
+                                    )}
+                                    {walkinPanel.marksSaved && !walkinPanel.marksError && (
+                                        <p className="mt-1.5 text-xs text-emerald-300">Marks saved.</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <p className="text-xs uppercase tracking-widest font-bold text-white/40 mb-2">
+                                        Shortlist decision
+                                    </p>
+                                    {!walkinPanel.marksSaved ? (
+                                        <p className="text-xs text-white/40">Save marks first, then decide.</p>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                disabled={walkinPanel.decisionSaving !== null || walkinPanel.decision !== null}
+                                                onClick={() => saveWalkinDecision("shortlisted")}
+                                                className={`flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${
+                                                    walkinPanel.decision === "shortlisted"
+                                                        ? "bg-emerald-500 text-black"
+                                                        : "border border-white/15 text-white/70 hover:text-white hover:border-white/30 disabled:opacity-40"
+                                                }`}
+                                            >
+                                                {walkinPanel.decisionSaving === "shortlisted" ? "Saving..." : "Shortlist"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={walkinPanel.decisionSaving !== null || walkinPanel.decision !== null}
+                                                onClick={() => saveWalkinDecision("not_shortlisted")}
+                                                className={`flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:cursor-not-allowed ${
+                                                    walkinPanel.decision === "not_shortlisted"
+                                                        ? "bg-red text-white"
+                                                        : "border border-white/15 text-white/70 hover:text-white hover:border-white/30 disabled:opacity-40"
+                                                }`}
+                                            >
+                                                {walkinPanel.decisionSaving === "not_shortlisted" ? "Saving..." : "Not Shortlisted"}
+                                            </button>
+                                        </div>
+                                    )}
+                                    {walkinPanel.decisionError && (
+                                        <p className="mt-1.5 text-xs text-red-400">{walkinPanel.decisionError}</p>
+                                    )}
+                                    {walkinPanel.decision && (
+                                        <p className="mt-1.5 text-xs text-emerald-300">
+                                            Marked {walkinPanel.decision === "shortlisted" ? "Shortlisted" : "Not Shortlisted"}.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="border-2 border-red bg-black p-4 md:p-6">
                             <div className="flex items-baseline justify-between gap-3 mb-3">

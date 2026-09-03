@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     selectInChunks(recruitIds, (chunk) =>
       supabase
         .from("recruit_exam_attendance")
-        .select("recruit_id, day")
+        .select("recruit_id, day, is_walkin")
         .eq("cycle_id", cycleId)
         .eq("sub_domain", domain)
         .in("recruit_id", chunk)
@@ -102,11 +102,15 @@ export async function GET(request: NextRequest) {
   const marksMap = new Map(
     (marksRows ?? []).map((m: any) => [m.recruit_id, m])
   );
-  const attendanceMap = new Map<string, { day1: boolean; day2: boolean }>();
-  for (const a of (attendanceRows ?? []) as Array<{ recruit_id: string; day: number }>) {
-    const entry = attendanceMap.get(a.recruit_id) ?? { day1: false, day2: false };
+  // A walk-in row (migration 021) has day = null, is_walkin = true - checked separately so
+  // it doesn't fall through both the day===1 and day===2 branches and get silently read as
+  // absent despite having a real attendance row.
+  const attendanceMap = new Map<string, { day1: boolean; day2: boolean; walkin: boolean }>();
+  for (const a of (attendanceRows ?? []) as Array<{ recruit_id: string; day: number | null; is_walkin: boolean }>) {
+    const entry = attendanceMap.get(a.recruit_id) ?? { day1: false, day2: false, walkin: false };
     if (a.day === 1) entry.day1 = true;
     if (a.day === 2) entry.day2 = true;
+    if (a.is_walkin) entry.walkin = true;
     attendanceMap.set(a.recruit_id, entry);
   }
 
@@ -128,7 +132,7 @@ export async function GET(request: NextRequest) {
             entered_at: string | null;
           }
         | undefined;
-      const attendance = attendanceMap.get(r.recruit_id) ?? { day1: false, day2: false };
+      const attendance = attendanceMap.get(r.recruit_id) ?? { day1: false, day2: false, walkin: false };
       return {
         recruit_id: acc.id,
         name: acc.name,
@@ -144,6 +148,7 @@ export async function GET(request: NextRequest) {
         course: acc.course,
         day1: attendance.day1,
         day2: attendance.day2,
+        walkin: attendance.walkin,
         // numeric(5,2) since migration 020: coerce so 72.50 reaches the client as 72.5,
         // and a missing marks row still yields null rather than 0.
         marks: marks?.marks === undefined || marks?.marks === null ? null : Number(marks.marks),

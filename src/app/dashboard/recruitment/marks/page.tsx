@@ -34,6 +34,7 @@ interface MarksRow {
   course: string;
   day1: boolean;
   day2: boolean;
+  walkin: boolean;
   marks: number | null;
   note: string | null;
   evaluator_username: string | null;
@@ -76,9 +77,21 @@ function marksToInput(marks: number | null): string {
 
 // This table is already scoped to one sub-domain, and exam attendance is keyed
 // (recruit, cycle, sub_domain) - so a recruit has at most ONE attendance row here and
-// `day1`/`day2` are mutually exclusive. Two columns implied both could be ticked; show
-// the single day they sat this domain's exam instead.
-function ExamAttendance({ day1, day2 }: { day1: boolean; day2: boolean }) {
+// `day1`/`day2`/`walkin` are mutually exclusive. Two columns implied both could be ticked;
+// show the single sitting they attended for this domain instead.
+//
+// A walk-in row (migration 021) has day = null - without a dedicated case it would fall
+// through both the day1 and day2 checks and misreport an attended recruit as "Absent",
+// which is the exact wrong direction to get wrong on a page evaluators trust for judgment.
+function ExamAttendance({ day1, day2, walkin }: { day1: boolean; day2: boolean; walkin: boolean }) {
+  if (walkin) {
+    return (
+      <span className="inline-flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300 ring-1 ring-inset ring-amber-500/30">
+        <Check className="w-3 h-3" /> Walk-in
+      </span>
+    );
+  }
+
   const day = day1 ? 1 : day2 ? 2 : null;
 
   if (day === null) {
@@ -228,7 +241,7 @@ const MarkRow = memo(function MarkRow({
           <DetailField label="Dept" value={row.department} />
           <DetailField
             label="Exam Attendance"
-            value={<ExamAttendance day1={row.day1} day2={row.day2} />}
+            value={<ExamAttendance day1={row.day1} day2={row.day2} walkin={row.walkin} />}
           />
         </DetailRow>
       )}
@@ -382,7 +395,7 @@ export default function RecruitmentMarksPage() {
       }
 
       if (attendanceFilter !== "all") {
-        const attended = row.day1 || row.day2;
+        const attended = row.day1 || row.day2 || row.walkin;
         if (attendanceFilter === "attended" ? !attended : attended) return false;
       }
 

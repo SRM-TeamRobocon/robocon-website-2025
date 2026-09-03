@@ -136,7 +136,7 @@ export async function GET() {
       supabase.from("recruit_orientation_attendance").select("recruit_id").eq("cycle_id", cycle.id).range(from, to)
     ),
     fetchAllRows<any>((from, to) =>
-      supabase.from("recruit_exam_attendance").select("recruit_id, sub_domain, day").eq("cycle_id", cycle.id).range(from, to)
+      supabase.from("recruit_exam_attendance").select("recruit_id, sub_domain, day, is_walkin").eq("cycle_id", cycle.id).range(from, to)
     ),
     fetchAllRows<any>((from, to) =>
       supabase
@@ -581,9 +581,13 @@ export async function GET() {
 
   // --- Exam extras -----------------------------------------------------------
 
-  const examByDay = { day_1: 0, day_2: 0 };
+  // `is_walkin` and `day` are mutually exclusive (migration 021 CHECK constraint) - a walk-in
+  // row always has day=null, so bucket on is_walkin first rather than falling through the
+  // day===1/day===2 checks, where a null day would otherwise just vanish from every bucket.
+  const examByDay = { day_1: 0, day_2: 0, walkin: 0 };
   for (const row of examAttendance as any[]) {
-    if (row.day === 1) examByDay.day_1 += 1;
+    if (row.is_walkin) examByDay.walkin += 1;
+    else if (row.day === 1) examByDay.day_1 += 1;
     else if (row.day === 2) examByDay.day_2 += 1;
   }
 
@@ -600,18 +604,21 @@ export async function GET() {
     marksHistogram[index].count += 1;
   }
 
-  // Per-domain Day 1 / Day 2 split. Attendance is unique on (recruit, cycle, sub_domain), so
-  // these are sittings - a recruit sitting two domains' exams appears once under each, and
-  // `total` per domain equals that domain's distinct attendees.
+  // Per-domain Day 1 / Day 2 / walk-in split. Attendance is unique on (recruit, cycle,
+  // sub_domain), so these are sittings - a recruit sitting two domains' exams appears once
+  // under each, and `total` per domain equals that domain's distinct attendees.
   const examByDomainDay = RECRUIT_SUBDOMAIN_KEYS.map((domain) => {
     const rows = (examAttendance as any[]).filter((r) => r.sub_domain === domain);
-    const day1 = rows.filter((r) => r.day === 1).length;
-    const day2 = rows.filter((r) => r.day === 2).length;
+    const day1 = rows.filter((r) => !r.is_walkin && r.day === 1).length;
+    const day2 = rows.filter((r) => !r.is_walkin && r.day === 2).length;
+    const walkin = rows.filter((r) => r.is_walkin).length;
     return {
       sub_domain: domain,
       day_1: day1,
       day_2: day2,
-      // Not day1 + day2: a row with an unexpected `day` would otherwise vanish from the total.
+      walkin,
+      // Not day1 + day2 + walkin: a row with an unexpected `day` would otherwise vanish from
+      // the total.
       total: rows.length,
     };
   });

@@ -604,7 +604,7 @@ create table if not exists recruit_shortlist_status (
   recruit_id       uuid not null references recruit_accounts(id) on delete cascade,
   sub_domain       recruit_subdomain not null,
   status           shortlist_result not null default 'pending',
-  method           text not null default 'auto',  -- 'auto' | 'manual_override' ('portfolio' is legacy, never written)
+  method           text not null default 'auto',  -- 'auto' | 'manual_override' | 'walkin_manual' (2026-09-03) ('portfolio' is legacy, never written)
   override_reason  text,
   overridden_by    text,
   overridden_at    timestamptz,
@@ -874,7 +874,7 @@ Features:
 
 #### `/dashboard/recruitment/exam-checkin` (new, 2026-08-31)
 
-**What:** Live exam check-in board - six columns, one per domain, listing who has been scanned in for that domain's written exam. Meant for a screen at the exam hall so recruits can verify their own check-in. Day 1 / Day 2 / All toggle (default Day 1), cross-domain search, 5s poll. Backed by `GET /api/admin/recruitment/exam-checkin`. Read-only - nothing on this page writes. Full rationale in [Exam & Shortlisting](#6-exam--shortlisting).
+**What:** Live exam check-in board - six columns, one per domain, listing who has been scanned in for that domain's written exam. Meant for a screen at the exam hall so recruits can verify their own check-in. Day 1 / Day 2 / **Walk-in** / All toggle (default Day 1; the Walk-in tab added 2026-09-03 alongside the scanner's Walk-in Exam mode - see below), cross-domain search, 5s poll. Backed by `GET /api/admin/recruitment/exam-checkin`. Read-only - nothing on this page writes. Full rationale in [Exam & Shortlisting](#6-exam--shortlisting).
 
 #### `/dashboard/recruitment/marks`
 
@@ -884,7 +884,7 @@ Layout:
 - Dropdown to select sub-domain (all six)
 - After selecting domain: table of **every** recruit who selected that domain - *not* filtered by attendance (see [Exam & Shortlisting](#6-exam--shortlisting): marks entry is not gated by exam attendance)
 - Columns: Name, Reg No, Year, Dept, Day 1 ✓/✗, Day 2 ✓/✗, Marks (editable number input 0–100), Save button per row
-- The Day 1 / Day 2 ticks are scoped to the selected domain's exam, so they show whether the recruit sat *this* exam
+- The Day 1 / Day 2 ticks are scoped to the selected domain's exam, so they show whether the recruit sat *this* exam. A recruit whose only attendance for this domain is a **walk-in catch-up sitting** (2026-09-03, migration 021 - `day` is null on that row) shows an amber "Walk-in" badge instead of "Day N" or "Absent" - getting this wrong in either direction is bad: showing "Absent" would hide that they actually wrote the exam, and it must never fall through to the "Day 1"/"Day 2" branches since `day` is null there
 - Shows existing marks if already entered
 - A **Note** column (2026-09-01) beside the marks input, saved to `recruit_marks.note` (migration 019, nullable `text`, CHECK <= 500 chars). Optional context a bare 0-100 loses: "answered only 3 of 5", "sheet partly unreadable". A blank note stores NULL, not `""`, and the Save button enables on a note-only edit
 - **Exam** filter (All / Attended / Absent) and **Year** filter (All / Year 1 / Year 2), both client-side, both defaulting to **All** (2026-09-01). All deliberately stays the default: marks entry is explicitly *not* gated by attendance, so opening on "Attended" would hide anyone whose scan failed. The Exam filter reads the same per-domain `day1`/`day2` booleans the attendance badge uses
@@ -1045,6 +1045,7 @@ The older top-level response fields (`overall`, `by_domain`, `by_domain_gender`,
 | POST | `/api/admin/recruitment/shortlist/compute` | Run auto-shortlist engine across all 6 domains. Returns `{ computed, stats, skipped_domains }` |
 | GET | `/api/admin/recruitment/shortlist` | Get all shortlist statuses for active cycle |
 | PATCH | `/api/admin/recruitment/shortlist/:id` | Override a shortlist status. Body: `{ status, override_reason }` |
+| POST | `/api/admin/recruitment/walkin-shortlist` | **New 2026-09-03.** Body: `{ recruit_id, sub_domain, status }`. A narrow exception to "shortlist decisions are lead/admin only" - role is `member`/`lead`/`admin`, but the server verifies the recruit has a **walk-in exam** attendance row (`recruit_exam_attendance.is_walkin = true`) for that domain before allowing it; anyone else's status is untouched by this route. Upserts (unlike `PATCH /shortlist/:id`, which requires an existing row) since a walk-in recruit may have no compute-engine row yet. `method = 'walkin_manual'` - distinct from `'manual_override'` so it's attributable to this flow, but skipped by the compute engine the same way. See [Exam & Shortlisting](#6-exam--shortlisting) |
 
 #### Admin - Interview
 
@@ -1218,8 +1219,8 @@ Requires `admin_token` cookie.
 {
   payload: string        // base64url QR payload from scanner
   mode: ScanMode
-  sub_domain?: string    // REQUIRED if mode is exam_day_1 / exam_day_2 / interview (2026-08-13:
-                          // interview now takes a domain, not a panel_id - see below)
+  sub_domain?: string    // REQUIRED if mode is exam_day_1 / exam_day_2 / exam_walkin / interview
+                          // (2026-08-13: interview now takes a domain, not a panel_id - see below)
   session_id?: string    // required only if mode === 'training'
 }
 
@@ -1227,6 +1228,7 @@ type ScanMode =
   | 'orientation'
   | 'exam_day_1'
   | 'exam_day_2'
+  | 'exam_walkin'         // 2026-09-03, see below
   | 'interview'
   | 'training'
 ```
@@ -1254,6 +1256,28 @@ type ScanMode =
        ...where <n> is the day of the ORIGINAL scan - so re-scanning on day 2 someone
        who was scanned on day 1 for the same domain correctly reports day 1.
      - Else → insert → 200 { status: 'ok', name, message: '<Domain> exam - Day X attendance marked' }
+
+   exam_walkin (new 2026-09-03 - a catch-up sitting for a recruit who missed BOTH
+   scheduled exam days, typically scanned during interview day):
+     - day = null, is_walkin = true (see supabase/recruit-migration-021-exam-walkin.sql -
+       recruit_exam_attendance.day is nullable, with a CHECK pairing it 1:1 with is_walkin
+       so a row is never both null-day and non-walk-in, or a real day tagged as a walk-in)
+     - sub_domain required, same as exam_day_1/2
+     - Eligibility check is IDENTICAL to exam_day_1/2 and NOT bypassed: the recruit must
+       still have selected this sub_domain → 400 "did not apply" otherwise. Walk-in only
+       changes WHEN the exam was sat, never WHETHER the recruit was eligible to sit it -
+       there is deliberately no separate "let them in anyway" bypass here, unlike interview
+       mode's not_shortlisted flow below.
+     - Check existing row in recruit_exam_attendance (rid, cid, sub_domain) - same unique
+       key as exam_day_1/2, so a recruit who already sat a normal day cannot also be
+       walked in, and a walk-in cannot be double-scanned. If it exists, the
+       already_scanned message reports "(Walk-in)" instead of "(Day n)" when the existing
+       row is itself a walk-in.
+     - No confirm/force step: unlike interview walk-ins, there is no ambiguous judgment
+       call here - either the recruit is eligible (checks above pass) and gets marked
+       present in one scan, or one of those checks fails and the scan is rejected outright.
+     - Else → insert → 200 { status: 'ok', name, message: '<Domain> exam - Walk-in
+       attendance marked' }
 
    interview (rewritten 2026-08-13 - see Interview Module for full detail):
      - sub_domain required → must pass isRecruitSubDomain()
@@ -1330,7 +1354,7 @@ There is **no portfolio-review track**. `webdev` and `vfx_gfx` were originally s
 
 - `src/lib/recruit-domains.ts` no longer exports `EXAM_SUBDOMAINS`, `PORTFOLIO_SUBDOMAINS`, `isExamSubDomain`, or `isPortfolioSubDomain` - just `RECRUIT_SUBDOMAINS` / `RECRUIT_SUBDOMAIN_KEYS` / `isRecruitSubDomain`.
 - The Shortlist page's "Portfolio Domains" tab is gone (it would be permanently empty). One table, no tabs.
-- `method = 'portfolio'` is never written by any route. Only `'auto'` and `'manual_override'` occur.
+- `method = 'portfolio'` is never written by any route. `'auto'`, `'manual_override'`, and (2026-09-03) `'walkin_manual'` occur.
 - `portfolio_url` is a **LinkedIn URL collected from every recruit** at registration. The DB column name was kept to avoid a migration; nothing about it is domain-gated.
 
 Leads who want a judgement call rather than a cutoff use the **override** path below - it works on any domain.
@@ -1437,7 +1461,8 @@ This is a server-side batch operation. It:
    - `status`: as above
    - `method`: `'auto'`
    - `computed_at`: now()
-   - DO NOT overwrite rows where `method = 'manual_override'` - skip those
+   - DO NOT overwrite rows where `method = 'manual_override'` OR `method = 'walkin_manual'`
+     (2026-09-03, see `POST /walkin-shortlist` above) - skip those
 
 ```ts
 // Pseudocode
@@ -1448,9 +1473,10 @@ for (const domain of RECRUIT_SUBDOMAIN_KEYS) {
   for (const recruit of recruits) {
     const marksRow = await getMarks(recruit.id, domain, cycleId)
     
-    // Skip manual overrides
+    // Skip manual overrides (lead/admin) and walk-in decisions (member, via
+    // POST /walkin-shortlist) alike
     const existing = await getShortlistStatus(recruit.id, domain, cycleId)
-    if (existing?.method === 'manual_override') continue
+    if (existing?.method === 'manual_override' || existing?.method === 'walkin_manual') continue
     
     const status = !marksRow 
       ? 'pending' 
