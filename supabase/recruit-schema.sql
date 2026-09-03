@@ -668,6 +668,26 @@ exception when duplicate_table or duplicate_object then null; end $$;
 create index if not exists recruit_interview_tokens_panel_status_idx
   on recruit_interview_tokens (panel_id, status, token_number);
 
+-- Migration 022 — a panel's running review note, independent of the final
+-- Selected/Rejected/Waitlisted result (see recruit_interview_results below). Written via
+-- PATCH /api/admin/recruitment/panels/tokens/:tokenId/review. One note per token - since a
+-- cross-panel reassignment updates panel_id on the same row rather than inserting a new
+-- one, this stays the recruit's single running note for the domain throughout the day.
+alter table recruit_interview_tokens
+  add column if not exists review_note text;
+
+alter table recruit_interview_tokens
+  add column if not exists review_updated_by text;
+
+alter table recruit_interview_tokens
+  add column if not exists review_updated_at timestamptz;
+
+do $$ begin
+  alter table recruit_interview_tokens
+    add constraint recruit_interview_tokens_review_note_length
+    check (review_note is null or char_length(review_note) <= 2000);
+exception when duplicate_object then null; end $$;
+
 ---------------------------------------------------------------------------
 -- recruit_interview_results
 ---------------------------------------------------------------------------

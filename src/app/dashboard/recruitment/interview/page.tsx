@@ -21,6 +21,7 @@ import {
     GripVertical,
     Footprints,
     ChevronDown,
+    Download,
 } from "lucide-react";
 import {
     DndContext,
@@ -66,9 +67,11 @@ interface RecruitProfile {
     shortlisted_for: string[];
     is_hosteller: boolean;
     hostel_block: string | null;
+    hostel_room: string | null;
     day_scholar_area: string | null;
     travel_method: string | null;
     gender: string | null;
+    phone: string | null;
 }
 
 interface QueueToken {
@@ -80,6 +83,9 @@ interface QueueToken {
     checked_in_at: string;
     called_at?: string;
     is_walkin: boolean;
+    review_note: string | null;
+    review_updated_by: string | null;
+    review_updated_at: string | null;
 }
 
 import {
@@ -92,6 +98,7 @@ import {
 } from "@/lib/recruit-domains";
 import { travelMethodLabel } from "@/lib/travel-method";
 import { genderLabel } from "@/lib/gender";
+import EditRecruitModal, { type EditableRecruit } from "@/components/recruit/EditRecruitModal";
 
 // Scoped to a single, already-known sub_domain - every call site now lives inside that
 // domain's own row, so there's no dropdown to pick from any more (the row IS the pick).
@@ -354,8 +361,104 @@ function PanelCard({ panel, onChanged }: { panel: Panel; onChanged: () => void }
     );
 }
 
-function RecruitProfileCard({ token }: { token: QueueToken }) {
+// Same "day/month, hour:minute" shape as marks/page.tsx's own savedAtLabel - kept as a
+// separate local copy rather than a shared util since it's a one-line formatter and the
+// two pages don't otherwise share code.
+function savedAtLabel(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString([], {
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+}
+
+function RecruitProfileCard({ token, onChanged }: { token: QueueToken; onChanged: () => void }) {
     const r = token.recruit;
+
+    const [reviewNote, setReviewNote] = useState(token.review_note ?? "");
+    const [reviewSavedBy, setReviewSavedBy] = useState(token.review_updated_by);
+    const [reviewSavedAt, setReviewSavedAt] = useState(token.review_updated_at);
+    const [savingReview, setSavingReview] = useState(false);
+
+    // Re-sync from the prop whenever it's a genuinely different token (a new recruit swapped
+    // into this slot) or the server-side value moved out from under us (another panel saved
+    // a note on the same token, or a background refresh landed) - without this, switching
+    // "Now Serving" recruits would leave the PREVIOUS recruit's draft note lingering.
+    useEffect(() => {
+        setReviewNote(token.review_note ?? "");
+        setReviewSavedBy(token.review_updated_by);
+        setReviewSavedAt(token.review_updated_at);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token.token_id, token.review_note, token.review_updated_by, token.review_updated_at]);
+
+    const [editRecruit, setEditRecruit] = useState<EditableRecruit | null>(null);
+    const [loadingEdit, setLoadingEdit] = useState(false);
+
+    // RecruitProfile (the queue payload) doesn't carry `course` - the edit form requires a
+    // non-empty one, so rather than open the modal with a blank course and risk a save that
+    // silently wipes a real value, fetch the full recruit record on demand and only open once
+    // it's in hand. Scoped by an exact reg_no match against the search results, since the
+    // list endpoint's `search` is a substring match and could return more than one row.
+    const openEdit = async () => {
+        setLoadingEdit(true);
+        try {
+            const res = await fetch(`/api/admin/recruitment/recruits?search=${encodeURIComponent(r.reg_no)}`);
+            const data = await res.json();
+            const match = (data.data ?? []).find((x: any) => x.reg_no === r.reg_no);
+            if (!res.ok || !data.success || !match) {
+                toast.error("Could not load recruit for editing");
+                return;
+            }
+            setEditRecruit({
+                id: match.id,
+                name: match.name,
+                reg_no: match.reg_no,
+                year: match.year,
+                gender: match.gender,
+                department: match.department,
+                course: match.course,
+                phone: match.phone,
+                is_hosteller: match.is_hosteller,
+                hostel_block: match.hostel_block,
+                hostel_room: match.hostel_room,
+                day_scholar_area: match.day_scholar_area,
+                travel_method: match.travel_method,
+                domains: match.domains,
+            });
+        } catch {
+            toast.error("Could not load recruit for editing");
+        } finally {
+            setLoadingEdit(false);
+        }
+    };
+
+    const saveReview = async () => {
+        setSavingReview(true);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/tokens/${token.token_id}/review`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ review_note: reviewNote }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success("Review note saved");
+                setReviewSavedBy(data.data.review_updated_by);
+                setReviewSavedAt(data.data.review_updated_at);
+                onChanged();
+            } else {
+                toast.error(data.error || "Could not save review note");
+            }
+        } catch {
+            toast.error("Could not save review note");
+        } finally {
+            setSavingReview(false);
+        }
+    };
+
     return (
         <div className="border border-white/10 bg-black/30 p-4 space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -385,16 +488,28 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                         </p>
                     )}
                 </div>
-                {r.portfolio_url && (
-                    <a
-                        href={r.portfolio_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                <div className="flex shrink-0 items-center gap-1.5">
+                    {r.portfolio_url && (
+                        <a
+                            href={r.portfolio_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
+                        >
+                            LinkedIn ↗
+                        </a>
+                    )}
+                    <button
+                        type="button"
+                        onClick={openEdit}
+                        disabled={loadingEdit}
+                        title={`Edit ${r.name}`}
+                        className="inline-flex items-center gap-1 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
                     >
-                        LinkedIn ↗
-                    </a>
-                )}
+                        <Pencil className="h-3.5 w-3.5" />
+                        {loadingEdit ? "..." : "Edit"}
+                    </button>
+                </div>
             </div>
 
             <div>
@@ -431,6 +546,44 @@ function RecruitProfileCard({ token }: { token: QueueToken }) {
                         ))}
                     </div>
                 </div>
+            )}
+
+            <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Review note</p>
+                <textarea
+                    value={reviewNote}
+                    onChange={(e) => setReviewNote(e.target.value)}
+                    placeholder="Running note for other panels/leads..."
+                    rows={2}
+                    className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                        type="button"
+                        onClick={saveReview}
+                        disabled={savingReview}
+                        className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
+                    >
+                        {savingReview ? "Saving..." : "Save"}
+                    </button>
+                    {reviewSavedBy && (
+                        <p className="text-[10px] text-gray-500">
+                            Last saved by {reviewSavedBy}
+                            {reviewSavedAt ? ` at ${savedAtLabel(reviewSavedAt)}` : ""}
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {editRecruit && (
+                <EditRecruitModal
+                    recruit={editRecruit}
+                    onClose={() => setEditRecruit(null)}
+                    onSaved={() => {
+                        setEditRecruit(null);
+                        onChanged();
+                    }}
+                />
             )}
         </div>
     );
@@ -551,7 +704,7 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
                         <p className="text-2xl font-black text-white leading-tight">{called.recruit.name}</p>
                         <p className="mt-1 text-xs font-bold uppercase tracking-widest text-blue-400">{panel.domain_label}</p>
                     </div>
-                    <RecruitProfileCard token={called} />
+                    <RecruitProfileCard token={called} onChanged={onChanged} />
 
                     <div className="space-y-3">
                         <textarea
@@ -623,11 +776,13 @@ function SortableSharedRow({
     openPanels,
     onCall,
     callingId,
+    onChanged,
 }: {
     token: QueueToken;
     openPanels: Panel[];
     onCall: (targetPanelId: string, tokenId: string) => void;
     callingId: string | null;
+    onChanged: () => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: token.token_id,
@@ -690,7 +845,7 @@ function SortableSharedRow({
             </div>
             {expanded && (
                 <div className="border-t border-white/10 p-3">
-                    <RecruitProfileCard token={token} />
+                    <RecruitProfileCard token={token} onChanged={onChanged} />
                 </div>
             )}
         </div>
@@ -781,9 +936,19 @@ function SharedWaitingQueue({
     return (
         <div className="border border-white/10 bg-black">
             <div className="px-4 py-2.5 border-b border-white/10">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" /> Waiting: {subDomainLabel(subDomain)} ({totalWaiting})
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-400" /> Waiting: {subDomainLabel(subDomain)} ({totalWaiting})
+                    </h3>
+                    <a
+                        href={`/api/admin/recruitment/interview-results/export?sub_domain=${subDomain}`}
+                        download
+                        title={`Export ${subDomainLabel(subDomain)} interview roster as CSV`}
+                        className="inline-flex shrink-0 items-center gap-1 bg-white/5 px-2 py-1 text-[11px] font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 hover:text-white"
+                    >
+                        <Download className="h-3 w-3" /> Export CSV
+                    </a>
+                </div>
                 <p className="mt-0.5 text-xs text-gray-500">
                     Click a table button to call that recruit there. Drag to reorder within a table&apos;s own line.
                 </p>
@@ -817,6 +982,7 @@ function SharedWaitingQueue({
                                                         openPanels={openPanels}
                                                         onCall={callToken}
                                                         callingId={callingId}
+                                                        onChanged={onChanged}
                                                     />
                                                 ))}
                                             </div>
