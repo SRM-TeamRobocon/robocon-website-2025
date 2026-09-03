@@ -234,26 +234,32 @@ async function fetchPublicPanelQueue(supabase: SupabaseClient, panelId: string):
 
 // GET /api/admin/recruitment/panels/:id/queue
 //
-// Read access stays broad (member/lead/admin) because the scanner and the interview
-// dashboard's own polling both run as role "member" for volunteers on duty. The PAYLOAD,
-// however, is branched: lead/admin get the full interviewer profile (reg_no, department,
-// portfolio, exam marks, shortlist state); "member" gets only token number, status and a
-// first name. The full shape is pre-publication evaluation data - previously any logged-in
-// member could curl a panel's queue and read every shortlisted candidate's marks. The public
-// kiosk screen (/recruit/tables, no login at all) uses a separate route entirely -
-// src/app/api/recruit/tables/route.ts - not this one.
+// Read access is member/lead/admin, and the payload is now the SAME full staff shape for
+// all three. It used to branch (member -> fetchPublicPanelQueue, a stripped first-name-only
+// shape) on the theory that this route was shared with the scanner and a TV/projector
+// display running as role "member". That's no longer true - the public kiosk screen
+// (/recruit/tables, no login at all) has always used a separate route
+// (src/app/api/recruit/tables/route.ts), and the scanner never called this one either. This
+// route's only caller is the single-panel interview management page
+// (dashboard/recruitment/interview/[panelId]), which every staff role uses to run a table -
+// member included, since member already has full write access to marks, review notes,
+// ratings and results elsewhere in this exact module. Fixed 2026-09-03: any table run by a
+// "member"-role volunteer was getting the stripped shape (no domains/exam_marks/shortlist/
+// hostel/etc.) and RecruitProfileCard crashed hard on `recruit.domains.map(...)` being
+// undefined - every table except one run by a lead/admin account went blank mid-interview.
+// fetchPublicPanelQueue is kept below in case a genuinely public/reduced consumer needs it
+// again, just no longer wired to this route.
 export async function GET(_request: NextRequest, context: RouteContext) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const isStaff = session.role === "lead" || session.role === "admin";
   const { id } = await context.params;
   const supabase = createRecruitSupabaseAdminClient();
 
   try {
-    const data = isStaff ? await fetchPanelQueue(supabase, id) : await fetchPublicPanelQueue(supabase, id);
+    const data = await fetchPanelQueue(supabase, id);
     return NextResponse.json({ data });
   } catch (error) {
     console.error("recruitment panel queue GET error", error);

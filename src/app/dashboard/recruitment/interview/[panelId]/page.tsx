@@ -80,6 +80,16 @@ interface RecruitProfile {
     phone: string | null;
 }
 
+interface DomainWaitingToken {
+    token_id: string;
+    token_number: number;
+    checked_in_at: string;
+    is_walkin: boolean;
+    panel_id: string;
+    panel_label: string;
+    recruit: RecruitProfile;
+}
+
 interface QueueToken {
     token_id: string;
     token_number: number;
@@ -735,6 +745,105 @@ function WaitingRow({ token, onChanged }: { token: QueueToken; onChanged: () => 
     );
 }
 
+// Domain-wide visibility, added 2026-09-03: everyone `waiting` on every OTHER open table
+// for this same sub_domain (this panel's own waiting recruits are already in
+// PanelWaitingList below - no need to double-list them here). Lets an interviewer pull a
+// specific recruit over to THIS table even though auto-routing (or a drag-reorder) sent
+// them somewhere else, via the existing (previously unused) call-token route. Hidden
+// entirely once loaded if nobody else is waiting anywhere, so it doesn't clutter a page
+// with a single table open for the domain.
+function OtherTablesWaiting({ panelId, subDomain, onChanged }: { panelId: string; subDomain: string; onChanged: () => void }) {
+    const [rows, setRows] = useState<DomainWaitingToken[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [callingId, setCallingId] = useState<string | null>(null);
+
+    const load = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/waiting-by-domain?sub_domain=${subDomain}`);
+            const data = await res.json();
+            if (res.ok) {
+                setRows(((data.data ?? []) as DomainWaitingToken[]).filter((r) => r.panel_id !== panelId));
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [subDomain, panelId]);
+
+    useEffect(() => {
+        load();
+        const interval = setInterval(load, 5000);
+        return () => clearInterval(interval);
+    }, [load]);
+
+    const callHere = async (tokenId: string) => {
+        setCallingId(tokenId);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/${panelId}/call-token`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token_id: tokenId }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
+                load();
+                onChanged();
+            } else {
+                toast.error(data.error || "Could not call this recruit");
+            }
+        } finally {
+            setCallingId(null);
+        }
+    };
+
+    if (!loading && rows.length === 0) return null;
+
+    return (
+        <div className="border border-amber-500/20 bg-black">
+            <div className="px-4 py-2.5 border-b border-white/10">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Users className="h-4 w-4 text-amber-400" /> Waiting on other tables ({rows.length})
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500">Waiting elsewhere for this same domain. Call one here instead.</p>
+            </div>
+            {loading ? (
+                <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
+            ) : (
+                <div className="p-3 space-y-1.5">
+                    {rows.map((r) => (
+                        <div
+                            key={r.token_id}
+                            className="flex flex-wrap items-center gap-2 border border-white/10 bg-black/20 px-3 py-2.5"
+                        >
+                            <span className="w-10 shrink-0 font-mono text-sm text-gray-300">#{r.token_number}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">
+                                {r.recruit?.name ?? "Unknown"}
+                            </span>
+                            {r.is_walkin && (
+                                <span
+                                    title="Not shortlisted, walk-in"
+                                    className="shrink-0 inline-flex items-center gap-1 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30"
+                                >
+                                    <Footprints className="h-3 w-3" /> Walk-in
+                                </span>
+                            )}
+                            <span className="shrink-0 text-xs text-gray-500">{r.panel_label}</span>
+                            <button
+                                type="button"
+                                onClick={() => callHere(r.token_id)}
+                                disabled={callingId === r.token_id}
+                                className="shrink-0 inline-flex items-center gap-1 bg-red/15 px-2.5 py-1 text-[11px] font-semibold text-red ring-1 ring-inset ring-red/40 transition hover:bg-red/25 disabled:opacity-50"
+                            >
+                                <PhoneCall className="h-3 w-3" /> {callingId === r.token_id ? "Calling..." : "Call Here"}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // This table's own waiting list - tokens are already scoped to one panel_id (fetched via
 // GET .../panels/:id/queue), so this just filters to `waiting`, sorts by queue_position, and
 // wires up drag-reorder against the same endpoint the old shared queue used, scoped to this
@@ -924,6 +1033,9 @@ export default function PanelInterviewPage() {
                     )}
 
                     <TableSlot panel={panel} tokens={tokens} onChanged={load} />
+                    {panel.sub_domain && (
+                        <OtherTablesWaiting panelId={panel.id} subDomain={panel.sub_domain} onChanged={load} />
+                    )}
                     <PanelWaitingList panelId={panel.id} tokens={tokens} onChanged={load} />
                 </>
             )}
