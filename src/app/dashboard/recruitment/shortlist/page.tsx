@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { ListChecks, Check, X, Search, MessageCircle } from "lucide-react";
+import { ListChecks, Check, Search, MessageCircle, Download, RefreshCw } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 
 import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem, type RecruitSubDomain } from "@/lib/recruit-domains";
@@ -10,7 +10,7 @@ import { SortableTh, compareBy, nextSortState, type SortState } from "@/componen
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { ExpandToggleCell, DetailRow, DetailField } from "@/components/recruit/ExpandableRow";
-import { GENDERS } from "@/lib/gender";
+import { GENDERS, genderLabel } from "@/lib/gender";
 import { RECRUIT_YEARS } from "@/lib/recruit-year";
 import { travelMethodLabel } from "@/lib/travel-method";
 import Select from "@/components/ui/select";
@@ -29,6 +29,20 @@ const YEAR_OPTIONS = [
   ...RECRUIT_YEARS.map((y) => ({ value: y.key as string, label: y.label })),
 ];
 
+const INTERVIEW_FILTER_OPTIONS = [
+  { value: "all", label: "All Interviews" },
+  { value: "done", label: "Interview Done" },
+  { value: "not_done", label: "Interview Not Done" },
+] as const;
+
+type InterviewResult = "selected" | "rejected" | "waitlisted";
+
+const INTERVIEW_RESULT_OPTIONS: { value: InterviewResult; label: string }[] = [
+  { value: "selected", label: "Selected" },
+  { value: "rejected", label: "Rejected" },
+  { value: "waitlisted", label: "Waitlisted" },
+];
+
 interface ShortlistRow {
   id: string;
   recruit_id: string;
@@ -42,6 +56,13 @@ interface ShortlistRow {
   called_by: string | null;
   called_at: string | null;
   marks: number | null;
+  // Presence of a logged interview result IS "interview done" - there's no separate
+  // boolean, mirrors how recruit_interview_results itself works (see the shortlist GET
+  // route). Null means nobody has interviewed this recruit for this domain yet.
+  interview_result: InterviewResult | null;
+  interview_notes: string | null;
+  interview_decided_at: string | null;
+  interview_interviewer: string | null;
   recruit: {
     id: string;
     name: string;
@@ -85,19 +106,99 @@ function sortValueFor(row: ShortlistRow, key: ShortlistSortKey): string | number
   }
 }
 
-function StatusBadge({ status }: { status: ShortlistRow["status"] }) {
-  const styles =
-    status === "shortlisted"
-      ? "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30"
-      : status === "not_shortlisted"
-      ? "bg-red-500/15 text-red-400 ring-red-500/30"
-      : "bg-amber-500/15 text-amber-400 ring-amber-500/30";
-  const label =
-    status === "shortlisted" ? "Shortlisted" : status === "not_shortlisted" ? "Not Shortlisted" : "Pending";
+// Same quoting rule as the server-side interview-results export (wrap in quotes only when
+// the cell contains a comma/quote/newline, double up internal quotes) - kept as a client
+// copy rather than a shared import because this export runs entirely off `visibleRows`,
+// the exact rows and order already on screen after every filter/sort, including the ones
+// (gender, year, interview done/not-done, search) that only ever exist client-side and
+// have no server query-param equivalent to re-derive them from.
+function csvCell(value: string | number | boolean | null | undefined): string {
+  const str = value === null || value === undefined ? "" : String(value);
+  if (/[",\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+const CSV_HEADER = [
+  "Name",
+  "Reg No",
+  "Year",
+  "Gender",
+  "Department",
+  "Course",
+  "Phone",
+  "Residence",
+  "Hostel Block",
+  "Hostel Room",
+  "Day Scholar Area",
+  "Travel Method",
+  "Domain",
+  "Marks",
+  "Status",
+  "Override Reason",
+  "Called By",
+  "Called At",
+  "Interview Result",
+  "Interview Notes",
+  "Interviewer",
+  "Interview Decided At",
+];
+
+function shortlistRowToCsv(row: ShortlistRow): (string | number | null)[] {
+  const acc = row.recruit;
+  return [
+    acc.name,
+    acc.reg_no,
+    acc.year,
+    genderLabel(acc.gender) || "",
+    acc.department,
+    acc.course,
+    acc.phone,
+    acc.is_hosteller ? "Hosteller" : "Day Scholar",
+    acc.is_hosteller ? acc.hostel_block ?? "" : "",
+    acc.is_hosteller ? acc.hostel_room ?? "" : "",
+    acc.is_hosteller ? "" : acc.day_scholar_area ?? "",
+    acc.is_hosteller ? "" : travelMethodLabel(acc.travel_method) || "",
+    `${subDomainSubsystem(row.sub_domain)}: ${subDomainLabel(row.sub_domain)}`,
+    row.marks,
+    row.status === "not_shortlisted" ? "Not Shortlisted" : row.status[0].toUpperCase() + row.status.slice(1),
+    row.override_reason,
+    row.called_by,
+    row.called_at,
+    row.interview_result ? row.interview_result[0].toUpperCase() + row.interview_result.slice(1) : "Not done",
+    row.interview_notes,
+    row.interview_interviewer,
+    row.interview_decided_at,
+  ];
+}
+
+// Picking an option here IS the override - there's no separate Shortlist/Reject button
+// pair any more. "Pending" is shown as the placeholder (empty value) rather than a
+// selectable option: once a lead picks Shortlisted/Not Shortlisted there is no dropdown
+// path back to Pending, matching the PATCH endpoint, which only ever accepts those two.
+function StatusSelect({
+  row,
+  busy,
+  onChange,
+}: {
+  row: ShortlistRow;
+  busy: boolean;
+  onChange: (row: ShortlistRow, status: "shortlisted" | "not_shortlisted") => void;
+}) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${styles}`}>
-      {label}
-    </span>
+    <Select
+      accent="blue"
+      value={row.status === "pending" ? "" : row.status}
+      onChange={(v) => onChange(row, v as "shortlisted" | "not_shortlisted")}
+      disabled={busy}
+      placeholder="Pending"
+      className="h-9 w-40 bg-white/5 ring-white/10 py-0 px-3 text-xs"
+      options={[
+        { value: "shortlisted", label: "Shortlisted" },
+        { value: "not_shortlisted", label: "Not Shortlisted" },
+      ]}
+    />
   );
 }
 
@@ -133,42 +234,83 @@ function CalledCheckbox({
   );
 }
 
-function OverrideControls({
+// Interview outcome, editable right from the shortlist row. While nothing is logged yet,
+// "Not done" is just the placeholder (no such option in the list - nothing to undo). Once
+// a result IS logged, "Not done (undo)" appears as a real, selectable fourth option - for
+// a rushed/wrong click logged against a recruit who then had to leave before actually being
+// interviewed. Picking it is a delete, not a value change, so it's routed to a different
+// handler than the other three (see the onChange wiring at the call site).
+function InterviewStatusSelect({
   row,
   busy,
-  onDecide,
+  onChange,
 }: {
   row: ShortlistRow;
   busy: boolean;
-  onDecide: (id: string, status: "shortlisted" | "not_shortlisted", reason: string) => void;
+  onChange: (row: ShortlistRow, value: InterviewResult | "not_done") => void;
 }) {
-  const [reason, setReason] = useState(row.override_reason ?? "");
+  const options: { value: string; label: string }[] = row.interview_result
+    ? [...INTERVIEW_RESULT_OPTIONS, { value: "not_done", label: "Not done (undo)" }]
+    : INTERVIEW_RESULT_OPTIONS;
+  return (
+    <Select
+      accent="blue"
+      value={row.interview_result ?? ""}
+      onChange={(v) => onChange(row, v as InterviewResult | "not_done")}
+      disabled={busy}
+      placeholder="Not done"
+      className="h-9 w-36 bg-white/5 ring-white/10 py-0 px-3 text-xs"
+      options={options}
+    />
+  );
+}
+
+// Editable "why" text for the two dropdowns above, shown only in the expanded row so the
+// main table stays compact. Both fields only make sense once there's something to explain
+// (a status override / a logged interview result), so each is gated on that happening
+// first rather than accepting free text with nothing to attach it to.
+function ReasonField({
+  value,
+  placeholder,
+  disabledReason,
+  busy,
+  onSave,
+}: {
+  value: string | null;
+  placeholder: string;
+  disabledReason: string | null;
+  busy: boolean;
+  onSave: (text: string) => void;
+}) {
+  const [text, setText] = useState(value ?? "");
+
+  useEffect(() => {
+    setText(value ?? "");
+  }, [value]);
+
+  if (disabledReason) {
+    return <span className="text-xs text-gray-600">{disabledReason}</span>;
+  }
+
+  const dirty = text.trim() !== (value ?? "").trim();
 
   return (
-    <div className="flex flex-col gap-2 items-end">
-      <div className="flex gap-2">
-        <button
-          onClick={() => onDecide(row.id, "shortlisted", reason)}
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/25 disabled:opacity-50 transition"
-        >
-          <Check className="w-3.5 h-3.5" /> Shortlist
-        </button>
-        <button
-          onClick={() => onDecide(row.id, "not_shortlisted", reason)}
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition"
-        >
-          <X className="w-3.5 h-3.5" /> Reject
-        </button>
-      </div>
+    <div className="flex items-center gap-2">
       <input
         type="text"
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder="Reason (optional)"
-        className="w-48 border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={placeholder}
+        className="w-56 border-0 bg-white/5 py-1 px-2.5 text-white text-xs ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
       />
+      <button
+        type="button"
+        onClick={() => onSave(text.trim())}
+        disabled={busy || !dirty}
+        className="shrink-0 bg-white/10 px-2.5 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition"
+      >
+        Save
+      </button>
     </div>
   );
 }
@@ -178,12 +320,27 @@ function ExamDomainsTab() {
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("all");
   const [gender, setGender] = useState("all");
   const [year, setYear] = useState("all");
+  const [interviewFilter, setInterviewFilter] = useState<(typeof INTERVIEW_FILTER_OPTIONS)[number]["value"]>("all");
   const [rows, setRows] = useState<ShortlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [callBusyId, setCallBusyId] = useState<string | null>(null);
+  const [interviewBusyId, setInterviewBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // Filtering re-runs on every keystroke since it's just an in-memory array scan, which is
+  // cheap even at this module's ~2000-recruit scale - the debounce isn't masking a slow
+  // filter, it's avoiding needless re-renders (and the residence-breakdown table
+  // recomputing) once per keystroke while someone is still mid-word.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
   const [sort, setSort] = useState<SortState<ShortlistSortKey>>(null);
+  // Set after every successful load() - lets a lead judge how stale the view might be
+  // (another lead's edits since) without needing to guess, and gives the Refresh button
+  // below something to report back once it's done.
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   // ONE date for the whole page, not one per recruit. Interview day is walk-in with no time
   // slots (see the interview dashboard), so there is no per-recruit slot to record - everyone
   // shortlisted gets told the same day. Typing it once here also stops a lead retyping the
@@ -194,6 +351,13 @@ function ExamDomainsTab() {
   // means "use the shared date"; it does not mean "no date was set for this recruit".
   const [rowInterviewDates, setRowInterviewDates] = useState<Record<string, string>>({});
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [bulkCallBusy, setBulkCallBusy] = useState(false);
+  const [whatsappWorklistOpen, setWhatsappWorklistOpen] = useState(false);
+  // Session-only "clicked Send" tracker for the WhatsApp worklist below - there's no
+  // server-side signal for "a message was sent" (WhatsApp Web gives no delivery callback),
+  // so this is purely a visual aid to help a lead see where they left off in the list, not
+  // a source of truth. Resets on reload/navigation by design.
+  const [sentWhatsAppIds, setSentWhatsAppIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -217,6 +381,7 @@ function ExamDomainsTab() {
       const data = await res.json();
       if (res.ok && data.success) {
         setRows(data.data as ShortlistRow[]);
+        setLastRefreshedAt(new Date());
       } else {
         toast.error(data.error || "Could not load shortlist");
       }
@@ -233,12 +398,12 @@ function ExamDomainsTab() {
   }, [domain, status]);
 
   const visibleRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     // Name/reg_no match the raw term; phone matches a digits-only copy of it, because
     // numbers are stored bare and a pasted "+91 98765 43210" has to normalize first.
     // phoneQ is null under 3 digits, so a stray digit in a name search matches no phones.
     // Searchable only - phone stays out of the rendered row.
-    const phoneQ = phoneSearchTerm(search);
+    const phoneQ = phoneSearchTerm(debouncedSearch);
     const filtered = q
       ? rows.filter(
           (row) =>
@@ -257,9 +422,19 @@ function ExamDomainsTab() {
     // recruit_shortlist_status, so it can't ride the server-side domain/status query.
     const byYear = year === "all" ? byGender : byGender.filter((row) => row.recruit.year === year);
 
-    if (!sort) return byYear;
-    return [...byYear].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
-  }, [rows, search, gender, year, sort]);
+    // Interview done-ness is a row presence check (see ShortlistRow's interview_result
+    // comment), joined server-side already - so, like gender/year, this filters the
+    // already-fetched rows rather than adding another query param.
+    const byInterview =
+      interviewFilter === "all"
+        ? byYear
+        : byYear.filter((row) =>
+            interviewFilter === "done" ? row.interview_result !== null : row.interview_result === null
+          );
+
+    if (!sort) return byInterview;
+    return [...byInterview].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
+  }, [rows, debouncedSearch, gender, year, interviewFilter, sort]);
 
   // Hosteller vs Day Scholar, split by gender, over whatever is currently in `visibleRows` -
   // so it moves with every filter on this page (domain, status, gender, year, search), not
@@ -289,6 +464,14 @@ function ExamDomainsTab() {
     hosteller: residenceStats.male.hosteller + residenceStats.female.hosteller + residenceStats.unspecified.hosteller,
     dayScholar: residenceStats.male.dayScholar + residenceStats.female.dayScholar + residenceStats.unspecified.dayScholar,
   };
+
+  // Bulk-action targets, both scoped to `visibleRows` - so, like the residence breakdown,
+  // "everyone" always means everyone the current filters are showing, not the full table.
+  const uncalledVisibleRows = useMemo(() => visibleRows.filter((r) => !r.called_by), [visibleRows]);
+  const whatsappWorklistRows = useMemo(
+    () => visibleRows.filter((r) => r.status === "shortlisted" && !r.called_by),
+    [visibleRows]
+  );
 
   const handleSort = (key: ShortlistSortKey) => setSort((prev) => nextSortState(prev, key));
 
@@ -330,6 +513,12 @@ All the best!
     }
   };
 
+  // Patches the one row from the PATCH response instead of calling load() - a full
+  // reload() re-fetches and re-renders every row in view (and flashes "Loading..." over
+  // the whole table) just to reflect a single dropdown pick. The response already carries
+  // everything the row needs (status/method/override_reason/overridden_by/overridden_at),
+  // so there's nothing a re-fetch would tell us that we don't already have. Same pattern
+  // markCalled already used below.
   const decide = async (id: string, newStatus: "shortlisted" | "not_shortlisted", reason: string) => {
     setBusyId(id);
     try {
@@ -340,13 +529,26 @@ All the best!
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success("Override saved");
-        load();
+        toast.success("Status saved");
+        setRows((prev) =>
+          prev.map((row) =>
+            row.id === id
+              ? {
+                  ...row,
+                  status: data.data.status,
+                  method: data.data.method,
+                  override_reason: data.data.override_reason,
+                  overridden_by: data.data.overridden_by,
+                  overridden_at: data.data.overridden_at,
+                }
+              : row
+          )
+        );
       } else {
-        toast.error(data.error || "Could not save override");
+        toast.error(data.error || "Could not save status");
       }
     } catch {
-      toast.error("Could not save override");
+      toast.error("Could not save status");
     } finally {
       setBusyId(null);
     }
@@ -374,6 +576,194 @@ All the best!
     } finally {
       setCallBusyId(null);
     }
+  };
+
+  // Fires one call per uncalled visible row, in parallel, against the same single-row
+  // endpoint markCalled uses above - there's no bulk endpoint, and none is needed: each
+  // call is already small, idempotent-safe (a 409 just means someone else got there
+  // first), and this is a lead-triggered action against, at most, one domain's shortlist,
+  // not thousands of rows. Successes are applied locally same as markCalled; any failures
+  // (most likely a race with another lead calling the same row) fall back to a full load()
+  // so the view can't end up silently wrong about who's been called.
+  const bulkMarkCalled = async () => {
+    const targets = uncalledVisibleRows;
+    if (targets.length === 0) return;
+    setBulkCallBusy(true);
+    try {
+      const results = await Promise.allSettled(
+        targets.map(async (row) => {
+          const res = await fetch(`/api/admin/recruitment/shortlist/${row.id}/call`, { method: "POST" });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error(data.error || "Could not mark as called");
+          return { id: row.id, called_by: data.data.called_by as string, called_at: data.data.called_at as string };
+        })
+      );
+
+      const succeeded = results.filter(
+        (r): r is PromiseFulfilledResult<{ id: string; called_by: string; called_at: string }> => r.status === "fulfilled"
+      );
+      if (succeeded.length > 0) {
+        const byId = new Map(succeeded.map((r) => [r.value.id, r.value]));
+        setRows((prev) =>
+          prev.map((row) => {
+            const hit = byId.get(row.id);
+            return hit ? { ...row, called_by: hit.called_by, called_at: hit.called_at } : row;
+          })
+        );
+      }
+
+      const failedCount = results.length - succeeded.length;
+      if (failedCount === 0) {
+        toast.success(`Marked ${succeeded.length} as called`);
+      } else {
+        toast.error(`Marked ${succeeded.length} as called, ${failedCount} could not be saved - refreshing`);
+        load();
+      }
+    } finally {
+      setBulkCallBusy(false);
+    }
+  };
+
+  // Same upsert endpoint the interview panel and results-list "Fix" flow use, minus
+  // panel_id - this page is never inside a specific panel, so there's no token to flip to
+  // `done` here (see that route's panel_id comment). Existing notes are re-sent alongside a
+  // result change so correcting selected -> rejected from the dropdown doesn't blank them.
+  //
+  // Patches local state rather than calling load() (same reasoning as decide() above). The
+  // POST response only echoes {result}, not notes/decided_at/interviewer, so those three
+  // are filled in from what we already know/expect rather than re-fetched: notes is exactly
+  // what was just sent, decided_at is "now" (accurate - the server sets it the same way),
+  // and interviewer is left as-is since we don't have the current user's display name on
+  // this page. All three are self-correcting on the next natural load() (a filter change,
+  // or the Refresh button), and interviewer/decided_at aren't rendered anywhere on this page
+  // today (only in the CSV export), so a stale value between now and that next load is low
+  // stakes.
+  const setInterviewResult = async (row: ShortlistRow, result: InterviewResult) => {
+    setInterviewBusyId(row.id);
+    try {
+      const res = await fetch(`/api/admin/recruitment/interview-results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recruit_id: row.recruit_id,
+          sub_domain: row.sub_domain,
+          result,
+          notes: row.interview_notes || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.saved) {
+        toast.success("Interview result saved");
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? { ...r, interview_result: data.result as InterviewResult, interview_decided_at: new Date().toISOString() }
+              : r
+          )
+        );
+      } else {
+        toast.error(data.error || "Could not save interview result");
+      }
+    } catch {
+      toast.error("Could not save interview result");
+    } finally {
+      setInterviewBusyId(null);
+    }
+  };
+
+  // Confirmed, destructive: deletes the logged result outright (not a value change, so it
+  // doesn't go through setInterviewResult above). Deliberately doesn't touch the recruit's
+  // interview token - see the DELETE route's own comment for why guessing at waiting vs
+  // no_show from this page would risk returning someone who's already left to a callable
+  // queue.
+  const undoInterviewResult = async (row: ShortlistRow) => {
+    if (
+      !confirm(
+        `Undo the logged interview result for ${row.recruit.name}? This deletes it - and any notes - entirely. There's no way back except logging it again.`
+      )
+    ) {
+      return;
+    }
+    setInterviewBusyId(row.id);
+    try {
+      const res = await fetch(`/api/admin/recruitment/interview-results`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recruit_id: row.recruit_id, sub_domain: row.sub_domain }),
+      });
+      const data = await res.json();
+      if (res.ok && data.deleted) {
+        toast.success("Interview result undone");
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id ? { ...r, interview_result: null, interview_notes: null, interview_decided_at: null } : r
+          )
+        );
+      } else {
+        toast.error(data.error || "Could not undo the interview result");
+      }
+    } catch {
+      toast.error("Could not undo the interview result");
+    } finally {
+      setInterviewBusyId(null);
+    }
+  };
+
+  const saveInterviewNotes = async (row: ShortlistRow, notes: string) => {
+    if (!row.interview_result) return;
+    setInterviewBusyId(row.id);
+    try {
+      const res = await fetch(`/api/admin/recruitment/interview-results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recruit_id: row.recruit_id,
+          sub_domain: row.sub_domain,
+          result: row.interview_result,
+          notes: notes || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.saved) {
+        toast.success("Notes saved");
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id ? { ...r, interview_notes: notes || null, interview_decided_at: new Date().toISOString() } : r
+          )
+        );
+      } else {
+        toast.error(data.error || "Could not save notes");
+      }
+    } catch {
+      toast.error("Could not save notes");
+    } finally {
+      setInterviewBusyId(null);
+    }
+  };
+
+  // Built from `visibleRows`, not a fresh fetch - that's the one place all of this page's
+  // filters (server-side domain/status AND client-side gender/year/interview/search) are
+  // already combined and in the same order shown on screen, so the export can't drift from
+  // what a lead is actually looking at. No backend route needed.
+  const exportCsv = () => {
+    if (visibleRows.length === 0) {
+      toast.error("No rows match the current filters");
+      return;
+    }
+    const lines = [CSV_HEADER, ...visibleRows.map(shortlistRowToCsv)].map((row) =>
+      row.map(csvCell).join(",")
+    );
+    const csv = lines.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const nameParts = ["shortlist", domain !== "all" ? domain : "all-domains", status !== "all" ? status : "all-statuses"];
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nameParts.join("-")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -421,6 +811,15 @@ All the best!
             options={YEAR_OPTIONS}
           />
         </div>
+        <div className="w-48">
+          <Select
+            accent="blue"
+            value={interviewFilter}
+            onChange={(v) => setInterviewFilter(v as (typeof INTERVIEW_FILTER_OPTIONS)[number]["value"])}
+            className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+            options={[...INTERVIEW_FILTER_OPTIONS]}
+          />
+        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
@@ -439,7 +838,102 @@ All the best!
           title="Default for every WhatsApp message sent from this page. A recruit's own row can override it. Leave blank and the message says the schedule follows separately."
           className="h-10 w-60 border-0 bg-white/5 px-3 text-white text-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
         />
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          title="Re-fetch this domain/status from the server - picks up status/interview/call changes made by another lead"
+          className="h-10 inline-flex items-center gap-1.5 bg-white/5 px-3 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </button>
+        {lastRefreshedAt && (
+          <span className="h-10 inline-flex items-center text-[11px] text-gray-500 whitespace-nowrap">
+            Updated {lastRefreshedAt.toLocaleTimeString()}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={loading || visibleRows.length === 0}
+          title="Export exactly what's in view - every filter above, applied"
+          className="h-10 inline-flex items-center gap-1.5 bg-white/5 px-3 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
       </div>
+
+      {!loading && (
+        <div className="flex flex-wrap items-center gap-3 border border-white/10 bg-black px-4 py-3">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500 shrink-0">Bulk Actions</span>
+          <button
+            type="button"
+            onClick={bulkMarkCalled}
+            disabled={bulkCallBusy || uncalledVisibleRows.length === 0}
+            title="Marks every uncalled recruit currently in view as called, one call per row"
+            className="inline-flex items-center gap-1.5 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Check className={`w-3.5 h-3.5 ${bulkCallBusy ? "animate-pulse" : ""}`} />
+            {bulkCallBusy ? "Marking..." : `Mark ${uncalledVisibleRows.length} Called`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWhatsappWorklistOpen((o) => !o)}
+            disabled={whatsappWorklistRows.length === 0 && !whatsappWorklistOpen}
+            title="Opens a one-click-per-recruit list for everyone shortlisted and not yet called - browsers block auto-opening many WhatsApp tabs at once, so this is the reliable way to send several in a row"
+            className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            {whatsappWorklistOpen ? "Hide" : `WhatsApp Worklist (${whatsappWorklistRows.length})`}
+          </button>
+        </div>
+      )}
+
+      {whatsappWorklistOpen && (
+        <div className="border border-white/10 bg-black p-4">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">
+            WhatsApp Worklist
+            <span className="ml-2 normal-case font-normal text-gray-600">
+              Shortlisted, not yet called, matching the filters above - click Send for each in turn
+            </span>
+          </h2>
+          {whatsappWorklistRows.length === 0 ? (
+            <p className="mt-3 text-xs text-gray-500">Nobody currently in view is shortlisted-and-uncalled.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-white/5">
+              {whatsappWorklistRows.map((row) => {
+                const sent = sentWhatsAppIds.has(row.id);
+                return (
+                  <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-white">{row.recruit.name}</span>
+                      <span className="ml-2 text-xs text-gray-500">{row.recruit.reg_no}</span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        {subDomainSubsystem(row.sub_domain)}: {subDomainLabel(row.sub_domain)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sendWhatsApp(row);
+                        setSentWhatsAppIds((prev) => new Set(prev).add(row.id));
+                      }}
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold ring-1 ring-inset transition ${
+                        sent
+                          ? "bg-white/5 text-gray-500 ring-white/10"
+                          : "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30 hover:bg-emerald-500/25"
+                      }`}
+                    >
+                      {sent ? <Check className="w-3.5 h-3.5" /> : <MessageCircle className="w-3.5 h-3.5" />}
+                      {sent ? "Sent - Send Again" : "Send"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
 
       {!loading && visibleRows.length > 0 && (
         <div className="border border-white/10 bg-black p-4">
@@ -515,7 +1009,7 @@ All the best!
                   <SortableTh label="Marks" sortKey="marks" sort={sort} onSort={handleSort} />
                   <SortableTh label="Status" sortKey="status" sort={sort} onSort={handleSort} />
                   <th className="px-5 py-3">Called</th>
-                  <th className="px-5 py-3 text-right">Override</th>
+                  <th className="px-5 py-3">Interview Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -538,13 +1032,21 @@ All the best!
                             dash keeps that distinction visible next to the status badge. */}
                         <td className="px-5 py-3 text-white font-semibold">{row.marks ?? "-"}</td>
                         <td className="px-5 py-3">
-                          <StatusBadge status={row.status} />
+                          <StatusSelect
+                            row={row}
+                            busy={busyId === row.id}
+                            onChange={(r, s) => decide(r.id, s, r.override_reason ?? "")}
+                          />
                         </td>
                         <td className="px-5 py-3">
                           <CalledCheckbox row={row} busy={callBusyId === row.id} onCall={markCalled} />
                         </td>
                         <td className="px-5 py-3">
-                          <OverrideControls row={row} busy={busyId === row.id} onDecide={decide} />
+                          <InterviewStatusSelect
+                            row={row}
+                            busy={interviewBusyId === row.id}
+                            onChange={(r, v) => (v === "not_done" ? undoInterviewResult(r) : setInterviewResult(r, v))}
+                          />
                         </td>
                       </tr>
                       {expanded && (
@@ -606,6 +1108,30 @@ All the best!
                               </div>
                             }
                           />
+                          <DetailField
+                            label="Status Reason"
+                            value={
+                              <ReasonField
+                                value={row.override_reason}
+                                placeholder="Reason (optional)"
+                                disabledReason={row.status === "pending" ? "Set a status first" : null}
+                                busy={busyId === row.id}
+                                onSave={(text) => decide(row.id, row.status as "shortlisted" | "not_shortlisted", text)}
+                              />
+                            }
+                          />
+                          <DetailField
+                            label="Interview Notes"
+                            value={
+                              <ReasonField
+                                value={row.interview_notes}
+                                placeholder="Notes (optional)"
+                                disabledReason={row.interview_result === null ? "Set an interview result first" : null}
+                                busy={interviewBusyId === row.id}
+                                onSave={(text) => saveInterviewNotes(row, text)}
+                              />
+                            }
+                          />
                         </DetailRow>
                       )}
                     </Fragment>
@@ -633,7 +1159,7 @@ export default function RecruitmentShortlistPage() {
           Shortlist
         </h1>
         <p className="mt-2 text-gray-400 text-sm max-w-xl">
-          Review auto-computed shortlist status per domain, with manual override.
+          Review auto-computed shortlist status per domain - edit status and interview outcome directly from the dropdowns below.
         </p>
       </div>
 

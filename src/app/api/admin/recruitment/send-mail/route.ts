@@ -2,27 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { selectInChunks } from "@/lib/supabase/query-helpers";
 import { getSession, requireRole } from "@/lib/session";
-import { getRecruitmentBulkMailTransporter, RECRUIT_BULK_MAIL_FROM, logoAttachment } from "@/lib/mailer";
-import { buildBulkMailHtml } from "@/lib/recruit-bulk-mail-email";
 import { boundedText } from "@/lib/recruit-validation";
+import { MAX_SUBJECT_LENGTH, MAX_BODY_LENGTH, MAX_RECIPIENTS } from "@/lib/recruit-bulk-mail-jobs";
 
 export const dynamic = "force-dynamic";
 
-const MAX_SUBJECT_LENGTH = 200;
-const MAX_BODY_LENGTH = 5000;
-// Bounds a single request to roughly one active cycle's worth of recruits. Larger blasts
-// should be sent as a few filtered batches rather than one request that risks a serverless
-// function timeout mid-send.
-const MAX_RECIPIENTS = 3000;
-// A plain Gmail account caps recipients (to+cc+bcc) at ~500 per message. Recipients are
-// batched into BCC-only sends of this size, sequentially - no personalization, everyone in
-// a chunk gets the identical email, so this is purely a Gmail-limit workaround, not a
-// per-recruit send.
-const BCC_CHUNK_SIZE = 450;
-
-// POST /api/admin/recruitment/send-mail - bulk-email selected recruits in the active cycle
-// with an admin-composed subject/body and an optional date & time (e.g. an interview slot
-// or deadline) rendered into the email.
+// POST /api/admin/recruitment/send-mail - creates a recruit_bulk_mail_jobs row (plus one
+// recruit_bulk_mail_recipients row per deduped BCC address) for an admin-composed
+// subject/body and an optional date & time, scoped to selected recruits in the active
+// cycle. Does NOT send anything itself - the actual sending happens as the client repeatedly
+// calls POST .../jobs/[jobId]/process, one BCC-chunk per call, so a single request can never
+// block on the whole batch (see recruit-migration-025-bulk-mail-jobs.sql for why).
 export async function POST(request: NextRequest) {
     const session = await getSession();
     if (!requireRole(session, ["lead", "admin"])) {
@@ -63,11 +53,6 @@ export async function POST(request: NextRequest) {
         eventAt = parsed;
     }
 
-    const transporter = getRecruitmentBulkMailTransporter();
-    if (!transporter || !RECRUIT_BULK_MAIL_FROM) {
-        return NextResponse.json({ success: false, error: "Recruitment mass-mail Gmail SMTP is not configured on this server." }, { status: 503 });
-    }
-
     const supabase = createRecruitSupabaseAdminClient();
 
     const { data: cycle } = await supabase.from("recruitment_cycles").select("id").eq("is_active", true).maybeSingle();
@@ -80,13 +65,12 @@ export async function POST(request: NextRequest) {
     // list would otherwise blow past reverse-proxy URL-length limits (see query-helpers.ts).
     const { data: recruits, error: recruitsError } = await selectInChunks<{
         id: string;
-        name: string;
         srm_email: string | null;
         personal_email: string | null;
     }>(recruitIds, (chunk) =>
         supabase
             .from("recruit_accounts")
-            .select("id, name, srm_email, personal_email")
+            .select("id, srm_email, personal_email")
             .eq("cycle_id", cycle.id)
             .in("id", chunk)
     );
@@ -99,63 +83,67 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "None of the selected recruits were found." }, { status: 404 });
     }
 
-    const eventLabel = eventAt
-        ? eventAt.toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Kolkata" })
-        : null;
-
-    const failures: { recruit_id: string; name: string; error: string }[] = [];
-
-    // Everyone selected goes into one shared BCC blast (no personalization) - split only to
-    // stay under Gmail's per-message recipient cap, never per recruit.
+    // Everyone selected goes into one shared BCC blast (no personalization) - dedupe by
+    // email so a recruit whose srm_email == personal_email, or two recruits sharing an
+    // address, doesn't get double-counted as two recipient rows.
     const emailToRecruitIds = new Map<string, Set<string>>();
-    for (const r of recruits as { id: string; name: string; srm_email: string | null; personal_email: string | null }[]) {
+    for (const r of recruits) {
         const emails = Array.from(
             new Set([r.srm_email, r.personal_email].filter((e): e is string => !!e).map((e) => e.toLowerCase()))
         );
-        if (emails.length === 0) {
-            failures.push({ recruit_id: r.id, name: r.name, error: "No email on file" });
-            continue;
-        }
         for (const email of emails) {
             if (!emailToRecruitIds.has(email)) emailToRecruitIds.set(email, new Set());
             emailToRecruitIds.get(email)!.add(r.id);
         }
     }
 
-    const recruitById = new Map(recruits.map((r: { id: string; name: string }) => [r.id, r.name]));
-    const allEmails = Array.from(emailToRecruitIds.keys());
-    const sentRecruitIds = new Set<string>();
-    const errorByRecruitId = new Map<string, string>();
+    const recruitsWithNoEmail = recruits.filter(
+        (r) => !r.srm_email && !r.personal_email
+    ).length;
 
-    for (let i = 0; i < allEmails.length; i += BCC_CHUNK_SIZE) {
-        const chunk = allEmails.slice(i, i + BCC_CHUNK_SIZE);
-        try {
-            await transporter.sendMail({
-                from: `"SRM Team Robocon Recruitment" <${RECRUIT_BULK_MAIL_FROM}>`,
-                to: RECRUIT_BULK_MAIL_FROM,
-                bcc: chunk,
-                subject,
-                text: message + (eventLabel ? `\n\nDate & Time: ${eventLabel}` : ""),
-                html: buildBulkMailHtml({ subject, message, eventLabel }),
-                attachments: [logoAttachment()],
-            });
-            chunk.forEach((email) => {
-                emailToRecruitIds.get(email)!.forEach((id) => sentRecruitIds.add(id));
-            });
-        } catch (err) {
-            const reason = err instanceof Error ? err.message : "Send failed";
-            chunk.forEach((email) => {
-                emailToRecruitIds.get(email)!.forEach((id) => errorByRecruitId.set(id, reason));
-            });
-        }
+    if (emailToRecruitIds.size === 0) {
+        return NextResponse.json(
+            { success: false, error: "None of the selected recruits have an email on file." },
+            { status: 400 }
+        );
     }
 
-    errorByRecruitId.forEach((error, id) => {
-        if (!sentRecruitIds.has(id)) {
-            failures.push({ recruit_id: id, name: recruitById.get(id) || id, error });
-        }
-    });
+    const { data: job, error: jobError } = await supabase
+        .from("recruit_bulk_mail_jobs")
+        .insert({
+            cycle_id: cycle.id,
+            subject,
+            body: message,
+            event_at: eventAt ? eventAt.toISOString() : null,
+            total_recruits: recruits.length,
+            created_by: session.user,
+        })
+        .select("id")
+        .single();
 
-    const sent = sentRecruitIds.size;
-    return NextResponse.json({ success: true, sent, failed: failures.length, failures });
+    if (jobError || !job) {
+        console.error("send-mail job insert error", jobError);
+        return NextResponse.json({ success: false, error: "Could not create the send job." }, { status: 500 });
+    }
+
+    const recipientRows = Array.from(emailToRecruitIds.entries()).map(([email, ids]) => ({
+        job_id: job.id,
+        email,
+        recruit_ids: Array.from(ids),
+    }));
+
+    const { error: recipientsError } = await supabase.from("recruit_bulk_mail_recipients").insert(recipientRows);
+    if (recipientsError) {
+        console.error("send-mail recipients insert error", recipientsError);
+        // Best-effort cleanup so a half-created job doesn't linger in the "Recent Sends" list.
+        await supabase.from("recruit_bulk_mail_jobs").delete().eq("id", job.id);
+        return NextResponse.json({ success: false, error: "Could not queue recipients for this job." }, { status: 500 });
+    }
+
+    return NextResponse.json({
+        success: true,
+        job_id: job.id,
+        total_recruits: recruits.length,
+        recruits_with_no_email: recruitsWithNoEmail,
+    });
 }

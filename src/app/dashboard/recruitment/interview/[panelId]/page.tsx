@@ -10,18 +10,15 @@ import {
     CheckCircle2,
     UserX,
     Award,
-    Star,
     Ban,
     Hourglass,
-    Pencil,
     Footprints,
     Users,
+    Undo2,
 } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
-import { subDomainLabel, subDomainFullLabel } from "@/lib/recruit-domains";
-import { travelMethodLabel } from "@/lib/travel-method";
-import { genderLabel } from "@/lib/gender";
-import EditRecruitModal, { type EditableRecruit } from "@/components/recruit/EditRecruitModal";
+import { subDomainFullLabel } from "@/lib/recruit-domains";
+import RecruitProfileCard, { type RecruitProfile } from "@/components/recruit/RecruitProfileCard";
 
 // The dedicated page for ONE interview table, reached by joining or creating a table from
 // /dashboard/recruitment/interview. Table controls (Pause/Close/Delete) and result logging
@@ -50,25 +47,6 @@ interface Panel {
     created_at: string;
     created_by: string;
     counts: PanelCounts;
-}
-
-interface RecruitProfile {
-    id: string;
-    name: string;
-    reg_no: string;
-    year: string;
-    department: string;
-    domains: string[];
-    exam_marks: { sub_domain: string; marks: number }[];
-    portfolio_url?: string;
-    shortlisted_for: string[];
-    is_hosteller: boolean;
-    hostel_block: string | null;
-    hostel_room: string | null;
-    day_scholar_area: string | null;
-    travel_method: string | null;
-    gender: string | null;
-    phone: string | null;
 }
 
 interface DomainWaitingToken {
@@ -100,294 +78,6 @@ interface QueueToken {
     interested_other_domains: string | null;
     review_updated_by: string | null;
     review_updated_at: string | null;
-}
-
-// Same "day/month, hour:minute" shape as the picker page's own copy - a one-line formatter,
-// not worth sharing a module for.
-function savedAtLabel(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleString([], {
-        day: "numeric",
-        month: "short",
-        hour: "numeric",
-        minute: "2-digit",
-    });
-}
-
-// Verbatim copy of the finished/verified RecruitProfileCard from the old board - full
-// recruit detail including the review-note/rating/interested-in-other-clubs/domains
-// fields. Reused as-is for both the "Now Serving" recruit (via TableSlot) and each
-// expanded row in the shared domain waiting pool (via DomainWaitingPool) below.
-function RecruitProfileCard({ token, onChanged }: { token: QueueToken; onChanged: () => void }) {
-    const r = token.recruit;
-
-    const [reviewNote, setReviewNote] = useState(token.review_note ?? "");
-    const [rating, setRating] = useState(token.rating ?? "");
-    const [interestedClubs, setInterestedClubs] = useState(token.interested_other_clubs ?? "");
-    const [interestedDomains, setInterestedDomains] = useState(token.interested_other_domains ?? "");
-    const [reviewSavedBy, setReviewSavedBy] = useState(token.review_updated_by);
-    const [reviewSavedAt, setReviewSavedAt] = useState(token.review_updated_at);
-    const [savingReview, setSavingReview] = useState(false);
-
-    // Re-sync from the prop whenever it's a genuinely different token (a new recruit swapped
-    // into this slot) or the server-side value moved out from under us (another panel saved
-    // a note on the same token, or a background refresh landed) - without this, switching
-    // "Now Serving" recruits would leave the PREVIOUS recruit's draft note lingering.
-    useEffect(() => {
-        setReviewNote(token.review_note ?? "");
-        setRating(token.rating ?? "");
-        setInterestedClubs(token.interested_other_clubs ?? "");
-        setInterestedDomains(token.interested_other_domains ?? "");
-        setReviewSavedBy(token.review_updated_by);
-        setReviewSavedAt(token.review_updated_at);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        token.token_id,
-        token.review_note,
-        token.rating,
-        token.interested_other_clubs,
-        token.interested_other_domains,
-        token.review_updated_by,
-        token.review_updated_at,
-    ]);
-
-    const [editRecruit, setEditRecruit] = useState<EditableRecruit | null>(null);
-    const [loadingEdit, setLoadingEdit] = useState(false);
-
-    // RecruitProfile (the queue payload) doesn't carry `course` - the edit form requires a
-    // non-empty one, so rather than open the modal with a blank course and risk a save that
-    // silently wipes a real value, fetch the full recruit record on demand and only open once
-    // it's in hand. Scoped by an exact reg_no match against the search results, since the
-    // list endpoint's `search` is a substring match and could return more than one row.
-    const openEdit = async () => {
-        setLoadingEdit(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/recruits?search=${encodeURIComponent(r.reg_no)}`);
-            const data = await res.json();
-            const match = (data.data ?? []).find((x: any) => x.reg_no === r.reg_no);
-            if (!res.ok || !data.success || !match) {
-                toast.error("Could not load recruit for editing");
-                return;
-            }
-            setEditRecruit({
-                id: match.id,
-                name: match.name,
-                reg_no: match.reg_no,
-                year: match.year,
-                gender: match.gender,
-                department: match.department,
-                course: match.course,
-                phone: match.phone,
-                is_hosteller: match.is_hosteller,
-                hostel_block: match.hostel_block,
-                hostel_room: match.hostel_room,
-                day_scholar_area: match.day_scholar_area,
-                travel_method: match.travel_method,
-                domains: match.domains,
-            });
-        } catch {
-            toast.error("Could not load recruit for editing");
-        } finally {
-            setLoadingEdit(false);
-        }
-    };
-
-    const saveReview = async () => {
-        setSavingReview(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/tokens/${token.token_id}/review`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    review_note: reviewNote,
-                    rating: rating === "" ? null : rating,
-                    interested_other_clubs: interestedClubs,
-                    interested_other_domains: interestedDomains,
-                }),
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                toast.success("Review saved");
-                setReviewSavedBy(data.data.review_updated_by);
-                setReviewSavedAt(data.data.review_updated_at);
-                onChanged();
-            } else {
-                toast.error(data.error || "Could not save review");
-            }
-        } catch {
-            toast.error("Could not save review");
-        } finally {
-            setSavingReview(false);
-        }
-    };
-
-    return (
-        <div className="border border-white/10 bg-black/30 p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-lg font-black text-white">
-                            #{token.token_number} · {r.name}
-                        </p>
-                        {token.is_walkin && (
-                            <span className="inline-flex items-center gap-1 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400 ring-1 ring-inset ring-amber-500/30">
-                                <Footprints className="h-3 w-3" /> Walk-in
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-sm text-gray-400">
-                        {r.reg_no} · Year {r.year} · {r.department}
-                        {r.gender ? ` · ${genderLabel(r.gender)}` : ""}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-400">
-                        {r.is_hosteller
-                            ? `Hosteller${r.hostel_block ? ` · ${r.hostel_block}` : ""}`
-                            : ["Day Scholar", r.day_scholar_area, travelMethodLabel(r.travel_method)].filter(Boolean).join(" · ")}
-                    </p>
-                    {token.is_walkin && (
-                        <p className="mt-1 text-xs text-amber-400/80">
-                            Not shortlisted for this domain, let in as a walk-in on interview day.
-                        </p>
-                    )}
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                    {r.portfolio_url && (
-                        <a
-                            href={r.portfolio_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/30 transition hover:bg-blue-500/25"
-                        >
-                            LinkedIn ↗
-                        </a>
-                    )}
-                    <button
-                        type="button"
-                        onClick={openEdit}
-                        disabled={loadingEdit}
-                        title={`Edit ${r.name}`}
-                        className="inline-flex items-center gap-1 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
-                    >
-                        <Pencil className="h-3.5 w-3.5" />
-                        {loadingEdit ? "..." : "Edit"}
-                    </button>
-                </div>
-            </div>
-
-            <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Applied for</p>
-                <div className="flex flex-wrap gap-1.5">
-                    {r.domains.map((d) => (
-                        <span
-                            key={d}
-                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold ring-1 ring-inset ${
-                                r.shortlisted_for.includes(d)
-                                    ? "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30"
-                                    : "bg-white/5 text-gray-400 ring-white/10"
-                            }`}
-                        >
-                            {r.shortlisted_for.includes(d) && <Star className="h-3 w-3" />}
-                            {subDomainLabel(d)}
-                        </span>
-                    ))}
-                    {r.domains.length === 0 && <span className="text-xs text-gray-500">-</span>}
-                </div>
-            </div>
-
-            {r.exam_marks.length > 0 && (
-                <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Exam marks</p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {r.exam_marks.map((m) => (
-                            <span
-                                key={m.sub_domain}
-                                className="bg-white/5 px-2 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10"
-                            >
-                                {subDomainLabel(m.sub_domain)}: {m.marks}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div>
-                <div className="flex items-center justify-between gap-3 mb-1.5">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Review note</p>
-                    <div className="flex items-center gap-1">
-                        {(["good", "average", "bad"] as const).map((opt) => (
-                            <button
-                                key={opt}
-                                type="button"
-                                onClick={() => setRating(rating === opt ? "" : opt)}
-                                className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset transition ${
-                                    rating === opt
-                                        ? opt === "good"
-                                            ? "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30"
-                                            : opt === "average"
-                                              ? "bg-amber-500/15 text-amber-400 ring-amber-500/30"
-                                              : "bg-red-500/15 text-red-400 ring-red-500/30"
-                                        : "bg-white/5 text-gray-500 ring-white/10 hover:bg-white/10 hover:text-gray-300"
-                                }`}
-                            >
-                                {opt}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                <textarea
-                    value={reviewNote}
-                    onChange={(e) => setReviewNote(e.target.value)}
-                    placeholder="Running note for other panels/leads..."
-                    rows={2}
-                    className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                        type="text"
-                        value={interestedClubs}
-                        onChange={(e) => setInterestedClubs(e.target.value)}
-                        placeholder="Interested in other clubs? (optional)"
-                        className="w-full border-0 bg-white/5 py-1.5 px-3 text-xs text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                        type="text"
-                        value={interestedDomains}
-                        onChange={(e) => setInterestedDomains(e.target.value)}
-                        placeholder="Interested in other domains? (optional)"
-                        className="w-full border-0 bg-white/5 py-1.5 px-3 text-xs text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        onClick={saveReview}
-                        disabled={savingReview}
-                        className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
-                    >
-                        {savingReview ? "Saving..." : "Save"}
-                    </button>
-                    {reviewSavedBy && (
-                        <p className="text-[10px] text-gray-500">
-                            Last saved by {reviewSavedBy}
-                            {reviewSavedAt ? ` at ${savedAtLabel(reviewSavedAt)}` : ""}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {editRecruit && (
-                <EditRecruitModal
-                    recruit={editRecruit}
-                    onClose={() => setEditRecruit(null)}
-                    onSaved={() => {
-                        setEditRecruit(null);
-                        onChanged();
-                    }}
-                />
-            )}
-        </div>
-    );
 }
 
 // Shared by TableControls' Pause / Close-for-Day / Delete network calls (the picker page
@@ -505,12 +195,22 @@ function TableControls({ panel, onChanged }: { panel: Panel; onChanged: () => vo
     );
 }
 
-// This table's "Now Serving" slot (the `called` token, rendered big via RecruitProfileCard),
-// Call Next, and inline result-logging (Selected/Rejected/Waitlisted). Reused from the old
-// board unchanged in data-fetching/API calls and prop signature - only its layout/sizing is
-// bumped here (larger text, more padding) since it's now the single centerpiece of a whole
-// page instead of one card among many.
-function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueToken[]; onChanged: () => void }) {
+// This table's "Now Serving" slot (the `called` token, rendered big via RecruitProfileCard)
+// and inline result-logging (Selected/Rejected/Waitlisted). Reused from the old board
+// unchanged in data-fetching/API calls and prop signature for those parts - only its
+// layout/sizing is bumped here (larger text, more padding) since it's now the centerpiece of
+// a side-by-side page instead of one card among many. Call Next itself is lifted to the
+// parent (2026-09-04) and rendered inside DomainWaitingPool's header instead - it claims the
+// front of that exact list, so the button now lives next to what it acts on.
+function TableSlot({
+    panel,
+    tokens,
+    onChanged,
+}: {
+    panel: Panel;
+    tokens: QueueToken[];
+    onChanged: () => void;
+}) {
     const called = tokens.find((t) => t.status === "called") ?? null;
     const [notes, setNotes] = useState("");
     const [busy, setBusy] = useState(false);
@@ -519,24 +219,6 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
         if (!called) setNotes("");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [called?.token_id]);
-
-    const callNext = async () => {
-        setBusy(true);
-        try {
-            const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/call-next`, { method: "POST" });
-            const data = await res.json();
-            if (!res.ok) {
-                toast.error(data.error || "Could not call next recruit");
-            } else if (data.status === "queue_empty") {
-                toast("Queue is empty", { icon: "📭" });
-            } else {
-                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
-            }
-        } finally {
-            setBusy(false);
-            onChanged();
-        }
-    };
 
     const logResult = async (result: "selected" | "rejected" | "waitlisted") => {
         if (!called) return;
@@ -590,15 +272,45 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
         }
     };
 
+    // "Called the wrong recruit by mistake" - puts them back in the shared domain pool
+    // (not just a client-side dismiss) so any table, including this one, can call them
+    // again properly. Distinct from No Show: that's a real outcome (they didn't show up),
+    // this is undoing an interviewer's own mis-click.
+    const uncall = async () => {
+        if (!called) return;
+        if (!confirm(`Uncall #${called.token_number}: ${called.recruit.name}? They'll go back to the waiting list.`)) return;
+        setBusy(true);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/tokens/${called.token_id}/uncall`, {
+                method: "PATCH",
+            });
+            const data = await res.json();
+            if (res.ok && data.uncalled) {
+                toast.success("Sent back to waiting");
+            } else {
+                toast.error(data.error || "Could not uncall this recruit");
+            }
+        } finally {
+            setBusy(false);
+            onChanged();
+        }
+    };
+
     return (
-        <div className="border border-white/10 bg-black p-6 space-y-4">
-            <div className="flex items-start justify-between gap-2 flex-wrap">
+        // min-h-0 is load-bearing: this is a direct child of the [panelId] page's
+        // grid-cols-2 row, and CSS grid items default to min-height:auto, which overrides
+        // h-full and lets the cell grow to fit its content (and the whole PAGE scroll,
+        // defeating the point of the height-bounded shell) instead of clamping to the row's
+        // allocated height and letting the inner overflow-y-auto div scroll internally.
+        // Confirmed by an actual 1366x768 Playwright screenshot, not just reasoning about it.
+        <div className="h-full min-h-0 flex flex-col border border-white/10 bg-black p-6">
+            <div className="shrink-0 flex items-start justify-between gap-2 flex-wrap pb-4">
                 <div className="min-w-0">
                     <h3 className="truncate text-lg font-bold text-white">{panel.domain_label}</h3>
                     <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
-                        <span className="inline-flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/20">
-                            <Clock3 className="h-3 w-3" /> {panel.counts.waiting} waiting
-                        </span>
+                        {/* No per-table "waiting" badge (migration 024) - waiting recruits
+                            belong to this domain's shared pool alongside this card, not this
+                            specific table. */}
                         <span className="inline-flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
                             <CheckCircle2 className="h-3 w-3" /> {panel.counts.done} done
                         </span>
@@ -607,75 +319,80 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
                 <TableControls panel={panel} onChanged={onChanged} />
             </div>
 
-            {called ? (
-                <div className="border border-blue-500/30 bg-blue-500/[0.06] p-6 space-y-4">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-400">
-                        <PhoneCall className="h-4 w-4" /> Now Serving
-                    </div>
-                    {/* Centerpiece per the exact ask: recruit name + this table's display
-                        name, front and center above the fuller profile detail. */}
-                    <div className="text-center py-2">
-                        <p className="text-4xl font-black text-white leading-tight">{called.recruit.name}</p>
-                        <p className="mt-1.5 text-sm font-bold uppercase tracking-widest text-blue-400">{panel.domain_label}</p>
-                    </div>
-                    <RecruitProfileCard token={called} onChanged={onChanged} />
+            {/* This card's own content can run longer than the viewport (full recruit
+                profile + review fields + result buttons) - it scrolls within the card
+                instead of growing the page, so the page itself never needs its own
+                scrollbar. */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+                {called ? (
+                    <div className="border border-blue-500/30 bg-blue-500/[0.06] p-6 space-y-4">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-400">
+                            <PhoneCall className="h-4 w-4" /> Now Serving
+                        </div>
+                        {/* Centerpiece per the exact ask: recruit name + this table's display
+                            name, front and center above the fuller profile detail. */}
+                        <div className="text-center py-2">
+                            <p className="text-4xl font-black text-white leading-tight">{called.recruit.name}</p>
+                            <p className="mt-1.5 text-sm font-bold uppercase tracking-widest text-blue-400">{panel.domain_label}</p>
+                        </div>
+                        <RecruitProfileCard token={called} onChanged={onChanged} />
 
-                    <div className="space-y-3">
-                        <textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Optional notes..."
-                            rows={2}
-                            className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={() => logResult("selected")}
-                                disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-6 py-3 text-base font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
-                            >
-                                <Award className="h-5 w-5" /> Selected
-                            </button>
-                            <button
-                                onClick={() => logResult("rejected")}
-                                disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 bg-red-500/15 px-6 py-3 text-base font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
-                            >
-                                <Ban className="h-5 w-5" /> Rejected
-                            </button>
-                            <button
-                                onClick={() => logResult("waitlisted")}
-                                disabled={busy || !panel.sub_domain}
-                                className="inline-flex items-center gap-1.5 bg-amber-500/15 px-6 py-3 text-base font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
-                            >
-                                <Hourglass className="h-5 w-5" /> Waitlisted
-                            </button>
-                            <button
-                                onClick={markNoShow}
-                                disabled={busy}
-                                className="inline-flex items-center gap-1.5 bg-white/5 px-6 py-3 text-base font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 ml-auto"
-                            >
-                                <UserX className="h-5 w-5" /> No Show
-                            </button>
+                        <div className="space-y-3">
+                            <textarea
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Optional notes..."
+                                rows={2}
+                                className="w-full border-0 bg-white/5 py-2 px-3 text-sm text-white placeholder:text-gray-500 ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-blue-500"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => logResult("selected")}
+                                    disabled={busy || !panel.sub_domain}
+                                    className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-6 py-3 text-base font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                                >
+                                    <Award className="h-5 w-5" /> Selected
+                                </button>
+                                <button
+                                    onClick={() => logResult("rejected")}
+                                    disabled={busy || !panel.sub_domain}
+                                    className="inline-flex items-center gap-1.5 bg-red-500/15 px-6 py-3 text-base font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                                >
+                                    <Ban className="h-5 w-5" /> Rejected
+                                </button>
+                                <button
+                                    onClick={() => logResult("waitlisted")}
+                                    disabled={busy || !panel.sub_domain}
+                                    className="inline-flex items-center gap-1.5 bg-amber-500/15 px-6 py-3 text-base font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30 transition hover:bg-amber-500/25 disabled:opacity-50"
+                                >
+                                    <Hourglass className="h-5 w-5" /> Waitlisted
+                                </button>
+                                <button
+                                    onClick={markNoShow}
+                                    disabled={busy}
+                                    className="inline-flex items-center gap-1.5 bg-white/5 px-6 py-3 text-base font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 ml-auto"
+                                >
+                                    <UserX className="h-5 w-5" /> No Show
+                                </button>
+                                <button
+                                    onClick={uncall}
+                                    disabled={busy}
+                                    title="Called the wrong recruit - send them back to waiting"
+                                    className="inline-flex items-center gap-1.5 bg-white/5 px-6 py-3 text-base font-semibold text-gray-400 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
+                                >
+                                    <Undo2 className="h-5 w-5" /> Uncall
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            ) : (
-                <button
-                    onClick={callNext}
-                    disabled={busy || waitingCount === 0}
-                    className="group relative w-full overflow-hidden inline-flex items-center justify-center bg-red px-6 py-4 text-base font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:pointer-events-none"
-                    style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                >
-                    <span
-                        className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)", backgroundColor: "#D4AF37" }}
-                    />
-                    <span className="relative inline-flex items-center gap-2 transition-colors duration-200 group-hover:text-black">
-                        <PhoneCall className="h-5 w-5" /> Call Next
-                    </span>
-                </button>
-            )}
+                ) : (
+                    <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-1.5 border border-white/10 bg-white/[0.02] p-6 text-center">
+                        <PhoneCall className="h-6 w-6 text-gray-600" />
+                        <p className="text-sm font-semibold text-gray-400">Nobody is currently being interviewed</p>
+                        <p className="text-xs text-gray-600">Use Call Next in the Waiting list to bring someone here</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -684,11 +401,24 @@ function TableSlot({ panel, tokens, onChanged }: { panel: Panel; tokens: QueueTo
 // table open for the same sub_domain shows this exact same pool, oldest check-in first -
 // there is no "this table's own queue" any more, since nobody is assigned a table until
 // they're actually called. Each row can be pulled to THIS table via the existing
-// (previously cross-table-only) call-token route; Call Next up in TableSlot claims the
-// front of this same pool automatically. No drag-reorder - a domain-wide line shared live
-// across however many tables are open isn't a single owner's order to manually rearrange;
-// fairness is FIFO by check-in time instead.
-function DomainWaitingPool({ panelId, subDomain, onChanged }: { panelId: string; subDomain: string; onChanged: () => void }) {
+// (previously cross-table-only) call-token route. Call Next itself lives in this card's
+// header now (2026-09-04, moved out of TableSlot) since it claims the front of this exact
+// list - the button sits right next to what it acts on. No drag-reorder - a domain-wide line
+// shared live across however many tables are open isn't a single owner's order to manually
+// rearrange; fairness is FIFO by check-in time instead.
+function DomainWaitingPool({
+    panelId,
+    subDomain,
+    onChanged,
+    onCallNext,
+    callingNext,
+}: {
+    panelId: string;
+    subDomain: string;
+    onChanged: () => void;
+    onCallNext: () => void;
+    callingNext: boolean;
+}) {
     const [rows, setRows] = useState<DomainWaitingToken[]>([]);
     const [loading, setLoading] = useState(true);
     const [callingId, setCallingId] = useState<string | null>(null);
@@ -731,22 +461,37 @@ function DomainWaitingPool({ panelId, subDomain, onChanged }: { panelId: string;
         }
     };
 
+    // min-h-0 is load-bearing here too - see TableSlot's identical comment.
     return (
-        <div className="border border-white/10 bg-black">
-            <div className="px-4 py-2.5 border-b border-white/10">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" /> Waiting ({rows.length})
-                </h3>
-                <p className="mt-0.5 text-xs text-gray-500">
-                    Shared across every open table for this domain. Click a name for the full profile, or call one straight to this table.
-                </p>
+        <div className="h-full min-h-0 flex flex-col border border-white/10 bg-black">
+            <div className="shrink-0 flex flex-wrap items-start justify-between gap-3 px-4 py-2.5 border-b border-white/10">
+                {/* Call Next in the top-left corner of this card, right next to what it
+                    claims from - it pulls the oldest row below, so the button and the list
+                    it acts on now sit together instead of Call Next living in a separate
+                    card on the other side of the page. */}
+                <button
+                    type="button"
+                    onClick={onCallNext}
+                    disabled={callingNext}
+                    className="inline-flex shrink-0 items-center gap-1.5 bg-red px-4 py-2 text-sm font-bold text-white shadow shadow-red/30 transition hover:bg-red/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <PhoneCall className="h-4 w-4" /> {callingNext ? "Calling..." : "Call Next"}
+                </button>
+                <div className="min-w-[10rem] flex-1">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-400" /> Waiting ({rows.length})
+                    </h3>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                        Shared across every open table for this domain. Click a name for the full profile, or call one straight to this table.
+                    </p>
+                </div>
             </div>
             {loading ? (
                 <div className="p-5 text-center text-gray-500 text-sm">Loading...</div>
             ) : rows.length === 0 ? (
                 <div className="p-5 text-center text-gray-500 text-sm">Nobody is waiting.</div>
             ) : (
-                <div className="p-3 space-y-1.5">
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1.5">
                     {rows.map((r) => (
                         <div key={r.token_id} className="border border-white/10 bg-black/20">
                             <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
@@ -782,10 +527,7 @@ function DomainWaitingPool({ panelId, subDomain, onChanged }: { panelId: string;
                                         token={{
                                             token_id: r.token_id,
                                             token_number: r.token_number,
-                                            queue_position: 0,
-                                            status: "waiting",
                                             recruit: r.recruit,
-                                            checked_in_at: r.checked_in_at,
                                             is_walkin: r.is_walkin,
                                             review_note: r.review_note,
                                             rating: r.rating,
@@ -861,6 +603,46 @@ export default function PanelInterviewPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ready, panelId]);
 
+    // Lifted out of TableSlot (2026-09-04) so the button can render inside
+    // DomainWaitingPool's header instead - it claims the front of that exact list, so it now
+    // lives next to what it acts on rather than in a separate card.
+    const [resuming, setResuming] = useState(false);
+    const resumePanel = useCallback(async () => {
+        setResuming(true);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/${panelId}/reopen`, { method: "PATCH" });
+            const data = await res.json();
+            if (res.ok && data.reopened) {
+                toast.success("Table resumed");
+                load();
+            } else {
+                toast.error(data.error || "Could not resume table");
+            }
+        } finally {
+            setResuming(false);
+        }
+    }, [panelId, load]);
+
+    const [callingNext, setCallingNext] = useState(false);
+    const callNext = useCallback(async () => {
+        if (!panel) return;
+        setCallingNext(true);
+        try {
+            const res = await fetch(`/api/admin/recruitment/panels/${panel.id}/call-next`, { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "Could not call next recruit");
+            } else if (data.status === "queue_empty") {
+                toast("Queue is empty", { icon: "📭" });
+            } else {
+                toast.success(`Called #${data.token_number}: ${data.recruit?.name ?? ""}`);
+            }
+        } finally {
+            setCallingNext(false);
+            load();
+        }
+    }, [panel, load]);
+
     if (!ready) return null;
 
     // Only surface the banner for a status this page doesn't already show prominently -
@@ -871,10 +653,16 @@ export default function PanelInterviewPage() {
     const recruitNotFound = Boolean(recruitParam && !loading && panel?.is_active && !highlightedToken);
 
     return (
-        <div className="space-y-6">
+        // Bounded to the viewport minus the dashboard shell's own topbar (h-16) and its
+        // <main> padding (p-4 / md:p-8, top+bottom) - see AdminTopbar.tsx and
+        // dashboard/layout.tsx. The shell's <main> is deliberately NOT a scroll container
+        // (a comment there explains why: it would break the sticky topbar), so this page
+        // can't just ask an ancestor to clip it - it has to fit its OWN height inside what's
+        // left, and let its own panels scroll internally instead of growing past it.
+        <div className="flex h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] flex-col gap-4">
             <Link
                 href="/dashboard/recruitment/interview"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition hover:text-white"
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition hover:text-white"
             >
                 <ArrowLeft className="h-3.5 w-3.5" /> Switch table
             </Link>
@@ -894,31 +682,43 @@ export default function PanelInterviewPage() {
             ) : !panel.is_active ? (
                 <div className="border border-amber-500/30 bg-black p-6 text-sm text-amber-300 space-y-3">
                     <p>&quot;{panel.domain_label}&quot; was paused or closed for the day.</p>
-                    <Link
-                        href="/dashboard/recruitment/interview"
-                        className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
-                    >
-                        <ArrowLeft className="h-3.5 w-3.5" /> Back to tables
-                    </Link>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={resumePanel}
+                            disabled={resuming}
+                            className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                        >
+                            {resuming ? "Resuming..." : "Resume this table"}
+                        </button>
+                        <Link
+                            href="/dashboard/recruitment/interview"
+                            className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                        >
+                            <ArrowLeft className="h-3.5 w-3.5" /> Back to tables
+                        </Link>
+                    </div>
                 </div>
             ) : (
                 <>
-                    <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-red">
-                            {subDomainFullLabel(panel.sub_domain ?? "")}
-                        </p>
-                        <h1 className="text-3xl font-black text-white tracking-tight">{panel.domain_label}</h1>
+                    <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-red">
+                                {subDomainFullLabel(panel.sub_domain ?? "")}
+                            </p>
+                            <h1 className="text-2xl font-black text-white tracking-tight">{panel.domain_label}</h1>
+                        </div>
                     </div>
 
                     {recruitNotFound && (
-                        <div className="border border-amber-500/30 bg-black p-4 text-sm text-amber-300">
+                        <div className="shrink-0 border border-amber-500/30 bg-black p-4 text-sm text-amber-300">
                             Could not find that recruit on this table anymore - they may have been moved to
                             another table for this domain.
                         </div>
                     )}
 
                     {showHighlight && highlightedToken && (
-                        <div className="border border-blue-500/30 bg-blue-500/[0.06] p-4 space-y-3">
+                        <div className="shrink-0 max-h-[40vh] overflow-y-auto border border-blue-500/30 bg-blue-500/[0.06] p-4 space-y-3">
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-xs font-bold uppercase tracking-widest text-blue-400">
                                     You came here for {highlightedToken.recruit.name}
@@ -934,10 +734,21 @@ export default function PanelInterviewPage() {
                         </div>
                     )}
 
-                    <TableSlot panel={panel} tokens={tokens} onChanged={load} />
-                    {panel.sub_domain && (
-                        <DomainWaitingPool panelId={panel.id} subDomain={panel.sub_domain} onChanged={load} />
-                    )}
+                    {/* Side by side, each half filling this row's height and scrolling its
+                        own overflow internally - stacks on small screens (nothing to put
+                        side by side with on a phone). */}
+                    <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <TableSlot panel={panel} tokens={tokens} onChanged={load} />
+                        {panel.sub_domain && (
+                            <DomainWaitingPool
+                                panelId={panel.id}
+                                subDomain={panel.sub_domain}
+                                onChanged={load}
+                                onCallNext={callNext}
+                                callingNext={callingNext}
+                            />
+                        )}
+                    </div>
                 </>
             )}
         </div>

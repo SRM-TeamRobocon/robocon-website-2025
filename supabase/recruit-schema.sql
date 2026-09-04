@@ -706,6 +706,52 @@ alter table recruit_interview_tokens
 alter table recruit_interview_tokens
   add column if not exists interested_other_domains text;
 
+-- Migration 024, 2026-09-03 - recruits no longer get auto-routed to a specific table at
+-- check-in (the SAMBED incident: auto-routing silently stranded recruits on whichever table
+-- happened to be open first, with no way for other tables to see or pull from them). Waiting
+-- tokens now sit in one shared pool per domain (panel_id null) until a table actually calls
+-- them - see recruit_allocate_interview_token below and src/app/api/admin/recruitment/
+-- panels/[id]/call-next and .../call-token. NOTE: this mirror file was already missing the
+-- sub_domain and queue_position column additions (applied live well before this migration,
+-- likely around migration 004/013) - not backfilled here, out of scope for this fix.
+alter table recruit_interview_tokens alter column panel_id drop not null;
+
+create or replace function recruit_allocate_interview_token(
+  p_panel_id uuid,
+  p_cycle_id uuid,
+  p_recruit_id uuid,
+  p_sub_domain recruit_subdomain,
+  p_is_walkin boolean
+)
+returns table(token_number integer)
+language plpgsql
+as $$
+declare
+  v_token_number integer;
+  v_queue_position double precision;
+begin
+  if p_panel_id is null then
+    select coalesce(max(t.token_number), 0) + 1
+      into v_token_number
+    from recruit_interview_tokens t
+    where t.cycle_id = p_cycle_id and t.sub_domain = p_sub_domain;
+    v_queue_position := null;
+  else
+    select coalesce(max(t.token_number), 0) + 1, coalesce(max(t.queue_position), 0) + 1000
+      into v_token_number, v_queue_position
+    from recruit_interview_tokens t
+    where t.panel_id = p_panel_id;
+  end if;
+
+  insert into recruit_interview_tokens
+    (cycle_id, recruit_id, panel_id, sub_domain, token_number, queue_position, status, is_walkin)
+  values
+    (p_cycle_id, p_recruit_id, p_panel_id, p_sub_domain, v_token_number, v_queue_position, 'waiting', p_is_walkin);
+
+  return query select v_token_number;
+end;
+$$;
+
 do $$ begin
   alter table recruit_interview_tokens
     add constraint recruit_interview_tokens_interests_length
@@ -880,6 +926,80 @@ create unique index if not exists recruit_training_sessions_cycle_date_domain_ke
 -- load, and the admin training page lists a cycle's sessions newest-first.
 create index if not exists recruit_training_sessions_cycle_date_idx
   on recruit_training_sessions (cycle_id, session_date desc);
+
+---------------------------------------------------------------------------
+-- recruit_bulk_mail_jobs / recruit_bulk_mail_recipients / recruit_mail_templates
+-- (migration 025)
+---------------------------------------------------------------------------
+
+-- Audit/progress record for one composed "Send Mail" email. Sending is driven as a loop of
+-- small POSTs against .../jobs/[jobId]/process, each sending one BCC-chunk and persisting
+-- the result before returning, so a browser closing or a request timing out mid-send leaves
+-- a resumable 'pending' tail instead of an untracked gap - see
+-- src/lib/recruit-bulk-mail-jobs.ts.
+create table if not exists recruit_bulk_mail_jobs (
+  id             uuid primary key default gen_random_uuid(),
+  cycle_id       uuid not null references recruitment_cycles(id),
+  subject        text not null,
+  body           text not null,
+  event_at       timestamptz,
+  status         text not null default 'pending',
+  total_recruits integer not null default 0,
+  created_by     text not null,
+  created_at     timestamptz not null default now()
+);
+
+do $$ begin
+  alter table recruit_bulk_mail_jobs
+    add constraint recruit_bulk_mail_jobs_status_valid
+    check (status in ('pending', 'sending', 'done'));
+exception when duplicate_object then null; end $$;
+
+alter table recruit_bulk_mail_jobs enable row level security;
+
+create index if not exists recruit_bulk_mail_jobs_cycle_created_idx
+  on recruit_bulk_mail_jobs (cycle_id, created_at desc);
+
+-- One row per deduped BCC address within a job. recruit_ids is an array (rather than a
+-- separate join table) because the set of recruits sharing one address is small and fixed
+-- at job-creation time - never queried by recruit_id directly, only read back whole when
+-- resolving a job's progress/failures.
+create table if not exists recruit_bulk_mail_recipients (
+  id          uuid primary key default gen_random_uuid(),
+  job_id      uuid not null references recruit_bulk_mail_jobs(id) on delete cascade,
+  email       text not null,
+  recruit_ids uuid[] not null,
+  status      text not null default 'pending',
+  error       text,
+  attempts    integer not null default 0,
+  updated_at  timestamptz not null default now(),
+  unique (job_id, email)
+);
+
+do $$ begin
+  alter table recruit_bulk_mail_recipients
+    add constraint recruit_bulk_mail_recipients_status_valid
+    check (status in ('pending', 'sent', 'failed'));
+exception when duplicate_object then null; end $$;
+
+alter table recruit_bulk_mail_recipients enable row level security;
+
+create index if not exists recruit_bulk_mail_recipients_job_status_idx
+  on recruit_bulk_mail_recipients (job_id, status);
+
+-- Saved subject/body presets for the composer. Global across cycles, not scoped to
+-- recruitment_cycles - the same wording gets reused cycle after cycle.
+create table if not exists recruit_mail_templates (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  subject    text not null,
+  body       text not null,
+  created_by text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table recruit_mail_templates enable row level security;
 
 -- No public SELECT/INSERT/UPDATE/DELETE policies on any table above.
 -- Enable Realtime on recruit_interview_tokens via Table Editor -> Realtime toggle

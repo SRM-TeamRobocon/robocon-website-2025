@@ -314,3 +314,65 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ saved: true, recruit_id, sub_domain, result });
 }
+
+// DELETE /api/admin/recruitment/interview-results
+// Body: { recruit_id, sub_domain }
+//
+// Undoes a mistakenly-logged result outright - e.g. a rushed/wrong click on the panel
+// screen for a recruit who then had to leave (hostel curfew, etc.) before actually being
+// interviewed. Unlike the POST upsert above (which corrects a wrong RESULT VALUE), this
+// removes the result entirely so the recruit's shortlist row reads "Not done" again, same
+// as if nothing had ever been logged.
+//
+// Deliberately does NOT touch recruit_interview_tokens. A `done` token orphaned by this
+// delete could reasonably become `waiting` (recruit's still around, re-interview them
+// properly) or `no_show` (they're gone for the day) - which one is correct depends on
+// what's actually happening in the room, and this route has no visibility into that. The
+// panel already owns those transitions via its own no-show/uncall tools; guessing here
+// risks silently returning someone to a callable queue they've already left.
+export async function DELETE(request: NextRequest) {
+  const session = await getSession();
+  if (!requireRole(session, ["member", "lead", "admin"])) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const recruit_id = typeof body.recruit_id === "string" ? body.recruit_id : "";
+  const sub_domain = typeof body.sub_domain === "string" ? body.sub_domain.trim() : "";
+
+  if (!recruit_id) {
+    return NextResponse.json({ error: "recruit_id is required" }, { status: 400 });
+  }
+  if (!isRecruitSubDomain(sub_domain)) {
+    return NextResponse.json({ error: "sub_domain is not a recognised recruitment domain" }, { status: 400 });
+  }
+
+  const supabase = createRecruitSupabaseAdminClient();
+  const cycleId = await getActiveCycleId(supabase);
+  if (!cycleId) {
+    return NextResponse.json({ error: "No active recruitment cycle" }, { status: 503 });
+  }
+
+  const { data, error } = await supabase
+    .from("recruit_interview_results")
+    .delete()
+    .eq("recruit_id", recruit_id)
+    .eq("sub_domain", sub_domain)
+    .eq("cycle_id", cycleId)
+    .select("id");
+
+  if (error) {
+    console.error("interview-results DELETE error", error);
+    return NextResponse.json({ error: "Could not undo the interview result" }, { status: 500 });
+  }
+
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "No logged result found for this recruit/domain" }, { status: 404 });
+  }
+
+  // Same as every other write to this table - a deleted "selected" result must not leave
+  // the recruit stranded on the training roster.
+  await recomputeIsSelected(supabase, recruit_id, cycleId);
+
+  return NextResponse.json({ deleted: true, recruit_id, sub_domain });
+}

@@ -89,7 +89,7 @@ The existing `admin_token` JWT roles (`lead`, `admin`, `member`) govern access. 
 3. **QR is static per recruit per cycle** - one QR generated at registration, used across orientation, exam, interview check-in, and training. Payload is HMAC-signed with `QR_SECRET` env var.
 4. **Scanner is a new page `/recruit-scanner`** - separate from existing `/scanner` which handles workshop attendance via Google Sheets. They do not share logic.
 5. **Shortlisting is cutoff-driven for all six domains.** Leads can still override any individual decision (`method = 'manual_override'`), and the compute engine never touches an overridden row.
-6. **Interview panels ("tables") are ephemeral, created on the day** - lead picks a domain from a dropdown (table_number is auto-allocated per domain) and can edit a pre-filled name ("SPACED-Coding-") before creating; table appears with a live queue. QR check-in auto-routes each recruit to whichever open table for their domain has the shortest line - no manual table selection. See [Interview Module](#7-interview-module) (rewritten 2026-08-13).
+6. **Interview panels ("tables") are ephemeral, created on the day** - lead picks a domain from a dropdown (table_number is auto-allocated per domain) and can edit a pre-filled name ("SPACED-Coding-") before creating; table appears with a live queue. QR check-in no longer picks a table at all (2026-09-04 - superseded the original least-loaded auto-routing) - the recruit joins one shared waiting pool for their domain, and any open table Call Nexts or manually calls from that same pool. See [Interview Module](#7-interview-module), especially the 2026-09-04 update.
 7. **After training, recruits self-onboard** - they use the existing `/signup` flow with their verified SRM email and go through the normal lead-approval process.
 
 ### What NOT to Touch
@@ -643,7 +643,7 @@ create unique index recruit_interview_panels_domain_table_key
 
 ### Table: `recruit_interview_tokens`
 
-One row per (recruit, panel). Created when recruit scans QR at interview check-in - as of migration 004, check-in is by `sub_domain` (auto-routed to the least-loaded open table), not a manually-picked `panel_id`.
+One row per recruit's interview check-in for a domain - `panel` in the name is now a historical misnomer. Created when recruit scans QR at interview check-in - as of migration 004, check-in is by `sub_domain`, not a manually-picked `panel_id`; as of migration 024 (2026-09-04), `panel_id` is nullable and is left null at check-in (no table chosen yet - see the shared-pool update at the top of [Interview Module](#7-interview-module)), set for the first time only when a table actually calls that recruit via `call-next` or `call-token`.
 
 ```sql
 create type interview_token_status as enum ('waiting', 'called', 'done', 'no_show', 'deferred');
@@ -1053,19 +1053,23 @@ The older top-level response fields (`overall`, `by_domain`, `by_domain_gender`,
 
 | Method | Route | What |
 |--------|-------|------|
-| GET | `/api/admin/recruitment/panels` | List panels ("tables") for active cycle, with `sub_domain`/`table_number` and live waiting/called/done/no_show counts |
+| GET | `/api/admin/recruitment/panels` | List panels ("tables") for active cycle, with `sub_domain`/`table_number` and live called/done/no_show counts (no per-panel `waiting` any more as of 2026-09-04 - it's always 0 by construction, see below). Also returns a sibling `waiting_by_domain: Record<sub_domain, count>` map |
 | POST | `/api/admin/recruitment/panels` | Create a table. Body: `{ sub_domain: string, name?: string }` - `sub_domain` required; `table_number` always auto-allocated; `name` becomes `domain_label` verbatim if given (must be unique per domain, case-insensitive, 409 otherwise) else auto-generated |
 | DELETE | `/api/admin/recruitment/panels/:id` | Permanently delete a table. Redistributes `waiting` tokens like Close for the Day, then reattaches any other tokens (called/done/no_show/deferred) to another still-existing panel so the FK allows the delete - 409 if this is the only panel that has ever existed for the domain |
 | PATCH | `/api/admin/recruitment/panels/:id/close` | Reversible pause - `is_active = false`, waiting tokens untouched, `reopen` brings them back |
-| PATCH | `/api/admin/recruitment/panels/:id/reopen` | Reverses `close` |
-| PATCH | `/api/admin/recruitment/panels/:id/close-for-day` | **Non-reversible.** Deactivates the table AND redistributes every `waiting` token to the least-loaded other open table for the same domain (landing at the position matching their original check-in time), or flips them to `deferred` if no other table for that domain is open. Returns `{ closed_for_day: true, moved, deferred }` |
-| GET | `/api/admin/recruitment/panels/:id/queue` | Get token queue for a table, ordered by `queue_position` (not `token_number`) |
-| POST | `/api/admin/recruitment/panels/:id/call-next` | Mark the front of the `queue_position` order as `called`, return recruit profile. Compare-and-swap guarded |
-| POST | `/api/admin/recruitment/panels/:id/call-token` | **New 2026-08-16, unused by any UI as of 2026-09-03.** Body: `{ token_id }`. Manually call a SPECIFIC waiting recruit to THIS panel, even if they're currently attached to a different open panel for the same `sub_domain` - reassigns `panel_id` (allocating a fresh `token_number` scoped to the new panel, same allocation discipline as check-in) if needed, then marks `called`. 400 if the token isn't `waiting` or its `sub_domain` doesn't match this panel's. Made sense on the 2026-08-16 shared cross-table board; the 2026-09-03 single-table-per-page rebuild has no view left that this could be called from, so the route is dead code from the UI's side but was deliberately left in place. See [Interview Module](#7-interview-module) 2026-08-16 and 2026-09-03 updates. |
-| PATCH | `/api/admin/recruitment/panels/:id/tokens/:tokenId/reorder` | Drag-and-drop reorder. Body: `{ after_token_id: string \| null }` (`null` = move to front) - recomputes only the moved token's `queue_position` as the midpoint of its new neighbours. Still scoped to one panel - kept alongside the new cross-panel `call-token` above, not replaced by it. |
+| PATCH | `/api/admin/recruitment/panels/:id/reopen` | Reverses `close`. Existed since the original 2026-08-13 design but had no UI calling it (and a paused panel was filtered out of the picker's own domain list) until fixed 2026-09-04 - see [Interview Module](#7-interview-module) |
+| PATCH | `/api/admin/recruitment/panels/:id/close-for-day` | **Non-reversible.** Deactivates the table. As of 2026-09-04, `redistributeWaitingTokens` is a no-op here for the `waiting` bucket (nobody is ever attached to a specific panel while waiting any more - see the migration 024 update), so this route now mainly just deactivates; the redistribution/`deferred` machinery is left in place and still matters for the `called`/`done`/`no_show` reattachment path (see delete, below). Returns `{ closed_for_day: true, moved, deferred }` (`moved`/`deferred` will normally be 0 now) |
+| GET | `/api/admin/recruitment/panels/:id/queue` | Get token queue for a table (only tokens actually assigned to it - `called`/`done`/`no_show`, plus the rare `waiting` one from before 2026-09-04). Always the full staff profile for member/lead/admin alike as of 2026-09-03 (see the crash-fix note in [Interview Module](#7-interview-module)) - the old role-branched reduced shape for "member" is gone, this route's only caller is the staff-only `[panelId]` page |
+| GET | `/api/admin/recruitment/panels/waiting-by-domain?sub_domain=X` | **New 2026-09-03, simplified 2026-09-04.** Every `waiting` token for one domain, oldest check-in first - the shared pool itself (no panel_id on these rows any more, so no panel join). Powers the `[panelId]` page's "Waiting" section and its "Call Here" per-row action (`call-token` below), and - reused as-is, no changes needed - the picker page's cycle-wide read-only "Waiting for Interview" board (one call per domain, six total) |
+| POST | `/api/admin/recruitment/panels/:id/call-next` | **Rewritten 2026-09-04.** Claims the oldest `waiting` token in THIS panel's domain-wide pool (`checked_in_at` order, not the old per-panel `queue_position`) and assigns it to this panel for the first time, allocating a fresh table-scoped `token_number`/`queue_position` in the same update - same allocation pattern `call-token`'s cross-panel branch already used. Compare-and-swap guarded; retries on a token_number collision |
+| POST | `/api/admin/recruitment/panels/:id/call-token` | **New 2026-08-16.** Body: `{ token_id }`. Manually call a SPECIFIC waiting recruit to THIS panel - since 2026-09-04 this is the normal way to pick someone out of the shared domain pool (not just a cross-panel override any more), reassigning `panel_id` (allocating a fresh `token_number` scoped to this panel) and marking `called`. 400 if the token isn't `waiting` or its `sub_domain` doesn't match this panel's. No code changes were needed for the 2026-09-04 shared-pool migration - its existing "already on a different panel" branch already handled a `null` source `panel_id` correctly, since `null` is never `=== panelId`. See [Interview Module](#7-interview-module) 2026-08-16 and 2026-09-04 updates |
+| PATCH | `/api/admin/recruitment/panels/:id/tokens/:tokenId/reorder` | Drag-and-drop reorder within one panel's own queue. **No longer used by any UI as of 2026-09-04** - the `[panelId]` page's waiting list is now the shared domain pool (`DomainWaitingPool`), which has no single table's order to reorder (FIFO by check-in time instead). Route left in place, unmodified |
 | PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/no-show` | Mark a `called` token as `no_show` |
+| PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/uncall` | **New 2026-09-04.** Reverses a `called` token back to `waiting`, clearing `panel_id`/`queue_position` so it returns to the shared domain pool rather than staying attached to this panel - for "called the wrong recruit by mistake". `checked_in_at` untouched, so they keep their original place in line. Guarded to `called` only |
 | PATCH | `/api/admin/recruitment/panels/tokens/:tokenId/review` | **New 2026-09-03, extended same day.** Body: `{ review_note?, rating?, interested_other_clubs?, interested_other_domains? }` - every field independently optional, so a panel can save just one without re-sending the rest. `rating` is `'bad' \| 'average' \| 'good' \| null`. A running review a panel can write on a recruit at any point - independent of the final Selected/Rejected/Waitlisted result, so it can exist before any decision. Role `member`/`lead`/`admin` (a note, not a decision, so the same gate as marks entry). Blank text fields clear to null. One review per token, one shared `review_updated_by`/`review_updated_at` pair for attribution. See migrations 022 and 023 |
-| GET | `/api/admin/recruitment/interview-results/export?sub_domain=X` | **New 2026-09-03.** CSV of everyone checked in for that domain's interview (name through hostel/day-scholar details, **which table they're checked into**, marks, token status, walk-in flag, logged result if any, and rating/review note/other-interests above) - the roster, not just those with a result, so it also shows who's still waiting. One domain per download |
+| GET | `/api/admin/recruitment/interview-results/export?sub_domain=X` | **New 2026-09-03.** CSV of everyone checked in for that domain's interview (name through hostel/day-scholar details, **which table they're checked into**, marks, token status, walk-in flag, logged result if any, and rating/review note/other-interests above) - the roster, not just those with a result, so it also shows who's still waiting. One domain per download. The Export CSV button itself went missing from the UI somewhere in the 2026-09-03 interview page rebuild and was restored 2026-09-04 (top-right of each domain's section in Interview Results) |
+| GET | `/api/admin/recruitment/interview-results/recruit-detail?recruit_id=X&sub_domain=Y` | **New 2026-09-04.** One recruit's full profile + review fields + `token_id`, shaped to drop straight into `RecruitProfileCard` as its `token` prop. Backs the Interview Results list's "click a name to edit on the spot" modal (see [Interview Module](#7-interview-module)) - fetched on demand per click rather than bloating the list response for every row |
+| GET | `/api/admin/recruitment/interview-results/yet-to-be-interviewed?sub_domain=X` | **New 2026-09-04.** Recruits shortlisted for a domain with NO `recruit_interview_tokens` row at all for it - never checked in, distinct from `waiting`/`no_show` (both mean they did check in at some point). Full profile fields (gender/hostel/day-scholar/year/etc.) included for client-side filtering. Backs the cycle-wide "Yet to be interviewed" section below Interview Results (one call per domain, six total) |
 | GET | `/api/admin/recruitment/interview-results` | List logged results for active cycle, newest first. **Extended 2026-09-03**: each row also carries `panel_id`, `panel_is_active`, `panel_label` - resolved by joining the recruit's current `recruit_interview_tokens` row for the same `(cycle_id, sub_domain)`, not stored on the result row itself, so it always points at wherever that recruit is checked in right now (survives a cross-panel reassignment) rather than where they were when the result was logged. All three are `null` if no matching token exists (shouldn't happen - logging a result requires a prior call) or its panel was hard-deleted (not just closed - a closed panel still resolves so the UI can show a "this table is closed" state). Powers the Interview Results list's "go to panel" navigation |
 | POST | `/api/admin/recruitment/interview-results` | Log **or correct** a result. Body: `{ recruit_id, sub_domain, result, notes?, panel_id? }`. Upsert; recomputes `is_selected` |
 
@@ -1082,7 +1086,7 @@ The older top-level response fields (`overall`, `by_domain`, `by_domain_gender`,
 
 | Method | Route | What |
 |--------|-------|------|
-| POST | `/api/admin/recruitment/scan` | Process a QR scan. Body: `{ payload: string, mode: ScanMode, sub_domain?: string }` - interview mode takes `sub_domain` (not `panel_id`, since 2026-08-13) and auto-routes to the least-loaded open table; see [QR & Scanning](#5-qr--scanning) |
+| POST | `/api/admin/recruitment/scan` | Process a QR scan. Body: `{ payload: string, mode: ScanMode, sub_domain?: string }` - interview mode takes `sub_domain` (not `panel_id`, since 2026-08-13). As of 2026-09-04, it no longer picks a table at all - it only checks at least one is open for the domain, then joins the recruit to that domain's shared waiting pool (`panel_id` null). See [QR & Scanning](#5-qr--scanning) |
 
 #### Admin - Analytics
 
@@ -1639,6 +1643,141 @@ on this table" note appears if `?recruit=` doesn't match anything once the queue
 `InterviewResultsList` is unchanged and still the only way to correct a result's Selected/
 Rejected/Waitlisted outcome - the new link only navigates, it doesn't edit anything itself.
 
+### Update 2026-09-04 - check-in no longer auto-routes to a table; one shared pool per domain
+
+**Live incident that triggered this**: SAMBED's interview session had several tables open,
+but the old least-loaded auto-routing (2026-08-13, described throughout this section below -
+now superseded) silently assigned each recruit to a SPECIFIC panel_id the moment they checked
+in. Only the table that happened to be open first (or otherwise "won" the load-balancing) had
+anyone visibly waiting - every other table's own queue was empty, with no way to see or pull
+from the recruits routed elsewhere. `GET .../panels/:id/queue` was ALSO still branching its
+response by role at the same time (member got a stripped shape missing `domains`/
+`exam_marks`/etc.), so any table run by a `member`-role volunteer crashed outright on
+`recruit.domains.map(...)` being undefined - fixed the same day, see the queue-route
+crash-fix note further down. Both fixes shipped together under real time pressure mid-event.
+
+**The fix**: migration 024 makes `recruit_interview_tokens.panel_id` nullable. Interview
+check-in (`scan/route.ts`, mode `interview`) no longer picks a table at all - it just
+verifies at least one table is open for the domain (still via
+`recruit_interview_open_panels`, now purely an existence check, its per-panel
+`waiting_count` unused) and inserts the token with `panel_id = null` via
+`recruit_allocate_interview_token`. A recruit now sits in ONE shared pool per sub_domain
+until an interviewer actually calls them - `panel_id` is set for the first time at that
+moment, not at check-in.
+
+- **`POST .../panels/:id/call-next`** now claims the OLDEST `waiting` token in THIS panel's
+  domain (`panel_id is null and sub_domain = <this panel's domain>`, ordered by
+  `checked_in_at` - fairness across the whole line, not a per-panel `queue_position` order
+  any more) and assigns it to this panel in the same update, allocating a fresh table-scoped
+  `token_number`/`queue_position` exactly like a manual cross-table call already did.
+- **`POST .../panels/:id/call-token`** (the 2026-08-16 manual "call a specific recruit"
+  route) needed NO changes - its existing cross-panel-reassignment branch (used whenever
+  `token.panel_id !== this panel's id`) already handles a `null` source panel_id correctly,
+  since `null` is never `=== panelId`.
+- **`GET .../panels/waiting-by-domain?sub_domain=X`** (added earlier the same day for
+  cross-table visibility, now simplified) is the shared pool itself: every `waiting` token
+  for one domain, oldest first, no panel join needed any more since waiting tokens have no
+  panel. Powers the `[panelId]` page's "Waiting" section (`DomainWaitingPool`, replacing the
+  short-lived `OtherTablesWaiting` + the old `PanelWaitingList`/drag-reorder, which no longer
+  makes sense - there's no single table's queue left to reorder) - every open table for a
+  domain now renders the exact same shared list, each row callable to whichever table is
+  viewing it via `call-token`. No drag-reorder on the shared pool: a domain-wide line seen
+  live by however many tables are open isn't one owner's order to rearrange; fairness is
+  FIFO by check-in time instead.
+- **`GET .../panels`** can no longer report a per-panel `waiting` count (that query only
+  ever matches non-null `panel_id`, so it's always 0 by construction now) - it returns a
+  sibling `waiting_by_domain: Record<sub_domain, count>` map instead, which the picker page's
+  domain buttons and the `[panelId]` page's own header both switched to. `PanelCard`/
+  `TableSlot` dropped their per-table waiting badge entirely (structurally meaningless now).
+- **Close for the Day / Delete's `redistributeWaitingTokens`** (still queries
+  `where panel_id = <closing panel> and status = 'waiting'`) is now a no-op for the `waiting`
+  bucket by construction - nobody is ever attached to a specific panel while waiting any
+  more, so there is nothing left for a closing table to strand. Left unmodified deliberately;
+  it still does real work for reattaching `called`/`done`/`no_show` history on delete.
+- Existing `called`/`done`/`no_show` tokens from before this migration, and any token that
+  was already `called`/etc. when it ran, are untouched - only rows that were `waiting` at
+  migration time got `panel_id` (and `queue_position`) cleared, so today's SAMBED backlog
+  joined the shared pool immediately rather than staying stuck on whichever table auto-
+  routing had originally picked for them.
+
+This section's older prose below (Design Philosophy's step 3, Table Creation, the route
+table's `close-for-day`/`scan` rows, Interview Check-In, and the FAQ-style entries further
+down) still describes the SUPERSEDED least-loaded auto-routing design and has not all been
+rewritten line-by-line under this same time pressure - read it as history unless a passage is
+explicitly dated 2026-09-04 or later.
+
+### Update 2026-09-04 (continued) - `[panelId]` page layout, Uncall, Pause/Resume fix, shared RecruitProfileCard
+
+Same day as the shared-pool migration above, several follow-on fixes and a layout pass on
+the single-table page:
+
+- **Side-by-side, single-screen layout.** `[panelId]/page.tsx`'s root is now bounded to
+  `calc(100vh - topbar - <main> padding)` (the dashboard shell's `<main>` is deliberately NOT
+  a scroll container - see the comment in `dashboard/layout.tsx` about the sticky topbar - so
+  this page manages its own height rather than asking an ancestor to clip it) and lays
+  `TableSlot` and the waiting pool out as a `lg:grid-cols-2` row filling the remaining space,
+  each scrolling its own overflow internally (`overflow-y-auto`) instead of growing the page.
+  Stacks to one column below `lg`.
+- **Call Next moved into the waiting pool's own header** (top-left, next to the "Waiting (N)"
+  title it acts on), lifted out of `TableSlot` up into `PanelInterviewPage` so both
+  `TableSlot` and `DomainWaitingPool` (renamed from `OtherTablesWaiting` now that it's the
+  page's ONLY waiting list, not a supplement to a per-panel one) can share the same
+  `callNext`/`callingNext` state. `TableSlot`'s "nobody called" state is now a small
+  placeholder pointing at the button's new location, not a full-width CTA of its own.
+- **New: Uncall.** `PATCH /api/admin/recruitment/panels/tokens/:tokenId/uncall` - for "called
+  the wrong recruit by mistake". Reverses a `called` token back to `waiting` AND clears
+  `panel_id`/`queue_position` (back into the shared pool, same shape as a fresh check-in),
+  while leaving `checked_in_at` untouched so they keep their original place in line rather
+  than losing it to someone else's mis-click. Guarded to `called` only. Button sits next to
+  No Show in the Now Serving card's result row.
+- **Fixed: Pause had no way back.** `PATCH .../panels/:id/reopen` already existed but no UI
+  ever called it, AND a paused panel was filtered out of the picker's domain table list
+  entirely (`p.is_active` filter), so pausing a table was a one-way trip with no way to even
+  find it again short of hand-editing the database. Fixed: the picker's domain list now shows
+  paused panels too (sorted after active ones), `PanelCard` shows a "Resume" button instead
+  of Pause/Close for the Day when `!is_active`, and the `[panelId]` page's own "paused or
+  closed" dead-end message got a "Resume this table" button too, for a stale link landing
+  straight there.
+- **`RecruitProfileCard` extracted to `src/components/recruit/RecruitProfileCard.tsx`**
+  (default export, plus `RecruitProfile` and `RecruitProfileCardToken` types). Was a verbatim
+  inline copy inside `[panelId]/page.tsx`; the Interview Results list's new "edit on the spot"
+  modal (see below) needed the identical card, and a second hand-copy would drift exactly
+  like `EMPTY_PROFILE`/`TOKEN_COLUMNS` did across the panels API routes earlier this session.
+  `RecruitProfileCardToken` only declares the fields the card actually renders (not a full
+  `QueueToken`) so any caller with a token-shaped object - a live queue token, a shared-pool
+  row, or one assembled from an interview-results lookup - can use it without extra fields
+  tripping TypeScript's excess-property check on an object literal.
+- **Interview Results list: click a name to edit on the spot, replacing the old
+  navigate-to-panel link entirely** (2026-08-13's "go to panel" feature from earlier this
+  session, live for less than a day). `RecruitDetailModal` opens a blurred-backdrop modal
+  (`fixed inset-0 z-50 ... bg-black/70 backdrop-blur-sm`, click-outside-to-close, same chrome
+  as `EditRecruitModal`) with the full `RecruitProfileCard` for that recruit, fetched via the
+  new `GET .../interview-results/recruit-detail?recruit_id=X&sub_domain=Y` (see route table).
+  The existing "Fix" button/`EditResultRow` correction flow is untouched and separate - the
+  modal only edits the review note/rating/interests, never the Selected/Rejected/Waitlisted
+  decision itself.
+- **New "Waiting for Interview" section, cycle-wide, below Interview Results.** Read-only
+  status board: everyone currently checked in and sitting in a domain's shared pool
+  (`status = 'waiting'`), one collapsible section per domain (default collapsed), reusing the
+  existing `GET .../panels/waiting-by-domain?sub_domain=X` endpoint directly - no new backend
+  route needed, it already returns full recruit profiles. Deliberately no "Call Here" button
+  here - calling someone is the job of the `[panelId]` page an interviewer is actually
+  sitting at, this is purely an at-a-glance view across all domains without opening a
+  specific table. No filters/analytics on this one (wasn't asked for) - easy to add later
+  matching Yet to Be Interviewed's pattern below if wanted.
+- **New "Yet to be interviewed" section, cycle-wide, below Waiting for Interview.** Recruits
+  shortlisted for a domain with no `recruit_interview_tokens` row at all for it (never
+  checked in - distinct from `waiting`/`no_show`, both of which mean they DID check in at
+  some point). Backed by `GET .../interview-results/yet-to-be-interviewed?sub_domain=X`.
+  Originally built scoped to the picker's step-2 (domain-selected) view per the first draft
+  of this ask, then corrected the same day to sit below `InterviewResultsList` covering all
+  six domains at once (one collapsible section per domain, default collapsed, matching
+  Waiting for Interview's chrome) - the point is seeing who hasn't shown up across the WHOLE
+  cycle, not just whichever domain a lead happens to have selected above it. Each section
+  carries its own gender/hostel/day-scholar/year filters and a gender x residence breakdown
+  table matching the pattern already established on the Shortlist page - mirrored, not
+  reinvented, so the pages feel consistent.
+
 ### Design Philosophy
 
 Interviews are walk-in - no time slots, no pre-booking. On interview day:
@@ -1647,8 +1786,10 @@ Interviews are walk-in - no time slots, no pre-booking. On interview day:
    existing open table or clicks "Add Table" and edits the pre-filled name if they want →
    table is live instantly, numbered automatically, and they land on that table's own
    dedicated page (see 2026-09-03 update above)
-2. Recruits walk in, volunteer scans their QR in "Interview Check-In" mode, having picked the DOMAIN (not a specific table)
-3. System auto-routes the recruit to the least-loaded open table for that domain, gives them a token number
+2. Recruits walk in, volunteer scans their QR in "Interview Check-In" mode, having picked the
+   DOMAIN (not a specific table) - they join that domain's ONE shared waiting pool, not a
+   specific table (2026-09-04, see above)
+3. ~~System auto-routes the recruit to the least-loaded open table for that domain, gives them a token number~~ (superseded 2026-09-04 - no table is chosen at check-in any more)
 4. Table interviewer clicks "Call Next" → sees recruit's full profile
 5. Logs result → next recruit
 
@@ -1744,7 +1885,9 @@ Added by migration 005. A `waiting` token becomes `deferred` when its table clos
 
 ### Interview Check-In (QR Scan, auto-routed since 2026-08-13)
 
-When volunteer scans in "Interview Check-In" mode, they select the DOMAIN (same dropdown UX as exam mode), not a specific table - the server decides which table.
+**Superseded 2026-09-04 - see the shared-pool update at the top of [Interview Module](#7-interview-module).** The steps below (5-8: "pick the least-loaded table, allocate a table-scoped token") describe the 2026-08-13 design, not what the code does today. As of migration 024 the server no longer picks a table at all - steps 5-8 collapse into "confirm a table is open, then insert with panel_id null." Kept below as history since the two unique-constraint/retry-loop mechanics it explains are still real (just against a domain-scoped token_number now when panel_id is null, per `recruit_allocate_interview_token`).
+
+When volunteer scans in "Interview Check-In" mode, they select the DOMAIN (same dropdown UX as exam mode), not a specific table - the server used to decide which table (superseded above); now nobody does, until a table calls them.
 
 On each scan, the server-side scan handler (see [QR & Scanning](#5-qr--scanning)) does:
 

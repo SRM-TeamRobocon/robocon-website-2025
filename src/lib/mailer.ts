@@ -52,6 +52,30 @@ export function getRecruitmentBulkMailTransporter() {
   });
 }
 
+// Retries a transient SMTP failure (dropped connection, momentary timeout) up to `attempts`
+// times with a short backoff, so one flaky send doesn't require a full manual re-send of a
+// bulk-mail chunk. Does NOT retry a per-recipient rejection (invalid mailbox etc.) - that
+// comes back in the resolved result's `rejected` array, not as a thrown error, and retrying
+// it would just fail the same way again.
+export async function sendMailWithRetry(
+  transporter: ReturnType<typeof nodemailer.createTransport>,
+  options: Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0],
+  attempts = 3
+) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await transporter.sendMail(options);
+    } catch (err) {
+      lastError = err;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // Inline attachment for the "cid:robocon_logo" reference used by the red/black
 // email templates - most mail clients strip/block remote <img> src by default,
 // so the logo is shipped as a cid attachment rather than a public URL.
