@@ -194,6 +194,25 @@
   }
 }
 
+/* /recruit/tables kiosk: a newly-"called" name blinks red/white for 10s (see FLICKER_MS in
+   page.tsx, which toggles this class based on called_at) before settling into the static
+   solid-red look - a hard steps() blink, not a fade, to match the page's sharp HUD styling. */
+@keyframes recruitTableCalledFlicker {
+  0%, 49% {
+    background-color: #C20000;
+    color: #fff;
+  }
+  50%, 100% {
+    background-color: #fff;
+    color: #C20000;
+  }
+}
+
+.recruit-table-called-flicker {
+  animation: recruitTableCalledFlicker 0.5s steps(1, end) infinite;
+  border: 2px solid #C20000;
+}
+
 @keyframes attendanceShimmerSweep {
   0% {
     transform: translateX(-120%);

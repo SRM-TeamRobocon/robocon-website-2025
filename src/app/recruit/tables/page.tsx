@@ -2,22 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users } from "lucide-react";
-import { RECRUIT_SUBDOMAINS, RECRUIT_SUBSYSTEMS, subDomainSubsystem } from "@/lib/recruit-domains";
+import { RECRUIT_SUBSYSTEMS } from "@/lib/recruit-domains";
 
-type TableToken = { token_number: number; first_name: string };
+type NowServing = { token_number: number; first_name: string; called_at: string | null };
+type WaitingToken = { token_number: number; first_name: string };
 
-type TableRow = {
+type TableCard = {
     id: string;
     domain_label: string;
-    sub_domain: string | null;
     table_number: number | null;
-    now_serving: TableToken | null;
-    waiting: TableToken[];
+    now_serving: NowServing | null;
 };
 
-const DOMAIN_ORDER = new Map<string, number>(RECRUIT_SUBDOMAINS.map((d, i) => [d.key, i]));
+type DomainGroup = {
+    sub_domain: string;
+    domain_label: string;
+    subsystem: string;
+    tables: TableCard[];
+    waiting: WaitingToken[];
+};
 
-// Per-table cap on rendered waiting chips - a hard ceiling (not a fit calculation) so the
+// A "called" name flickers for this long before settling into the static solid-red look -
+// long enough to catch a glance from across the room, short enough not to keep blinking
+// once the recruit has surely noticed and is walking over.
+const FLICKER_MS = 10_000;
+
+// Per-domain cap on rendered waiting chips - a hard ceiling (not a fit calculation) so the
 // page never needs to scroll no matter how long a line gets; anything past it collapses
 // into a single "+N more" chip instead of growing the card.
 const MAX_WAITING_CHIPS = 10;
@@ -29,16 +39,19 @@ const MAX_WAITING_CHIPS = 10;
 // the viewport with zero scrolling - no RecruitBackdrop/GlassCard here, both assume a dark
 // backdrop underneath.
 export default function RecruitTablesPage() {
-    const [tables, setTables] = useState<TableRow[]>([]);
+    const [domains, setDomains] = useState<DomainGroup[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Drives the "called" flicker only - separate from the 4s data poll so a name blinks
+    // smoothly between refetches instead of jumping once every 4s.
+    const [now, setNow] = useState(() => Date.now());
 
     const load = useCallback(async () => {
         try {
             const res = await fetch("/api/recruit/tables", { cache: "no-store" });
             const json = await res.json();
             if (res.ok) {
-                setTables(json.tables ?? []);
+                setDomains(json.domains ?? []);
                 setError(null);
             } else {
                 setError(json.error || "Could not load tables");
@@ -56,24 +69,21 @@ export default function RecruitTablesPage() {
         return () => clearInterval(interval);
     }, [load]);
 
-    // Grouped by subsystem (RECRUIT_SUBSYSTEMS order), each group's rows sorted by domain
-    // then table number. Tables with no sub_domain (legacy, pre-migration panels) have no
-    // subsystem to sit under and are dropped from this view.
+    useEffect(() => {
+        const tick = setInterval(() => setNow(Date.now()), 250);
+        return () => clearInterval(tick);
+    }, []);
+
+    // Grouped by subsystem (RECRUIT_SUBSYSTEMS order); each domain group already comes back
+    // in domain order from the API. A domain only appears at all if it has an open table or
+    // someone waiting - a fully idle domain is dropped rather than shown empty.
     const columns = useMemo(() => {
-        const groups = new Map<string, TableRow[]>(RECRUIT_SUBSYSTEMS.map((s) => [s, []]));
-        for (const t of tables) {
-            if (!t.sub_domain) continue;
-            groups.get(subDomainSubsystem(t.sub_domain))?.push(t);
+        const groups = new Map<string, DomainGroup[]>(RECRUIT_SUBSYSTEMS.map((s) => [s, []]));
+        for (const d of domains) {
+            groups.get(d.subsystem)?.push(d);
         }
-        for (const rows of Array.from(groups.values())) {
-            rows.sort((a: TableRow, b: TableRow) => {
-                const domainDiff = (DOMAIN_ORDER.get(a.sub_domain ?? "") ?? 0) - (DOMAIN_ORDER.get(b.sub_domain ?? "") ?? 0);
-                if (domainDiff !== 0) return domainDiff;
-                return (a.table_number ?? 0) - (b.table_number ?? 0);
-            });
-        }
-        return RECRUIT_SUBSYSTEMS.map((subsystem) => ({ subsystem, rows: groups.get(subsystem) ?? [] }));
-    }, [tables]);
+        return RECRUIT_SUBSYSTEMS.map((subsystem) => ({ subsystem, groups: groups.get(subsystem) ?? [] }));
+    }, [domains]);
 
     return (
         // Zero-scroll is a hard requirement from `sm:` up (tablet/desktop/TV - the actual
@@ -98,23 +108,23 @@ export default function RecruitTablesPage() {
                 </div>
             ) : error ? (
                 <p className="flex-1 flex items-center justify-center text-lg text-red font-bold">{error}</p>
-            ) : tables.length === 0 ? (
+            ) : domains.length === 0 ? (
                 <p className="flex-1 flex items-center justify-center text-lg text-gray-400 font-bold">
                     No tables are open right now - check back shortly.
                 </p>
             ) : (
                 <div className="flex-1 sm:min-h-0 grid grid-cols-2 lg:grid-cols-4 gap-3 p-3 sm:overflow-hidden">
-                    {columns.map(({ subsystem, rows }) => (
+                    {columns.map(({ subsystem, groups }) => (
                         <div key={subsystem} className="flex flex-col sm:min-h-0 gap-2.5 sm:overflow-hidden">
                             <h2 className="shrink-0 bg-gray-900 py-2 text-center font-mono text-sm font-black uppercase tracking-[0.2em] text-white">
                                 {subsystem}
                             </h2>
-                            {rows.length === 0 ? (
+                            {groups.length === 0 ? (
                                 <p className="text-center text-sm font-bold text-gray-400 py-4">No open tables</p>
                             ) : (
                                 <div className="flex-1 sm:min-h-0 flex flex-col gap-2.5 sm:overflow-hidden">
-                                    {rows.map((t) => (
-                                        <TableCard key={t.id} table={t} />
+                                    {groups.map((d) => (
+                                        <DomainGroupCard key={d.sub_domain} domain={d} now={now} />
                                     ))}
                                 </div>
                             )}
@@ -126,38 +136,75 @@ export default function RecruitTablesPage() {
     );
 }
 
-function TableCard({ table }: { table: TableRow }) {
-    const shown = table.waiting.slice(0, MAX_WAITING_CHIPS);
-    const overflow = table.waiting.length - shown.length;
-    const isEmpty = !table.now_serving && shown.length === 0;
+function DomainGroupCard({ domain, now }: { domain: DomainGroup; now: number }) {
+    return (
+        <div className="flex-1 sm:min-h-0 basis-0 flex flex-col gap-1.5 sm:overflow-hidden">
+            <p className="shrink-0 font-mono text-xs font-bold uppercase tracking-[0.15em] text-gray-500">{domain.domain_label}</p>
+
+            {domain.tables.length === 0 ? (
+                <p className="shrink-0 border-2 border-dashed border-gray-300 text-center text-sm font-bold text-gray-400 py-2.5">
+                    No table open yet
+                </p>
+            ) : (
+                <div className="flex flex-col gap-1.5">
+                    {domain.tables.map((t) => (
+                        <TableCard key={t.id} table={t} now={now} />
+                    ))}
+                </div>
+            )}
+
+            {domain.waiting.length > 0 && <WaitingStrip waiting={domain.waiting} />}
+        </div>
+    );
+}
+
+function TableCard({ table, now }: { table: TableCard; now: number }) {
+    const called = table.now_serving;
+    const isFlickering = Boolean(called?.called_at) && now - new Date(called!.called_at as string).getTime() < FLICKER_MS;
 
     return (
-        <div className="flex-1 sm:min-h-0 basis-0 border-2 border-gray-900 bg-white p-2.5 flex flex-col sm:overflow-hidden">
+        <div className="border-2 border-gray-900 bg-white px-2.5 py-2 flex items-center justify-between gap-2">
             {/* Always the DB-stored domain_label, never a synthesized short name - it's the
                 one guaranteed-unique identifier, so two "Corporate" tables never look identical. */}
-            <p className="shrink-0 truncate text-base font-black uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-1.5 mb-1.5">
-                {table.domain_label}
+            <p className="truncate font-mono text-xs font-bold uppercase tracking-wide text-gray-500">{table.domain_label}</p>
+
+            {called ? (
+                <span
+                    className={
+                        "inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 font-mono text-sm font-bold " +
+                        (isFlickering ? "recruit-table-called-flicker" : "bg-red text-white")
+                    }
+                >
+                    #{called.token_number} {called.first_name}
+                </span>
+            ) : (
+                <span className="shrink-0 text-sm font-bold text-gray-300">Nobody being served</span>
+            )}
+        </div>
+    );
+}
+
+function WaitingStrip({ waiting }: { waiting: WaitingToken[] }) {
+    const shown = waiting.slice(0, MAX_WAITING_CHIPS);
+    const overflow = waiting.length - shown.length;
+
+    return (
+        <div className="flex-1 sm:min-h-0 basis-0 border-2 border-gray-900 bg-white p-2 flex flex-col sm:overflow-hidden">
+            <p className="shrink-0 font-mono text-[0.65rem] font-bold uppercase tracking-[0.2em] text-gray-500 pb-1">
+                Waiting ({waiting.length})
             </p>
-
-            <div className="flex-1 sm:min-h-0 sm:overflow-hidden flex flex-wrap content-start gap-2">
-                {isEmpty && <span className="text-sm font-bold text-gray-300">Queue empty</span>}
-
-                {/* Called = red background. Waiting = red border. Two states, nothing else. */}
-                {table.now_serving && (
-                    <span className="inline-flex items-center gap-1.5 bg-red px-3 py-1.5 font-mono text-sm font-bold text-white">
-                        #{table.now_serving.token_number} {table.now_serving.first_name}
-                    </span>
-                )}
+            <div className="flex-1 sm:min-h-0 sm:overflow-hidden flex flex-wrap content-start gap-1.5">
+                {/* Waiting = red border, called = red fill (see TableCard). Two states, nothing else. */}
                 {shown.map((w) => (
                     <span
                         key={w.token_number}
-                        className="inline-flex items-center gap-1.5 border-2 border-red px-3 py-1.5 font-mono text-sm font-bold text-gray-900"
+                        className="inline-flex items-center gap-1.5 border-2 border-red px-2.5 py-1 font-mono text-xs font-bold text-gray-900"
                     >
                         #{w.token_number} {w.first_name}
                     </span>
                 ))}
                 {overflow > 0 && (
-                    <span className="inline-flex items-center border-2 border-gray-300 px-3 py-1.5 font-mono text-sm font-bold text-gray-500">
+                    <span className="inline-flex items-center border-2 border-gray-300 px-2.5 py-1 font-mono text-xs font-bold text-gray-500">
                         +{overflow} more
                     </span>
                 )}
