@@ -11,7 +11,7 @@ function escapeHtml(input: string): string {
         .replace(/'/g, "&#39;");
 }
 
-const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/FesAdolZdhvFsuRRUOiMa8?s=sw&p=a&ilr=0";
+const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/CZamq9PLrmYI1iryDYSZMV";
 const WEBSITE_URL = "https://www.srmteamrobocon.com";
 
 interface BulkMailParams {

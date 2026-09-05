@@ -17,6 +17,7 @@ import {
     ChevronDown,
     ChevronUp,
     RotateCcw,
+    RefreshCw,
     X,
 } from "lucide-react";
 import { useRoleGate } from "@/hooks/use-require-role";
@@ -33,6 +34,10 @@ interface Recruit {
     year: string;
     srm_email: string;
     domains: string[];
+    // Already returned by GET /api/admin/recruitment/recruits (recruit_exam_attendance,
+    // keyed per sub_domain since a recruit applying to 2 domains sits 2 separate papers) -
+    // just wasn't captured on this page's Recruit type until the Exam Given filter needed it.
+    exams: { sub_domain: string; day: number }[];
 }
 
 interface JobProgress {
@@ -72,6 +77,14 @@ interface MailTemplate {
 interface ShortlistRow {
     sub_domain: string;
     status: "pending" | "shortlisted" | "not_shortlisted";
+    called_by: string | null;
+}
+
+type InterviewStatus = "selected" | "rejected" | "waitlisted" | "no_show" | "in_progress" | "not_yet";
+
+interface InterviewStatusRow {
+    sub_domain: string;
+    status: InterviewStatus;
 }
 
 const GENDER_OPTIONS = [
@@ -84,6 +97,27 @@ const STATUS_OPTIONS = [
     { value: "shortlisted", label: "Shortlisted" },
     { value: "pending", label: "Pending" },
     { value: "not_shortlisted", label: "Not shortlisted" },
+];
+
+const INTERVIEW_STATUS_OPTIONS: { value: "" | InterviewStatus; label: string }[] = [
+    { value: "", label: "Any interview result" },
+    { value: "selected", label: "Selected" },
+    { value: "rejected", label: "Rejected" },
+    { value: "waitlisted", label: "Waitlisted" },
+    { value: "no_show", label: "Not shown up" },
+    { value: "not_yet", label: "Not yet interviewed" },
+];
+
+const CALLED_OPTIONS = [
+    { value: "", label: "Any call status" },
+    { value: "called", label: "Called" },
+    { value: "not_called", label: "Not called (shortlisted)" },
+];
+
+const EXAM_OPTIONS = [
+    { value: "", label: "Exam given: any" },
+    { value: "given", label: "Exam given" },
+    { value: "not_given", label: "Exam not given" },
 ];
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -222,7 +256,16 @@ export default function SendMailPage() {
     const [gender, setGender] = useState("");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [interviewFilter, setInterviewFilter] = useState<"" | InterviewStatus>("");
+    const [calledFilter, setCalledFilter] = useState<"" | "called" | "not_called">("");
+    const [examFilter, setExamFilter] = useState<"" | "given" | "not_given">("");
     const [shortlistMap, setShortlistMap] = useState<Map<string, ShortlistRow[]>>(new Map());
+    const [interviewMap, setInterviewMap] = useState<Map<string, InterviewStatusRow[]>>(new Map());
+    // Bumped by the Refresh button to force-rerun the recruit/shortlist/interview-status
+    // effects below even when none of their filter dependencies changed - e.g. another lead
+    // logged a result or marked someone called while this tab was already open.
+    const [refreshTick, setRefreshTick] = useState(0);
+    const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     // Range-selection anchor/cursor (shift+click and shift+arrow both extend from anchorId
     // to whichever row is clicked/moved to) - see selectRange below.
@@ -275,8 +318,10 @@ export default function SendMailPage() {
             fetch(`/api/admin/recruitment/recruits?${params.toString()}`, { signal: controller.signal })
                 .then((res) => res.json())
                 .then((data) => {
-                    if (data.success) setRecruits(data.data);
-                    else setError(data.error || "Could not load recruits");
+                    if (data.success) {
+                        setRecruits(data.data);
+                        setLastRefreshedAt(new Date());
+                    } else setError(data.error || "Could not load recruits");
                 })
                 .catch((err) => {
                     if (err.name !== "AbortError") setError("Could not load recruits");
@@ -288,11 +333,11 @@ export default function SendMailPage() {
             clearTimeout(t);
             controller.abort();
         };
-    }, [ready, domain, year, gender, search]);
+    }, [ready, domain, year, gender, search, refreshTick]);
 
     // Shortlist status lives in a separate table (recruit_shortlist_status), keyed per
     // recruit+domain - fetched alongside the roster so both the "Shortlist" column and the
-    // status filter below can show it without a second round trip per row.
+    // status/called filters below can show it without a second round trip per row.
     useEffect(() => {
         if (!ready) return;
 
@@ -305,11 +350,13 @@ export default function SendMailPage() {
             .then((data) => {
                 if (!data.success) return;
                 const map = new Map<string, ShortlistRow[]>();
-                (data.data || []).forEach((row: { recruit_id: string; sub_domain: string; status: ShortlistRow["status"] }) => {
-                    const list = map.get(row.recruit_id) || [];
-                    list.push({ sub_domain: row.sub_domain, status: row.status });
-                    map.set(row.recruit_id, list);
-                });
+                (data.data || []).forEach(
+                    (row: { recruit_id: string; sub_domain: string; status: ShortlistRow["status"]; called_by: string | null }) => {
+                        const list = map.get(row.recruit_id) || [];
+                        list.push({ sub_domain: row.sub_domain, status: row.status, called_by: row.called_by });
+                        map.set(row.recruit_id, list);
+                    }
+                );
                 setShortlistMap(map);
             })
             .catch((err) => {
@@ -317,7 +364,40 @@ export default function SendMailPage() {
             });
 
         return () => controller.abort();
-    }, [ready, domain]);
+    }, [ready, domain, refreshTick]);
+
+    // Interview result/no-show/not-yet status, collapsed server-side from
+    // recruit_interview_results + recruit_interview_tokens - see the route's own comment for
+    // exactly how the 6 states are derived. Same domain-scoped-or-any-domain shape as
+    // shortlistMap above, so the filter below can reuse the identical "some row matches"
+    // pattern regardless of whether a domain is picked.
+    useEffect(() => {
+        if (!ready) return;
+
+        const controller = new AbortController();
+        const params = new URLSearchParams();
+        if (domain) params.set("domain", domain);
+
+        fetch(`/api/admin/recruitment/interview-status?${params.toString()}`, { signal: controller.signal })
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.success) return;
+                const map = new Map<string, InterviewStatusRow[]>();
+                (data.data || []).forEach((row: { recruit_id: string; sub_domain: string; status: InterviewStatus }) => {
+                    const list = map.get(row.recruit_id) || [];
+                    list.push({ sub_domain: row.sub_domain, status: row.status });
+                    map.set(row.recruit_id, list);
+                });
+                setInterviewMap(map);
+            })
+            .catch((err) => {
+                if (err.name !== "AbortError") console.error("interview status fetch failed", err);
+            });
+
+        return () => controller.abort();
+    }, [ready, domain, refreshTick]);
+
+    const refresh = () => setRefreshTick((t) => t + 1);
 
     const fetchTemplates = () => {
         setTemplatesLoading(true);
@@ -346,12 +426,29 @@ export default function SendMailPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ready]);
 
-    // Status filter is applied client-side against the already-loaded roster, since it's
-    // a small extra join rather than another server-side filter param.
+    // Status/interview/called/exam filters are applied client-side against the already-loaded
+    // roster, since they're a small extra join rather than another server-side filter param.
+    // shortlistMap/interviewMap are themselves already scoped to `domain` when one is picked
+    // (see the fetch effects above), so "some row matches" naturally means "any applied
+    // domain" with no domain picked and "this domain specifically" once one is. `exams` rides
+    // along on the recruit row itself (already returned by the recruits route), scoped the
+    // same way: any sat exam counts with no domain picked, only that domain's once one is.
     const filteredRecruits = useMemo(() => {
-        if (!statusFilter) return recruits;
-        return recruits.filter((r) => (shortlistMap.get(r.id) || []).some((row) => row.status === statusFilter));
-    }, [recruits, shortlistMap, statusFilter]);
+        return recruits.filter((r) => {
+            if (statusFilter && !(shortlistMap.get(r.id) || []).some((row) => row.status === statusFilter)) return false;
+            if (interviewFilter && !(interviewMap.get(r.id) || []).some((row) => row.status === interviewFilter)) return false;
+            if (calledFilter === "called" && !(shortlistMap.get(r.id) || []).some((row) => row.called_by)) return false;
+            if (
+                calledFilter === "not_called" &&
+                !(shortlistMap.get(r.id) || []).some((row) => row.status === "shortlisted" && !row.called_by)
+            )
+                return false;
+            const satExam = r.exams.some((e) => !domain || e.sub_domain === domain);
+            if (examFilter === "given" && !satExam) return false;
+            if (examFilter === "not_given" && satExam) return false;
+            return true;
+        });
+    }, [recruits, shortlistMap, interviewMap, statusFilter, interviewFilter, calledFilter, examFilter, domain]);
 
     // A filter change can hide rows that were selected under a previous filter - drop
     // selections that are no longer in the visible/loaded set so "select all" stays honest.
@@ -981,8 +1078,8 @@ export default function SendMailPage() {
                 )}
             </div>
 
-            <div className="border border-white/10 bg-black p-4 flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
+            <div className="border border-white/10 bg-black p-4 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[200px]">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                         value={search}
@@ -1035,12 +1132,49 @@ export default function SendMailPage() {
                         options={STATUS_OPTIONS}
                     />
                 </div>
+                <div className="w-52">
+                    <Select
+                        value={interviewFilter}
+                        onChange={(v) => setInterviewFilter(v as "" | InterviewStatus)}
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+                        options={INTERVIEW_STATUS_OPTIONS}
+                    />
+                </div>
+                <div className="w-52">
+                    <Select
+                        value={calledFilter}
+                        onChange={(v) => setCalledFilter(v as "" | "called" | "not_called")}
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+                        options={CALLED_OPTIONS}
+                    />
+                </div>
+                <div className="w-48">
+                    <Select
+                        value={examFilter}
+                        onChange={(v) => setExamFilter(v as "" | "given" | "not_given")}
+                        className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
+                        options={EXAM_OPTIONS}
+                    />
+                </div>
+                <button
+                    onClick={refresh}
+                    disabled={loading}
+                    title="Re-fetch recruits, shortlist status and interview results with the current filters"
+                    className="h-10 inline-flex items-center gap-1.5 px-3 text-xs font-semibold text-gray-300 ring-1 ring-inset ring-white/10 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+                </button>
+                {lastRefreshedAt && (
+                    <span className="h-10 inline-flex items-center text-[11px] text-gray-500 whitespace-nowrap">
+                        Updated {lastRefreshedAt.toLocaleTimeString()}
+                    </span>
+                )}
             </div>
             {!domain && (
                 <p className="-mt-3 text-xs text-gray-500">
-                    Filtering by shortlist status without a domain matches a recruit if{" "}
-                    <span className="text-gray-400">any</span> of their applied domains have that status. Pick a
-                    domain above to filter by that domain&apos;s status specifically.
+                    Filtering by shortlist status, interview result, call status or exam given without a domain
+                    matches a recruit if <span className="text-gray-400">any</span> of their applied domains match.
+                    Pick a domain above to filter by that domain specifically.
                 </p>
             )}
 

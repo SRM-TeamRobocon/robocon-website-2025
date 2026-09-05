@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { ListChecks, Check, Search, MessageCircle, Download, RefreshCw } from "lucide-react";
+import { ListChecks, Check, Search, MessageCircle, Download, RefreshCw, ChevronDown } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 
 import { RECRUIT_SUBDOMAINS, subDomainLabel, subDomainFullLabel, subDomainSubsystem, type RecruitSubDomain } from "@/lib/recruit-domains";
@@ -29,18 +29,25 @@ const YEAR_OPTIONS = [
   ...RECRUIT_YEARS.map((y) => ({ value: y.key as string, label: y.label })),
 ];
 
-const INTERVIEW_FILTER_OPTIONS = [
-  { value: "all", label: "All Interviews" },
-  { value: "done", label: "Interview Done" },
-  { value: "not_done", label: "Interview Not Done" },
-] as const;
-
 type InterviewResult = "selected" | "rejected" | "waitlisted";
 
 const INTERVIEW_RESULT_OPTIONS: { value: InterviewResult; label: string }[] = [
   { value: "selected", label: "Selected" },
   { value: "rejected", label: "Rejected" },
   { value: "waitlisted", label: "Waitlisted" },
+];
+
+// "Done" and the three specific outcomes deliberately overlap (Done = Selected OR Rejected
+// OR Waitlisted) - this is a union/faceted filter, not a set of mutually-exclusive radio
+// options, so checking "Done" and "Selected" together is redundant but not wrong. Kept as
+// a multi-select (the only one on the page) specifically so a lead can, say, check
+// Selected + Waitlisted together to see everyone still in the running.
+type InterviewResultFilterValue = "not_done" | "done" | InterviewResult;
+
+const INTERVIEW_RESULT_FILTER_OPTIONS: { value: InterviewResultFilterValue; label: string }[] = [
+  { value: "not_done", label: "Not Done" },
+  { value: "done", label: "Done (any)" },
+  ...INTERVIEW_RESULT_OPTIONS,
 ];
 
 interface ShortlistRow {
@@ -104,6 +111,21 @@ function sortValueFor(row: ShortlistRow, key: ShortlistSortKey): string | number
     default:
       return null;
   }
+}
+
+// Empty selection = no filter (show everyone) - a multi-select with nothing checked reads
+// as "not filtering" rather than "match nothing". Otherwise a row passes if it matches ANY
+// checked value (union/OR, not AND) - checking Selected + Waitlisted shows everyone in
+// either bucket, not just recruits who are somehow both at once.
+function matchesInterviewFilter(row: ShortlistRow, selected: Set<InterviewResultFilterValue>): boolean {
+  if (selected.size === 0) return true;
+  // Array.from + some(), not for..of over the Set directly - this project's TS target
+  // doesn't have downlevel iteration enabled for Set/Map iterators.
+  return Array.from(selected).some((value) => {
+    if (value === "not_done") return row.interview_result === null;
+    if (value === "done") return row.interview_result !== null;
+    return value === row.interview_result;
+  });
 }
 
 // Same quoting rule as the server-side interview-results export (wrap in quotes only when
@@ -265,6 +287,100 @@ function InterviewStatusSelect({
   );
 }
 
+// The one multi-select control on this page - deliberately not built on top of the shared
+// Select component above, since that component's whole model is "exactly one value
+// selected" (its trigger renders one label, clicking an option closes the list). A
+// checkbox listbox is a different enough interaction that bolting multi-select onto Select
+// would risk the other ~10 single-select usages of it elsewhere in the app; easier and
+// safer to keep this small and page-local.
+function InterviewResultFilterDropdown({
+  selected,
+  onChange,
+}: {
+  selected: Set<InterviewResultFilterValue>;
+  onChange: (next: Set<InterviewResultFilterValue>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const toggleValue = (value: InterviewResultFilterValue) => {
+    const next = new Set(selected);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    onChange(next);
+  };
+
+  const label =
+    selected.size === 0
+      ? "All Interviews"
+      : selected.size === 1
+      ? INTERVIEW_RESULT_FILTER_OPTIONS.find((o) => o.value === Array.from(selected)[0])?.label
+      : `${selected.size} interview filters`;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="h-10 w-52 flex items-center justify-between gap-2 border-0 bg-white/5 px-3 text-left text-sm text-white ring-1 ring-inset ring-white/10 outline-none transition-all focus:ring-2 focus:ring-blue-500"
+      >
+        <span className={`truncate ${selected.size === 0 ? "text-white/40" : ""}`}>{label}</span>
+        <ChevronDown className={`w-4 h-4 shrink-0 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute z-50 mt-2 w-52 max-h-64 overflow-auto border border-white/10 bg-[#141418] py-1 shadow-2xl"
+        >
+          {INTERVIEW_RESULT_FILTER_OPTIONS.map((o) => (
+            <li key={o.value}>
+              <label className="flex cursor-pointer items-center gap-2.5 px-4 py-2 text-sm text-white/80 transition-colors hover:bg-white/10">
+                <input
+                  type="checkbox"
+                  checked={selected.has(o.value)}
+                  onChange={() => toggleValue(o.value)}
+                  className="h-3.5 w-3.5 shrink-0 border-0 bg-white/10 text-blue-500 ring-1 ring-inset ring-white/20 focus:ring-2 focus:ring-blue-500"
+                />
+                {o.label}
+              </label>
+            </li>
+          ))}
+          {selected.size > 0 && (
+            <li className="mt-1 border-t border-white/10 pt-1">
+              <button
+                type="button"
+                onClick={() => onChange(new Set())}
+                className="w-full px-4 py-1.5 text-left text-xs text-gray-400 transition-colors hover:text-white"
+              >
+                Clear
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // Editable "why" text for the two dropdowns above, shown only in the expanded row so the
 // main table stays compact. Both fields only make sense once there's something to explain
 // (a status override / a logged interview result), so each is gated on that happening
@@ -320,7 +436,7 @@ function ExamDomainsTab() {
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("all");
   const [gender, setGender] = useState("all");
   const [year, setYear] = useState("all");
-  const [interviewFilter, setInterviewFilter] = useState<(typeof INTERVIEW_FILTER_OPTIONS)[number]["value"]>("all");
+  const [interviewFilter, setInterviewFilter] = useState<Set<InterviewResultFilterValue>>(new Set());
   const [rows, setRows] = useState<ShortlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -425,12 +541,7 @@ function ExamDomainsTab() {
     // Interview done-ness is a row presence check (see ShortlistRow's interview_result
     // comment), joined server-side already - so, like gender/year, this filters the
     // already-fetched rows rather than adding another query param.
-    const byInterview =
-      interviewFilter === "all"
-        ? byYear
-        : byYear.filter((row) =>
-            interviewFilter === "done" ? row.interview_result !== null : row.interview_result === null
-          );
+    const byInterview = byYear.filter((row) => matchesInterviewFilter(row, interviewFilter));
 
     if (!sort) return byInterview;
     return [...byInterview].sort((a, b) => compareBy(sortValueFor(a, sort.key), sortValueFor(b, sort.key), sort.direction));
@@ -811,15 +922,7 @@ All the best!
             options={YEAR_OPTIONS}
           />
         </div>
-        <div className="w-48">
-          <Select
-            accent="blue"
-            value={interviewFilter}
-            onChange={(v) => setInterviewFilter(v as (typeof INTERVIEW_FILTER_OPTIONS)[number]["value"])}
-            className="h-10 bg-white/5 ring-white/10 py-0 px-3 text-sm"
-            options={[...INTERVIEW_FILTER_OPTIONS]}
-          />
-        </div>
+        <InterviewResultFilterDropdown selected={interviewFilter} onChange={setInterviewFilter} />
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
