@@ -78,28 +78,46 @@ export async function GET(request: NextRequest) {
   }
 
   const searchOrFilter = recruitSearchOrFilter(search);
+  const RECRUIT_COLUMNS =
+    "id, name, reg_no, year, gender, department, course, srm_email, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, is_selected, created_at";
 
-  function buildRecruitsQuery(from: number, to: number) {
-    let query = supabase
-      .from("recruit_accounts")
-      .select(
-        "id, name, reg_no, year, gender, department, course, srm_email, phone, is_hosteller, hostel_block, hostel_room, day_scholar_area, travel_method, is_selected, created_at"
-      )
-      .eq("cycle_id", cycleId)
-      .order("created_at", { ascending: false });
-
+  function applyCommonFilters(query: any) {
     if (year) query = query.eq("year", year);
     // recruit_accounts.gender is nullable, so an .eq() here drops rows with no gender on
     // file - exactly like the year filter. That's only ever reachable when a specific
     // gender is picked; "All genders" sends no param at all and keeps every row visible.
     if (gender) query = query.eq("gender", gender);
     if (department) query = query.eq("department", department);
-    if (recruitIdFilter) query = query.in("id", recruitIdFilter);
     if (searchOrFilter) query = query.or(searchOrFilter);
-    return query.range(from, to);
+    return query;
   }
 
-  const { data: recruits, error: recruitsError } = await fetchAllRows<any>(buildRecruitsQuery);
+  let recruits: any[];
+  let recruitsError: unknown = null;
+
+  if (recruitIdFilter) {
+    // A popular domain's selections can run into the hundreds - passing them all through a
+    // single .in("id", ids) would build a GET request whose query string runs to tens of
+    // thousands of characters, well past what any reverse proxy allows (see
+    // query-helpers.ts's own comment on exactly this). Chunk it like every other
+    // large-ID-list query in this module, then re-sort since each chunk only orders within
+    // itself.
+    const { data, error } = await selectInChunks<any>(recruitIdFilter, (chunk) =>
+      applyCommonFilters(supabase.from("recruit_accounts").select(RECRUIT_COLUMNS).eq("cycle_id", cycleId).in("id", chunk))
+    );
+    data.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+    recruits = data;
+    recruitsError = error;
+  } else {
+    const { data, error } = await fetchAllRows<any>((from, to) =>
+      applyCommonFilters(
+        supabase.from("recruit_accounts").select(RECRUIT_COLUMNS).eq("cycle_id", cycleId).order("created_at", { ascending: false })
+      ).range(from, to)
+    );
+    recruits = data;
+    recruitsError = error;
+  }
+
   if (recruitsError) {
     console.error("recruits list error", recruitsError);
     return NextResponse.json({ success: false, error: "Could not load recruits." }, { status: 500 });
