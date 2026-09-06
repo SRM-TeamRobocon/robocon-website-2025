@@ -49,7 +49,7 @@ interface AnalyticsData {
 const SECTIONS = [
     { label: "Cycles", href: "/dashboard/recruitment/cycles", icon: CalendarRange, desc: "Create and manage recruitment seasons", leadOnly: true },
     { label: "Recruits", href: "/dashboard/recruitment/recruits", icon: Users, desc: "Full roster for the active cycle", leadOnly: false },
-    { label: "Exam Check-In", href: "/dashboard/recruitment/exam-checkin", icon: MonitorCheck, desc: "Live board of who's scanned in, domain by domain", leadOnly: false },
+    //{ label: "Exam Check-In", href: "/dashboard/recruitment/exam-checkin", icon: MonitorCheck, desc: "Live board of who's scanned in, domain by domain", leadOnly: false },
     { label: "Marks", href: "/dashboard/recruitment/marks", icon: ClipboardList, desc: "Enter exam marks per domain", leadOnly: false },
     { label: "Cutoffs", href: "/dashboard/recruitment/cutoffs", icon: SlidersHorizontal, desc: "Set cutoffs and run auto-shortlist", leadOnly: true },
     { label: "Shortlist", href: "/dashboard/recruitment/shortlist", icon: ListChecks, desc: "Review and override shortlist status", leadOnly: true },
