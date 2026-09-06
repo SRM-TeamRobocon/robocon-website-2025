@@ -65,15 +65,6 @@ export function buildBulkMailHtml(params: BulkMailParams): string {
               <p style="color:#cfcfcf;font-size:14px;line-height:1.6;margin:0 0 24px;">${bodyHtml}</p>
               ${eventBlock}
 
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
-                <tr>
-                  <td align="center">
-                    // <a href="${WHATSAPP_GROUP_LINK}" target="_blank" style="display:inline-block;background:#25D366;color:#0a0a0a;font-size:15px;font-weight:800;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:0.3px;">
-                    //   Join WhatsApp Group
-                    // </a>
-                  </td>
-                </tr>
-              </table>
             </td>
           </tr>
 
