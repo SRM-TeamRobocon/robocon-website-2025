@@ -23,6 +23,11 @@ function csvResponse(rows: string[][], filename: string) {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
+      // The download link reuses the same URL (?sub_domain=coding) every time a lead
+      // re-exports mid-interview, when results are actively still changing - without
+      // this, a browser can silently serve an earlier cached response instead of
+      // re-hitting the server, showing stale counts that don't match the live dashboard.
+      "Cache-Control": "no-store",
     },
   });
 }
