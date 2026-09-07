@@ -2,88 +2,47 @@
 
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 // Once per browser session, same pattern as GoogleConnectReminder - dismissing
 // shouldn't permanently hide it, but it also shouldn't nag on every navigation.
 const DISMISS_KEY = "dashboard_install_dismissed";
 
-interface BeforeInstallPromptEvent extends Event {
-    prompt: () => Promise<void>;
-    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
-
-function isIos() {
-    if (typeof navigator === "undefined") return false;
-    const ua = navigator.userAgent;
-    if (/iphone|ipad|ipod/i.test(ua)) return true;
-    // iPadOS 13+ identifies as "MacIntel" but exposes multi-touch, unlike a real Mac.
-    return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-}
-
-function isStandalone() {
-    if (typeof window === "undefined") return false;
-    return (
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as unknown as { standalone?: boolean }).standalone === true
-    );
-}
-
 export default function InstallPrompt() {
-    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const { canInstall, isIos, installed, promptInstall } = useInstallPrompt();
+    const [dismissed, setDismissed] = useState(true);
     const [showIos, setShowIos] = useState(false);
     const [installing, setInstalling] = useState(false);
 
     useEffect(() => {
-        if (isStandalone()) return;
-        if (window.sessionStorage.getItem(DISMISS_KEY)) return;
+        setDismissed(!!window.sessionStorage.getItem(DISMISS_KEY));
+    }, []);
 
-        navigator.serviceWorker
-            ?.register("/dashboard-sw.js", { scope: "/dashboard/" })
-            .catch(() => {});
-
+    useEffect(() => {
         // iOS Safari has no beforeinstallprompt API - only a manual Share menu path.
-        if (isIos()) {
+        if (isIos) {
             const timer = setTimeout(() => setShowIos(true), 2000);
             return () => clearTimeout(timer);
         }
-
-        const handlePrompt = (e: Event) => {
-            e.preventDefault();
-            setDeferredPrompt(e as BeforeInstallPromptEvent);
-        };
-        const handleInstalled = () => {
-            setDeferredPrompt(null);
-            window.sessionStorage.setItem(DISMISS_KEY, "1");
-        };
-
-        window.addEventListener("beforeinstallprompt", handlePrompt);
-        window.addEventListener("appinstalled", handleInstalled);
-        return () => {
-            window.removeEventListener("beforeinstallprompt", handlePrompt);
-            window.removeEventListener("appinstalled", handleInstalled);
-        };
-    }, []);
+    }, [isIos]);
 
     const dismiss = () => {
         window.sessionStorage.setItem(DISMISS_KEY, "1");
-        setDeferredPrompt(null);
-        setShowIos(false);
+        setDismissed(true);
     };
 
     const install = async () => {
-        if (!deferredPrompt) return;
         setInstalling(true);
         try {
-            await deferredPrompt.prompt();
-            await deferredPrompt.userChoice;
+            await promptInstall();
         } finally {
             setInstalling(false);
-            setDeferredPrompt(null);
-            window.sessionStorage.setItem(DISMISS_KEY, "1");
+            dismiss();
         }
     };
 
-    if (!deferredPrompt && !showIos) return null;
+    if (installed || dismissed) return null;
+    if (!canInstall && !showIos) return null;
 
     return (
         <div className="fixed bottom-4 left-4 right-4 sm:left-auto z-[90] sm:w-80">
@@ -98,21 +57,21 @@ export default function InstallPrompt() {
                     <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2 text-sm font-semibold text-white">
                             <Download className="w-4 h-4 text-red" />
-                            Install Dashboard
+                            Install STR Hub
                         </div>
                         <button onClick={dismiss} aria-label="Dismiss" className="text-gray-500 hover:text-white transition">
                             <X className="w-4 h-4" />
                         </button>
                     </div>
 
-                    {showIos ? (
+                    {showIos && !canInstall ? (
                         <p className="mb-3 text-xs text-gray-400">
                             Tap <Share className="inline w-3 h-3 mx-0.5 -mt-0.5" /> Share, then &quot;Add to Home Screen&quot;
-                            to install this dashboard as an app.
+                            to install STR Hub as an app.
                         </p>
                     ) : (
                         <p className="mb-3 text-xs text-gray-400">
-                            Install the dashboard for quick access from your home screen or desktop, with its own app window.
+                            Install STR Hub for quick access from your home screen or desktop, with its own app window.
                         </p>
                     )}
 
@@ -120,7 +79,7 @@ export default function InstallPrompt() {
                         <button onClick={dismiss} className="text-xs text-gray-400 hover:text-white transition">
                             Maybe later
                         </button>
-                        {!showIos && (
+                        {canInstall && (
                             <button
                                 onClick={install}
                                 disabled={installing}

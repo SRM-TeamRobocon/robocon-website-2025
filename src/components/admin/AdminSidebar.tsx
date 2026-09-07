@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import toast from "react-hot-toast";
 import {
     LayoutDashboard,
     Globe2,
@@ -20,7 +21,9 @@ import {
     CalendarClock,
     Radio,
     CalendarOff,
+    Download,
 } from "lucide-react";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 export type NavRole = "lead" | "admin" | "member";
 
@@ -70,6 +73,20 @@ function isActive(pathname: string, item: NavItem) {
 export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: AdminSidebarProps) {
     const pathname = usePathname();
     const navItems = getNavItems(role);
+    const { canInstall, isIos, installed, promptInstall } = useInstallPrompt();
+
+    const handleInstallClick = async () => {
+        if (canInstall) {
+            const outcome = await promptInstall();
+            if (outcome === "accepted") toast.success("STR Hub installed");
+            return;
+        }
+        if (isIos) {
+            toast("Tap Share, then \"Add to Home Screen\" to install STR Hub.", { duration: 5000 });
+            return;
+        }
+        toast("Look for an install icon in your browser's address bar, or use \"Add to Home Screen\" from its menu.", { duration: 5000 });
+    };
 
     return (
         <>
@@ -146,6 +163,22 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
                             </Link>
                         );
                     })}
+
+                    {!installed && (
+                        <button
+                            onClick={handleInstallClick}
+                            title={collapsed ? "Install App" : undefined}
+                            className={[
+                                "group relative flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all",
+                                "mt-2 pt-3 border-t border-white/10",
+                                collapsed ? "justify-center" : "",
+                                "text-gray-400 hover:text-white hover:bg-white/5",
+                            ].join(" ")}
+                        >
+                            <Download className="w-[18px] h-[18px] shrink-0" />
+                            {!collapsed && <span className="truncate">Install App</span>}
+                        </button>
+                    )}
                 </nav>
 
                 {/* Future members teaser */}
