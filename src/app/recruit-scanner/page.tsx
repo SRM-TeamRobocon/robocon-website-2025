@@ -24,18 +24,17 @@ type Mode = "orientation" | "exam_day_1" | "exam_day_2" | "exam_walkin" | "inter
 // re-appears once this array has more than one entry (see `modeIsLocked`), and the default
 // `selectedMode` falls back to MODE_OPTIONS[0].
 //
-// TEMPORARY (2026-09-03, interview day): moved the lock from "Exam: Day 2" to "Walk-in Exam"
-// + "Interview Check-In" - those are the two things happening today (a walk-in catch-up
-// sitting for recruits who missed both scheduled exam days, plus interview check-in).
-// Orientation/exam_day_1/exam_day_2/training stay commented out for the same reason as above.
-// Same restore instructions apply.
+// TEMPORARY (2026-09-08, training starts): interview day is over, moved the lock from
+// "Walk-in Exam" + "Interview Check-In" to "Training" - that's the only thing happening now
+// (scanning recruits into training sessions). Orientation/exam_day_1/exam_day_2 stay
+// commented out for the same reason as above. Same restore instructions apply.
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
     // { value: "orientation", label: "Orientation" },
     // { value: "exam_day_1", label: "Exam: Day 1" },
     // { value: "exam_day_2", label: "Exam: Day 2" },
-    { value: "exam_walkin", label: "Walk-in Exam" },
-    { value: "interview", label: "Interview Check-In" },
-    // { value: "training", label: "Training" },
+    // { value: "exam_walkin", label: "Walk-in Exam" },
+    // { value: "interview", label: "Interview Check-In" },
+    { value: "training", label: "Training" },
 ];
 
 // When only one mode is available there is nothing to choose - the picker is hidden and the
