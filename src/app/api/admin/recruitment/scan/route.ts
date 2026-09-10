@@ -430,6 +430,18 @@ export async function POST(request: NextRequest) {
                     return scanResponse("error", recruit.name, "Not a selected recruit", undefined, 400);
                 }
 
+                const { data: removedFromTraining } = await supabase
+                    .from("recruit_training_removed")
+                    .select("id")
+                    .eq("cycle_id", cid)
+                    .eq("sub_domain", sub_domain as string)
+                    .eq("recruit_id", rid)
+                    .maybeSingle();
+
+                if (removedFromTraining) {
+                    return scanResponse("error", recruit.name, "Removed from training for this domain", undefined, 400);
+                }
+
                 const sessionDate = todayInIST();
                 const domainLabel = subDomainFullLabel(sub_domain as string);
                 const sessionLabel = `${domainLabel} - ${sessionDate}`;

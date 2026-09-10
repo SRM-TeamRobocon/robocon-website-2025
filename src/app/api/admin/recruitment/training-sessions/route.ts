@@ -7,13 +7,18 @@ import { todayInIST } from "@/lib/recruit-dates";
 export const dynamic = "force-dynamic";
 
 // GET  -> list all training sessions for the active recruitment cycle, oldest first.
+//   Optional ?sub_domain=<domain> filters to exact matches only (legacy null/all-hands rows
+//   are excluded even when a filter is applied) - omitted, behaves exactly as before
+//   (returns everything, including legacy all-hands rows) for backward compatibility.
 // POST -> start today's (or a picked date's) attendance for a domain. Body: { sub_domain, session_date? }.
-//   sub_domain is one of the 6 recruit_subdomain values, or null/omitted for an all-hands
-//   session. This mirrors the QR scanner's training-mode upsert in
-//   src/app/api/admin/recruitment/scan/route.ts - a lead "starting attendance" from the
-//   dashboard is the same find-or-create-today's-session-for-this-domain operation as a
-//   volunteer's first scan of the day, just triggered by hand instead of a scan. The label
-//   is always auto-derived (no free-text field) so the two paths can never produce two
+//   sub_domain is now REQUIRED - the UI dropped the "All Domains" option, so this route no
+//   longer accepts an empty/omitted value to mean all-hands. Existing historical sessions
+//   with a null sub_domain are untouched and still readable; this only stops NEW all-hands
+//   sessions from being created via this route. This mirrors the QR scanner's training-mode
+//   upsert in src/app/api/admin/recruitment/scan/route.ts - a lead "starting attendance"
+//   from the dashboard is the same find-or-create-today's-session-for-this-domain operation
+//   as a volunteer's first scan of the day, just triggered by hand instead of a scan. The
+//   label is always auto-derived (no free-text field) so the two paths can never produce two
 //   different sessions for the same (date, domain).
 //
 // Both require an authenticated lead/admin session (see recruitment.md: all
@@ -30,10 +35,15 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: string }).code === UNIQUE_VIOLATION;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
     return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  const rawSubDomainFilter = request.nextUrl.searchParams.get("sub_domain");
+  if (rawSubDomainFilter && !isRecruitSubDomain(rawSubDomainFilter)) {
+    return NextResponse.json({ success: false, error: "Unknown training domain" }, { status: 400 });
   }
 
   const supabase = createRecruitSupabaseAdminClient();
@@ -48,11 +58,19 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "No active recruitment cycle" }, { status: 503 });
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("recruit_training_sessions")
     .select("id, session_date, session_label, sub_domain, created_at")
     .eq("cycle_id", cycle.id)
     .order("session_date", { ascending: true });
+
+  if (rawSubDomainFilter) {
+    // Exact match only - do not also include legacy null/all-hands rows when a domain
+    // filter is applied.
+    query = query.eq("sub_domain", rawSubDomainFilter);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("training-sessions GET error", error);
@@ -77,13 +95,16 @@ export async function POST(request: NextRequest) {
 
   const payload = (body ?? {}) as Record<string, unknown>;
 
-  // Empty string / undefined / null all mean "all-hands" - matches the scan route's
-  // treatment of an omitted sub_domain.
+  // sub_domain is required - the UI no longer offers an "All Domains" option, so an
+  // empty/omitted value is rejected instead of falling through to an all-hands session.
   const rawSubDomain = typeof payload.sub_domain === "string" ? payload.sub_domain.trim() : "";
-  if (rawSubDomain && !isRecruitSubDomain(rawSubDomain)) {
+  if (!rawSubDomain) {
+    return NextResponse.json({ success: false, error: "Select a domain" }, { status: 400 });
+  }
+  if (!isRecruitSubDomain(rawSubDomain)) {
     return NextResponse.json({ success: false, error: "Unknown training domain" }, { status: 400 });
   }
-  const subDomain = rawSubDomain || null;
+  const subDomain = rawSubDomain;
 
   const sessionDate =
     typeof payload.session_date === "string" && payload.session_date.trim() ? payload.session_date.trim() : todayInIST();

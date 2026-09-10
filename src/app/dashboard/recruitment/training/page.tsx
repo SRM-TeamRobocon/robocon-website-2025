@@ -14,10 +14,16 @@ import {
     Search,
     Trash2,
     UserCheck,
+    UserMinus,
     Users,
 } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
-import { RECRUIT_SUBDOMAINS, subDomainFullLabel } from "@/lib/recruit-domains";
+import {
+    RECRUIT_SUBDOMAINS,
+    isRecruitSubDomain,
+    subDomainFullLabel,
+    type RecruitSubDomain,
+} from "@/lib/recruit-domains";
 import { todayInIST } from "@/lib/recruit-dates";
 import { phoneSearchTerm } from "@/lib/recruit-validation";
 import { GENDERS } from "@/lib/gender";
@@ -28,16 +34,27 @@ const GENDER_OPTIONS = [
     ...GENDERS.map((g) => ({ value: g.key, label: g.label })),
 ];
 
+const TRAINING_DOMAIN_STORAGE_KEY = "recruitment_training_domain";
+
+function readStoredDomain(): RecruitSubDomain {
+    // SSR has no window, and the page renders null until useRequireRole resolves anyway,
+    // so reading here (instead of only in an effect) can't cause a visible hydration mismatch.
+    if (typeof window === "undefined") return RECRUIT_SUBDOMAINS[0].key;
+    try {
+        const stored = window.localStorage.getItem(TRAINING_DOMAIN_STORAGE_KEY);
+        if (stored && isRecruitSubDomain(stored)) return stored;
+    } catch {
+        // Blocked/private-mode storage - fall through to the default.
+    }
+    return RECRUIT_SUBDOMAINS[0].key;
+}
+
 interface TrainingSession {
     id: string;
     session_date: string;
     session_label: string;
     sub_domain: string | null;
     created_at?: string;
-}
-
-function domainLabel(subDomain: string | null) {
-    return subDomain ? subDomainFullLabel(subDomain) : "All Domains";
 }
 
 interface SessionSummary extends TrainingSession {
@@ -76,6 +93,15 @@ interface SessionDetail {
     totalSelected: number;
 }
 
+interface RemovedRow {
+    id: string;
+    recruit_id: string;
+    name: string;
+    reg_no: string;
+    removed_by: string;
+    removed_at: string;
+}
+
 function formatDate(value: string) {
     try {
         return new Date(value).toLocaleDateString(undefined, {
@@ -99,28 +125,36 @@ function formatTime(value: string) {
 export default function TrainingAttendancePage() {
     const ready = useRequireRole(["member", "lead", "admin"]);
 
+    const [activeDomain, setActiveDomain] = useState<RecruitSubDomain>(readStoredDomain);
+
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [overallSessions, setOverallSessions] = useState<SessionSummary[]>([]);
     const [overallRecruits, setOverallRecruits] = useState<RecruitOverallRow[]>([]);
     const [loadingSessions, setLoadingSessions] = useState(true);
     const [loadingOverall, setLoadingOverall] = useState(true);
 
+    const [removed, setRemoved] = useState<RemovedRow[]>([]);
+    const [loadingRemoved, setLoadingRemoved] = useState(true);
+
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const [detail, setDetail] = useState<SessionDetail | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
 
     const [newDate, setNewDate] = useState(todayInIST());
-    const [newSubDomain, setNewSubDomain] = useState("");
     const [creating, setCreating] = useState(false);
 
     const [search, setSearch] = useState("");
     const [genderFilter, setGenderFilter] = useState("");
     const [markingId, setMarkingId] = useState<string | null>(null);
+    const [removingId, setRemovingId] = useState<string | null>(null);
 
     const loadSessions = useCallback(async () => {
         setLoadingSessions(true);
         try {
-            const res = await fetch("/api/admin/recruitment/training-sessions", { cache: "no-store" });
+            const res = await fetch(
+                `/api/admin/recruitment/training-sessions?sub_domain=${encodeURIComponent(activeDomain)}`,
+                { cache: "no-store" }
+            );
             const data = await res.json();
             if (data.success) {
                 const rows: TrainingSession[] = data.data || [];
@@ -137,12 +171,15 @@ export default function TrainingAttendancePage() {
         } finally {
             setLoadingSessions(false);
         }
-    }, []);
+    }, [activeDomain]);
 
     const loadOverall = useCallback(async () => {
         setLoadingOverall(true);
         try {
-            const res = await fetch("/api/admin/recruitment/training-attendance", { cache: "no-store" });
+            const res = await fetch(
+                `/api/admin/recruitment/training-attendance?sub_domain=${encodeURIComponent(activeDomain)}`,
+                { cache: "no-store" }
+            );
             const data = await res.json();
             if (data.success) {
                 setOverallSessions(data.sessions || []);
@@ -155,7 +192,27 @@ export default function TrainingAttendancePage() {
         } finally {
             setLoadingOverall(false);
         }
-    }, []);
+    }, [activeDomain]);
+
+    const loadRemoved = useCallback(async () => {
+        setLoadingRemoved(true);
+        try {
+            const res = await fetch(
+                `/api/admin/recruitment/training-removed?sub_domain=${encodeURIComponent(activeDomain)}`,
+                { cache: "no-store" }
+            );
+            const data = await res.json();
+            if (data.success) {
+                setRemoved(data.data || []);
+            } else {
+                toast.error(data.error || "Could not load removed recruits");
+            }
+        } catch {
+            toast.error("Could not load removed recruits");
+        } finally {
+            setLoadingRemoved(false);
+        }
+    }, [activeDomain]);
 
     const loadDetail = useCallback(async (sessionId: string) => {
         setLoadingDetail(true);
@@ -185,10 +242,16 @@ export default function TrainingAttendancePage() {
     }, []);
 
     useEffect(() => {
+        try {
+            window.localStorage.setItem(TRAINING_DOMAIN_STORAGE_KEY, activeDomain);
+        } catch {
+            // Blocked/private-mode storage - the tab still works, it just won't stick on reload.
+        }
+        setSelectedSessionId(null);
         loadSessions();
         loadOverall();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        loadRemoved();
+    }, [activeDomain, loadSessions, loadOverall, loadRemoved]);
 
     useEffect(() => {
         if (selectedSessionId) loadDetail(selectedSessionId);
@@ -206,14 +269,16 @@ export default function TrainingAttendancePage() {
             const res = await fetch("/api/admin/recruitment/training-sessions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ session_date: newDate, sub_domain: newSubDomain || null }),
+                body: JSON.stringify({ session_date: newDate, sub_domain: activeDomain }),
             });
             const data = await res.json();
             if (res.ok && data.success) {
                 toast.success(
                     data.already_started
-                        ? `Attendance already started for ${domainLabel(data.data.sub_domain)} on ${formatDate(data.data.session_date)}`
-                        : `Attendance started for ${domainLabel(data.data.sub_domain)}`
+                        ? `Attendance already started for ${subDomainFullLabel(activeDomain)} on ${formatDate(
+                              data.data.session_date
+                          )}`
+                        : `Attendance started for ${subDomainFullLabel(activeDomain)}`
                 );
                 setSelectedSessionId(data.data.id);
                 await Promise.all([loadSessions(), loadOverall()]);
@@ -229,7 +294,24 @@ export default function TrainingAttendancePage() {
 
     const markPresent = async (recruitId: string) => {
         if (!selectedSessionId) return;
+        const snapshot = detail;
         setMarkingId(recruitId);
+        setDetail((prev) => {
+            if (!prev) return prev;
+            let matched = false;
+            const recruits = prev.recruits.map((r) => {
+                if (r.recruit_id !== recruitId || r.attended) return r;
+                matched = true;
+                return {
+                    ...r,
+                    attended: true,
+                    method: "manual" as const,
+                    marked_by: "You",
+                    scanned_at: new Date().toISOString(),
+                };
+            });
+            return matched ? { ...prev, recruits, attendedCount: prev.attendedCount + 1 } : prev;
+        });
         try {
             const res = await fetch("/api/admin/recruitment/training-attendance/manual", {
                 method: "POST",
@@ -243,14 +325,86 @@ export default function TrainingAttendancePage() {
                 } else {
                     toast.success(`${data.name} marked present`);
                 }
-                await Promise.all([loadDetail(selectedSessionId), loadOverall()]);
+                // Not awaited on purpose - the optimistic update above is already what the
+                // user sees, this just lets the % table catch up in the background.
+                loadOverall();
             } else {
+                setDetail(snapshot);
                 toast.error(data.error || "Could not mark attendance");
             }
         } catch {
+            setDetail(snapshot);
             toast.error("Could not mark attendance");
         } finally {
             setMarkingId(null);
+        }
+    };
+
+    const removeRecruit = async (recruitId: string) => {
+        if (!detail) return;
+        const target = detail.recruits.find((r) => r.recruit_id === recruitId);
+        if (!target) return;
+        setRemovingId(recruitId);
+        try {
+            const res = await fetch("/api/admin/recruitment/training-removed", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ recruit_id: recruitId, sub_domain: activeDomain }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                const wasAttended = target.attended;
+                setDetail((prev) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        recruits: prev.recruits.filter((r) => r.recruit_id !== recruitId),
+                        attendedCount: wasAttended ? prev.attendedCount - 1 : prev.attendedCount,
+                        // The roster itself is smaller now, not just this session's tally.
+                        totalSelected: prev.totalSelected - 1,
+                    };
+                });
+                setRemoved((prev) => [
+                    {
+                        id: data.data.id,
+                        recruit_id: data.data.recruit_id,
+                        name: target.name,
+                        reg_no: target.reg_no,
+                        removed_by: data.data.removed_by,
+                        removed_at: data.data.removed_at,
+                    },
+                    ...prev,
+                ]);
+                toast.success(`${data.name} removed from training`);
+            } else {
+                toast.error(data.error || "Could not remove recruit");
+            }
+        } catch {
+            toast.error("Could not remove recruit");
+        } finally {
+            setRemovingId(null);
+        }
+    };
+
+    const unremoveRecruit = async (row: RemovedRow) => {
+        setRemovingId(row.recruit_id);
+        try {
+            const res = await fetch(`/api/admin/recruitment/training-removed/${row.id}`, {
+                method: "DELETE",
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setRemoved((prev) => prev.filter((r) => r.id !== row.id));
+                toast.success(`${row.name} restored to training`);
+                if (selectedSessionId) loadDetail(selectedSessionId);
+                loadOverall();
+            } else {
+                toast.error(data.error || "Could not unremove recruit");
+            }
+        } catch {
+            toast.error("Could not unremove recruit");
+        } finally {
+            setRemovingId(null);
         }
     };
 
@@ -293,10 +447,31 @@ export default function TrainingAttendancePage() {
                     Training Sessions
                 </h1>
                 <p className="mt-2 max-w-xl text-sm text-gray-400">
-                    Choose a domain and start attendance. The day&apos;s session is opened on demand, exactly like a
+                    Pick a domain, then start attendance. The day&apos;s session is opened on demand, exactly like a
                     volunteer&apos;s first QR scan of the day. A day with no session for a domain simply isn&apos;t
                     counted against anyone, treat it as a holiday, not an absence.
                 </p>
+            </div>
+
+            {/* Domain tabs */}
+            <div className="flex flex-wrap gap-2">
+                {RECRUIT_SUBDOMAINS.map((d) => {
+                    const isActive = d.key === activeDomain;
+                    return (
+                        <button
+                            key={d.key}
+                            type="button"
+                            onClick={() => setActiveDomain(d.key)}
+                            className={`border px-4 py-2 text-sm font-semibold transition ${
+                                isActive
+                                    ? "border-red/40 bg-red/10 text-white"
+                                    : "border-white/10 text-gray-400 hover:bg-white/[0.04] hover:text-white"
+                            }`}
+                        >
+                            {subDomainFullLabel(d.key)}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Start attendance */}
@@ -305,20 +480,6 @@ export default function TrainingAttendancePage() {
                     <CalendarPlus className="h-4 w-4 text-red" /> Start Attendance
                 </h2>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <label className="block flex-1 text-sm font-medium text-gray-300">
-                        Domain
-                        <div className="mt-2">
-                            <Select
-                                value={newSubDomain}
-                                onChange={setNewSubDomain}
-                                options={[
-                                    { value: "", label: "All Domains (all-hands)" },
-                                    ...RECRUIT_SUBDOMAINS.map((d) => ({ value: d.key, label: subDomainFullLabel(d.key) })),
-                                ]}
-                                className="bg-white/5 ring-white/10 py-2 px-3"
-                            />
-                        </div>
-                    </label>
                     <label className="block text-sm font-medium text-gray-300 sm:w-48">
                         Date
                         <input
@@ -375,15 +536,17 @@ export default function TrainingAttendancePage() {
                                             isActive ? "bg-red/10" : "hover:bg-white/[0.04]"
                                         }`}
                                     >
-                                        <p className="truncate text-sm font-semibold text-white">{domainLabel(s.sub_domain)}</p>
-                                        <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                                            <Clock className="h-3 w-3" /> {formatDate(s.session_date)}
-                                            {summary && (
+                                        <p className="truncate text-sm font-semibold text-white">
+                                            {formatDate(s.session_date)}
+                                        </p>
+                                        {summary && (
+                                            <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                                                <Clock className="h-3 w-3" />
                                                 <span className="ml-auto text-gray-400">
                                                     {summary.attended_count}/{summary.total_selected}
                                                 </span>
-                                            )}
-                                        </p>
+                                            </p>
+                                        )}
                                     </button>
                                 );
                             })
@@ -406,8 +569,8 @@ export default function TrainingAttendancePage() {
                         <>
                             <div className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-black p-5">
                                 <div>
-                                    <p className="text-lg font-bold text-white">{domainLabel(detail.session.sub_domain)}</p>
-                                    <p className="text-sm text-gray-400">{formatDate(detail.session.session_date)}</p>
+                                    <p className="text-lg font-bold text-white">{formatDate(detail.session.session_date)}</p>
+                                    <p className="text-sm text-gray-400">{subDomainFullLabel(activeDomain)}</p>
                                 </div>
                                 <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
                                     <UserCheck className="h-4 w-4" />
@@ -466,25 +629,36 @@ export default function TrainingAttendancePage() {
                                                         <p className="truncate text-sm font-medium text-white">{r.name}</p>
                                                         <p className="text-xs text-gray-500">{r.reg_no}</p>
                                                     </div>
-                                                    <div className="shrink-0 text-right">
-                                                        <span
-                                                            className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${
-                                                                r.method === "qr"
-                                                                    ? "bg-blue-500/10 text-blue-300 ring-blue-500/30"
-                                                                    : "bg-amber-500/10 text-amber-300 ring-amber-500/30"
-                                                            }`}
+                                                    <div className="flex shrink-0 items-center gap-2">
+                                                        <div className="text-right">
+                                                            <span
+                                                                className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${
+                                                                    r.method === "qr"
+                                                                        ? "bg-blue-500/10 text-blue-300 ring-blue-500/30"
+                                                                        : "bg-amber-500/10 text-amber-300 ring-amber-500/30"
+                                                                }`}
+                                                            >
+                                                                {r.method === "qr" ? (
+                                                                    <QrCode className="h-3 w-3" />
+                                                                ) : (
+                                                                    <PenLine className="h-3 w-3" />
+                                                                )}
+                                                                {r.method}
+                                                            </span>
+                                                            <p className="mt-1 text-[11px] text-gray-500">
+                                                                {r.marked_by}
+                                                                {r.scanned_at ? ` · ${formatTime(r.scanned_at)}` : ""}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeRecruit(r.recruit_id)}
+                                                            disabled={removingId === r.recruit_id}
+                                                            title="Remove from training"
+                                                            className="shrink-0 p-1.5 text-gray-500 transition hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                                                         >
-                                                            {r.method === "qr" ? (
-                                                                <QrCode className="h-3 w-3" />
-                                                            ) : (
-                                                                <PenLine className="h-3 w-3" />
-                                                            )}
-                                                            {r.method}
-                                                        </span>
-                                                        <p className="mt-1 text-[11px] text-gray-500">
-                                                            {r.marked_by}
-                                                            {r.scanned_at ? ` · ${formatTime(r.scanned_at)}` : ""}
-                                                        </p>
+                                                            <UserMinus className="h-4 w-4" />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))
@@ -510,15 +684,26 @@ export default function TrainingAttendancePage() {
                                                         <p className="truncate text-sm font-medium text-white">{r.name}</p>
                                                         <p className="text-xs text-gray-500">{r.reg_no}</p>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => markPresent(r.recruit_id)}
-                                                        disabled={markingId === r.recruit_id}
-                                                        className="inline-flex shrink-0 items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-                                                    >
-                                                        <Check className="h-3.5 w-3.5" />
-                                                        {markingId === r.recruit_id ? "Marking..." : "Mark Present"}
-                                                    </button>
+                                                    <div className="flex shrink-0 items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => markPresent(r.recruit_id)}
+                                                            disabled={markingId === r.recruit_id}
+                                                            className="inline-flex shrink-0 items-center gap-1.5 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-500/30 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />
+                                                            {markingId === r.recruit_id ? "Marking..." : "Mark Present"}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeRecruit(r.recruit_id)}
+                                                            disabled={removingId === r.recruit_id}
+                                                            title="Remove from training"
+                                                            className="shrink-0 p-1.5 text-gray-500 transition hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <UserMinus className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))
                                         )}
@@ -530,14 +715,66 @@ export default function TrainingAttendancePage() {
                 </section>
             </div>
 
+            {/* Removed from training */}
+            <section className="border border-white/10 bg-black">
+                <div className="border-b border-white/10 px-5 py-4">
+                    <h2 className="text-lg font-bold text-white">Removed from Training</h2>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Pulled out of {subDomainFullLabel(activeDomain)} training - unremove to bring them back.
+                    </p>
+                </div>
+                {loadingRemoved ? (
+                    <div className="p-6 text-center text-sm text-gray-500">Loading...</div>
+                ) : removed.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-gray-500">No one removed.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-white/10 text-left text-xs font-bold uppercase tracking-widest text-gray-500">
+                                    <th className="px-5 py-3">Name</th>
+                                    <th className="px-5 py-3">Reg No</th>
+                                    <th className="px-5 py-3">Removed By</th>
+                                    <th className="px-5 py-3">Removed At</th>
+                                    <th className="px-5 py-3" />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {removed.map((row) => (
+                                    <tr key={row.id} className="border-b border-white/5 last:border-0">
+                                        <td className="px-5 py-3 font-medium text-white">{row.name}</td>
+                                        <td className="px-5 py-3 text-gray-300">{row.reg_no}</td>
+                                        <td className="px-5 py-3 text-gray-300">{row.removed_by}</td>
+                                        <td className="px-5 py-3 text-gray-400">
+                                            {formatDate(row.removed_at)} · {formatTime(row.removed_at)}
+                                        </td>
+                                        <td className="px-5 py-3 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() => unremoveRecruit(row)}
+                                                disabled={removingId === row.recruit_id}
+                                                className="inline-flex items-center gap-1.5 border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:bg-white/[0.04] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {removingId === row.recruit_id ? "Restoring..." : "Unremove"}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </section>
+
             {/* Overall attendance % per recruit */}
             <section className="border border-white/10 bg-black">
                 <div className="border-b border-white/10 px-5 py-4">
-                    <h2 className="text-lg font-bold text-white">Attendance % Across All Sessions</h2>
+                    <h2 className="text-lg font-bold text-white">
+                        Attendance % - {subDomainFullLabel(activeDomain)}
+                    </h2>
                     <p className="mt-1 text-xs text-gray-500">
                         {overallSessions.length} session{overallSessions.length === 1 ? "" : "s"} · selected recruits
-                        only, scoped to each recruit&apos;s own domain(s) · a day with no session doesn&apos;t count
-                        against anyone
+                        only · a day with no session doesn&apos;t count against anyone
                     </p>
                 </div>
                 {loadingOverall ? (

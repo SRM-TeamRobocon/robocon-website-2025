@@ -107,6 +107,25 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const { data: removed, error: removedError } = await supabase
+      .from("recruit_training_removed")
+      .select("id")
+      .eq("cycle_id", cycle.id)
+      .eq("sub_domain", sessionRow.sub_domain)
+      .eq("recruit_id", recruitId)
+      .maybeSingle();
+
+    if (removedError) {
+      console.error("training-attendance/manual removed lookup error", removedError);
+      return NextResponse.json({ success: false, error: "Could not verify domain eligibility" }, { status: 500 });
+    }
+    if (removed) {
+      return NextResponse.json(
+        { success: false, error: `${recruit.name} was removed from training for this domain` },
+        { status: 400 }
+      );
+    }
   }
 
   const { data: inserted, error: insertError } = await supabase

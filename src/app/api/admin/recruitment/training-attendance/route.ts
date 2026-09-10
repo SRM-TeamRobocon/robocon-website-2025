@@ -3,6 +3,7 @@ import { createRecruitSupabaseAdminClient } from "@/lib/supabase/recruit-admin";
 import { getSession, requireRole } from "@/lib/session";
 import { fetchAllRows } from "@/lib/supabase/query-helpers";
 import { resolveDisplayNames } from "@/lib/admin-users";
+import { isRecruitSubDomain } from "@/lib/recruit-domains";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,14 @@ export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!requireRole(session, ["member", "lead", "admin"])) {
     return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+  }
+
+  // Optional domain scope for the overview branch (below) - validated up front so an
+  // invalid value 400s before any DB work. Absent, the overview behaves exactly as before
+  // (whole-cycle, no removal filtering) for backward compatibility.
+  const subDomainFilter = request.nextUrl.searchParams.get("sub_domain");
+  if (subDomainFilter && !isRecruitSubDomain(subDomainFilter)) {
+    return NextResponse.json({ success: false, error: "Unknown training domain" }, { status: 400 });
   }
 
   const supabase = createRecruitSupabaseAdminClient();
@@ -156,7 +165,29 @@ export async function GET(request: NextRequest) {
     const attendanceMap = new Map(attendance.map((row) => [row.recruit_id, row]));
     const markedByNames = await resolveDisplayNames(supabase, attendance.map((row) => row.marked_by));
 
-    const eligibleRecruits = recruitList.filter((recruit) => isEligible(recruit.id, sessionRow.sub_domain));
+    let eligibleRecruits = recruitList.filter((recruit) => isEligible(recruit.id, sessionRow.sub_domain));
+
+    // A recruit removed from training for this session's domain vanishes from the roster
+    // entirely (neither "Attended" nor "Not Marked Yet") - not possible for a legacy
+    // all-hands session (sub_domain null), so skip the lookup entirely in that case.
+    if (sessionRow.sub_domain) {
+      const { data: removedRows, error: removedError } = await fetchAllRows<{ recruit_id: string }>((from, to) =>
+        supabase
+          .from("recruit_training_removed")
+          .select("recruit_id")
+          .eq("cycle_id", cycle.id)
+          .eq("sub_domain", sessionRow.sub_domain as string)
+          .range(from, to)
+      );
+
+      if (removedError) {
+        console.error("training-attendance detail removed-lookup error", removedError);
+        return NextResponse.json({ success: false, error: "Could not load attendance" }, { status: 500 });
+      }
+
+      const removedRecruitIds = new Set(removedRows.map((r) => r.recruit_id));
+      eligibleRecruits = eligibleRecruits.filter((recruit) => !removedRecruitIds.has(recruit.id));
+    }
 
     const recruitsWithStatus = eligibleRecruits.map((recruit) => {
       const marked = attendanceMap.get(recruit.id);
@@ -194,7 +225,37 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Could not load training sessions" }, { status: 500 });
   }
 
-  const sessionList = (sessions || []) as { id: string; session_date: string; session_label: string; sub_domain: string | null }[];
+  const allSessionList = (sessions || []) as { id: string; session_date: string; session_label: string; sub_domain: string | null }[];
+
+  // Domain-scoped view (?sub_domain=<domain>): narrow to that domain's own sessions and
+  // recruits, and drop anyone removed from training for this domain entirely - not even as
+  // a 0% row. Absent, both lists are unfiltered, matching the endpoint's pre-existing
+  // whole-cycle behaviour.
+  let sessionList = allSessionList;
+  let scopedRecruitList = recruitList;
+
+  if (subDomainFilter) {
+    sessionList = allSessionList.filter((s) => s.sub_domain === subDomainFilter);
+    scopedRecruitList = recruitList.filter((r) => domainsByRecruit.get(r.id)?.has(subDomainFilter));
+
+    const { data: removedRows, error: removedError } = await fetchAllRows<{ recruit_id: string }>((from, to) =>
+      supabase
+        .from("recruit_training_removed")
+        .select("recruit_id")
+        .eq("cycle_id", cycle.id)
+        .eq("sub_domain", subDomainFilter)
+        .range(from, to)
+    );
+
+    if (removedError) {
+      console.error("training-attendance overview removed-lookup error", removedError);
+      return NextResponse.json({ success: false, error: "Could not load attendance" }, { status: 500 });
+    }
+
+    const removedRecruitIds = new Set(removedRows.map((r) => r.recruit_id));
+    scopedRecruitList = scopedRecruitList.filter((r) => !removedRecruitIds.has(r.id));
+  }
+
   const sessionIds = sessionList.map((s) => s.id);
 
   let allAttendance: AttendanceRow[] = [];
@@ -226,7 +287,7 @@ export async function GET(request: NextRequest) {
   const heldSessionCount = heldSessionIds.size;
 
   const sessionsSummary = sessionList.map((s) => {
-    const eligibleCount = recruitList.filter((r) => isEligible(r.id, s.sub_domain)).length;
+    const eligibleCount = scopedRecruitList.filter((r) => isEligible(r.id, s.sub_domain)).length;
     return {
       id: s.id,
       session_date: s.session_date,
@@ -238,7 +299,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  const recruitsSummary = recruitList.map((recruit) => {
+  const recruitsSummary = scopedRecruitList.map((recruit) => {
     // Denominator: held sessions this recruit is actually eligible for (own domain(s) +
     // any all-hands session) - not every session ever held. Numerator is intersected with
     // the same set so a stray attendance row from outside the recruit's domain(s) can't
