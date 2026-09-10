@@ -105,29 +105,41 @@ export async function GET(request: NextRequest) {
   }
 
   // Training is per-domain (migration 005): a session with a sub_domain only concerns
-  // recruits who applied to that domain; a NULL sub_domain (all-hands) concerns everyone.
-  // Mirrors the ownership logic in src/app/api/recruit/me/route.ts so the admin overview
-  // and a recruit's own "Day X / Y" never disagree.
-  const { data: selections, error: selectionsError } = await fetchAllRows<{ recruit_id: string; sub_domain: string }>(
-    (from, to) =>
-      supabase.from("recruit_domain_selections").select("recruit_id, sub_domain").eq("cycle_id", cycle.id).range(from, to)
+  // recruits actually SELECTED in the interview for that domain, not just anyone who
+  // applied to it - a recruit who applied to two domains and was selected in one but
+  // rejected/waitlisted in the other must only show up for the one they were selected in.
+  // recruit_interview_results (not recruit_domain_selections) is the source of truth for
+  // this, same as src/app/api/recruit/me/route.ts's `selectedForDomain` - so the admin
+  // overview and a recruit's own "Day X / Y" never disagree.
+  const { data: interviewResults, error: interviewResultsError } = await fetchAllRows<{
+    recruit_id: string;
+    sub_domain: string;
+    result: string;
+  }>((from, to) =>
+    supabase
+      .from("recruit_interview_results")
+      .select("recruit_id, sub_domain, result")
+      .eq("cycle_id", cycle.id)
+      .range(from, to)
   );
 
-  if (selectionsError) {
-    console.error("training-attendance selections error", selectionsError);
-    return NextResponse.json({ success: false, error: "Could not load domain selections" }, { status: 500 });
+  if (interviewResultsError) {
+    console.error("training-attendance interview results error", interviewResultsError);
+    return NextResponse.json({ success: false, error: "Could not load interview results" }, { status: 500 });
   }
 
-  const domainsByRecruit = new Map<string, Set<string>>();
-  (selections ?? []).forEach((row) => {
-    const set = domainsByRecruit.get(row.recruit_id) ?? new Set<string>();
-    set.add(row.sub_domain);
-    domainsByRecruit.set(row.recruit_id, set);
-  });
+  const selectedDomainsByRecruit = new Map<string, Set<string>>();
+  (interviewResults ?? [])
+    .filter((row) => row.result === "selected")
+    .forEach((row) => {
+      const set = selectedDomainsByRecruit.get(row.recruit_id) ?? new Set<string>();
+      set.add(row.sub_domain);
+      selectedDomainsByRecruit.set(row.recruit_id, set);
+    });
 
   function isEligible(recruitId: string, sessionSubDomain: string | null): boolean {
     if (!sessionSubDomain) return true; // all-hands session - everyone counts
-    return domainsByRecruit.get(recruitId)?.has(sessionSubDomain) ?? false;
+    return selectedDomainsByRecruit.get(recruitId)?.has(sessionSubDomain) ?? false;
   }
 
   const sessionId = request.nextUrl.searchParams.get("session_id");
@@ -236,7 +248,7 @@ export async function GET(request: NextRequest) {
 
   if (subDomainFilter) {
     sessionList = allSessionList.filter((s) => s.sub_domain === subDomainFilter);
-    scopedRecruitList = recruitList.filter((r) => domainsByRecruit.get(r.id)?.has(subDomainFilter));
+    scopedRecruitList = recruitList.filter((r) => selectedDomainsByRecruit.get(r.id)?.has(subDomainFilter));
 
     const { data: removedRows, error: removedError } = await fetchAllRows<{ recruit_id: string }>((from, to) =>
       supabase

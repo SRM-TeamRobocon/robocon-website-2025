@@ -168,11 +168,12 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: selection, error: selectionError } = await supabase
-    .from("recruit_domain_selections")
+    .from("recruit_interview_results")
     .select("id")
     .eq("recruit_id", recruitId)
     .eq("cycle_id", cycle.id)
     .eq("sub_domain", subDomain)
+    .eq("result", "selected")
     .maybeSingle();
 
   if (selectionError) {
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
   }
   if (!selection) {
     return NextResponse.json(
-      { success: false, error: `${recruit.name} did not apply for this domain` },
+      { success: false, error: `${recruit.name} was not selected in the interview for this domain` },
       { status: 400 }
     );
   }

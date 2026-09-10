@@ -430,6 +430,26 @@ export async function POST(request: NextRequest) {
                     return scanResponse("error", recruit.name, "Not a selected recruit", undefined, 400);
                 }
 
+                // Domain-specific eligibility: is_selected only says this recruit was
+                // selected in SOME domain's interview, not this one. A recruit selected for
+                // domain A but rejected/waitlisted in domain B must not be countable as
+                // attended at domain B's training - same recruit_interview_results check
+                // used to gate training eligibility everywhere else in this module.
+                const { data: selectedResult, error: selectedResultError } = await supabase
+                    .from("recruit_interview_results")
+                    .select("id")
+                    .eq("recruit_id", rid)
+                    .eq("cycle_id", cid)
+                    .eq("sub_domain", sub_domain as string)
+                    .eq("result", "selected")
+                    .maybeSingle();
+
+                if (selectedResultError) throw selectedResultError;
+
+                if (!selectedResult) {
+                    return scanResponse("error", recruit.name, "Not selected for this domain", undefined, 400);
+                }
+
                 const { data: removedFromTraining } = await supabase
                     .from("recruit_training_removed")
                     .select("id")

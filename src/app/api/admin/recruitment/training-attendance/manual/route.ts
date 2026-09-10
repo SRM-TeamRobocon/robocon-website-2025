@@ -85,16 +85,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Not a selected recruit" }, { status: 400 });
   }
 
-  // A domain-scoped session only concerns recruits who applied to that domain - a NULL
-  // sub_domain (all-hands) concerns everyone. Mirrors the eligibility rule the overview
-  // endpoint (../route.ts) uses to decide who even shows up as "pending" for this session.
+  // A domain-scoped session only concerns recruits actually SELECTED in the interview for
+  // that domain, not just anyone who applied to it - a NULL sub_domain (all-hands) concerns
+  // everyone. Mirrors the eligibility rule the overview endpoint (../route.ts) uses to
+  // decide who even shows up as "pending" for this session.
   if (sessionRow.sub_domain) {
     const { data: selection, error: selectionError } = await supabase
-      .from("recruit_domain_selections")
+      .from("recruit_interview_results")
       .select("id")
       .eq("recruit_id", recruitId)
       .eq("cycle_id", cycle.id)
       .eq("sub_domain", sessionRow.sub_domain)
+      .eq("result", "selected")
       .maybeSingle();
 
     if (selectionError) {
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
     if (!selection) {
       return NextResponse.json(
-        { success: false, error: `${recruit.name} did not apply for this domain` },
+        { success: false, error: `${recruit.name} was not selected in the interview for this domain` },
         { status: 400 }
       );
     }
