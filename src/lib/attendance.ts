@@ -15,6 +15,12 @@ export const OVERNIGHT_PASS_TTL_MS = 26 * 60 * 60 * 1000;
 // IST is a fixed UTC+5:30 with no DST, so a plain offset is exact - no tz library.
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
+export function istMidnightBoundary(nowMs: number): number {
+  const shifted = new Date(nowMs + IST_OFFSET_MS);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return shifted.getTime() - IST_OFFSET_MS;
+}
+
 // The IST calendar date a timestamp falls on, as "YYYY-MM-DD" - independent of the
 // server process's own local timezone (Vercel runs UTC). Shifting by the offset before
 // reading UTC fields back out gives the IST date regardless of where this runs.

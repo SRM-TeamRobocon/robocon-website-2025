@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import type { GhostStat } from "@/lib/attendance";
+import { reconcileMidnightAttendance } from "@/lib/attendance-reconcile";
 
 // Team-wide attendance board data for the dashboard. No longer public - every
 // teammate can see every other teammate's live status, but only from inside the
@@ -22,6 +23,12 @@ export async function GET() {
     }
 
     const supabase = createSupabaseAdminClient();
+    try {
+        await reconcileMidnightAttendance(supabase);
+    } catch (error) {
+        console.error("attendance board reconciliation failed", error);
+        return NextResponse.json({ success: false, error: "Could not reconcile attendance." }, { status: 500 });
+    }
     const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
     const [{ data: logs, error: logsError }, { data: ghostLogs }, { data: passes }] = await Promise.all([

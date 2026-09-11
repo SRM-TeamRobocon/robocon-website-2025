@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { TAP_DEBOUNCE_MS, broadcastAttendanceEvent, nextAction, normalizeRfidUid } from "@/lib/attendance";
+import { reconcileMidnightAttendance } from "@/lib/attendance-reconcile";
 
 // Device-facing endpoint for the ESP32 RFID scanner. Not session-gated (the device has
 // no cookie) - guarded by a shared secret instead, same pattern as CRON_SECRET in
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
     const deviceId = body.deviceId ? String(body.deviceId).slice(0, 64) : null;
 
     const supabase = createSupabaseAdminClient();
+    try {
+        await reconcileMidnightAttendance(supabase);
+    } catch (error) {
+        console.error("attendance tap reconciliation failed", error);
+        return NextResponse.json({ ok: false, event: "server_error" }, { status: 500 });
+    }
 
     const { data: account, error: accountError } = await supabase
         .from("member_accounts")
