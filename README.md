@@ -14,6 +14,9 @@ Next.js website for SRM Team Robocon with public pages, workshop/event registrat
 
 ## Local Setup
 
+Use Node.js 24 for local development. The repository pins this version in `.nvmrc` and
+declares it in `package.json`.
+
 ```bash
 npm install
 cp .env.example .env.local
