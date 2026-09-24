@@ -21,15 +21,13 @@ export default function ParticlesCom() {
             options={{
                 fpsLimit: 30,
                 interactivity: {
-                    // Click-push/hover-repulse disabled everywhere for now - just an ambient
-                    // background animation, no dispersion on mouse interaction.
                     events: {
                         onClick: {
-                            enable: false,
+                            enable: true,
                             mode: "push",
                         },
                         onHover: {
-                            enable: false,
+                            enable: true,
                             mode: "repulse",
                         },
                         resize: true,

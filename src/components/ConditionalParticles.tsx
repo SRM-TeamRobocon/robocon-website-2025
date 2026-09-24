@@ -18,6 +18,9 @@ const PARTICLES_DISABLED_PATHS = [
 
 export default function ConditionalParticles() {
   const pathname = usePathname();
-  if (PARTICLES_DISABLED_PATHS.includes(pathname)) return null;
+  if (
+    pathname.startsWith("/dashboard") ||
+    PARTICLES_DISABLED_PATHS.includes(pathname)
+  ) return null;
   return <ParticlesCom />;
 }

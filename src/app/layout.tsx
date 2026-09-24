@@ -6,6 +6,7 @@ import "aos/dist/aos.css";
 import Script from "next/script";
 import MenuContextProvider from "@/context/MenuContextProvider";
 import ConditionalParticles from "@/components/ConditionalParticles";
+import PublicAOS from "@/components/PublicAOS";
 import { Analytics } from "@vercel/analytics/react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
         </Script>
         <MenuContextProvider>
           <ConditionalParticles />
+          <PublicAOS />
           <div className="relative z-10">
             {children}
           </div>
