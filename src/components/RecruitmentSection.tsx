@@ -95,7 +95,7 @@ const RecruitmentSection = () => {
                             }}
                         />
                         <span className="relative transition-colors duration-200 group-hover:text-black">
-                            Registeration will open soon. Stay tuned for updates on our social media handles.
+                            Registerations will open soon. Stay tuned for updates.
                         </span>
                     </button>
                 </div>
