@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import * as jose from "jose";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type SessionRole = "lead" | "admin" | "member";
 
@@ -24,12 +25,23 @@ export async function getSession(): Promise<Session | null> {
         const { payload } = await jose.jwtVerify(token, secret);
         if (!payload.role || !payload.user) return null;
 
+        const memberAccountId = payload.memberAccountId as string | undefined;
+        if (memberAccountId) {
+            const supabase = createSupabaseAdminClient();
+            const { data: account, error } = await supabase
+                .from("member_accounts")
+                .select("is_approved")
+                .eq("id", memberAccountId)
+                .maybeSingle();
+            if (error || account?.is_approved !== true) return null;
+        }
+
         return {
             role: payload.role as SessionRole,
             user: payload.user as string,
             name: payload.name as string | undefined,
             domain: payload.domain as string | undefined,
-            memberAccountId: payload.memberAccountId as string | undefined,
+            memberAccountId,
             rosterId: (payload.rosterId as string | null | undefined) ?? null,
         };
     } catch {

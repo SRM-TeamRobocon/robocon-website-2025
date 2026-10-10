@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import { getTransporter, SMTP_EMAIL } from "@/lib/mailer";
@@ -6,7 +7,11 @@ import { decryptPassword } from "@/lib/password-enc";
 
 export const dynamic = "force-dynamic";
 
-function buildApprovalEmailHtml(name: string, email: string, password: string, loginLink: string): string {
+function buildApprovalEmailHtml(name: string, email: string, password: string | null, loginLink: string): string {
+    const accessDetails = password
+        ? `<p style="margin:0 0 6px;color:#888;font-size:12px;">Password</p>
+           <p style="margin:0;color:#fff;font-size:14px;">${password}</p>`
+        : `<p style="margin:0;color:#fff;font-size:14px;">Sign in with the personal Google account you connected during registration.</p>`;
     return `
 <!DOCTYPE html>
 <html>
@@ -24,14 +29,13 @@ function buildApprovalEmailHtml(name: string, email: string, password: string, l
           <td style="padding:28px 36px;">
             <p style="color:#e0e0e0;font-size:14px;line-height:1.6;margin:0 0 20px;">
               Hi <strong style="color:#fff;">${name}</strong>,<br/>
-              Your member account has been approved. You can log in with the details below.
+              Your member account has been approved. You can now sign in to the team dashboard.
             </p>
             <table cellpadding="0" cellspacing="0" style="margin:0 0 20px;width:100%;background:#111;border-radius:10px;border:1px solid #2a2a2a;">
               <tr><td style="padding:16px 20px;">
                 <p style="margin:0 0 6px;color:#888;font-size:12px;">Email</p>
                 <p style="margin:0 0 14px;color:#fff;font-size:14px;">${email}</p>
-                <p style="margin:0 0 6px;color:#888;font-size:12px;">Password</p>
-                <p style="margin:0;color:#fff;font-size:14px;">${password}</p>
+                ${accessDetails}
               </td></tr>
             </table>
             <table cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
@@ -40,7 +44,7 @@ function buildApprovalEmailHtml(name: string, email: string, password: string, l
               </td></tr>
             </table>
             <p style="color:#888;font-size:12px;line-height:1.6;margin:0;">
-              For your security, change your password after logging in.
+              ${password ? "For your security, change your password after logging in." : "Use the Google sign-in button on the login page."}
             </p>
           </td>
         </tr>
@@ -51,15 +55,22 @@ function buildApprovalEmailHtml(name: string, email: string, password: string, l
 </html>`;
 }
 
-async function sendApprovalEmail(request: Request, account: { name: string; email: string; password_enc: string | null }) {
+async function sendApprovalEmail(
+    request: Request,
+    account: { name: string; email: string; password_enc: string | null; google_uid?: string | null }
+) {
     const transporter = getTransporter();
     if (!transporter) {
         console.warn("SMTP not configured - skipping approval email");
         return;
     }
     const password = account.password_enc ? decryptPassword(account.password_enc) : null;
-    if (!password) {
+    if (account.password_enc && !password) {
         console.error("approval email: could not decrypt password for", account.email);
+        return;
+    }
+    if (!password && !account.google_uid) {
+        console.error("approval email: account has no usable login method for", account.email);
         return;
     }
     const origin = new URL(request.url).origin;
@@ -86,6 +97,7 @@ export async function GET() {
         .select("id, name, email, domain, reg_no, department, course, phone, created_at")
         .eq("email_verified", true)
         .eq("is_approved", false)
+        .is("approved_at", null)
         .order("created_at", { ascending: true });
 
     const { data: approved, error: approvedError } = await supabase
@@ -152,7 +164,7 @@ export async function PATCH(request: Request) {
 
             const { data: mergeAccount, error: mergeFetchError } = await supabase
                 .from("member_accounts")
-                .select("id, name, email, password_enc")
+                .select("id, name, email, password_enc, google_uid")
                 .eq("id", id)
                 .maybeSingle();
             if (mergeFetchError || !mergeAccount) {
@@ -182,7 +194,7 @@ export async function PATCH(request: Request) {
 
         const { data: account, error: fetchError } = await supabase
             .from("member_accounts")
-            .select("id, name, email, domain, password_enc")
+            .select("id, name, email, domain, password_enc, google_uid")
             .eq("id", id)
             .maybeSingle();
 
@@ -240,6 +252,52 @@ export async function DELETE(request: Request) {
     }
 
     const supabase = createSupabaseAdminClient();
+
+    if (new URL(request.url).searchParams.get("action") === "remove") {
+        const { data: account, error: lookupError } = await supabase
+            .from("member_accounts")
+            .select("id, approved_at")
+            .eq("id", id)
+            .maybeSingle();
+
+        if (lookupError) {
+            console.error("member removal lookup error", lookupError);
+            return NextResponse.json({ success: false, error: "Could not find this member account." }, { status: 500 });
+        }
+        if (!account) {
+            return NextResponse.json({ success: false, error: "Member account not found." }, { status: 404 });
+        }
+
+        // Revoke account access first. getSession checks this flag, so already-issued
+        // dashboard cookies stop working on their next request as well.
+        const { error: revokeError } = await supabase
+            .from("member_accounts")
+            .update({ is_approved: false, approved_at: account.approved_at || new Date().toISOString() })
+            .eq("id", id);
+
+        if (revokeError) {
+            console.error("member removal access revoke error", revokeError);
+            return NextResponse.json({ success: false, error: "Could not revoke this member's access." }, { status: 500 });
+        }
+
+        const { error: rosterError } = await supabase
+            .from("members")
+            .update({ is_active: false })
+            .eq("member_account_id", id);
+
+        if (rosterError) {
+            console.error("member removal roster update error", rosterError);
+            return NextResponse.json(
+                { success: false, error: "Access was revoked, but the team page could not be updated. Please retry." },
+                { status: 500 }
+            );
+        }
+
+        revalidatePath("/team");
+        return NextResponse.json({ success: true });
+    }
+
+    // Pending signup rejection still removes that unapproved signup permanently.
     const { error } = await supabase.from("member_accounts").delete().eq("id", id);
 
     if (error) {

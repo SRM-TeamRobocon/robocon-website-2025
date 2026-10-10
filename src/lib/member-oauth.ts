@@ -8,6 +8,7 @@ function secret(): Uint8Array {
 
 // CSRF nonce for the "sign in with Google" (login) flow, started at /api/member/auth/google.
 export const MEMBER_OAUTH_NONCE_COOKIE = "member_oauth_nonce";
+export const MEMBER_OAUTH_SIGNUP_NONCE_COOKIE = "member_oauth_signup_nonce";
 // Separate nonce for the "connect Gmail" (link-to-existing-session) flow, started at
 // /api/member/auth/google/connect - kept distinct so a login attempt and a connect
 // attempt in different tabs can't cross-contaminate each other's state.
@@ -23,9 +24,8 @@ export const NONCE_COOKIE_OPTIONS = {
     maxAge: 60 * 15,
 };
 
-// Stashes a Google profile that didn't match any member_accounts row yet, so that the
-// very next successful username/password login can link it automatically instead of
-// making the member repeat the Google step from inside the dashboard.
+// Stashes a verified Google identity that can be linked during signup or during the
+// existing password-login account-linking flow.
 export const MEMBER_GOOGLE_PENDING_COOKIE = "member_google_pending";
 
 export const PENDING_GOOGLE_COOKIE_OPTIONS = {
@@ -33,7 +33,7 @@ export const PENDING_GOOGLE_COOKIE_OPTIONS = {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
-    maxAge: 60 * 10,
+    maxAge: 60 * 30,
 };
 
 export type PendingGoogleProfile = {
@@ -46,7 +46,7 @@ export async function signPendingGoogleProfile(payload: Omit<PendingGoogleProfil
     return new SignJWT({ ...payload, purpose: "member_google_pending" })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("10m")
+        .setExpirationTime("30m")
         .sign(secret());
 }
 

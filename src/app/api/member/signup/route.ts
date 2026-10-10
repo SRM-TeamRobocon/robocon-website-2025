@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { cookies } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { MEMBER_GOOGLE_PENDING_COOKIE, verifyPendingGoogleProfile } from "@/lib/member-oauth";
 import { getTransporter, SMTP_EMAIL } from "@/lib/mailer";
 import { MEMBER_DOMAINS } from "@/constants/constants";
 import { encryptPassword } from "@/lib/password-enc";
@@ -59,8 +61,17 @@ export async function POST(request: Request) {
         const course = String(body.course || "").trim();
         const phone = body.phone ? String(body.phone).trim() : null;
         const password = String(body.password || "");
+        const googleSignup = body.googleSignup === true;
+        const cookieStore = await cookies();
+        const pendingGoogle = googleSignup
+            ? await verifyPendingGoogleProfile(cookieStore.get(MEMBER_GOOGLE_PENDING_COOKIE)?.value)
+            : null;
 
-        if (!name || !email || !domain || !regNo || !department || !course || !password) {
+        if (googleSignup && !pendingGoogle) {
+            return NextResponse.json({ success: false, error: "Your Google sign-in expired. Please continue with Google again." }, { status: 401 });
+        }
+
+        if (!name || !email || !domain || !regNo || !department || !course || (!googleSignup && !password)) {
             return NextResponse.json({ success: false, error: "Fill in all required fields." }, { status: 400 });
         }
         if (!EMAIL_RE.test(email)) {
@@ -69,20 +80,35 @@ export async function POST(request: Request) {
         if (!DOMAIN_SET.includes(domain)) {
             return NextResponse.json({ success: false, error: "Invalid domain selected." }, { status: 400 });
         }
-        if (password.length < 8) {
+        if (!googleSignup && password.length < 8) {
             return NextResponse.json({ success: false, error: "Password must be at least 8 characters." }, { status: 400 });
         }
 
         const supabase = createSupabaseAdminClient();
 
+        if (pendingGoogle) {
+            const { data: linkedAccount, error: linkedAccountError } = await supabase
+                .from("member_accounts")
+                .select("id")
+                .eq("google_uid", pendingGoogle.google_uid)
+                .maybeSingle();
+            if (linkedAccountError) {
+                console.error("member signup Google lookup error", linkedAccountError);
+                return NextResponse.json({ success: false, error: "Could not create account." }, { status: 500 });
+            }
+            if (linkedAccount) {
+                return NextResponse.json({ success: false, error: "This Google account is already linked to a member account. Log in instead." }, { status: 409 });
+            }
+        }
+
         const { data: existing } = await supabase
             .from("member_accounts")
-            .select("id, email_verified")
+            .select("id, email_verified, google_uid")
             .eq("email", email)
             .maybeSingle();
 
         if (existing) {
-            if (existing.email_verified) {
+            if (existing.email_verified || existing.google_uid) {
                 return NextResponse.json({ success: false, error: "An account with this email already exists." }, { status: 409 });
             }
             // Never verified (mail may have failed to send, or link expired) - the email
@@ -94,8 +120,10 @@ export async function POST(request: Request) {
             }
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
-        const passwordEnc = encryptPassword(password);
+        // Google-first accounts still need a non-null password_hash for the legacy schema,
+        // but the random secret is never shown or stored in recoverable form.
+        const passwordHash = await bcrypt.hash(googleSignup ? crypto.randomBytes(32).toString("hex") : password, 10);
+        const passwordEnc = googleSignup ? null : encryptPassword(password);
         const verificationToken = crypto.randomBytes(32).toString("hex");
         const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -109,6 +137,9 @@ export async function POST(request: Request) {
             phone,
             password_hash: passwordHash,
             password_enc: passwordEnc,
+            ...(pendingGoogle
+                ? { google_uid: pendingGoogle.google_uid, google_email: pendingGoogle.google_email }
+                : {}),
             verification_token: verificationToken,
             verification_expires: verificationExpires,
         });
@@ -135,7 +166,11 @@ export async function POST(request: Request) {
             console.warn("SMTP not configured - skipping verification email");
         }
 
-        return NextResponse.json({ success: true });
+        const response = NextResponse.json({ success: true });
+        if (pendingGoogle) {
+            response.cookies.set({ name: MEMBER_GOOGLE_PENDING_COOKIE, value: "", path: "/", maxAge: 0 });
+        }
+        return response;
     } catch (error) {
         console.error("member signup error", error);
         return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

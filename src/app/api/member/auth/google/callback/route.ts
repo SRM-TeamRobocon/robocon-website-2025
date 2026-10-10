@@ -7,6 +7,7 @@ import { adminCookieOptions, signSession } from "@/lib/session";
 import {
     MEMBER_GOOGLE_PENDING_COOKIE,
     MEMBER_OAUTH_NONCE_COOKIE,
+    MEMBER_OAUTH_SIGNUP_NONCE_COOKIE,
     PENDING_GOOGLE_COOKIE_OPTIONS,
     signPendingGoogleProfile,
 } from "@/lib/member-oauth";
@@ -25,8 +26,13 @@ function nonceMatches(a: string, b: string): boolean {
     return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
 }
 
-function clearNonceCookie(response: NextResponse) {
-    response.cookies.set({ name: MEMBER_OAUTH_NONCE_COOKIE, value: "", path: "/", maxAge: 0 });
+function clearOAuthNonceCookie(response: NextResponse, signupFlow: boolean) {
+    response.cookies.set({
+        name: signupFlow ? MEMBER_OAUTH_SIGNUP_NONCE_COOKIE : MEMBER_OAUTH_NONCE_COOKIE,
+        value: "",
+        path: "/",
+        maxAge: 0,
+    });
 }
 
 export async function GET(request: NextRequest) {
@@ -35,26 +41,36 @@ export async function GET(request: NextRequest) {
     const code = url.searchParams.get("code");
     const oauthError = url.searchParams.get("error");
     const state = url.searchParams.get("state");
+    const signupNonce = request.cookies.get(MEMBER_OAUTH_SIGNUP_NONCE_COOKIE)?.value;
+    const loginNonce = request.cookies.get(MEMBER_OAUTH_NONCE_COOKIE)?.value;
+    const signupFlow = Boolean(state && signupNonce && nonceMatches(state, signupNonce));
+    const expectedNonce = signupFlow ? signupNonce : loginNonce;
+    const failureDestination = signupFlow
+        ? `${origin}/signup?error=google_auth_failed`
+        : `${origin}/login?role=member&error=google_auth_failed`;
 
     if (oauthError || !code) {
-        const response = NextResponse.redirect(`${origin}/login?role=member&error=google_auth_failed`);
-        clearNonceCookie(response);
+        const response = NextResponse.redirect(failureDestination);
+        clearOAuthNonceCookie(response, signupFlow);
         return response;
     }
 
-    const expectedNonce = request.cookies.get(MEMBER_OAUTH_NONCE_COOKIE)?.value;
     if (!state || !expectedNonce || !nonceMatches(state, expectedNonce)) {
         console.warn("member google oauth state mismatch", { hasState: Boolean(state), hasNonceCookie: Boolean(expectedNonce) });
-        const response = NextResponse.redirect(`${origin}/login?role=member&error=google_state_mismatch`);
-        clearNonceCookie(response);
+        const response = NextResponse.redirect(
+            signupFlow ? `${origin}/signup?error=google_state_mismatch` : `${origin}/login?role=member&error=google_state_mismatch`
+        );
+        clearOAuthNonceCookie(response, signupFlow);
         return response;
     }
 
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-        const response = NextResponse.redirect(`${origin}/login?role=member&error=google_not_configured`);
-        clearNonceCookie(response);
+        const response = NextResponse.redirect(
+            signupFlow ? `${origin}/signup?error=google_not_configured` : `${origin}/login?role=member&error=google_not_configured`
+        );
+        clearOAuthNonceCookie(response, signupFlow);
         return response;
     }
 
@@ -85,23 +101,25 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (!account) {
-            // Not connected yet - stash the profile and send them to log in with a
-            // password once, which will link it (see /api/admin/login).
+            // For signup, stash the verified identity so the member can register with it.
+            // For ordinary login, retain the existing password-based account-linking flow.
             const pendingToken = await signPendingGoogleProfile({ google_uid: googleUid, google_email: googleEmail });
-            const response = NextResponse.redirect(`${origin}/login?role=member&notice=connect_google`);
+            const response = NextResponse.redirect(
+                signupFlow ? `${origin}/signup?google=1` : `${origin}/login?role=member&notice=connect_google`
+            );
             response.cookies.set({ name: MEMBER_GOOGLE_PENDING_COOKIE, value: pendingToken, ...PENDING_GOOGLE_COOKIE_OPTIONS });
-            clearNonceCookie(response);
+            clearOAuthNonceCookie(response, signupFlow);
             return response;
         }
 
         if (!account.email_verified) {
             const response = NextResponse.redirect(`${origin}/login?role=member&error=google_not_verified`);
-            clearNonceCookie(response);
+            clearOAuthNonceCookie(response, signupFlow);
             return response;
         }
         if (!account.is_approved) {
             const response = NextResponse.redirect(`${origin}/login?role=member&error=google_not_approved`);
-            clearNonceCookie(response);
+            clearOAuthNonceCookie(response, signupFlow);
             return response;
         }
 
@@ -129,12 +147,12 @@ export async function GET(request: NextRequest) {
 
         const response = NextResponse.redirect(`${origin}/dashboard`);
         response.cookies.set({ ...adminCookieOptions(maxAge), value: token });
-        clearNonceCookie(response);
+        clearOAuthNonceCookie(response, signupFlow);
         return response;
     } catch (error) {
         console.error("member google oauth callback error", error);
-        const response = NextResponse.redirect(`${origin}/login?role=member&error=google_auth_failed`);
-        clearNonceCookie(response);
+        const response = NextResponse.redirect(failureDestination);
+        clearOAuthNonceCookie(response, signupFlow);
         return response;
     }
 }

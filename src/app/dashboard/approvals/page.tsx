@@ -136,6 +136,23 @@ function MembersTab() {
         }
     };
 
+    const removeApproved = async (row: ApprovedMember) => {
+        if (!confirm(`Remove ${row.name} from the team and revoke dashboard access? Their historical records will be kept.`)) return;
+        setBusyId(row.id);
+        try {
+            const res = await fetch(`/api/admin/member-approvals?id=${row.id}&action=remove`, { method: "DELETE" });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setApproved((prev) => prev.filter((member) => member.id !== row.id));
+                toast.success("Member removed. Historical records were kept.");
+            } else {
+                toast.error(data.error || "Could not remove member");
+            }
+        } finally {
+            setBusyId(null);
+        }
+    };
+
     const changeRole = async (id: string, role: string) => {
         setBusyId(id);
         try {
@@ -254,6 +271,7 @@ function MembersTab() {
                                         <th className="px-5 py-3">Email</th>
                                         <th className="px-5 py-3">Domain</th>
                                         <th className="px-5 py-3">Role</th>
+                                        <th className="px-5 py-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -273,6 +291,15 @@ function MembersTab() {
                                                     <option value="lead" className="bg-gray-900">lead</option>
                                                     <option value="admin" className="bg-gray-900">admin</option>
                                                 </select>
+                                            </td>
+                                            <td className="px-5 py-3 text-right">
+                                                <button
+                                                    onClick={() => removeApproved(row)}
+                                                    disabled={busyId === row.id}
+                                                    className="inline-flex items-center gap-1.5 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-400 ring-1 ring-inset ring-red-500/30 transition hover:bg-red-500/25 disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

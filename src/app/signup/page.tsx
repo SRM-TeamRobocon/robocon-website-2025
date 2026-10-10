@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MEMBER_DOMAINS } from "@/constants/constants";
@@ -23,6 +23,44 @@ export default function MemberSignup() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [googleSignup, setGoogleSignup] = useState(false);
+    const [googleReady, setGoogleReady] = useState(false);
+    const [prefillLoading, setPrefillLoading] = useState(false);
+    const [recruitmentDetailsFound, setRecruitmentDetailsFound] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const startedWithGoogle = params.get("google") === "1";
+        setGoogleSignup(startedWithGoogle);
+
+        const oauthError = params.get("error");
+        if (oauthError) setError("Google sign-in could not be completed. Please try again.");
+        if (!startedWithGoogle) return;
+
+        setPrefillLoading(true);
+        fetch("/api/member/signup/prefill", { cache: "no-store" })
+            .then(async (res) => {
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    if (res.status === 401) {
+                        setError(data.error || "Your Google sign-in expired. Continue with Google again.");
+                        return;
+                    }
+                    setGoogleReady(true);
+                    setError(data.error || "Could not load recruitment details. You can still enter them manually.");
+                    return;
+                }
+
+                setGoogleReady(true);
+                setRecruitmentDetailsFound(Boolean(data.found));
+                if (data.profile) setForm((prev) => ({ ...prev, ...data.profile }));
+            })
+            .catch(() => {
+                setGoogleReady(true);
+                setError("Could not load recruitment details. You can still enter them manually.");
+            })
+            .finally(() => setPrefillLoading(false));
+    }, []);
 
     const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setForm((prev) => ({ ...prev, [field]: field === "regNo" ? e.target.value.toUpperCase() : e.target.value }));
@@ -31,7 +69,12 @@ export default function MemberSignup() {
         e.preventDefault();
         setError("");
 
-        if (form.password !== form.confirmPassword) {
+        if (googleSignup && !googleReady) {
+            setError("Continue with Google again to verify your sign-in before registering.");
+            return;
+        }
+
+        if (!googleSignup && form.password !== form.confirmPassword) {
             setError("Passwords do not match.");
             return;
         }
@@ -41,7 +84,7 @@ export default function MemberSignup() {
             const res = await fetch("/api/member/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, googleSignup }),
             });
             const data = await res.json();
 
@@ -93,8 +136,41 @@ export default function MemberSignup() {
 
                     <div className="text-center mb-8">
                         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Create Member Account</h2>
-                        <p className="mt-2 text-sm text-gray-400">Use your @srmist.edu.in email</p>
+                        <p className="mt-2 text-sm text-gray-400">Verify your SRM email, then wait for admin approval.</p>
                     </div>
+
+                    {!googleSignup && (
+                        <div className="mb-6 space-y-4">
+                            <a
+                                href="/api/member/auth/google?flow=signup"
+                                className="flex w-full items-center justify-center gap-3 border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-100"
+                            >
+                                <GoogleMark /> Continue with Google
+                            </a>
+                            <p className="text-center text-xs text-gray-500">Use the personal Gmail account you used during recruitment.</p>
+                            <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-gray-600">
+                                <span className="h-px flex-1 bg-white/10" />or sign up with password<span className="h-px flex-1 bg-white/10" />
+                            </div>
+                        </div>
+                    )}
+
+                    {googleSignup && (
+                        <div className="mb-6 border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
+                            <p className="font-semibold text-white">Google sign-in connected</p>
+                            <p className="mt-1 text-xs text-gray-400">
+                                {prefillLoading
+                                    ? "Loading your recruitment details…"
+                                    : recruitmentDetailsFound
+                                      ? "We filled these fields from your recruitment account. Review and edit them before submitting."
+                                      : "We couldn’t find a recruitment record for this Google account. You can enter your details manually."}
+                            </p>
+                            {!googleReady && !prefillLoading && (
+                                <a href="/api/member/auth/google?flow=signup" className="mt-3 inline-block text-red hover:text-red/80">
+                                    Continue with Google again
+                                </a>
+                            )}
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <Field label="Full Name" id="name" value={form.name} onChange={update("name")} placeholder="Christiano Ronaldo" />
@@ -145,24 +221,28 @@ export default function MemberSignup() {
                             onChange={update("phone")}
                             placeholder="9876543210"
                         />
-                        <Field
-                            label="Password"
-                            id="password"
-                            type="password"
-                            autoComplete="new-password"
-                            value={form.password}
-                            onChange={update("password")}
-                            placeholder="At least 8 characters"
-                        />
-                        <Field
-                            label="Confirm Password"
-                            id="confirmPassword"
-                            type="password"
-                            autoComplete="new-password"
-                            value={form.confirmPassword}
-                            onChange={update("confirmPassword")}
-                            placeholder="Re-enter password"
-                        />
+                        {!googleSignup && (
+                            <>
+                                <Field
+                                    label="Password"
+                                    id="password"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={form.password}
+                                    onChange={update("password")}
+                                    placeholder="At least 8 characters"
+                                />
+                                <Field
+                                    label="Confirm Password"
+                                    id="confirmPassword"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={form.confirmPassword}
+                                    onChange={update("confirmPassword")}
+                                    placeholder="Re-enter password"
+                                />
+                            </>
+                        )}
 
                         {error && (
                             <div className="bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
@@ -172,7 +252,7 @@ export default function MemberSignup() {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || prefillLoading || (googleSignup && !googleReady)}
                             className={`group relative flex w-full items-center justify-center overflow-hidden px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
                                 loading ? "bg-red/40 cursor-not-allowed" : "bg-red"
                             }`}
@@ -186,7 +266,7 @@ export default function MemberSignup() {
                                 }}
                             />
                             <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
-                                {loading ? "Creating account..." : "Sign Up"}
+                                {loading ? "Creating account..." : "Submit for Approval"}
                             </span>
                         </button>
 
@@ -200,6 +280,17 @@ export default function MemberSignup() {
                 </div>
             </div>
         </div>
+    );
+}
+
+function GoogleMark() {
+    return (
+        <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.73 7.18l7.64 5.92c4.46-4.12 7.13-10.2 7.13-17.57Z" />
+            <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.75 24c0-1.59.27-3.13.75-4.59l-7.98-6.19A23.93 23.93 0 0 0 0 24c0 3.87.93 7.52 2.56 10.78l7.97-6.19Z" />
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.83l-7.64-5.92c-2.13 1.43-4.86 2.28-8.26 2.28-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+        </svg>
     );
 }
 

@@ -2,20 +2,26 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { OAuth2Client } from "google-auth-library";
 import { randomBytes } from "crypto";
-import { MEMBER_OAUTH_NONCE_COOKIE, NONCE_COOKIE_OPTIONS } from "@/lib/member-oauth";
+import {
+    MEMBER_OAUTH_NONCE_COOKIE,
+    MEMBER_OAUTH_SIGNUP_NONCE_COOKIE,
+    NONCE_COOKIE_OPTIONS,
+} from "@/lib/member-oauth";
 
 export const dynamic = "force-dynamic";
 
-// Kicks off the Google OAuth consent flow for member login. The callback decides
-// whether the resulting Google profile matches an existing member_accounts row
-// (log in) or not (stash it and ask for a password login to connect it).
+// Kicks off the Google OAuth consent flow for member login or account creation.
 export async function GET(request: NextRequest) {
-    const origin = new URL(request.url).origin;
+    const url = new URL(request.url);
+    const origin = url.origin;
+    const signupFlow = url.searchParams.get("flow") === "signup";
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-        return NextResponse.redirect(`${origin}/login?role=member&error=google_not_configured`);
+        return NextResponse.redirect(
+            signupFlow ? `${origin}/signup?error=google_not_configured` : `${origin}/login?role=member&error=google_not_configured`
+        );
     }
 
     const redirectUri = `${origin}/api/member/auth/google/callback`;
@@ -36,6 +42,10 @@ export async function GET(request: NextRequest) {
     });
 
     const response = NextResponse.redirect(authUrl);
-    response.cookies.set({ name: MEMBER_OAUTH_NONCE_COOKIE, value: nonce, ...NONCE_COOKIE_OPTIONS });
+    response.cookies.set({
+        name: signupFlow ? MEMBER_OAUTH_SIGNUP_NONCE_COOKIE : MEMBER_OAUTH_NONCE_COOKIE,
+        value: nonce,
+        ...NONCE_COOKIE_OPTIONS,
+    });
     return response;
 }
