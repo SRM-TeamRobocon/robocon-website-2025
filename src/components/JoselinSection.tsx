@@ -1,24 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
-import { useEffect } from "react";
 import Image from "next/image";
 import LinkedinBoxFillIcon from "remixicon-react/LinkedinBoxFillIcon";
 import Link from "next/link";
-import AOS from "aos";
 
 const JoselinSection = () => {
-    useEffect(() => {
-        AOS.init({
-            duration: 800,
-            once: false,
-        });
-    }, []);
-
     return (
         <section className="relative w-full min-h-screen py-20">
             <div className="relative z-10 mx-auto px-8 md:px-16">
                 {/* Main Heading */}
                 <h1
-                    data-aos="fade-down"
                     className="text-white text-5xl md:text-6xl font-bold text-center mb-16"
                 >
                     Our Faculty Advisor
@@ -28,7 +18,6 @@ const JoselinSection = () => {
                 <div className="joselin-container flex items-center justify-center gap-12 md:gap-16">
                     {/* Info Section */}
                     <div
-                        data-aos="fade-right"
                         className="flex-1 text-white max-w-2xl"
                     >
                         <h2 className="text-4xl md:text-5xl font-bold mb-2 text-gray-200">
@@ -67,7 +56,6 @@ const JoselinSection = () => {
 
                     {/* Photo Section */}
                     <div
-                        data-aos="slide-left"
                         className="joselin-photo flex-shrink-0"
                     >
                         <div className="relative w-[700px] h-100 flex items-center justify-center overflow-hidden hero-clip2">

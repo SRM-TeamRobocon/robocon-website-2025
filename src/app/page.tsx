@@ -68,6 +68,7 @@ export default function Home() {
           <div>
             <div
               className="bg-white p-10 border-blue-500 w-[1000px] md:w-[600px] hero-clip md:pr-32 mt-10 flex-shrink-0 flex justify-center"
+              data-aos="slide-left"
             >
               <Image
                 src={"/LOGO.png"}
@@ -81,6 +82,9 @@ export default function Home() {
           </div>
             <div
               className="flex flex-col gap-5 mx-10"
+              data-aos="slide-left"
+              data-aos-delay="400"
+              data-aos-anchor-placement="top-bottom"
             >
             {/* <button onClick={() => router.push("/recruit/register")} rel="noopener noreferrer"
               className="group recruit-cta-electric relative mt-8 inline-flex appearance-none items-center justify-center overflow-hidden px-10 py-3 font-bold text-white shadow-lg shadow-red/30 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"

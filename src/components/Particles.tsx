@@ -23,7 +23,7 @@ export default function ParticlesCom() {
                 interactivity: {
                     events: {
                         onClick: {
-                            enable: true,
+                            enable: false,
                             mode: "push",
                         },
                         onHover: {

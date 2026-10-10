@@ -8,10 +8,11 @@ export default function PublicAOS() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (pathname.startsWith("/dashboard")) return;
+    if (pathname !== "/") return;
 
     AOS.init({
       duration: 800,
+      delay: 100,
       easing: "ease-out-cubic",
       once: true,
       offset: 80,

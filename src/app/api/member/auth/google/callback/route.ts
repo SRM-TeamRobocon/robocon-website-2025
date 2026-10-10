@@ -112,8 +112,8 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         const accountRole = (account.role as "lead" | "admin" | "member") || "member";
-        const expiresIn = accountRole === "member" ? "7d" : "12h";
-        const maxAge = accountRole === "member" ? 60 * 60 * 24 * 7 : 60 * 60 * 12;
+        const expiresIn = accountRole === "member" ? "30d" : "12h";
+        const maxAge = accountRole === "member" ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
 
         const token = await signSession(
             {

@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-import AOS from "aos";
 import Image from "next/image";
 import FacebookBoxFillIcon from "remixicon-react/FacebookBoxFillIcon";
 import InstagramFillIcon from "remixicon-react/InstagramFillIcon";
@@ -23,15 +21,8 @@ export default function MemberCard({
   Instagram,
   ImageUrl
 }: MemberCardPropsType) {
-  useEffect(() => {
-    AOS.init({
-      duration: 800,
-      once: false,
-    });
-  }, []);
-
   return (
-    <article data-aos="flip-right" data-aos-anchor-placement="top-bottom">
+    <article>
       <div className="group w-[300px] h-[300px] [perspective:1000px] overflow-hidden">
         <div className="relative h-full w-full shadow-xl transition-all duration-500 [transform-style:preserve-3d] group-focus:[transform:rotateY(180deg)] group-hover:[transform:rotateY(180deg)]">
           <div className="absolute inset-0 bg-slate-100 flex">

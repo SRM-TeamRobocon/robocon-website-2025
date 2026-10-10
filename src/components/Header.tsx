@@ -1,27 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
 import Menu3FillIcon from "remixicon-react/Menu3FillIcon";
-import AOS from "aos";
 import { useRouter } from "next/navigation";
 import { useMenuContext } from "@/context/MenuContext";
 
 export default function Header() {
   const { isMenuOpen, setMenuValue } = useMenuContext();
-
-  useEffect(() => {
-    AOS.init({
-      duration: 800,
-      once: false,
-    });
-    // Refresh AOS after hydration to recalculate element positions in production
-    const timer = setTimeout(() => {
-      AOS.refresh();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const scrollToBottom = () => {
     window.scrollTo({
@@ -131,7 +117,6 @@ export default function Header() {
       >
         <div
           className="bg-red text-white flex flex-col justify-center items-center phone-menu-clip gap-10 p-12 z-20"
-          data-aos="fade-right"
         >
           <button
             className="px-8 hover:text-black hover:scale-105"
