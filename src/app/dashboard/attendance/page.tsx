@@ -304,7 +304,7 @@ export default function AttendanceBoardPage() {
             latestBefore.set(event.memberAccountId, event);
         }
         const carryIns: AttendanceEvent[] = [];
-        for (const event of latestBefore.values()) {
+        for (const event of Array.from(latestBefore.values())) {
             if (event.action === "IN") carryIns.push({ ...event, action: "IN", occurredAt: new Date(start).toISOString(), source: "carryover" });
         }
         return [...carryIns, ...events.filter((event) => {
@@ -397,7 +397,7 @@ export default function AttendanceBoardPage() {
     }, [displayedStats]);
 
     const leaderboard = useMemo(() => [...displayedStats].sort((a, b) => b.totalTimeMs - a.totalTimeMs), [displayedStats]);
-    const domains = useMemo(() => [...new Set(leaderboard.map((member) => member.domain))].sort((a, b) => a.localeCompare(b)), [leaderboard]);
+    const domains = useMemo(() => Array.from(new Set(leaderboard.map((member) => member.domain))).sort((a, b) => a.localeCompare(b)), [leaderboard]);
     const filteredLeaderboard = useMemo(() => {
         const query = memberSearch.trim().toLocaleLowerCase();
         return leaderboard.filter((member) => {
