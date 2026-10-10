@@ -9,12 +9,20 @@ import { useInstallPrompt } from "@/hooks/use-install-prompt";
 const DISMISS_KEY = "dashboard_install_dismissed";
 const NOTIFICATIONS_DISMISSED_KEY = "member_notifications_prompt_dismissed";
 
+function decodeVapidKey(value: string) {
+    const padding = "=".repeat((4 - (value.length % 4)) % 4);
+    const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(window.atob(base64), (character) => character.charCodeAt(0));
+}
+
 export default function InstallPrompt({ showNotifications = false }: { showNotifications?: boolean }) {
     const { canInstall, isIos, installed, promptInstall } = useInstallPrompt();
     const [dismissed, setDismissed] = useState(true);
     const [showIos, setShowIos] = useState(false);
     const [installing, setInstalling] = useState(false);
     const [showNotificationOption, setShowNotificationOption] = useState(false);
+    const [enablingNotifications, setEnablingNotifications] = useState(false);
+    const [notificationError, setNotificationError] = useState<string | null>(null);
 
     useEffect(() => {
         setDismissed(!!window.sessionStorage.getItem(DISMISS_KEY));
@@ -22,9 +30,44 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
 
     useEffect(() => {
         if (!showNotifications || !("Notification" in window)) return;
-        if (Notification.permission !== "default") return;
-        if (window.localStorage.getItem(NOTIFICATIONS_DISMISSED_KEY) === "1") return;
-        setShowNotificationOption(true);
+        if (Notification.permission === "denied") return;
+
+        let cancelled = false;
+        const checkSubscription = async () => {
+            if (Notification.permission === "default") {
+                if (window.localStorage.getItem(NOTIFICATIONS_DISMISSED_KEY) !== "1" && !cancelled) {
+                    setShowNotificationOption(true);
+                }
+                return;
+            }
+
+            if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                if (cancelled) return;
+                if (subscription) {
+                    const response = await fetch("/api/member/notifications", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(subscription.toJSON()),
+                    });
+                    if (!response.ok && !cancelled) {
+                        setNotificationError("Could not connect this device to attendance alerts.");
+                        setShowNotificationOption(true);
+                    }
+                } else {
+                    setShowNotificationOption(true);
+                }
+            } catch {
+                if (!cancelled) setShowNotificationOption(true);
+            }
+        };
+
+        void checkSubscription();
+        return () => {
+            cancelled = true;
+        };
     }, [showNotifications]);
 
     useEffect(() => {
@@ -58,17 +101,52 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
     };
 
     const enableNotifications = async () => {
-        if (!("Notification" in window)) {
-            setShowNotificationOption(false);
-            return;
-        }
-
+        setEnablingNotifications(true);
+        setNotificationError(null);
         try {
-            await Notification.requestPermission();
-        } catch (error) {
-            console.error("Failed to request notification permission", error);
-        } finally {
+            if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+                throw new Error(
+                    isIos && !installed
+                        ? "On iPhone, add STR Hub to your Home Screen before enabling push notifications."
+                        : "This browser does not support push notifications."
+                );
+            }
+
+            const permission = Notification.permission === "default"
+                ? await Notification.requestPermission()
+                : Notification.permission;
+            if (permission !== "granted") throw new Error("Allow notifications in your browser settings to get your tap alerts.");
+
+            const configResponse = await fetch("/api/member/notifications");
+            const config = await configResponse.json();
+            if (!configResponse.ok || !config.success || !config.publicKey) {
+                throw new Error(config.error || "Push notifications are not configured yet.");
+            }
+
+            const registration = await navigator.serviceWorker.register("/dashboard-sw.js", { scope: "/dashboard/" });
+            await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: decodeVapidKey(config.publicKey),
+                });
+            }
+
+            const saveResponse = await fetch("/api/member/notifications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(subscription.toJSON()),
+            });
+            const saved = await saveResponse.json();
+            if (!saveResponse.ok || !saved.success) throw new Error(saved.error || "Could not save this device for notifications.");
+
             setShowNotificationOption(false);
+            window.localStorage.removeItem(NOTIFICATIONS_DISMISSED_KEY);
+        } catch (error) {
+            setNotificationError(error instanceof Error ? error.message : "Could not enable notifications.");
+        } finally {
+            setEnablingNotifications(false);
         }
     };
 
@@ -131,15 +209,17 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
                             <div className="min-w-0 flex-1">
                                 <p className="text-xs font-semibold text-white">Lab notifications</p>
                                 <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
-                                    Get notified when a team member checks into the lab.
+                                    Get a random lab vibe when you tap in or out. Only your devices get it.
                                 </p>
+                                {notificationError && <p className="mt-1 text-[11px] leading-relaxed text-red-300">{notificationError}</p>}
                             </div>
                             <button
                                 type="button"
                                 onClick={enableNotifications}
-                                className="shrink-0 bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                                disabled={enablingNotifications}
+                                className="shrink-0 bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:opacity-50"
                             >
-                                Enable
+                                {enablingNotifications ? "Enabling…" : "Enable"}
                             </button>
                             <button
                                 type="button"

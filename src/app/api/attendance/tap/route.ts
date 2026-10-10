@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { TAP_DEBOUNCE_MS, broadcastAttendanceEvent, nextAction, normalizeRfidUid } from "@/lib/attendance";
 import { reconcileMidnightAttendance } from "@/lib/attendance-reconcile";
+import { sendAttendancePush } from "@/lib/attendance-push";
 
 // Device-facing endpoint for the ESP32 RFID scanner. Not session-gated (the device has
 // no cookie) - guarded by a shared secret instead, same pattern as CRON_SECRET in
@@ -155,6 +156,12 @@ export async function POST(request: Request) {
         console.error("attendance tap: insert failed", insertError);
         return NextResponse.json({ ok: false, event: "server_error" }, { status: 500 });
     }
+
+    // Keep the RFID response snappy while the tapper's opted-in devices receive
+    // their own push. No other member's subscription is queried or notified.
+    after(() => sendAttendancePush(account.id, action).catch((error) => {
+        console.error("attendance push scheduling failed", error);
+    }));
 
     return NextResponse.json({ ok: true, event: "tap", action, name, domain });
 }

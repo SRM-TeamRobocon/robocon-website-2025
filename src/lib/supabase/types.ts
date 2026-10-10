@@ -409,6 +409,28 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["attendance_logs"]["Insert"]>;
         Relationships: [];
       };
+      attendance_push_subscriptions: {
+        Row: {
+          member_account_id: string;
+          endpoint: string;
+          endpoint_hash: string;
+          p256dh: string;
+          auth: string;
+          expiration_time: number | null;
+          created_at: string;
+        };
+        Insert: {
+          member_account_id: string;
+          endpoint: string;
+          endpoint_hash: string;
+          p256dh: string;
+          auth: string;
+          expiration_time?: number | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["attendance_push_subscriptions"]["Insert"]>;
+        Relationships: [];
+      };
       rfid_pairing_requests: {
         Row: {
           id: string;

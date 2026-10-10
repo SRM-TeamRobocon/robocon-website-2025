@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Download, Flame, Radio, Clock, Users, UserCircle2, X, Ghost, Moon } from "lucide-react";
+import { Download, Flame, Radio, Clock, Users, UserCircle2, X, Ghost, Moon, LogIn, LogOut, Search } from "lucide-react";
 import {
     calculateStats,
     buildSessions,
+    getGhostedAttendanceDays,
+    istDateKey,
+    normalizeAttendanceDuration,
     generateSessionCSV,
     formatDuration,
     toLocalDatetimeValue,
@@ -31,6 +34,28 @@ interface LeaveWindow {
     startTime: string | null;
     endTime: string | null;
 }
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const monthKey = (timestamp: number) => new Date(timestamp + IST_OFFSET_MS).toISOString().slice(0, 7);
+const monthBounds = (key: string) => {
+    const [year, month] = key.split("-").map(Number);
+    return {
+        start: Date.UTC(year, month - 1, 1) - IST_OFFSET_MS,
+        end: Date.UTC(year, month, 1) - IST_OFFSET_MS,
+    };
+};
+const monthLabel = (key: string) => {
+    const { start } = monthBounds(key);
+    return new Date(start + IST_OFFSET_MS).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+};
+const sourceLabel = (source?: string | null) => {
+    if (source === "rfid") return "RFID";
+    if (source === "manual_correction") return "App correction";
+    if (source === "admin_correction") return "Admin edit";
+    if (source === "auto_checkout") return "Auto checkout";
+    if (source === "carryover") return "Earlier visit";
+    return "Unknown source";
+};
 
 // null start/end = full-day leave, always "now". Otherwise compares against the
 // current IST clock time.
@@ -76,7 +101,6 @@ export default function AttendanceBoardPage() {
     const [now, setNow] = useState(Date.now());
     const [selected, setSelected] = useState<MemberAttendanceStats | null>(null);
     const [onLeaveMap, setOnLeaveMap] = useState<Map<string, LeaveWindow>>(new Map());
-    const [ghosts, setGhosts] = useState<GhostStat[]>([]);
     const [overnightIds, setOvernightIds] = useState<Set<string>>(new Set());
     const eventsRef = useRef<AttendanceEvent[]>([]);
 
@@ -87,12 +111,18 @@ export default function AttendanceBoardPage() {
     // nothing to link, so it must not show the CTA.
     const [viewerRole, setViewerRole] = useState<"member" | "lead" | "admin" | null>(null);
     const [viewerHasAccount, setViewerHasAccount] = useState(false);
+    const [viewerAccountId, setViewerAccountId] = useState<string | null>(null);
     const [viewerLinked, setViewerLinked] = useState<boolean | null>(null);
+    const [selectedMonth, setSelectedMonth] = useState(() => monthKey(Date.now()));
+    const [memberSearch, setMemberSearch] = useState("");
+    const [domainFilter, setDomainFilter] = useState("all");
+    const [statusFilter, setStatusFilter] = useState("all");
 
     const [correcting, setCorrecting] = useState(false);
     const [showCorrectionForm, setShowCorrectionForm] = useState(false);
     const [correctionType, setCorrectionType] = useState<"checked_in_at" | "checked_out_at">("checked_out_at");
     const [correctionTime, setCorrectionTime] = useState("");
+    const [selfCorrectionType, setSelfCorrectionType] = useState<"checked_in_at" | "checked_out_at" | null>(null);
 
     const fetchEvents = useCallback(async () => {
         try {
@@ -101,7 +131,6 @@ export default function AttendanceBoardPage() {
             if (!res.ok || !data.success) throw new Error(data.error || "Failed to load attendance");
             setEvents(data.events);
             eventsRef.current = data.events;
-            setGhosts(data.ghosts || []);
             setOvernightIds(new Set<string>(data.overnight || []));
             setError(null);
         } catch (err) {
@@ -146,6 +175,7 @@ export default function AttendanceBoardPage() {
                 if (data.success) {
                     setViewerRole(data.role);
                     setViewerHasAccount(Boolean(data.memberAccountId));
+                    setViewerAccountId(data.memberAccountId || null);
                 }
             })
             .catch(() => {});
@@ -196,6 +226,30 @@ export default function AttendanceBoardPage() {
         runCorrection(memberAccountId, correctionType, new Date(correctionTime).toISOString());
     };
 
+    const submitSelfCorrection = async () => {
+        if (!correctionTime || !selfCorrectionType) return;
+        setCorrecting(true);
+        try {
+            const res = await fetch("/api/member/attendance/correct", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: selfCorrectionType, time: new Date(correctionTime).toISOString() }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success("Attendance updated.");
+                setSelfCorrectionType(null);
+                fetchEvents();
+            } else {
+                toast.error(data.error || "Could not save correction.");
+            }
+        } catch {
+            toast.error("Network error while saving correction.");
+        } finally {
+            setCorrecting(false);
+        }
+    };
+
     // Live updates: the tap route broadcasts here via Supabase Realtime's server-side
     // REST broadcast endpoint (see broadcastAttendanceEvent in src/lib/attendance.ts).
     // The 30s poll above is the safety net if a broadcast is ever missed.
@@ -224,6 +278,97 @@ export default function AttendanceBoardPage() {
 
     const stats = useMemo(() => calculateStats(events, now), [events, now]);
 
+    const monthOptions = useMemo(() => {
+        const earliest = events.length
+            ? monthKey(events.reduce((min, event) => Math.min(min, Date.parse(event.occurredAt)), Number.POSITIVE_INFINITY))
+            : monthKey(now);
+        const current = monthKey(now);
+        const options: string[] = [];
+        const { start: first } = monthBounds(earliest);
+        const { start: last } = monthBounds(current);
+        for (let cursor = first; cursor <= last;) {
+            options.push(monthKey(cursor));
+            const shifted = new Date(cursor + IST_OFFSET_MS);
+            cursor = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 1) - IST_OFFSET_MS;
+        }
+        if (!options.includes(current)) options.push(current);
+        return options.reverse();
+    }, [events, now]);
+
+    const periodEvents = useMemo(() => {
+        if (selectedMonth === "all") return events;
+        const { start, end } = monthBounds(selectedMonth);
+        const latestBefore = new Map<string, AttendanceEvent>();
+        for (const event of events) {
+            if (Date.parse(event.occurredAt) >= start) break;
+            latestBefore.set(event.memberAccountId, event);
+        }
+        const carryIns: AttendanceEvent[] = [];
+        for (const event of latestBefore.values()) {
+            if (event.action === "IN") carryIns.push({ ...event, action: "IN", occurredAt: new Date(start).toISOString(), source: "carryover" });
+        }
+        return [...carryIns, ...events.filter((event) => {
+            const timestamp = Date.parse(event.occurredAt);
+            return timestamp >= start && timestamp < end;
+        })];
+    }, [events, selectedMonth]);
+
+    const periodEnd = selectedMonth === "all" ? now : Math.min(now, monthBounds(selectedMonth).end) - 1;
+    const periodSessions = useMemo(() => buildSessions(periodEvents, periodEnd), [periodEvents, periodEnd]);
+    const periodStreakStats = useMemo(() => {
+        if (selectedMonth === "all") return stats;
+        const historyThroughPeriod = events.filter((event) => Date.parse(event.occurredAt) <= periodEnd);
+        return calculateStats(historyThroughPeriod, periodEnd, events);
+    }, [events, periodEnd, selectedMonth, stats]);
+    const ghostedAttendanceDays = useMemo(() => getGhostedAttendanceDays(events), [events]);
+    const countedPeriodSessions = useMemo(() => periodSessions.filter((session) => {
+        const day = istDateKey(Date.parse(session.inAt));
+        const memberGhostedDays = ghostedAttendanceDays.get(session.memberAccountId);
+        return session.outSource !== "auto_checkout" && !memberGhostedDays?.has(day);
+    }), [periodSessions, ghostedAttendanceDays]);
+    const periodHoursByMember = useMemo(() => {
+        const totals = new Map<string, number>();
+        for (const session of countedPeriodSessions) {
+            const durationMs = normalizeAttendanceDuration(session.durationMs);
+            totals.set(session.memberAccountId, (totals.get(session.memberAccountId) || 0) + durationMs);
+        }
+        return totals;
+    }, [countedPeriodSessions]);
+    const displayedStats = useMemo(() => {
+        if (selectedMonth === "all") return stats;
+        const streaksByMember = new Map(periodStreakStats.map((member) => [member.memberAccountId, member.currentStreak]));
+        return stats.map((current) => ({
+            ...current,
+            totalTimeMs: periodHoursByMember.get(current.memberAccountId) || 0,
+            // Use the streak as of this period's end, including attendance from earlier months.
+            currentStreak: streaksByMember.get(current.memberAccountId) || 0,
+        }));
+    }, [stats, periodHoursByMember, periodStreakStats, selectedMonth]);
+
+    const ghosts = useMemo<GhostStat[]>(() => {
+        const byMember = new Map<string, GhostStat>();
+        const bounds = selectedMonth === "all" ? null : monthBounds(selectedMonth);
+        for (const session of buildSessions(events, now)) {
+            if (session.outSource !== "auto_checkout" || !session.outAt) continue;
+            const ghostDayStart = Date.parse(`${istDateKey(Date.parse(session.inAt))}T00:00:00+05:30`);
+            if (bounds && (ghostDayStart < bounds.start || ghostDayStart >= bounds.end)) continue;
+            const existing = byMember.get(session.memberAccountId);
+            if (existing) {
+                existing.count += 1;
+                if (Date.parse(session.outAt) > Date.parse(existing.lastAt)) existing.lastAt = session.outAt;
+            } else {
+                byMember.set(session.memberAccountId, {
+                    memberAccountId: session.memberAccountId,
+                    name: session.name,
+                    domain: session.domain,
+                    count: 1,
+                    lastAt: session.outAt,
+                });
+            }
+        }
+        return Array.from(byMember.values()).sort((a, b) => b.count - a.count || Date.parse(b.lastAt) - Date.parse(a.lastAt));
+    }, [events, now, selectedMonth]);
+
     // Keeps the open modal's status (e.g. IN -> OUT after a force-checkout) live across
     // the 30s poll / realtime broadcast, without needing to close and reopen it.
     useEffect(() => {
@@ -234,12 +379,13 @@ export default function AttendanceBoardPage() {
     }, [stats]);
 
     const liveIn = useMemo(() => stats.filter((s) => s.status === "IN").sort((a, b) => a.lastTapMs - b.lastTapMs), [stats]);
-    const totalHours = useMemo(() => stats.reduce((sum, s) => sum + s.totalTimeMs, 0), [stats]);
-    const topStreak = useMemo(() => Math.max(0, ...stats.map((s) => s.currentStreak)), [stats]);
+    const totalHours = useMemo(() => displayedStats.reduce((sum, s) => sum + s.totalTimeMs, 0), [displayedStats]);
+    const topStreak = useMemo(() => Math.max(0, ...displayedStats.map((s) => s.currentStreak)), [displayedStats]);
+    const periodMemberCount = selectedMonth === "all" ? stats.length : new Set(periodEvents.map((event) => event.memberAccountId)).size;
 
     const domainTotals = useMemo(() => {
         const map = new Map<string, { total: number; members: number }>();
-        for (const s of stats) {
+        for (const s of displayedStats) {
             const entry = map.get(s.domain) || { total: 0, members: 0 };
             entry.total += s.totalTimeMs;
             entry.members += 1;
@@ -248,27 +394,64 @@ export default function AttendanceBoardPage() {
         return Array.from(map.entries())
             .map(([domain, v]) => ({ domain, ...v }))
             .sort((a, b) => b.total - a.total);
-    }, [stats]);
+    }, [displayedStats]);
 
-    const leaderboard = useMemo(() => [...stats].sort((a, b) => b.totalTimeMs - a.totalTimeMs), [stats]);
+    const leaderboard = useMemo(() => [...displayedStats].sort((a, b) => b.totalTimeMs - a.totalTimeMs), [displayedStats]);
+    const domains = useMemo(() => [...new Set(leaderboard.map((member) => member.domain))].sort((a, b) => a.localeCompare(b)), [leaderboard]);
+    const filteredLeaderboard = useMemo(() => {
+        const query = memberSearch.trim().toLocaleLowerCase();
+        return leaderboard.filter((member) => {
+            const matchesQuery = !query || member.name.toLocaleLowerCase().includes(query) || member.domain.toLocaleLowerCase().includes(query);
+            const matchesDomain = domainFilter === "all" || member.domain === domainFilter;
+            const leave = onLeaveMap.get(member.memberAccountId);
+            const displayedStatus = leave && isWithinLeaveWindow(leave, now)
+                ? "On Leave"
+                : member.status === "IN" && overnightIds.has(member.memberAccountId)
+                  ? "Overnight"
+                  : member.status;
+            const matchesStatus = statusFilter === "all" || displayedStatus === statusFilter;
+            return matchesQuery && matchesDomain && matchesStatus;
+        });
+    }, [leaderboard, memberSearch, domainFilter, statusFilter, onLeaveMap, now, overnightIds]);
     const maxDomainTotal = Math.max(1, ...domainTotals.map((d) => d.total));
 
-    const selectedSessions = useMemo<AttendanceSession[]>(() => {
+    const selectedTimelineEvents = useMemo(() => {
         if (!selected) return [];
-        return buildSessions(
-            events.filter((e) => e.memberAccountId === selected.memberAccountId),
-            now
-        );
-    }, [events, selected, now]);
+        const bounds = selectedMonth === "all" ? null : monthBounds(selectedMonth);
+        return events
+            .filter((event) => {
+                if (event.memberAccountId !== selected.memberAccountId) return false;
+                if (!bounds) return true;
+                const timestamp = Date.parse(event.occurredAt);
+                return timestamp >= bounds.start && timestamp < bounds.end;
+            })
+            .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
+    }, [events, selected, selectedMonth]);
+
+    const tableSessions = periodSessions;
+    const latestSessions = useMemo(() => {
+        const map = new Map<string, AttendanceSession>();
+        for (const session of tableSessions) if (!map.has(session.memberAccountId)) map.set(session.memberAccountId, session);
+        if (selectedMonth !== "all") {
+            const allLiveSessions = buildSessions(events, now);
+            for (const member of stats.filter((entry) => entry.status === "IN")) {
+                const active = allLiveSessions.find((session) => session.memberAccountId === member.memberAccountId && !session.outAt);
+                if (active) map.set(member.memberAccountId, active);
+            }
+        }
+        return map;
+    }, [tableSessions, selectedMonth, events, now, stats]);
+
+    const viewerStats = stats.find((entry) => entry.memberAccountId === viewerAccountId);
+    const viewerStatus = viewerStats?.status ?? "OUT";
 
     const handleDownload = () => {
-        const sessions = buildSessions(events, now);
-        const csv = generateSessionCSV(sessions);
+        const csv = generateSessionCSV(countedPeriodSessions);
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `attendance_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `attendance_${selectedMonth === "all" ? "all-time" : selectedMonth}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -285,7 +468,18 @@ export default function AttendanceBoardPage() {
                         Who&apos;s in the lab right now, and how the team&apos;s been showing up.
                     </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                        Period
+                        <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="border border-white/10 bg-black px-3 py-2 text-xs font-semibold normal-case tracking-normal text-white focus:outline-none"
+                        >
+                            <option value="all">All time</option>
+                            {monthOptions.map((month) => <option key={month} value={month}>{monthLabel(month)}</option>)}
+                        </select>
+                    </label>
                     <Link
                         href="/dashboard/attendance/me"
                         className={
@@ -305,6 +499,54 @@ export default function AttendanceBoardPage() {
                 </div>
             </div>
 
+            {(viewerRole === "member" || viewerHasAccount) && !loading && (
+                <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    {viewerHasAccount ? (
+                        <>
+                            <div>
+                                <p className="text-sm font-semibold text-white">Missed a tap?</p>
+                                <p className="mt-0.5 text-xs text-gray-500">
+                                    {viewerStatus === "IN" ? `Checked in since ${new Date(viewerStats!.lastTapMs).toLocaleString()}.` : "Forgot to record a tap? Add your arrival time."}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSelfCorrectionType(viewerStatus === "IN" ? "checked_out_at" : "checked_in_at");
+                                    setCorrectionTime(toLocalDatetimeValue(new Date()));
+                                }}
+                                className="flex w-fit items-center gap-1.5 border border-white/10 px-4 py-2 text-xs font-bold text-gray-200 transition hover:bg-white/10"
+                            >
+                                {viewerStatus === "IN" ? <LogOut className="h-3.5 w-3.5" /> : <LogIn className="h-3.5 w-3.5" />}
+                                {viewerStatus === "IN" ? "I left at…" : "I arrived at…"}
+                            </button>
+                        </>
+                    ) : (
+                        <div>
+                            <p className="text-sm font-semibold text-white">Attendance profile not linked</p>
+                            <p className="mt-0.5 text-xs text-gray-500">Ask an admin to link your member account before adding a missed tap.</p>
+                        </div>
+                    )}
+                    {viewerHasAccount && selfCorrectionType && (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <input
+                                type="datetime-local"
+                                value={correctionTime}
+                                onChange={(e) => setCorrectionTime(e.target.value)}
+                                className="border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white focus:outline-none"
+                            />
+                            <button onClick={() => setSelfCorrectionType(null)} className="px-2 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
+                            <button
+                                onClick={submitSelfCorrection}
+                                disabled={correcting || !correctionTime}
+                                className="bg-red px-3 py-1.5 text-xs font-bold text-white hover:bg-red/80 transition disabled:opacity-50"
+                            >
+                                {correcting ? "Saving…" : "Save"}
+                            </button>
+                        </div>
+                    )}
+                </Card>
+            )}
+
             {error && (
                 <Card borderClassName="border-red/30" className="p-4">
                     <p className="text-xs font-bold uppercase tracking-wider text-red">Connection error</p>
@@ -314,9 +556,9 @@ export default function AttendanceBoardPage() {
 
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 <StatTile icon={Users} label="In right now" value={String(liveIn.length)} tone="text-red" />
-                <StatTile icon={Clock} label="Total hours (60d)" value={formatDuration(totalHours)} tone="text-white" />
+                <StatTile icon={Clock} label={`Total hours (${selectedMonth === "all" ? "all time" : monthLabel(selectedMonth)})`} value={formatDuration(totalHours)} tone="text-white" />
                 <StatTile icon={Flame} label="Top streak" value={`${topStreak}d`} tone="text-amber-400" />
-                <StatTile icon={UserCircle2} label="Members tracked" value={String(stats.length)} tone="text-cyan-400" />
+                <StatTile icon={UserCircle2} label="Members tracked" value={String(periodMemberCount)} tone="text-cyan-400" />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -397,7 +639,7 @@ export default function AttendanceBoardPage() {
                 </div>
                 <p className="mb-4 text-xs text-gray-500">
                     Times the midnight sweep had to check someone out because they walked off without tapping. Nights covered by an
-                    overnight pass don&apos;t count.
+                    overnight pass don&apos;t count. Showing {selectedMonth === "all" ? "all time" : monthLabel(selectedMonth)}.
                 </p>
                 {loading ? (
                     <div className="space-y-2">
@@ -442,7 +684,39 @@ export default function AttendanceBoardPage() {
             </Card>
 
             <Card className="p-5 sm:p-6">
-                <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-white">All members</h2>
+                <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-white">All members</h2>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500">In for: current or latest visit · Hours: selected period</p>
+                </div>
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+                    <label className="relative min-w-0 flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                        <input
+                            type="search"
+                            value={memberSearch}
+                            onChange={(event) => setMemberSearch(event.target.value)}
+                            placeholder="Search members or domains"
+                            className="w-full border border-white/10 bg-black/40 py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-600 focus:border-white/30 focus:outline-none"
+                        />
+                    </label>
+                    <label className="flex items-center gap-2 border border-white/10 bg-black/40 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                        Domain
+                        <select value={domainFilter} onChange={(event) => setDomainFilter(event.target.value)} className="bg-black py-2 text-xs font-semibold normal-case tracking-normal text-white focus:outline-none">
+                            <option value="all">All domains</option>
+                            {domains.map((domain) => <option key={domain} value={domain}>{domain}</option>)}
+                        </select>
+                    </label>
+                    <label className="flex items-center gap-2 border border-white/10 bg-black/40 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                        Status
+                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="bg-black py-2 text-xs font-semibold normal-case tracking-normal text-white focus:outline-none">
+                            <option value="all">All statuses</option>
+                            <option value="IN">In</option>
+                            <option value="OUT">Out</option>
+                            <option value="On Leave">On leave</option>
+                            <option value="Overnight">Overnight</option>
+                        </select>
+                    </label>
+                </div>
                 {loading ? (
                     <div className="space-y-2">
                         {[0, 1, 2, 3].map((i) => (
@@ -451,12 +725,15 @@ export default function AttendanceBoardPage() {
                     </div>
                 ) : leaderboard.length === 0 ? (
                     <p className="text-sm text-gray-500">No attendance recorded yet. Taps will show up here.</p>
+                ) : filteredLeaderboard.length === 0 ? (
+                    <p className="py-4 text-sm text-gray-500">No members match these filters.</p>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[520px] text-left text-sm">
+                        <table className="w-full min-w-[650px] text-left text-sm">
                             <thead>
                                 <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
                                     <th className="pb-2 font-bold">Name</th>
+                                    <th className="pb-2 font-bold">In for</th>
                                     <th className="pb-2 font-bold">Domain</th>
                                     <th className="pb-2 font-bold">Status</th>
                                     <th className="pb-2 font-bold">Hours</th>
@@ -464,7 +741,7 @@ export default function AttendanceBoardPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {leaderboard.map((m) => {
+                                {filteredLeaderboard.map((m) => {
                                     const leave = onLeaveMap.get(m.memberAccountId);
                                     const onLeaveNow = leave && isWithinLeaveWindow(leave, now);
                                     // Only worth flagging while they're actually in the lab - a pass
@@ -477,6 +754,9 @@ export default function AttendanceBoardPage() {
                                             className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
                                         >
                                             <td className="py-2.5 font-semibold text-white">{m.name}</td>
+                                            <td className="py-2.5 font-mono text-gray-300">
+                                                {latestSessions.get(m.memberAccountId) ? formatDuration(latestSessions.get(m.memberAccountId)!.durationMs) : "—"}
+                                            </td>
                                             <td className="py-2.5 text-gray-400">{m.domain}</td>
                                             <td className="py-2.5">
                                                 {onLeaveNow ? (
@@ -587,14 +867,18 @@ export default function AttendanceBoardPage() {
                             </div>
                         )}
                         <div className="max-h-[60vh] overflow-y-auto p-5">
-                            {selectedSessions.length === 0 ? (
-                                <p className="text-sm text-gray-500">No sessions recorded.</p>
+                            {selectedTimelineEvents.length === 0 ? (
+                                <p className="text-sm text-gray-500">No taps recorded for this period.</p>
                             ) : (
                                 <div className="space-y-2">
-                                    {selectedSessions.map((s, i) => (
-                                        <div key={i} className="flex items-center justify-between border border-white/5 bg-white/[0.02] px-3 py-2 text-xs">
-                                            <span className="text-gray-300">{new Date(s.inAt).toLocaleString()}</span>
-                                            <span className="font-mono text-gray-500">{s.outAt ? formatDuration(s.durationMs) : "still in"}</span>
+                                    {selectedTimelineEvents.map((event, i) => (
+                                        <div key={`${event.occurredAt}-${i}`} className="flex items-center justify-between gap-4 border border-white/5 bg-white/[0.02] px-3 py-3 text-xs">
+                                            <div>
+                                                <p className={`font-bold uppercase tracking-wider ${event.action === "IN" ? "text-emerald-400" : "text-amber-400"}`}>
+                                                    {event.action} · {sourceLabel(event.source)}
+                                                </p>
+                                                <p className="mt-1 text-gray-300">{new Date(event.occurredAt).toLocaleString()}</p>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

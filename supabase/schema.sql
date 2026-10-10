@@ -279,6 +279,25 @@ alter table attendance_logs enable row level security;
 -- No public policies: service-role only, same pattern as member_accounts. Reads go
 -- through /api/attendance (session-gated) and /api/member/attendance/* (self-scoped).
 
+-- Web Push endpoints are private device credentials. Only session-gated server
+-- routes may save or remove them, and the RFID handler sends to the matching member.
+create table if not exists attendance_push_subscriptions (
+  member_account_id uuid not null references member_accounts(id) on delete cascade,
+  endpoint text not null check (length(endpoint) <= 2048),
+  endpoint_hash text not null check (length(endpoint_hash) = 64),
+  p256dh text not null,
+  auth text not null,
+  expiration_time bigint,
+  created_at timestamptz not null default now(),
+  primary key (endpoint_hash)
+);
+create index if not exists attendance_push_subscriptions_member_idx
+  on attendance_push_subscriptions (member_account_id);
+
+alter table attendance_push_subscriptions enable row level security;
+revoke all on attendance_push_subscriptions from anon, authenticated;
+grant select, insert, update, delete on attendance_push_subscriptions to service_role;
+
 -- Short-lived pairing session: member starts one from the dashboard, then the next
 -- unrecognized card tapped on any scanner within the window gets bound to their account.
 create table if not exists rfid_pairing_requests (

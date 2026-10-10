@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
-import type { GhostStat } from "@/lib/attendance";
 import { reconcileMidnightAttendance } from "@/lib/attendance-reconcile";
 
 // Team-wide attendance board data for the dashboard. No longer public - every
@@ -10,11 +9,6 @@ import { reconcileMidnightAttendance } from "@/lib/attendance-reconcile";
 export const dynamic = "force-dynamic";
 
 const DASHBOARD_ROLES = ["member", "lead", "admin"] as const;
-const LOOKBACK_DAYS = 60;
-// Ghost counts are all-time (unlike the 60-day session window), so this cap is what
-// keeps an unbounded scan off the table. Only auto_checkout rows match, so it's a
-// small slice - one row per forgotten tap-out, team-wide.
-const GHOST_ROW_CAP = 5000;
 
 export async function GET() {
     const session = await getSession();
@@ -29,37 +23,32 @@ export async function GET() {
         console.error("attendance board reconciliation failed", error);
         return NextResponse.json({ success: false, error: "Could not reconcile attendance." }, { status: 500 });
     }
-    const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data: passes } = await supabase
+        .from("overnight_passes")
+        .select("member_account_id")
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString());
 
-    const [{ data: logs, error: logsError }, { data: ghostLogs }, { data: passes }] = await Promise.all([
-        supabase
+    // Supabase/PostgREST caps each response page, so fetch ordered chunks to support
+    // the board's all-time month selector without silently dropping older history.
+    const logs: Array<{ member_account_id: string; action: string; occurred_at: string; source: string | null }> = [];
+    const PAGE_SIZE = 1000;
+    for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
             .from("attendance_logs")
-            .select("member_account_id, action, occurred_at")
-            .gte("occurred_at", since)
-            .order("occurred_at", { ascending: true }),
-        supabase
-            .from("attendance_logs")
-            .select("member_account_id, occurred_at")
-            .eq("source", "auto_checkout")
-            .order("occurred_at", { ascending: false })
-            .limit(GHOST_ROW_CAP),
-        supabase
-            .from("overnight_passes")
-            .select("member_account_id")
-            .eq("status", "active")
-            .gt("expires_at", new Date().toISOString()),
-    ]);
-
-    if (logsError) {
-        console.error("attendance board fetch error", logsError);
-        return NextResponse.json({ success: false, error: "Could not load attendance." }, { status: 500 });
+            .select("member_account_id, action, occurred_at, source")
+            .order("occurred_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+        if (error) {
+            console.error("attendance board fetch error", error);
+            return NextResponse.json({ success: false, error: "Could not load attendance." }, { status: 500 });
+        }
+        logs.push(...(data || []));
+        if (!data || data.length < PAGE_SIZE) break;
     }
 
-    // Ghosts are all-time while `logs` is a 60-day window, so someone can appear on the
-    // ghost board without any recent taps - resolve names across the union of both.
-    const memberAccountIds = Array.from(
-        new Set([...(logs || []).map((l) => l.member_account_id), ...(ghostLogs || []).map((l) => l.member_account_id)])
-    );
+    const memberAccountIds = Array.from(new Set(logs.map((l) => l.member_account_id)));
     if (memberAccountIds.length === 0) {
         return NextResponse.json({ success: true, events: [], ghosts: [], overnight: [] });
     }
@@ -81,37 +70,17 @@ export async function GET() {
         };
     };
 
-    const events = (logs || []).map((log) => ({
+    const events = logs.map((log) => ({
         memberAccountId: log.member_account_id,
         ...identify(log.member_account_id),
         action: log.action,
         occurredAt: log.occurred_at,
+        source: log.source || "unknown",
     }));
-
-    // ghostLogs is ordered newest-first, so the first row seen per member is their
-    // most recent forgotten tap-out.
-    const ghostByMember = new Map<string, GhostStat>();
-    for (const log of ghostLogs || []) {
-        const existing = ghostByMember.get(log.member_account_id);
-        if (existing) {
-            existing.count += 1;
-        } else {
-            ghostByMember.set(log.member_account_id, {
-                memberAccountId: log.member_account_id,
-                ...identify(log.member_account_id),
-                count: 1,
-                lastAt: log.occurred_at,
-            });
-        }
-    }
-    const ghosts = Array.from(ghostByMember.values()).sort(
-        (a, b) => b.count - a.count || Date.parse(b.lastAt) - Date.parse(a.lastAt)
-    );
 
     return NextResponse.json({
         success: true,
         events,
-        ghosts,
         overnight: (passes || []).map((p) => p.member_account_id),
     });
 }

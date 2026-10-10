@@ -28,7 +28,7 @@ export function istMidnightBoundary(nowMs: number): number {
 // .toDateString()/.setHours(), which read the *server's* local time - on Vercel that's
 // UTC, so anyone tapping between 00:00-05:29 IST (an ordinary time to still be in the
 // lab) got bucketed onto the wrong calendar day and their streak silently broke.
-function istDateKey(ts: number): string {
+export function istDateKey(ts: number): string {
   return new Date(ts + IST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
@@ -46,6 +46,10 @@ export function istNightOf(nowMs: number): string {
 // (e.g. the auto-checkout cron closed it, or a session spans an absurd length).
 const FIXED_SESSION_MS = 4 * 60 * 60 * 1000; // 4 hours
 const MAX_SESSION_MS = 30 * 60 * 60 * 1000; // 30 hours - beyond this we treat it as anomalous
+
+export function normalizeAttendanceDuration(durationMs: number): number {
+  return durationMs > MAX_SESSION_MS ? FIXED_SESSION_MS : durationMs;
+}
 
 export function normalizeRfidUid(raw: string): string {
   return String(raw || "")
@@ -65,6 +69,7 @@ export interface AttendanceEvent {
   domain: string;
   action: AttendanceAction;
   occurredAt: string; // ISO timestamp
+  source?: string;
 }
 
 export interface MemberAttendanceStats {
@@ -75,6 +80,31 @@ export interface MemberAttendanceStats {
   totalTimeMs: number;
   lastTapMs: number;
   currentStreak: number;
+}
+
+// The ghosted day belongs to the original IN tap. The auto-checkout is written just
+// after midnight, so using the OUT timestamp would incorrectly penalize the next day.
+export function getGhostedAttendanceDays(events: AttendanceEvent[]): Map<string, Set<string>> {
+  const sorted = [...events].sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt));
+  const openByMember = new Map<string, AttendanceEvent>();
+  const ghostedDays = new Map<string, Set<string>>();
+
+  for (const event of sorted) {
+    if (event.action === "IN") {
+      openByMember.set(event.memberAccountId, event);
+      continue;
+    }
+
+    const open = openByMember.get(event.memberAccountId);
+    if (open && event.source === "auto_checkout") {
+      const days = ghostedDays.get(event.memberAccountId) || new Set<string>();
+      days.add(istDateKey(Date.parse(open.occurredAt)));
+      ghostedDays.set(event.memberAccountId, days);
+    }
+    openByMember.delete(event.memberAccountId);
+  }
+
+  return ghostedDays;
 }
 
 // One row of the "ghost board": members ranked by how many sessions the midnight
@@ -89,8 +119,9 @@ export interface GhostStat {
   lastAt: string;
 }
 
-export function calculateStats(events: AttendanceEvent[], nowMs: number): MemberAttendanceStats[] {
+export function calculateStats(events: AttendanceEvent[], nowMs: number, ghostDetectionEvents: AttendanceEvent[] = events): MemberAttendanceStats[] {
   const sorted = [...events].sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt));
+  const ghostedDays = getGhostedAttendanceDays(ghostDetectionEvents);
   const byMember = new Map<
     string,
     MemberAttendanceStats & { openSinceMs: number | null; datesVisited: Set<string> }
@@ -115,7 +146,10 @@ export function calculateStats(events: AttendanceEvent[], nowMs: number): Member
     stats.domain = event.domain;
 
     const ts = Date.parse(event.occurredAt);
-    stats.datesVisited.add(istDateKey(ts));
+    const eventDay = istDateKey(ts);
+    if (event.source !== "auto_checkout" && !ghostedDays.get(event.memberAccountId)?.has(eventDay)) {
+      stats.datesVisited.add(eventDay);
+    }
 
     if (event.action === "IN") {
       stats.status = "IN";
@@ -125,7 +159,9 @@ export function calculateStats(events: AttendanceEvent[], nowMs: number): Member
       stats.lastTapMs = ts;
       if (stats.status === "IN" && stats.openSinceMs !== null) {
         const dur = ts - stats.openSinceMs;
-        stats.totalTimeMs += dur > MAX_SESSION_MS ? FIXED_SESSION_MS : dur;
+        const openDay = istDateKey(stats.openSinceMs);
+        const isGhostedSession = event.source === "auto_checkout" || ghostedDays.get(event.memberAccountId)?.has(openDay);
+        if (!isGhostedSession) stats.totalTimeMs += normalizeAttendanceDuration(dur);
       }
       stats.status = "OUT";
       stats.openSinceMs = null;
@@ -136,7 +172,7 @@ export function calculateStats(events: AttendanceEvent[], nowMs: number): Member
   for (const stats of Array.from(byMember.values())) {
     if (stats.status === "IN" && stats.openSinceMs !== null) {
       const dur = nowMs - stats.openSinceMs;
-      stats.totalTimeMs += dur > MAX_SESSION_MS ? FIXED_SESSION_MS : dur;
+      stats.totalTimeMs += normalizeAttendanceDuration(dur);
     }
   }
 
@@ -202,6 +238,8 @@ export interface AttendanceSession {
   inAt: string;
   outAt: string | null;
   durationMs: number;
+  inSource?: string;
+  outSource?: string | null;
 }
 
 // Pairs consecutive IN/OUT events into sessions per member, for history views + CSV export.
@@ -223,7 +261,9 @@ export function buildSessions(events: AttendanceEvent[], nowMs: number): Attenda
           domain: open.domain,
           inAt: open.occurredAt,
           outAt: event.occurredAt,
-          durationMs: dur > MAX_SESSION_MS ? FIXED_SESSION_MS : dur,
+          durationMs: normalizeAttendanceDuration(dur),
+          inSource: open.source,
+          outSource: event.source,
         });
         openByMember.delete(event.memberAccountId);
       }
@@ -239,6 +279,8 @@ export function buildSessions(events: AttendanceEvent[], nowMs: number): Attenda
       inAt: open.occurredAt,
       outAt: null,
       durationMs: nowMs - Date.parse(open.occurredAt),
+      inSource: open.source,
+      outSource: null,
     });
   }
 

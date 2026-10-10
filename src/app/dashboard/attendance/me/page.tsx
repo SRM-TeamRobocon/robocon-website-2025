@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { CreditCard, ArrowLeft, AlertTriangle, LogOut, LogIn, Moon } from "lucide-react";
+import { CreditCard, ArrowLeft, Moon } from "lucide-react";
 import { formatDuration, type AttendanceSession } from "@/lib/attendance";
 
 const PAIRING_POLL_MS = 2000;
@@ -28,26 +28,16 @@ function Card({
     return <div className={`border ${borderClassName} bg-black ${className}`}>{children}</div>;
 }
 
-function toLocalDatetimeValue(date: Date) {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 export default function MyAttendancePage() {
     const [linked, setLinked] = useState(false);
     const [cardTail, setCardTail] = useState<string | null>(null);
     const [sessions, setSessions] = useState<AttendanceSession[]>([]);
-    const [openSince, setOpenSince] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     const [pairing, setPairing] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    const [showCorrection, setShowCorrection] = useState<"checked_out_at" | "checked_in_at" | null>(null);
-    const [correctionTime, setCorrectionTime] = useState("");
-    const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
     const [overnight, setOvernight] = useState<OvernightPass | null>(null);
     const [overnightReason, setOvernightReason] = useState("");
@@ -61,7 +51,6 @@ export default function MyAttendancePage() {
                     setLinked(data.linked);
                     setCardTail(data.cardTail);
                     setSessions(data.sessions || []);
-                    setOpenSince(data.openSince);
                     setOvernight(data.overnight || null);
                 }
             })
@@ -164,33 +153,6 @@ export default function MyAttendancePage() {
         }
     };
 
-    const openCorrection = (type: "checked_out_at" | "checked_in_at") => {
-        setCorrectionTime(toLocalDatetimeValue(new Date()));
-        setShowCorrection(type);
-    };
-
-    const submitCorrection = async () => {
-        if (!correctionTime) return;
-        setSubmittingCorrection(true);
-        try {
-            const res = await fetch("/api/member/attendance/correct", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: showCorrection, time: new Date(correctionTime).toISOString() }),
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                toast.success("Attendance updated.");
-                setShowCorrection(null);
-                load();
-            } else {
-                toast.error(data.error || "Could not save correction.");
-            }
-        } finally {
-            setSubmittingCorrection(false);
-        }
-    };
-
     return (
         <div className="space-y-8">
             <div>
@@ -198,7 +160,7 @@ export default function MyAttendancePage() {
                     <ArrowLeft className="h-3.5 w-3.5" /> Back to board
                 </Link>
                 <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl">My Attendance</h1>
-                <p className="mt-2 text-sm text-gray-400 sm:text-base">Link your RFID card and fix any taps you missed.</p>
+                <p className="mt-2 text-sm text-gray-400 sm:text-base">Link your RFID card and review your recent visits.</p>
             </div>
 
             <Card className="p-5 sm:p-6">
@@ -287,68 +249,6 @@ export default function MyAttendancePage() {
                     </div>
                 )}
             </Card>
-
-            {openSince && (
-                <Card className="p-5" borderClassName="border-amber-500/30">
-                    <div className="flex items-start gap-3">
-                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
-                        <div className="flex-1">
-                            <p className="text-sm font-bold text-amber-300">
-                                Still checked in since {new Date(openSince).toLocaleString()}. Forgot to tap out?
-                            </p>
-                            <button
-                                onClick={() => openCorrection("checked_out_at")}
-                                className="mt-3 flex items-center gap-1.5 border border-amber-500/40 px-4 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/10 transition"
-                            >
-                                <LogOut className="h-3.5 w-3.5" /> I left at…
-                            </button>
-                        </div>
-                    </div>
-                </Card>
-            )}
-
-            {!openSince && !loading && (
-                <Card className="p-5">
-                    <p className="text-sm text-gray-400">Forgot to check in earlier today?</p>
-                    <button
-                        onClick={() => openCorrection("checked_in_at")}
-                        className="mt-3 flex items-center gap-1.5 border border-white/10 px-4 py-1.5 text-xs font-bold text-gray-300 hover:bg-white/10 transition"
-                    >
-                        <LogIn className="h-3.5 w-3.5" /> I arrived at…
-                    </button>
-                </Card>
-            )}
-
-            {showCorrection && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4" onClick={() => setShowCorrection(null)}>
-                    <div
-                        className="w-full max-w-sm border border-white/10 bg-black p-5"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h3 className="mb-3 text-sm font-bold text-white">
-                            {showCorrection === "checked_out_at" ? "What time did you leave?" : "What time did you arrive?"}
-                        </h3>
-                        <input
-                            type="datetime-local"
-                            value={correctionTime}
-                            onChange={(e) => setCorrectionTime(e.target.value)}
-                            className="w-full border border-white/10 bg-black/40 px-3 py-2 text-sm text-white focus:border-red/50 focus:outline-none"
-                        />
-                        <div className="mt-4 flex justify-end gap-2">
-                            <button onClick={() => setShowCorrection(null)} className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white transition">
-                                Cancel
-                            </button>
-                            <button
-                                onClick={submitCorrection}
-                                disabled={submittingCorrection}
-                                className="bg-red px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-red/80 transition disabled:opacity-50"
-                            >
-                                {submittingCorrection ? "Saving…" : "Save"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <Card className="p-5 sm:p-6">
                 <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-white">Recent sessions</h2>

@@ -8,7 +8,6 @@ import AdminTopbar from "@/components/admin/AdminTopbar";
 import GoogleConnectReminder from "@/components/dashboard/GoogleConnectReminder";
 import InstallPrompt from "@/components/dashboard/InstallPrompt";
 import { displayNameForUsername } from "@/lib/admin-users";
-import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export default function DashboardLayoutClient({
     children,
@@ -59,43 +58,6 @@ export default function DashboardLayoutClient({
         };
         fetchPhoto();
     }, []);
-
-    useEffect(() => {
-        if (role !== "member" || !("Notification" in window)) return;
-
-        const supabase = createPublicSupabaseClient();
-        if (!supabase) return;
-
-        const channel = supabase.channel("attendance-live");
-        channel
-            .on("broadcast", { event: "attendance" }, ({ payload }: { payload: {
-                event?: string;
-                name?: string;
-                action?: string;
-            } }) => {
-                if (
-                    payload.event !== "tap" ||
-                    payload.action !== "IN" ||
-                    Notification.permission !== "granted"
-                ) {
-                    return;
-                }
-
-                try {
-                    new Notification("Lab check-in", {
-                        body: `${payload.name || "A team member"} is now in the lab.`,
-                        tag: `lab-checkin-${Date.now()}`,
-                    });
-                } catch (error) {
-                    console.error("Failed to show lab check-in notification", error);
-                }
-            })
-            .subscribe();
-
-        return () => {
-            void supabase.removeChannel(channel);
-        };
-    }, [role]);
 
     const toggleCollapse = () => {
         setCollapsed((prev) => {

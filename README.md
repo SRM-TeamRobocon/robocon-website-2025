@@ -60,6 +60,12 @@ Office RFID attendance (Supabase-backed — see `attendance/main.ino`):
 - `ATTENDANCE_DEVICE_SECRET` — bearer secret the ESP32 scanner sends to `/api/attendance/tap`; must match `deviceSecret` in the firmware. Falls back to `"local-dev"` if unset, which is only safe for local testing.
 - `GOOGLE_SCRIPT_URL` is no longer used — the old Apps-Script-backed attendance system was replaced by Supabase (`attendance_logs`/`rfid_pairing_requests` tables, `member_accounts.rfid_uid`). Safe to remove once the old Apps Script deployment is decommissioned.
 
+Attendance phone push:
+
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` — generate a matching key pair with `npx web-push generate-vapid-keys`, then set these in local and deployment environments. Keep the private key server-only. `VAPID_SUBJECT` should be a `mailto:` address or an HTTPS contact URL.
+- Apply `supabase/attendance-push-subscriptions.sql` once in the Supabase SQL editor for an existing database. The table has RLS enabled and is only accessible to the server's service role; the same table is included in `supabase/schema.sql` for new databases.
+- iPhone users need to add STR Hub to their Home Screen before Safari can enable web push.
+
 Email:
 
 - `SMTP_EMAIL`
