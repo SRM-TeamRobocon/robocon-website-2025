@@ -41,6 +41,10 @@ export async function POST(request: Request) {
     const auth = await getMemberAccountId();
     if (!auth.ok) return auth.response;
 
+    if (!getAttendancePushPublicKey()) {
+        return NextResponse.json({ success: false, error: "Push notifications are not configured on the server yet." }, { status: 503 });
+    }
+
     let body: {
         endpoint?: unknown;
         expirationTime?: unknown;

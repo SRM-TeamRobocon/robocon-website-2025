@@ -7,12 +7,20 @@ import { useInstallPrompt } from "@/hooks/use-install-prompt";
 // Once per browser session, same pattern as GoogleConnectReminder - dismissing
 // shouldn't permanently hide it, but it also shouldn't nag on every navigation.
 const DISMISS_KEY = "dashboard_install_dismissed";
-const NOTIFICATIONS_DISMISSED_KEY = "member_notifications_prompt_dismissed";
+const NOTIFICATIONS_DISMISSED_KEY = "member_notifications_prompt_dismissed_v2";
 
 function decodeVapidKey(value: string) {
     const padding = "=".repeat((4 - (value.length % 4)) % 4);
     const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
     return Uint8Array.from(window.atob(base64), (character) => character.charCodeAt(0));
+}
+
+function subscriptionMatchesKey(subscription: PushSubscription, publicKey: string) {
+    const currentKey = subscription.options.applicationServerKey;
+    if (!currentKey) return false;
+    const currentBytes = new Uint8Array(currentKey);
+    const expectedBytes = decodeVapidKey(publicKey);
+    return currentBytes.length === expectedBytes.length && currentBytes.every((byte, index) => byte === expectedBytes[index]);
 }
 
 export default function InstallPrompt({ showNotifications = false }: { showNotifications?: boolean }) {
@@ -29,13 +37,24 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
     }, []);
 
     useEffect(() => {
-        if (!showNotifications || !("Notification" in window)) return;
-        if (Notification.permission === "denied") return;
+        if (!showNotifications) return;
+
+        if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+            setNotificationError("This browser cannot receive lab push notifications. Try an up-to-date browser or install STR Hub on iPhone.");
+            setShowNotificationOption(true);
+            return;
+        }
+
+        if (Notification.permission === "denied") {
+            setNotificationError("Notifications are blocked for this site. Allow them in your browser’s site settings, then reload the dashboard.");
+            setShowNotificationOption(true);
+            return;
+        }
 
         let cancelled = false;
         const checkSubscription = async () => {
             if (Notification.permission === "default") {
-                if (window.localStorage.getItem(NOTIFICATIONS_DISMISSED_KEY) !== "1" && !cancelled) {
+                if (window.sessionStorage.getItem(NOTIFICATIONS_DISMISSED_KEY) !== "1" && !cancelled) {
                     setShowNotificationOption(true);
                 }
                 return;
@@ -43,20 +62,36 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
 
             if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
             try {
-                const registration = await navigator.serviceWorker.ready;
+                const configResponse = await fetch("/api/member/notifications");
+                const config = await configResponse.json();
+                if (!configResponse.ok || !config.success || !config.publicKey) {
+                    if (!cancelled) {
+                        setNotificationError(config.error || "Push notifications are not configured yet.");
+                        setShowNotificationOption(true);
+                    }
+                    return;
+                }
+
+                const registration = await navigator.serviceWorker.register("/dashboard-sw.js", { scope: "/dashboard/" });
+                await navigator.serviceWorker.ready;
                 const subscription = await registration.pushManager.getSubscription();
                 if (cancelled) return;
-                if (subscription) {
+                if (subscription && subscriptionMatchesKey(subscription, config.publicKey)) {
                     const response = await fetch("/api/member/notifications", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(subscription.toJSON()),
                     });
                     if (!response.ok && !cancelled) {
-                        setNotificationError("Could not connect this device to attendance alerts.");
+                        const result = await response.json().catch(() => null);
+                        setNotificationError(result?.error || "Could not connect this device to attendance alerts.");
                         setShowNotificationOption(true);
+                    } else if (!cancelled) {
+                        setNotificationError(null);
+                        setShowNotificationOption(false);
                     }
-                } else {
+                } else if (!cancelled) {
+                    setNotificationError(subscription ? "Notifications need to be reconnected on this device." : null);
                     setShowNotificationOption(true);
                 }
             } catch {
@@ -96,7 +131,7 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
     const showInstallOption = !installed && !dismissed && (canInstall || showIos);
 
     const dismissNotifications = () => {
-        window.localStorage.setItem(NOTIFICATIONS_DISMISSED_KEY, "1");
+        window.sessionStorage.setItem(NOTIFICATIONS_DISMISSED_KEY, "1");
         setShowNotificationOption(false);
     };
 
@@ -126,6 +161,10 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
             const registration = await navigator.serviceWorker.register("/dashboard-sw.js", { scope: "/dashboard/" });
             await navigator.serviceWorker.ready;
             let subscription = await registration.pushManager.getSubscription();
+            if (subscription && !subscriptionMatchesKey(subscription, config.publicKey)) {
+                await subscription.unsubscribe();
+                subscription = null;
+            }
             if (!subscription) {
                 subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
@@ -142,7 +181,7 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
             if (!saveResponse.ok || !saved.success) throw new Error(saved.error || "Could not save this device for notifications.");
 
             setShowNotificationOption(false);
-            window.localStorage.removeItem(NOTIFICATIONS_DISMISSED_KEY);
+            window.sessionStorage.removeItem(NOTIFICATIONS_DISMISSED_KEY);
         } catch (error) {
             setNotificationError(error instanceof Error ? error.message : "Could not enable notifications.");
         } finally {
@@ -207,9 +246,9 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
                         <div className={`${showInstallOption ? "mt-4 border-t border-white/10 pt-4" : ""} flex items-center gap-3`}>
                             <Bell className="h-4 w-4 shrink-0 text-blue-300" aria-hidden="true" />
                             <div className="min-w-0 flex-1">
-                                <p className="text-xs font-semibold text-white">Lab notifications</p>
+                                <p className="text-xs font-semibold text-white">Enable notifications?</p>
                                 <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
-                                    Get a random lab vibe when you tap in or out. Only your devices get it.
+                                    Get a random lab vibe on this device when you tap in or out.
                                 </p>
                                 {notificationError && <p className="mt-1 text-[11px] leading-relaxed text-red-300">{notificationError}</p>}
                             </div>
