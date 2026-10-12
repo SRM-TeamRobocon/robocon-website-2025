@@ -63,6 +63,7 @@ export type Database = {
           reset_otp_attempts: number;
           google_uid: string | null;
           google_email: string | null;
+          profile_photo_url: string | null;
           rfid_uid: string | null;
         };
         Insert: {
@@ -88,6 +89,7 @@ export type Database = {
           reset_otp_attempts?: number;
           google_uid?: string | null;
           google_email?: string | null;
+          profile_photo_url?: string | null;
           rfid_uid?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["member_accounts"]["Insert"]>;

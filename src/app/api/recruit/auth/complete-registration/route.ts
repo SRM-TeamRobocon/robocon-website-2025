@@ -81,11 +81,19 @@ export async function POST(request: Request) {
         // logged-in lead's session.
         const rawPortfolio = body.portfolio_url ? String(body.portfolio_url) : "";
         const portfolioUrl = rawPortfolio ? safeHttpUrl(rawPortfolio) : null;
+        const profilePhotoUrl = safeHttpUrl(String(body.profile_photo_url || ""));
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+        const expectedPhotoPrefix = supabaseUrl
+            ? `${supabaseUrl}/storage/v1/object/public/recruit-profile-photos/${encodeURIComponent(statePayload.google_uid)}/`
+            : "";
         if (rawPortfolio && !portfolioUrl) {
             return NextResponse.json(
                 { success: false, error: "LinkedIn URL must be a valid http:// or https:// link." },
                 { status: 400 }
             );
+        }
+        if (!profilePhotoUrl || !expectedPhotoPrefix || !profilePhotoUrl.startsWith(expectedPhotoPrefix)) {
+            return NextResponse.json({ success: false, error: "Upload a valid profile photo before continuing." }, { status: 400 });
         }
 
         if (!name || !regNo || !year || !gender || !department || !course || !phone || !password) {
@@ -204,6 +212,7 @@ export async function POST(request: Request) {
                 day_scholar_area: dayScholarArea,
                 travel_method: travelMethod,
                 portfolio_url: portfolioUrl,
+                profile_photo_url: profilePhotoUrl,
                 password_hash: passwordHash,
             })
             .select("id")

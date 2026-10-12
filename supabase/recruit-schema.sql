@@ -127,6 +127,9 @@ create table if not exists recruit_accounts (
   -- registrations at the application layer.
   gender              text,
   portfolio_url       text,
+  -- Existing rows may not have a photo, but the registration API requires this for
+  -- every new recruit. The URL points to the controlled Storage bucket.
+  profile_photo_url   text,
   password_hash       text not null,
   is_selected         boolean not null default false,
   created_at          timestamptz default now(),

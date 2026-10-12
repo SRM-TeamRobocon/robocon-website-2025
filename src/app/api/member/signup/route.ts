@@ -6,7 +6,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { MEMBER_GOOGLE_PENDING_COOKIE, verifyPendingGoogleProfile } from "@/lib/member-oauth";
 import { getTransporter, SMTP_EMAIL } from "@/lib/mailer";
 import { MEMBER_DOMAINS } from "@/constants/constants";
-import { encryptPassword } from "@/lib/password-enc";
 
 export const dynamic = "force-dynamic";
 
@@ -60,19 +59,30 @@ export async function POST(request: Request) {
         const department = String(body.department || "").trim();
         const course = String(body.course || "").trim();
         const phone = body.phone ? String(body.phone).trim() : null;
-        const password = String(body.password || "");
+        const profilePhotoUrl = String(body.profilePhotoUrl || "").trim();
         const googleSignup = body.googleSignup === true;
-        const cookieStore = await cookies();
-        const pendingGoogle = googleSignup
-            ? await verifyPendingGoogleProfile(cookieStore.get(MEMBER_GOOGLE_PENDING_COOKIE)?.value)
-            : null;
+        if (!googleSignup) {
+            return NextResponse.json(
+                { success: false, error: "Continue with Google to create your member account." },
+                { status: 400 }
+            );
+        }
 
-        if (googleSignup && !pendingGoogle) {
+        const cookieStore = await cookies();
+        const pendingGoogle = await verifyPendingGoogleProfile(cookieStore.get(MEMBER_GOOGLE_PENDING_COOKIE)?.value);
+
+        if (!pendingGoogle) {
             return NextResponse.json({ success: false, error: "Your Google sign-in expired. Please continue with Google again." }, { status: 401 });
         }
 
-        if (!name || !email || !domain || !regNo || !department || !course || (!googleSignup && !password)) {
+        if (!name || !email || !domain || !regNo || !department || !course || !profilePhotoUrl) {
             return NextResponse.json({ success: false, error: "Fill in all required fields." }, { status: 400 });
+        }
+        try {
+            const photoUrl = new URL(profilePhotoUrl);
+            if (photoUrl.protocol !== "https:") throw new Error("invalid photo URL");
+        } catch {
+            return NextResponse.json({ success: false, error: "Upload a valid profile photo." }, { status: 400 });
         }
         if (!EMAIL_RE.test(email)) {
             return NextResponse.json({ success: false, error: "Use your @srmist.edu.in email." }, { status: 400 });
@@ -80,25 +90,19 @@ export async function POST(request: Request) {
         if (!DOMAIN_SET.includes(domain)) {
             return NextResponse.json({ success: false, error: "Invalid domain selected." }, { status: 400 });
         }
-        if (!googleSignup && password.length < 8) {
-            return NextResponse.json({ success: false, error: "Password must be at least 8 characters." }, { status: 400 });
-        }
-
         const supabase = createSupabaseAdminClient();
 
-        if (pendingGoogle) {
-            const { data: linkedAccount, error: linkedAccountError } = await supabase
-                .from("member_accounts")
-                .select("id")
-                .eq("google_uid", pendingGoogle.google_uid)
-                .maybeSingle();
-            if (linkedAccountError) {
-                console.error("member signup Google lookup error", linkedAccountError);
-                return NextResponse.json({ success: false, error: "Could not create account." }, { status: 500 });
-            }
-            if (linkedAccount) {
-                return NextResponse.json({ success: false, error: "This Google account is already linked to a member account. Log in instead." }, { status: 409 });
-            }
+        const { data: linkedAccount, error: linkedAccountError } = await supabase
+            .from("member_accounts")
+            .select("id")
+            .eq("google_uid", pendingGoogle.google_uid)
+            .maybeSingle();
+        if (linkedAccountError) {
+            console.error("member signup Google lookup error", linkedAccountError);
+            return NextResponse.json({ success: false, error: "Could not create account." }, { status: 500 });
+        }
+        if (linkedAccount) {
+            return NextResponse.json({ success: false, error: "This Google account is already linked to a member account. Log in instead." }, { status: 409 });
         }
 
         const { data: existing } = await supabase
@@ -122,8 +126,7 @@ export async function POST(request: Request) {
 
         // Google-first accounts still need a non-null password_hash for the legacy schema,
         // but the random secret is never shown or stored in recoverable form.
-        const passwordHash = await bcrypt.hash(googleSignup ? crypto.randomBytes(32).toString("hex") : password, 10);
-        const passwordEnc = googleSignup ? null : encryptPassword(password);
+        const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
         const verificationToken = crypto.randomBytes(32).toString("hex");
         const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -136,10 +139,9 @@ export async function POST(request: Request) {
             course,
             phone,
             password_hash: passwordHash,
-            password_enc: passwordEnc,
-            ...(pendingGoogle
-                ? { google_uid: pendingGoogle.google_uid, google_email: pendingGoogle.google_email }
-                : {}),
+            google_uid: pendingGoogle.google_uid,
+            google_email: pendingGoogle.google_email,
+            profile_photo_url: profilePhotoUrl,
             verification_token: verificationToken,
             verification_expires: verificationExpires,
         });

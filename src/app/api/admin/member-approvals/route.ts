@@ -164,14 +164,20 @@ export async function PATCH(request: Request) {
 
             const { data: mergeAccount, error: mergeFetchError } = await supabase
                 .from("member_accounts")
-                .select("id, name, email, password_enc, google_uid")
+                .select("id, name, email, password_enc, google_uid, profile_photo_url")
                 .eq("id", id)
                 .maybeSingle();
             if (mergeFetchError || !mergeAccount) {
                 return NextResponse.json({ success: false, error: "Member account not found." }, { status: 404 });
             }
 
-            const { error: linkError } = await supabase.from("members").update({ member_account_id: id }).eq("id", mergeIntoRosterId);
+            const { error: linkError } = await supabase
+                .from("members")
+                .update({
+                    member_account_id: id,
+                    ...(mergeAccount.profile_photo_url ? { photo_url: mergeAccount.profile_photo_url } : {}),
+                })
+                .eq("id", mergeIntoRosterId);
             if (linkError) {
                 console.error("member-approvals merge link error", linkError);
                 return NextResponse.json({ success: false, error: "Could not merge into that entry." }, { status: 500 });
@@ -194,7 +200,7 @@ export async function PATCH(request: Request) {
 
         const { data: account, error: fetchError } = await supabase
             .from("member_accounts")
-            .select("id, name, email, domain, password_enc, google_uid")
+            .select("id, name, email, domain, password_enc, google_uid, profile_photo_url")
             .eq("id", id)
             .maybeSingle();
 
@@ -224,6 +230,7 @@ export async function PATCH(request: Request) {
                 name: account.name,
                 domain: account.domain,
                 role: "Member",
+                photo_url: account.profile_photo_url,
                 is_active: false,
             });
             if (seedError) console.error("member-approvals roster seed error", seedError);

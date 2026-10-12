@@ -166,6 +166,7 @@ alter table member_accounts enable row level security;
 -- the dashboard "Connected accounts" section and needn't match the srmist.edu.in email.
 alter table member_accounts add column if not exists google_uid text unique;
 alter table member_accounts add column if not exists google_email text;
+alter table member_accounts add column if not exists profile_photo_url text;
 
 -- Links an approved member account to its (initially draft) public roster row.
 alter table members add column if not exists member_account_id uuid unique references member_accounts(id);

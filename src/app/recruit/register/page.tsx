@@ -155,7 +155,9 @@ function RecruitRegisterInner() {
     const googleName = searchParams.get("name") || "";
     const googleEmail = searchParams.get("email") || "";
     const googleError = searchParams.get("error") || "";
-    const [showIntro, setShowIntro] = useState(() => !googleName && !googleEmail && !googleError);
+    // Registration begins immediately with Google authentication. The recruitment intro
+    // remains available elsewhere, but is not a step in this form.
+    const [showIntro, setShowIntro] = useState(false);
 
     // Presence of the name/email query params (set by the Google callback redirect)
     // is the client-visible signal that a recruit_oauth_state cookie now exists.
@@ -210,10 +212,10 @@ function RecruitRegisterInner() {
         window.location.href = "/api/recruit/auth/google";
     };
 
-    // SRM-email OTP verification now happens later, from the dashboard (EmailVerifyBanner) -
-    // this step just captures + format-checks the address so registration isn't blocked on
-    // a mail round-trip. Server-side, complete-registration re-validates the same shape.
-    const handleContinueFromEmail = (e: React.FormEvent) => {
+    const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+    const handleContinueToPhoto = (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         const normalized = srmEmail.trim().toLowerCase();
@@ -221,14 +223,6 @@ function RecruitRegisterInner() {
             setError("Use a valid @srmist.edu.in email.");
             return;
         }
-        setSrmEmail(normalized);
-        setStep(3);
-    };
-
-    const handleCompleteRegistration = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError("");
-
         if (!profile.gender) {
             setError("Select your gender.");
             return;
@@ -241,25 +235,38 @@ function RecruitRegisterInner() {
             setError("Passwords do not match.");
             return;
         }
-        if (profile.isHosteller && !profile.hostelBlock) {
-            setError("Select your hostel block.");
+        if (profile.isHosteller && (!profile.hostelBlock || !profile.hostelRoom.trim())) {
+            setError("Select your hostel block and enter your room number.");
             return;
         }
-        if (profile.isHosteller && !profile.hostelRoom.trim()) {
-            setError("Enter your hostel room number.");
+        if (!profile.isHosteller && (!profile.dayScholarArea.trim() || !profile.travelMethod)) {
+            setError("Enter your area and travel method.");
             return;
         }
-        if (!profile.isHosteller && !profile.dayScholarArea.trim()) {
-            setError("Enter the area you live in.");
-            return;
-        }
-        if (!profile.isHosteller && !profile.travelMethod) {
-            setError("Select how you travel to college.");
+        setSrmEmail(normalized);
+        setStep(3);
+    };
+
+    const handleCompleteRegistration = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+
+        if (!profilePhoto) {
+            setError("A profile photo is required.");
             return;
         }
 
         setSubmitLoading(true);
         try {
+            const uploadData = new FormData();
+            uploadData.set("photo", profilePhoto);
+            const uploadRes = await fetch("/api/recruit/profile-photo", { method: "POST", body: uploadData });
+            const uploadResult = await uploadRes.json();
+            if (!uploadRes.ok || !uploadResult.profile_photo_url) {
+                setError(uploadResult.error || "Could not upload your profile photo.");
+                return;
+            }
+
             const res = await fetch("/api/recruit/auth/complete-registration", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -280,6 +287,7 @@ function RecruitRegisterInner() {
                     password: profile.password,
                     domains,
                     portfolio_url: profile.portfolioUrl || undefined,
+                    profile_photo_url: uploadResult.profile_photo_url,
                 }),
             });
             const data = await res.json();
@@ -368,58 +376,25 @@ function RecruitRegisterInner() {
             )}
 
             {step === 2 && (
-                <div className="space-y-5">
-                    {googleName && (
-                            <p className="text-sm text-black/50 text-center">
-                            Welcome, <span className="text-black font-semibold">{googleName}</span>. Enter your SRM email to
-                            continue.
-                        </p>
-                    )}
-                    <form onSubmit={handleContinueFromEmail} className="space-y-5">
-                        <div>
-                            <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-black/70">
-                                SRM Email
-                            </label>
-                            <div className="mt-2">
-                                <input
-                                    id="srmEmail"
-                                    type="email"
-                                    autoComplete="username"
-                                    required
-                                    value={srmEmail}
-                                    onChange={(e) => setSrmEmail(e.target.value)}
-                                    placeholder="ab1234@srmist.edu.in"
-                                    className="block w-full min-w-0 border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
-                                />
-                            </div>
-                            <p className="mt-2 text-xs text-black/40">
-                                You can verify this address later from your dashboard. No OTP needed right now.
-                            </p>
-                        </div>
-                        <ErrorBanner message={error} />
-                        <button
-                            type="submit"
-                            className="group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] bg-red hover:bg-red/90"
-                            style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
-                        >
-                            <span
-                                className="absolute inset-0 -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-                                style={{
-                                    clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)",
-                                    backgroundColor: "#D4AF37",
-                                }}
-                            />
-                            <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
-                                Continue
-                            </span>
-                        </button>
-                    </form>
-                </div>
-            )}
-
-            {step === 3 && (
-                <form onSubmit={handleCompleteRegistration} className="space-y-5">
-                    <p className="text-sm text-black/50 text-center">Complete your profile.</p>
+                <form onSubmit={handleContinueToPhoto} className="space-y-5">
+                    <p className="text-sm text-black/50 text-center">Review and complete your details.</p>
+                    <div className="border border-red/20 bg-red/5 p-3 text-sm text-black/70">
+                        Signed in with Google as <span className="font-semibold text-black">{googleName || "your Google account"}</span>
+                        {googleEmail && <> ({googleEmail})</>}.
+                    </div>
+                    <div>
+                        <label htmlFor="srmEmail" className="block text-sm font-medium leading-6 text-black/70">SRM Email</label>
+                        <input
+                            id="srmEmail"
+                            type="email"
+                            autoComplete="username"
+                            required
+                            value={srmEmail}
+                            onChange={(e) => setSrmEmail(e.target.value)}
+                            placeholder="ab1234@srmist.edu.in"
+                            className="mt-2 block w-full min-w-0 border-2 border-black/15 bg-white py-3 px-4 text-black placeholder:text-black/30 shadow-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20 sm:text-sm sm:leading-6 transition-all"
+                        />
+                    </div>
 
                     <Field label="Full Name" id="name" value={profile.name} onChange={updateProfile("name")} placeholder="Full name" />
                     <Field
@@ -667,11 +642,8 @@ function RecruitRegisterInner() {
 
                     <button
                         type="submit"
-                        disabled={submitLoading}
                         className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97] ${
-                            submitLoading
-                                ? "bg-red/40 cursor-not-allowed"
-                                : "bg-red hover:bg-red/90"
+                            "bg-red hover:bg-red/90"
                         }`}
                         style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
                     >
@@ -683,8 +655,54 @@ function RecruitRegisterInner() {
                             }}
                         />
                         <span className="relative z-10 transition-colors duration-200 group-hover:text-black">
-                            {submitLoading ? "Creating account..." : "Complete Registration"}
+                            Continue to profile photo
                         </span>
+                    </button>
+                </form>
+            )}
+
+            {step === 3 && (
+                <form onSubmit={handleCompleteRegistration} className="space-y-5">
+                    <p className="text-center text-sm text-black/50">Add your profile photo to finish registration.</p>
+                    <label className="block cursor-pointer border-2 border-dashed border-red/40 bg-red/[0.03] p-6 text-center hover:bg-red/[0.06]">
+                        {photoPreview ? (
+                            <Image
+                                src={photoPreview}
+                                alt="Selected profile photo preview"
+                                width={160}
+                                height={160}
+                                unoptimized
+                                className="mx-auto h-40 w-40 rounded-full object-cover"
+                            />
+                        ) : (
+                            <span className="block text-sm font-semibold text-black/70">Choose a profile photo</span>
+                        )}
+                        <span className="mt-3 block text-xs text-black/50">JPEG, PNG, or WebP · maximum 5 MB · required</span>
+                        <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            required
+                            className="sr-only"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                setProfilePhoto(file);
+                                setPhotoPreview((previous) => {
+                                    if (previous) URL.revokeObjectURL(previous);
+                                    return file ? URL.createObjectURL(file) : null;
+                                });
+                            }}
+                        />
+                    </label>
+                    <ErrorBanner message={error} />
+                    <button
+                        type="submit"
+                        disabled={submitLoading}
+                        className={`group relative flex w-full items-center justify-center overflow-hidden px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 ${
+                            submitLoading ? "cursor-not-allowed bg-red/40" : "bg-red hover:bg-red/90"
+                        }`}
+                        style={{ clipPath: "polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)" }}
+                    >
+                        <span className="relative z-10">{submitLoading ? "Creating account..." : "Complete registration"}</span>
                     </button>
                 </form>
             )}

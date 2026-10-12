@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MEMBER_DOMAINS } from "@/constants/constants";
-import PasswordToggle from "@/components/PasswordToggle";
 import AuthNav from "@/components/AuthNav";
 import Select from "@/components/ui/select";
 
@@ -17,8 +16,7 @@ export default function MemberSignup() {
         department: "",
         course: "",
         phone: "",
-        password: "",
-        confirmPassword: "",
+        profilePhotoUrl: "",
     });
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -73,9 +71,8 @@ export default function MemberSignup() {
             setError("Continue with Google again to verify your sign-in before registering.");
             return;
         }
-
-        if (!googleSignup && form.password !== form.confirmPassword) {
-            setError("Passwords do not match.");
+        if (!form.profilePhotoUrl) {
+            setError("Upload a profile photo before submitting.");
             return;
         }
 
@@ -95,6 +92,29 @@ export default function MemberSignup() {
             }
         } catch {
             setError("An unexpected error occurred. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const photo = e.target.files?.[0];
+        if (!photo) return;
+
+        setError("");
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.set("photo", photo);
+            const res = await fetch("/api/member/signup/profile-photo", { method: "POST", body: formData });
+            const data = await res.json();
+            if (!res.ok || !data.profilePhotoUrl) {
+                setError(data.error || "Could not upload your profile photo.");
+                return;
+            }
+            setForm((prev) => ({ ...prev, profilePhotoUrl: data.profilePhotoUrl }));
+        } catch {
+            setError("Could not upload your profile photo. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -147,10 +167,10 @@ export default function MemberSignup() {
                             >
                                 <GoogleMark /> Continue with Google
                             </a>
-                            <p className="text-center text-xs text-gray-500">Use the personal Gmail account you used during recruitment.</p>
-                            <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-gray-600">
-                                <span className="h-px flex-1 bg-white/10" />or sign up with password<span className="h-px flex-1 bg-white/10" />
-                            </div>
+                            <p className="text-center text-xs text-gray-500">
+                                Use the Google account you used during recruitment. On the next page, we&apos;ll prefill
+                                your details if we find them.
+                            </p>
                         </div>
                     )}
 
@@ -161,8 +181,8 @@ export default function MemberSignup() {
                                 {prefillLoading
                                     ? "Loading your recruitment details…"
                                     : recruitmentDetailsFound
-                                      ? "We filled these fields from your recruitment account. Review and edit them before submitting."
-                                      : "We couldn’t find a recruitment record for this Google account. You can enter your details manually."}
+                                      ? "We filled these fields from your recruitment account. Review and edit them before submitting. This account will be connected to your Google sign-in."
+                                      : "We couldn’t find a recruitment record for this Google account. Enter your details below and we’ll connect this member account to Google."}
                             </p>
                             {!googleReady && !prefillLoading && (
                                 <a href="/api/member/auth/google?flow=signup" className="mt-3 inline-block text-red hover:text-red/80">
@@ -172,7 +192,7 @@ export default function MemberSignup() {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    {googleSignup && <form onSubmit={handleSubmit} className="space-y-5">
                         <Field label="Full Name" id="name" value={form.name} onChange={update("name")} placeholder="Christiano Ronaldo" />
                         <Field
                             label="Email"
@@ -211,6 +231,32 @@ export default function MemberSignup() {
                             <Field label="Department" id="department" value={form.department} onChange={update("department")} placeholder="CINTEL" />
                             <Field label="Course" id="course" value={form.course} onChange={update("course")} placeholder="B.Tech CSE" />
                         </div>
+                        <div>
+                            <label htmlFor="profile-photo" className="block text-sm font-medium leading-6 text-gray-300">
+                                Profile Photo <span className="text-red">*</span>
+                            </label>
+                            <p className="mt-1 text-xs text-gray-500">Use a clear JPEG, PNG, or WebP photo. Maximum 5 MB.</p>
+                            <div className="mt-2 flex items-center gap-4">
+                                {form.profilePhotoUrl && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={form.profilePhotoUrl}
+                                        alt="Profile photo preview"
+                                        className="h-16 w-16 rounded-full border border-white/10 object-cover"
+                                    />
+                                )}
+                                <input
+                                    id="profile-photo"
+                                    name="profile-photo"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={handlePhotoUpload}
+                                    disabled={loading || prefillLoading}
+                                    className="block w-full text-sm text-gray-400 file:mr-3 file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-white/20"
+                                />
+                            </div>
+                            {form.profilePhotoUrl && <p className="mt-2 text-xs text-emerald-400">Profile photo uploaded.</p>}
+                        </div>
                         <Field
                             label="Phone"
                             id="phone"
@@ -221,29 +267,6 @@ export default function MemberSignup() {
                             onChange={update("phone")}
                             placeholder="9876543210"
                         />
-                        {!googleSignup && (
-                            <>
-                                <Field
-                                    label="Password"
-                                    id="password"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    value={form.password}
-                                    onChange={update("password")}
-                                    placeholder="At least 8 characters"
-                                />
-                                <Field
-                                    label="Confirm Password"
-                                    id="confirmPassword"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    value={form.confirmPassword}
-                                    onChange={update("confirmPassword")}
-                                    placeholder="Re-enter password"
-                                />
-                            </>
-                        )}
-
                         {error && (
                             <div className="bg-red-500/10 border border-red-500/20 p-4 flex items-center justify-center">
                                 <h3 className="text-sm text-red font-bold">{error}</h3>
@@ -276,7 +299,7 @@ export default function MemberSignup() {
                                 Log in
                             </Link>
                         </p>
-                    </form>
+                    </form>}
                 </div>
             </div>
         </div>
@@ -313,8 +336,6 @@ function Field({
     required?: boolean;
     autoComplete?: string;
 }) {
-    const [showPassword, setShowPassword] = useState(false);
-    const isPassword = type === "password";
     return (
         <div>
             <label htmlFor={id} className="block text-sm font-medium leading-6 text-gray-300">
@@ -324,19 +345,14 @@ function Field({
                 <input
                     id={id}
                     name={id}
-                    type={isPassword && showPassword ? "text" : type}
+                    type={type}
                     required={required}
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
                     autoComplete={autoComplete}
-                    className={`block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all ${
-                        isPassword ? "pr-11" : ""
-                    }`}
+                    className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-red/50 sm:text-sm sm:leading-6 transition-all"
                 />
-                {isPassword && (
-                    <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
-                )}
             </div>
         </div>
     );
