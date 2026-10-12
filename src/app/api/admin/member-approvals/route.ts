@@ -231,7 +231,7 @@ export async function PATCH(request: Request) {
                 domain: account.domain,
                 role: "Member",
                 photo_url: account.profile_photo_url,
-                is_active: false,
+                is_active: true,
             });
             if (seedError) console.error("member-approvals roster seed error", seedError);
         }
