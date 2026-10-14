@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
 import Menu3FillIcon from "remixicon-react/Menu3FillIcon";
@@ -8,6 +9,23 @@ import { useMenuContext } from "@/context/MenuContext";
 
 export default function Header() {
   const { isMenuOpen, setMenuValue } = useMenuContext();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await fetch("/api/admin/me");
+        const data: { success?: boolean } = await response.json();
+        setIsLoggedIn(response.ok && data.success === true);
+      } catch (error) {
+        console.error("Failed to check login status", error);
+        setIsLoggedIn(false);
+      }
+    };
+
+    void checkSession();
+  }, []);
 
   const scrollToBottom = () => {
     window.scrollTo({
@@ -16,7 +34,10 @@ export default function Header() {
     });
   };
 
-  const router = useRouter();
+  const goToAccountPage = () => {
+    router.push(isLoggedIn ? "/dashboard" : "/login");
+  };
+
   return (
     <div>
       {/* Header section */}
@@ -86,9 +107,9 @@ export default function Header() {
           </button>
           <button
             className="px-2 whitespace-nowrap hover:text-red hover:scale-105"
-            onClick={() => router.push("/login")}
+            onClick={goToAccountPage}
           >
-            Login
+            {isLoggedIn ? "Dashboard" : "Login"}
           </button>
           {/* <button
             className="px-3 hover:text-red hover:scale-105"
@@ -181,9 +202,9 @@ export default function Header() {
           </button>
           <button
             className="px-8 hover:text-black hover:scale-105"
-            onClick={() => router.push("/login")}
+            onClick={goToAccountPage}
           >
-            Login
+            {isLoggedIn ? "Dashboard" : "Login"}
           </button>
           <button
             className="px-8 hover:text-black hover:scale-105"
