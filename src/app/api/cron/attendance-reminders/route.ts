@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendMemberPush } from "@/lib/attendance-push";
-import { sendMemberNotificationEmail } from "@/lib/member-notification-email";
+import { sendAttendanceReminderEmail } from "@/lib/member-notification-email";
 
 export const dynamic = "force-dynamic";
 
-const REMINDER_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const INDIA_TIME_ZONE = "Asia/Kolkata";
 
 function authorized(request: Request) {
     const expected = process.env.CRON_SECRET;
@@ -18,7 +18,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const now = Date.now();
+    const now = new Date();
+    const indiaDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: INDIA_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(now);
     const supabase = createSupabaseAdminClient();
     const { data: logs, error: logsError } = await supabase
         .from("attendance_logs")
@@ -37,60 +43,65 @@ export async function POST(request: Request) {
     }
 
     const candidates = Array.from(latestByMember.values()).filter((log) => {
-        const checkedInAt = Date.parse(log.occurred_at);
-        const lastReminderAt = log.last_long_stay_reminder_at ? Date.parse(log.last_long_stay_reminder_at) : null;
-        return log.action === "IN"
-            && checkedInAt <= now - REMINDER_INTERVAL_MS
-            && (!lastReminderAt || lastReminderAt <= now - REMINDER_INTERVAL_MS);
+        const lastReminderDate = log.last_long_stay_reminder_at
+            ? new Intl.DateTimeFormat("en-CA", {
+                timeZone: INDIA_TIME_ZONE,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            }).format(new Date(log.last_long_stay_reminder_at))
+            : null;
+        return log.action === "IN" && lastReminderDate !== indiaDate;
     });
 
-    let reminded = 0;
-    await Promise.all(candidates.map(async (log) => {
+    const claimed = (await Promise.all(candidates.map(async (log) => {
         let claimQuery = supabase
             .from("attendance_logs")
-            .update({ last_long_stay_reminder_at: new Date(now).toISOString() })
+            .update({ last_long_stay_reminder_at: now.toISOString() })
             .eq("id", log.id)
             .eq("action", "IN");
-        claimQuery = log.last_long_stay_reminder_at
-            ? claimQuery.eq("last_long_stay_reminder_at", log.last_long_stay_reminder_at)
-            : claimQuery.is("last_long_stay_reminder_at", null);
+        if (log.last_long_stay_reminder_at) {
+            claimQuery = claimQuery.eq("last_long_stay_reminder_at", log.last_long_stay_reminder_at);
+        } else {
+            claimQuery = claimQuery.is("last_long_stay_reminder_at", null);
+        }
         const { data: claim, error: claimError } = await claimQuery.select("id").maybeSingle();
         if (claimError) {
             console.error("attendance reminders: claim failed", { logId: log.id, claimError });
-            return;
+            return null;
         }
-        if (!claim) return;
+        return claim ? log : null;
+    }))).filter((log): log is (typeof candidates)[number] => Boolean(log));
 
-        const { data: account, error: accountError } = await supabase
-            .from("member_accounts")
-            .select("name, email, google_email")
-            .eq("id", log.member_account_id)
-            .maybeSingle();
+    if (claimed.length === 0) {
+        return NextResponse.json({ success: true, reminded: 0 });
+    }
 
-        if (accountError || !account) {
-            console.error("attendance reminders: account lookup failed", { memberAccountId: log.member_account_id, accountError });
-            return;
-        }
+    const memberIds = claimed.map((log) => log.member_account_id);
+    const { data: accounts, error: accountError } = await supabase
+        .from("member_accounts")
+        .select("id, email, google_email")
+        .in("id", memberIds);
 
-        const message = "You have been checked in for more than four hours. Please tap out when you leave.";
-        await Promise.all([
-            sendMemberPush(log.member_account_id, {
-                title: "Please tap out",
-                body: message,
-                tag: `lab-attendance-reminder-${log.id}-${now}`,
-            }),
-            sendMemberNotificationEmail(
-                [account.email, account.google_email || ""],
-                account.name,
-                "Attendance reminder: please tap out",
-                message
-            ),
-        ]);
+    if (accountError) {
+        console.error("attendance reminders: account lookup failed", accountError);
+        return NextResponse.json({ success: false, error: "Could not load member accounts." }, { status: 500 });
+    }
 
-        reminded++;
-    }));
+    const recipients = (accounts || []).flatMap((account) => [account.email, account.google_email || ""]);
+    await Promise.all(claimed.map((log) => sendMemberPush(log.member_account_id, {
+        title: "Please tap out",
+        body: "Still in the lab? If you forgot to tap out, tap out now so you are not added to the ghost board.",
+        tag: `lab-attendance-reminder-${log.id}-${now.getTime()}`,
+    })));
+    const emailSent = await sendAttendanceReminderEmail(recipients);
 
-    return NextResponse.json({ success: true, reminded });
+    return NextResponse.json({
+        success: true,
+        reminded: claimed.length,
+        pushRecipients: accounts?.length || 0,
+        emailSent,
+    });
 }
 
 export const GET = POST;

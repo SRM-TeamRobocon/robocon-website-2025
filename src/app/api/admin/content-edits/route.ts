@@ -3,6 +3,7 @@ import { getContentResource, normalizePayload } from "@/lib/content-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import { nextGalleryDisplayOrder } from "@/lib/gallery";
+import { recordApproval } from "@/lib/approval-history";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,14 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ success: false, error: "Could not record decision." }, { status: 500 });
         }
 
+        await recordApproval(supabase, {
+            approvalType: "content",
+            subjectId: id,
+            subjectLabel: `${edit.action} ${edit.resource}`,
+            decision: decision === "approve" ? "approved" : "rejected",
+            approvedBy: session.user,
+            approvedByName: session.name,
+        });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("admin content-edits PATCH error", error);

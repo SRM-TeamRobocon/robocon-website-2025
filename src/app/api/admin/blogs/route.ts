@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import { UUID_RE } from "@/lib/blog";
+import { recordApproval } from "@/lib/approval-history";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function PATCH(request: Request) {
 
         const { data: blog, error: fetchError } = await supabase
             .from("blogs")
-            .select("id, status")
+            .select("id, status, title")
             .eq("id", id)
             .maybeSingle();
 
@@ -91,6 +92,16 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ success: false, error: "Could not record decision." }, { status: 500 });
         }
 
+        if (decision === "approve" || decision === "reject") {
+            await recordApproval(supabase, {
+                approvalType: "blog",
+                subjectId: id,
+                subjectLabel: blog.title,
+                decision: decision === "approve" ? "approved" : "rejected",
+                approvedBy: session.user,
+                approvedByName: session.name,
+            });
+        }
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("admin blogs PATCH error", error);

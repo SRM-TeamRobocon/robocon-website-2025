@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import { notifyMemberOfLeaveDecision } from "@/lib/leave-notifications";
+import { recordApproval } from "@/lib/approval-history";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,14 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ success: false, error: "Could not record decision." }, { status: 500 });
         }
 
+        await recordApproval(supabase, {
+            approvalType: "leave",
+            subjectId: id,
+            subjectLabel: `${leaveRequest.owner_name} · ${leaveRequest.start_date} to ${leaveRequest.end_date}`,
+            decision: decision === "approve" ? "approved" : "rejected",
+            approvedBy: session.user,
+            approvedByName: session.name,
+        });
         await notifyMemberOfLeaveDecision(
             leaveRequest.member_account_id,
             {

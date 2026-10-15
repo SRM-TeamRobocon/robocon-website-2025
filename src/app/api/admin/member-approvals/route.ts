@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
 import { getTransporter, SMTP_EMAIL } from "@/lib/mailer";
 import { decryptPassword } from "@/lib/password-enc";
+import { recordApproval } from "@/lib/approval-history";
 
 export const dynamic = "force-dynamic";
 
@@ -92,25 +93,29 @@ export async function GET() {
 
     const supabase = createSupabaseAdminClient();
 
-    const { data: pending, error: pendingError } = await supabase
-        .from("member_accounts")
-        .select("id, name, email, domain, reg_no, department, course, phone, created_at")
-        .eq("email_verified", true)
-        .eq("is_approved", false)
-        .is("approved_at", null)
-        .order("created_at", { ascending: true });
-
-    const { data: approved, error: approvedError } = await supabase
-        .from("member_accounts")
-        .select("id, name, email, domain, role, approved_at")
-        .eq("is_approved", true)
-        .order("approved_at", { ascending: false });
-
-    const { data: unlinkedRaw, error: unlinkedError } = await supabase
-        .from("members")
-        .select("id, name, role, domain")
-        .is("member_account_id", null)
-        .order("name", { ascending: true });
+    const [
+        { data: pending, error: pendingError },
+        { data: approved, error: approvedError },
+        { data: unlinkedRaw, error: unlinkedError },
+    ] = await Promise.all([
+        supabase
+            .from("member_accounts")
+            .select("id, name, email, domain, reg_no, department, course, phone, created_at")
+            .eq("email_verified", true)
+            .eq("is_approved", false)
+            .is("approved_at", null)
+            .order("created_at", { ascending: true }),
+        supabase
+            .from("member_accounts")
+            .select("id, name, email, domain, role, approved_at")
+            .eq("is_approved", true)
+            .order("approved_at", { ascending: false }),
+        supabase
+            .from("members")
+            .select("id, name, role, domain")
+            .is("member_account_id", null)
+            .order("name", { ascending: true }),
+    ]);
 
     const unlinked = unlinkedRaw?.filter((row) => (row.domain || "").toUpperCase() !== "MENTORS");
 
@@ -192,6 +197,14 @@ export async function PATCH(request: Request) {
                 return NextResponse.json({ success: false, error: "Could not approve member." }, { status: 500 });
             }
 
+            await recordApproval(supabase, {
+                approvalType: "member",
+                subjectId: id,
+                subjectLabel: mergeAccount.name,
+                decision: "approved",
+                approvedBy: session.user,
+                approvedByName: session.name,
+            });
             await sendApprovalEmail(request, mergeAccount);
             await supabase.from("member_accounts").update({ password_enc: null }).eq("id", id);
 
@@ -236,6 +249,14 @@ export async function PATCH(request: Request) {
             if (seedError) console.error("member-approvals roster seed error", seedError);
         }
 
+        await recordApproval(supabase, {
+            approvalType: "member",
+            subjectId: id,
+            subjectLabel: account.name,
+            decision: "approved",
+            approvedBy: session.user,
+            approvedByName: session.name,
+        });
         await sendApprovalEmail(request, account);
         await supabase.from("member_accounts").update({ password_enc: null }).eq("id", id);
 

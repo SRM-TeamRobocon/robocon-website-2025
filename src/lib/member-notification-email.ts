@@ -1,4 +1,11 @@
-import { getTransporter, logoAttachment, sendMailWithRetry, SMTP_EMAIL } from "@/lib/mailer";
+import {
+    getRecruitmentBulkMailTransporter,
+    getTransporter,
+    logoAttachment,
+    RECRUIT_BULK_MAIL_FROM,
+    sendMailWithRetry,
+    SMTP_EMAIL,
+} from "@/lib/mailer";
 
 function escapeHtml(value: string) {
     return value
@@ -66,6 +73,42 @@ export async function sendMemberNotificationEmail(
         return true;
     } catch (error) {
         console.error("Member notification email failed", { recipients: uniqueRecipients, error });
+        return false;
+    }
+}
+
+export async function sendAttendanceReminderEmail(recipients: string[]) {
+    const transporter = getRecruitmentBulkMailTransporter();
+    const uniqueRecipients = Array.from(new Set(recipients.map((email) => email.trim().toLowerCase()).filter(Boolean)));
+    if (!transporter || !RECRUIT_BULK_MAIL_FROM || uniqueRecipients.length === 0) {
+        if (!transporter) {
+            console.warn("Attendance reminder email skipped - Google SMTP is not configured.");
+        }
+        return false;
+    }
+
+    const message = {
+        from: `"SRM Team Robocon" <${RECRUIT_BULK_MAIL_FROM}>`,
+        to: RECRUIT_BULK_MAIL_FROM,
+        subject: "Still in the lab? Please tap out",
+        html: memberNotificationHtml(
+            "team member",
+            "Still in the lab?",
+            "Our attendance system still shows you as checked in. If you forgot to tap out, please tap out now so you are not added to the ghost board."
+        ),
+        attachments: [logoAttachment()],
+    };
+
+    try {
+        for (let index = 0; index < uniqueRecipients.length; index += 100) {
+            await sendMailWithRetry(transporter, {
+                ...message,
+                bcc: uniqueRecipients.slice(index, index + 100),
+            });
+        }
+        return true;
+    } catch (error) {
+        console.error("Attendance reminder email failed", { recipientCount: uniqueRecipients.length, error });
         return false;
     }
 }

@@ -161,6 +161,25 @@ create table if not exists member_accounts (
 alter table member_accounts enable row level security;
 -- No public policies: only accessed via the service-role client in API routes.
 
+-- Immutable audit trail for moderation decisions. Keep display fields denormalized so
+-- history remains useful even if an account or content record is later removed.
+create table if not exists approval_history (
+  id bigint generated always as identity primary key,
+  approval_type text not null check (approval_type in ('member', 'content', 'blog', 'leave')),
+  subject_id uuid not null,
+  subject_label text not null,
+  decision text not null check (decision in ('approved', 'rejected')),
+  approved_by text not null,
+  approved_by_name text,
+  approved_at timestamptz not null default now()
+);
+create index if not exists approval_history_approved_at_idx
+  on approval_history (approved_at desc, id desc);
+create index if not exists approval_history_type_idx
+  on approval_history (approval_type, approved_at desc);
+alter table approval_history enable row level security;
+-- No public policies: service-role only, same pattern as member_accounts.
+
 -- Optional "Sign in with Google" linking. google_uid is the stable Google account id
 -- (profile.id from the userinfo endpoint); google_email is stored only for display in
 -- the dashboard "Connected accounts" section and needn't match the srmist.edu.in email.
@@ -368,6 +387,51 @@ create index if not exists leave_requests_member_idx on leave_requests (member_a
 
 alter table leave_requests enable row level security;
 -- No public policies: service-role only, same pattern as content_edits.
+
+-- Preserve decisions that happened before the audit table was introduced.
+insert into approval_history (approval_type, subject_id, subject_label, decision, approved_by, approved_at)
+select 'member', id, name, 'approved', 'legacy:' || email, approved_at
+from member_accounts
+where is_approved = true
+  and approved_at is not null
+  and not exists (
+    select 1 from approval_history h
+    where h.approval_type = 'member' and h.subject_id = member_accounts.id
+  );
+
+insert into approval_history (approval_type, subject_id, subject_label, decision, approved_by, approved_at)
+select 'content', id, action || ' ' || resource, case when status = 'approved' then 'approved' else 'rejected' end,
+       coalesce(reviewed_by, 'legacy'), reviewed_at
+from content_edits
+where status in ('approved', 'rejected')
+  and reviewed_at is not null
+  and not exists (
+    select 1 from approval_history h
+    where h.approval_type = 'content' and h.subject_id = content_edits.id
+  );
+
+insert into approval_history (approval_type, subject_id, subject_label, decision, approved_by, approved_at)
+select 'blog', id, title, case when status = 'approved' then 'approved' else 'rejected' end,
+       coalesce(reviewed_by, 'legacy'), reviewed_at
+from blogs
+where status in ('approved', 'rejected')
+  and reviewed_at is not null
+  and not exists (
+    select 1 from approval_history h
+    where h.approval_type = 'blog' and h.subject_id = blogs.id
+  );
+
+insert into approval_history (approval_type, subject_id, subject_label, decision, approved_by, approved_at)
+select 'leave', id, owner_name || ' · ' || start_date || ' to ' || end_date,
+       case when status = 'approved' then 'approved' else 'rejected' end,
+       coalesce(reviewed_by, 'legacy'), reviewed_at
+from leave_requests
+where status in ('approved', 'rejected')
+  and reviewed_at is not null
+  and not exists (
+    select 1 from approval_history h
+    where h.approval_type = 'leave' and h.subject_id = leave_requests.id
+  );
 
 -- Cache of "what Day Order (DO1-DO5) was/is real calendar date X" — DO1-DO5 in
 -- `timetables.schedule` are otherwise just fixed weekly-template row labels with no

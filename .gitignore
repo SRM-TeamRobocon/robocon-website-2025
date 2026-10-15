@@ -3,6 +3,9 @@ alexa
 .codebase-memory
 bazaar-cline-pack
 docs
+.clinerules
+.scratch
+.scratch
 # dependencies
 /node_modules
 /.pnp

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2, Pencil, CalendarOff } from "lucide-react";
+import { ClipboardCheck, UserCheck, Check, X, Newspaper, EyeOff, Trash2, Pencil, CalendarOff, History, Loader2 } from "lucide-react";
 import { useRequireRole } from "@/hooks/use-require-role";
 import { getContentResource } from "@/lib/content-resources";
 import { Thumb, findImageField } from "@/components/ContentImageFields";
@@ -70,7 +70,7 @@ function MembersTab() {
     const load = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/admin/member-approvals");
+            const res = await fetch("/api/admin/member-approvals", { cache: "no-store" });
             const data = await res.json();
             if (data.success) {
                 setPending(data.pending);
@@ -703,9 +703,105 @@ function BlogsTab() {
     );
 }
 
+interface ApprovalHistoryRow {
+    id: number;
+    approval_type: "member" | "content" | "blog" | "leave";
+    subject_label: string;
+    decision: "approved" | "rejected";
+    approved_by: string;
+    approved_by_name: string | null;
+    approved_at: string;
+}
+
+function ApprovalHistoryTab() {
+    const [rows, setRows] = useState<ApprovalHistoryRow[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [nextBefore, setNextBefore] = useState<string | null>(null);
+
+    const load = useCallback(async (before?: string) => {
+        const isNextPage = Boolean(before);
+        if (isNextPage) setLoadingMore(true);
+        try {
+            const query = new URLSearchParams({ limit: "50" });
+            if (before) query.set("before", before);
+            const res = await fetch(`/api/admin/approval-history?${query.toString()}`, { cache: "no-store" });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || "Could not load history");
+            setRows((current) => (isNextPage ? [...current, ...data.history] : data.history));
+            setNextBefore(data.nextBefore);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Could not load approval history");
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        load();
+    }, [load]);
+
+    if (loading) return <div className="p-8 text-center text-gray-500 text-sm">Loading history...</div>;
+
+    return (
+        <div className="border border-white/10 bg-black">
+            {rows.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">No approval decisions recorded yet.</div>
+            ) : (
+                <>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-white/10 text-left text-xs font-bold uppercase tracking-widest text-gray-500">
+                                    <th className="px-5 py-3">Decision</th>
+                                    <th className="px-5 py-3">Item</th>
+                                    <th className="px-5 py-3">Approved by</th>
+                                    <th className="px-5 py-3">When</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((row) => (
+                                    <tr key={row.id} className="border-b border-white/5 last:border-0">
+                                        <td className="px-5 py-3">
+                                            <span className={row.decision === "approved" ? "text-emerald-400" : "text-red-400"}>
+                                                {row.decision}
+                                            </span>
+                                            <span className="ml-2 text-xs uppercase text-gray-600">{row.approval_type}</span>
+                                        </td>
+                                        <td className="px-5 py-3 text-white">{row.subject_label}</td>
+                                        <td className="px-5 py-3 text-gray-300">
+                                            {row.approved_by_name ? `${row.approved_by_name} (${row.approved_by})` : row.approved_by}
+                                        </td>
+                                        <td className="whitespace-nowrap px-5 py-3 text-gray-500">
+                                            {new Date(row.approved_at).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {nextBefore && (
+                        <div className="border-t border-white/10 p-4 text-center">
+                            <button
+                                onClick={() => load(nextBefore)}
+                                disabled={loadingMore}
+                                className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                            >
+                                {loadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                Load older decisions
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
 export default function ApprovalsPage() {
     const ready = useRequireRole(["lead", "admin"]);
-    const [tab, setTab] = useState<"members" | "content" | "blogs" | "leave">("members");
+    const [tab, setTab] = useState<"members" | "content" | "blogs" | "leave" | "history">("members");
 
     if (!ready) return null;
 
@@ -754,6 +850,14 @@ export default function ApprovalsPage() {
                 >
                     <CalendarOff className="w-4 h-4" /> Leave
                 </button>
+                <button
+                    onClick={() => setTab("history")}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold transition ${
+                        tab === "history" ? "bg-red/15 text-white ring-1 ring-inset ring-red/40" : "text-gray-400 hover:bg-white/5"
+                    }`}
+                >
+                    <History className="w-4 h-4" /> History
+                </button>
             </div>
 
             {tab === "members" ? (
@@ -762,8 +866,10 @@ export default function ApprovalsPage() {
                 <ContentTab />
             ) : tab === "blogs" ? (
                 <BlogsTab />
-            ) : (
+            ) : tab === "leave" ? (
                 <LeaveTab />
+            ) : (
+                <ApprovalHistoryTab />
             )}
         </div>
     );
