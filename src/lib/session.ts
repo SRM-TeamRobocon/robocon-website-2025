@@ -54,6 +54,8 @@ export function requireRole(session: Session | null, roles: SessionRole[]): sess
 }
 
 export const ADMIN_COOKIE_NAME = "admin_token";
+export const SESSION_TTL = "30d";
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 
 export interface SessionClaims {
     user: string;

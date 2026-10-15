@@ -397,6 +397,7 @@ export type Database = {
           note: string | null;
           occurred_at: string;
           created_at: string;
+          last_long_stay_reminder_at: string | null;
         };
         Insert: {
           id?: string;
@@ -407,6 +408,7 @@ export type Database = {
           note?: string | null;
           occurred_at?: string;
           created_at?: string;
+          last_long_stay_reminder_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["attendance_logs"]["Insert"]>;
         Relationships: [];

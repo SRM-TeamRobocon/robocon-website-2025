@@ -3,25 +3,11 @@ import webpush from "web-push";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const CHECK_IN_MESSAGES = [
-    "Welcome Dawg",
-    "Lesgooo",
-    "Ur In Cutie",
-    "Locked In Bb",
-    "Welcome Back",
-    "Ayyy Ur In",
-    "In The Building",
-    "Slay Ur In",
+    "Welcome to come. Have a productive day!",
 ];
 
 const CHECK_OUT_MESSAGES = [
-    "Fuck Off Dude",
-    "Byeee Bestie",
-    "Ghosted Lol",
-    "Cya Nerd",
-    "Dipped Out",
-    "Later Gator",
-    "Peace Out",
-    "Get Home Safe",
+    "Thank you. See you tomorrow!",
 ];
 
 function pushConfig() {
@@ -35,11 +21,14 @@ export function getAttendancePushPublicKey() {
     return pushConfig()?.publicKey ?? null;
 }
 
-export async function sendAttendancePush(memberAccountId: string, action: "IN" | "OUT") {
+export async function sendMemberPush(
+    memberAccountId: string,
+    payload: { title: string; body: string; tag: string; url?: string }
+) {
     const config = pushConfig();
     if (!config) {
         console.warn("Attendance push skipped: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, or VAPID_SUBJECT is missing.");
-        return;
+        return 0;
     }
 
     const supabase = createSupabaseAdminClient();
@@ -50,29 +39,28 @@ export async function sendAttendancePush(memberAccountId: string, action: "IN" |
 
     if (error) {
         console.error("Attendance push: subscription lookup failed", error);
-        return;
+        return 0;
     }
-    if (!subscriptions?.length) return;
+    if (!subscriptions?.length) return 0;
 
     webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
 
-    const messages = action === "IN" ? CHECK_IN_MESSAGES : CHECK_OUT_MESSAGES;
-    const payload = JSON.stringify({
-        title: action === "IN" ? "Lab check-in" : "Lab check-out",
-        body: messages[randomInt(messages.length)],
+    const notification = JSON.stringify({
+        ...payload,
         icon: "/icons/icon-192.png",
         badge: "/icons/icon-monochrome-192.png",
-        tag: `lab-attendance-${action.toLowerCase()}-${Date.now()}`,
-        url: "/dashboard/attendance",
+        url: payload.url || "/dashboard/attendance",
     });
 
+    let delivered = 0;
     await Promise.all(subscriptions.map(async (row) => {
         try {
             await webpush.sendNotification({
                 endpoint: row.endpoint,
                 expirationTime: row.expiration_time,
                 keys: { p256dh: row.p256dh, auth: row.auth },
-            }, payload, { TTL: 60 });
+            }, notification, { TTL: 60 });
+            delivered++;
         } catch (sendError) {
             const statusCode = typeof sendError === "object" && sendError !== null && "statusCode" in sendError
                 ? Number(sendError.statusCode)
@@ -89,4 +77,14 @@ export async function sendAttendancePush(memberAccountId: string, action: "IN" |
             console.error("Attendance push delivery failed", { statusCode });
         }
     }));
+    return delivered;
+}
+
+export async function sendAttendancePush(memberAccountId: string, action: "IN" | "OUT") {
+    const messages = action === "IN" ? CHECK_IN_MESSAGES : CHECK_OUT_MESSAGES;
+    return sendMemberPush(memberAccountId, {
+        title: action === "IN" ? "Lab check-in" : "Lab check-out",
+        body: messages[randomInt(messages.length)],
+        tag: `lab-attendance-${action.toLowerCase()}-${Date.now()}`,
+    });
 }

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { OAuth2Client } from "google-auth-library";
 import { timingSafeEqual } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { adminCookieOptions, signSession } from "@/lib/session";
+import { adminCookieOptions, SESSION_MAX_AGE, SESSION_TTL, signSession } from "@/lib/session";
 import {
     MEMBER_GOOGLE_PENDING_COOKIE,
     MEMBER_OAUTH_NONCE_COOKIE,
@@ -130,9 +130,6 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         const accountRole = (account.role as "lead" | "admin" | "member") || "member";
-        const expiresIn = accountRole === "member" ? "30d" : "12h";
-        const maxAge = accountRole === "member" ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
-
         const token = await signSession(
             {
                 user: account.email,
@@ -142,11 +139,11 @@ export async function GET(request: NextRequest) {
                 memberAccountId: account.id,
                 rosterId: roster?.id ?? null,
             },
-            expiresIn
+            SESSION_TTL
         );
 
         const response = NextResponse.redirect(`${origin}/dashboard`);
-        response.cookies.set({ ...adminCookieOptions(maxAge), value: token });
+        response.cookies.set({ ...adminCookieOptions(SESSION_MAX_AGE), value: token });
         clearOAuthNonceCookie(response, signupFlow);
         return response;
     } catch (error) {

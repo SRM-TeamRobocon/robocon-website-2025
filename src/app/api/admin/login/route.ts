@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { adminCookieOptions, signSession } from "@/lib/session";
+import { adminCookieOptions, SESSION_MAX_AGE, SESSION_TTL, signSession } from "@/lib/session";
 import { MEMBER_GOOGLE_PENDING_COOKIE, verifyPendingGoogleProfile } from "@/lib/member-oauth";
 
 export const dynamic = "force-dynamic";
@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
         }
 
         if (userRole !== null) {
-            const token = await signSession({ user: username, role: userRole }, "12h");
+            const token = await signSession({ user: username, role: userRole }, SESSION_TTL);
 
             const response = NextResponse.json({ success: true }, { status: 200 });
-            response.cookies.set({ ...adminCookieOptions(60 * 60 * 12), value: token });
+            response.cookies.set({ ...adminCookieOptions(SESSION_MAX_AGE), value: token });
 
             return response;
         }
@@ -66,9 +66,6 @@ export async function POST(request: NextRequest) {
                     .maybeSingle();
 
                 const accountRole = (account.role as "lead" | "admin" | "member") || "member";
-                const expiresIn = accountRole === "member" ? "30d" : "12h";
-                const maxAge = accountRole === "member" ? 60 * 60 * 24 * 30 : 60 * 60 * 12;
-
                 const token = await signSession(
                     {
                         user: account.email,
@@ -78,7 +75,7 @@ export async function POST(request: NextRequest) {
                         memberAccountId: account.id,
                         rosterId: roster?.id ?? null,
                     },
-                    expiresIn
+                    SESSION_TTL
                 );
 
                 // If they arrived here via "Sign in with Google" not matching any account,
@@ -108,7 +105,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 const response = NextResponse.json({ success: true, linkedGoogleEmail }, { status: 200 });
-                response.cookies.set({ ...adminCookieOptions(maxAge), value: token });
+                response.cookies.set({ ...adminCookieOptions(SESSION_MAX_AGE), value: token });
                 if (pendingToken) {
                     response.cookies.set({ name: MEMBER_GOOGLE_PENDING_COOKIE, value: "", path: "/", maxAge: 0 });
                 }

@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { Bell, Download, Share, X } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
-// Once per browser session, same pattern as GoogleConnectReminder - dismissing
-// shouldn't permanently hide it, but it also shouldn't nag on every navigation.
+// Installation can be dismissed for the browser session. Notification setup is
+// intentionally not persisted here: every member should be asked until it succeeds.
 const DISMISS_KEY = "dashboard_install_dismissed";
-const NOTIFICATIONS_DISMISSED_KEY = "member_notifications_prompt_dismissed_v2";
 
 function decodeVapidKey(value: string) {
     const padding = "=".repeat((4 - (value.length % 4)) % 4);
@@ -54,7 +53,7 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
         let cancelled = false;
         const checkSubscription = async () => {
             if (Notification.permission === "default") {
-                if (window.sessionStorage.getItem(NOTIFICATIONS_DISMISSED_KEY) !== "1" && !cancelled) {
+                if (!cancelled) {
                     setShowNotificationOption(true);
                 }
                 return;
@@ -131,7 +130,6 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
     const showInstallOption = !installed && !dismissed && (canInstall || showIos);
 
     const dismissNotifications = () => {
-        window.sessionStorage.setItem(NOTIFICATIONS_DISMISSED_KEY, "1");
         setShowNotificationOption(false);
     };
 
@@ -181,7 +179,6 @@ export default function InstallPrompt({ showNotifications = false }: { showNotif
             if (!saveResponse.ok || !saved.success) throw new Error(saved.error || "Could not save this device for notifications.");
 
             setShowNotificationOption(false);
-            window.sessionStorage.removeItem(NOTIFICATIONS_DISMISSED_KEY);
         } catch (error) {
             setNotificationError(error instanceof Error ? error.message : "Could not enable notifications.");
         } finally {

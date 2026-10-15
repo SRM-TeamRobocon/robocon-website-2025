@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
+import { notifyMemberOfLeaveDecision } from "@/lib/leave-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function PATCH(request: Request) {
 
         const { data: leaveRequest, error: fetchError } = await supabase
             .from("leave_requests")
-            .select("id, status")
+            .select("id, status, member_account_id, owner_name, start_date, end_date, reason")
             .eq("id", id)
             .maybeSingle();
 
@@ -75,6 +76,19 @@ export async function PATCH(request: Request) {
             console.error("leave-requests review update error", updateError);
             return NextResponse.json({ success: false, error: "Could not record decision." }, { status: 500 });
         }
+
+        await notifyMemberOfLeaveDecision(
+            leaveRequest.member_account_id,
+            {
+                id: leaveRequest.id,
+                ownerName: leaveRequest.owner_name,
+                startDate: leaveRequest.start_date,
+                endDate: leaveRequest.end_date,
+                reason: leaveRequest.reason,
+                reviewNote: reviewNote || null,
+            },
+            decision === "approve" ? "approved" : "rejected"
+        );
 
         return NextResponse.json({ success: true });
     } catch (error) {

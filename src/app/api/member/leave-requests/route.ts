@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
+import { notifyAdminsOfLeaveRequest } from "@/lib/leave-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
         }
 
         const supabase = createSupabaseAdminClient();
-        const { error: insertError } = await supabase.from("leave_requests").insert({
+        const { data: insertedRequest, error: insertError } = await supabase.from("leave_requests").insert({
             member_account_id: session.memberAccountId,
             owner_name: session.name || session.user,
             domain: session.domain || null,
@@ -74,12 +75,20 @@ export async function POST(request: Request) {
             start_time: startTime,
             end_time: endTime,
             reason,
-        });
+        }).select("id").single();
 
-        if (insertError) {
+        if (insertError || !insertedRequest) {
             console.error("leave-requests submit error", insertError);
             return NextResponse.json({ success: false, error: "Could not submit leave request." }, { status: 500 });
         }
+
+        await notifyAdminsOfLeaveRequest({
+            id: insertedRequest.id,
+            ownerName: session.name || session.user,
+            startDate,
+            endDate,
+            reason,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {
