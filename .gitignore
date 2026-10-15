@@ -2,6 +2,7 @@
 alexa
 .codebase-memory
 bazaar-cline-pack
+docs
 # dependencies
 /node_modules
 /.pnp

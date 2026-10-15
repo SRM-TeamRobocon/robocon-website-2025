@@ -22,8 +22,10 @@ import {
     Radio,
     CalendarOff,
     Download,
+    Boxes,
 } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { BAZAAR_NAME } from "@/lib/bazaar/config";
 
 export type NavRole = "lead" | "admin" | "member";
 
@@ -40,6 +42,7 @@ const ALL_ROLES: NavRole[] = ["lead", "admin", "member"];
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true, roles: ALL_ROLES },
+    { label: BAZAAR_NAME, href: "/dashboard/bazaar", icon: Boxes, roles: ALL_ROLES },
     { label: "Attendance", href: "/dashboard/attendance", icon: Radio, roles: ALL_ROLES },
     { label: "Timetable", href: "/dashboard/timetable", icon: CalendarClock, roles: ALL_ROLES },
     { label: "Website Content", href: "/dashboard/content", icon: Globe2, roles: STAFF_ROLES },
