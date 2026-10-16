@@ -32,5 +32,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data: data ?? [], configured: true });
+  return NextResponse.json(
+    { data: data ?? [], configured: true },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    }
+  );
 }

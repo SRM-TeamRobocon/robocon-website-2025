@@ -32,6 +32,7 @@ export async function embedTexts(
             input_type: inputType,
             output_dimension: VOYAGE_OUTPUT_DIMENSION,
         }),
+        signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
     if (!res.ok) {

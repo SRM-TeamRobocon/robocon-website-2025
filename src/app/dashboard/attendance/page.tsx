@@ -124,6 +124,22 @@ export default function AttendanceBoardPage() {
     const [correctionTime, setCorrectionTime] = useState("");
     const [selfCorrectionType, setSelfCorrectionType] = useState<"checked_in_at" | "checked_out_at" | null>(null);
 
+    // Render instantly from client cache if available (<5ms initial load)
+    useEffect(() => {
+        try {
+            const cached = localStorage.getItem('str_attendance_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed?.events?.length) {
+                    setEvents(parsed.events);
+                    eventsRef.current = parsed.events;
+                    if (parsed.overnight) setOvernightIds(new Set(parsed.overnight));
+                    setLoading(false);
+                }
+            }
+        } catch {}
+    }, []);
+
     const fetchEvents = useCallback(async () => {
         try {
             const res = await fetch("/api/attendance");
@@ -132,6 +148,9 @@ export default function AttendanceBoardPage() {
             setEvents(data.events);
             eventsRef.current = data.events;
             setOvernightIds(new Set<string>(data.overnight || []));
+            try {
+                localStorage.setItem('str_attendance_cache', JSON.stringify({ events: data.events, overnight: data.overnight }));
+            } catch {}
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load attendance");

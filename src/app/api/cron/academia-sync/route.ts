@@ -48,6 +48,7 @@ async function fetchDayOrderSchedule(): Promise<DayOrderRow[]> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
     });
 
     if (!loginRes.ok) {
@@ -64,6 +65,7 @@ async function fetchDayOrderSchedule(): Promise<DayOrderRow[]> {
     const calendarRes = await fetch(`${ACADEMIA_API_URL}/api/calendar`, {
         headers: { "x-access-token": token },
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
     });
 
     if (!calendarRes.ok) {

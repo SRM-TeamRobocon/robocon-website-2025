@@ -15,12 +15,16 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "pending";
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const offset = (page - 1) * limit;
 
     const supabase = createSupabaseAdminClient();
     let query = supabase
         .from("content_edits")
         .select("*, member_accounts(name, email)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
 
     if (status !== "all") {
         query = query.eq("status", status);

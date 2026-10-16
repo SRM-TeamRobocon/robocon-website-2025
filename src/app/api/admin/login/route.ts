@@ -23,8 +23,10 @@ export async function POST(request: NextRequest) {
             }
         } catch (e) {
             console.error("Failed to parse account dictionary from .env", e);
-            // Fallback for immediate testing
-            if (username === "admin" && password === "admin") userRole = "admin";
+            // Fallback strictly for local development testing only
+            if (process.env.NODE_ENV !== "production" && username === "admin" && password === "admin") {
+                userRole = "admin";
+            }
         }
 
         if (userRole !== null) {

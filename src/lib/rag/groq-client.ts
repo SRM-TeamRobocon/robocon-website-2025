@@ -96,6 +96,7 @@ export async function groqChatCompletion(systemPrompt: string, userMessage: stri
                         ],
                         max_tokens: 1024,
                     }),
+                    signal: AbortSignal.timeout(20000), // 20s timeout per attempt
                 });
             } catch (err) {
                 // Network-level failure - retryable, same as a 5xx.

@@ -29,11 +29,13 @@ export async function GET() {
         .eq("status", "active")
         .gt("expires_at", new Date().toISOString());
 
-    // Supabase/PostgREST caps each response page, so fetch ordered chunks to support
-    // the board's all-time month selector without silently dropping older history.
+    // Supabase/PostgREST caps each response page, so fetch ordered chunks.
+    // Cap at 5000 logs (5 pages) to keep response fast and bounded while covering months of history.
     const logs: Array<{ member_account_id: string; action: string; occurred_at: string; source: string | null }> = [];
     const PAGE_SIZE = 1000;
-    for (let from = 0; ; from += PAGE_SIZE) {
+    const MAX_PAGES = 5;
+    for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
+        const from = pageIndex * PAGE_SIZE;
         const { data, error } = await supabase
             .from("attendance_logs")
             .select("member_account_id, action, occurred_at, source")
