@@ -16,17 +16,22 @@ interface PublicBlogDetail {
 }
 
 async function getPublicBlog(slug: string): Promise<PublicBlogDetail | null> {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-        .from("blogs")
-        .select("title, cover_image_url, content, author_name, published_at")
-        .eq("slug", slug)
-        .eq("status", "approved")
-        .eq("visibility", "public")
-        .maybeSingle();
+    try {
+        const supabase = createSupabaseAdminClient();
+        const { data, error } = await supabase
+            .from("blogs")
+            .select("title, cover_image_url, content, author_name, published_at")
+            .eq("slug", slug)
+            .eq("status", "approved")
+            .eq("visibility", "public")
+            .maybeSingle();
 
-    if (error || !data) return null;
-    return data as unknown as PublicBlogDetail;
+        if (error || !data) return null;
+        return data as unknown as PublicBlogDetail;
+    } catch (err) {
+        console.warn(`getPublicBlog: Supabase admin client unavailable or query failed for "${slug}":`, err);
+        return null;
+    }
 }
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ slug: string }> }) {

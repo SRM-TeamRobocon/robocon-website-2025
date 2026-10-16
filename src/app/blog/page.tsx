@@ -16,16 +16,21 @@ interface PublicBlogRow {
 }
 
 async function getPublicBlogs(): Promise<PublicBlogRow[]> {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-        .from("blogs")
-        .select("title, slug, cover_image_url, content, author_name, published_at")
-        .eq("status", "approved")
-        .eq("visibility", "public")
-        .order("published_at", { ascending: false });
+    try {
+        const supabase = createSupabaseAdminClient();
+        const { data, error } = await supabase
+            .from("blogs")
+            .select("title, slug, cover_image_url, content, author_name, published_at")
+            .eq("status", "approved")
+            .eq("visibility", "public")
+            .order("published_at", { ascending: false });
 
-    if (error || !data) return [];
-    return data as unknown as PublicBlogRow[];
+        if (error || !data) return [];
+        return data as unknown as PublicBlogRow[];
+    } catch (err) {
+        console.warn("getPublicBlogs: Supabase admin client unavailable or query failed during render:", err);
+        return [];
+    }
 }
 
 export default async function BlogListPage() {
