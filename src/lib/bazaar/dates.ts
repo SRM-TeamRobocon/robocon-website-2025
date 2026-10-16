@@ -14,7 +14,7 @@ export function todayIST(): string {
 }
 
 export function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return "—";
+  if (!dateString) return " - ";
   try {
     const [year, month, day] = dateString.split("T")[0].split("-").map(Number);
     if (!year || !month || !day) return dateString;
@@ -31,7 +31,7 @@ export function formatDate(dateString: string | null | undefined): string {
 }
 
 export function formatDateTime(isoString: string | null | undefined): string {
-  if (!isoString) return "—";
+  if (!isoString) return " - ";
   try {
     const d = new Date(isoString);
     return d.toLocaleString("en-IN", {

@@ -206,10 +206,10 @@ export default function LeaveRequestPage() {
                                         <td className="px-5 py-3 text-white">
                                             {row.start_date === row.end_date
                                                 ? new Date(row.start_date).toLocaleDateString()
-                                                : `${new Date(row.start_date).toLocaleDateString()} – ${new Date(row.end_date).toLocaleDateString()}`}
+                                                : `${new Date(row.start_date).toLocaleDateString()} - ${new Date(row.end_date).toLocaleDateString()}`}
                                         </td>
                                         <td className="px-5 py-3 text-gray-300">
-                                            {row.start_time && row.end_time ? `${row.start_time}–${row.end_time}` : "Full day"}
+                                            {row.start_time && row.end_time ? `${row.start_time}-${row.end_time}` : "Full day"}
                                         </td>
                                         <td className="px-5 py-3 text-gray-300 max-w-xs truncate" title={row.reason}>
                                             {row.reason}

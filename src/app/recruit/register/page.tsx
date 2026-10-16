@@ -570,7 +570,7 @@ function RecruitRegisterInner() {
 
                     <div>
                         <label className="block text-sm font-medium leading-6 text-black/70 mb-2">
-                            Domains <span className="text-black/40">(choose 1–2)</span>
+                            Domains <span className="text-black/40">(choose 1-2)</span>
                         </label>
                         <div className="space-y-3">
                             {DOMAIN_GROUPS.map((group) => (

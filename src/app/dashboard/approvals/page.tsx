@@ -424,8 +424,8 @@ function formatLeaveWindow(row: LeaveRequestRow): string {
     const dateRange =
         row.start_date === row.end_date
             ? new Date(row.start_date).toLocaleDateString()
-            : `${new Date(row.start_date).toLocaleDateString()} – ${new Date(row.end_date).toLocaleDateString()}`;
-    const timeRange = row.start_time && row.end_time ? `, ${row.start_time}–${row.end_time}` : " (full day)";
+            : `${new Date(row.start_date).toLocaleDateString()} - ${new Date(row.end_date).toLocaleDateString()}`;
+    const timeRange = row.start_time && row.end_time ? `, ${row.start_time}-${row.end_time}` : " (full day)";
     return `${dateRange}${timeRange}`;
 }
 

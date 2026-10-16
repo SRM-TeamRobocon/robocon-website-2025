@@ -288,7 +288,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
                 <div className="space-y-4">
                     <div className="border border-emerald-500/30 bg-emerald-500/10 p-4">
                         <p className="mb-3 text-sm font-bold text-emerald-300">
-                            Free the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyFree.length})
+                            Free the whole time ({day} · {formatMinutes(startMin)}-{formatMinutes(endMin)}) ({fullyFree.length})
                         </p>
                         {fullyFree.length === 0 ? (
                             <span className="text-xs text-gray-500">Nobody&apos;s free for the whole window - see the slot-by-slot breakdown below.</span>
@@ -317,7 +317,7 @@ export default function WhoIsFreePanel({ onClose }: { onClose: () => void }) {
 
                     <div className="border border-white/10 bg-white/[0.03] p-4">
                         <p className="mb-3 text-sm font-bold text-gray-200">
-                            In Class/Lab the whole time ({day} · {formatMinutes(startMin)}–{formatMinutes(endMin)}) ({fullyBusy.length})
+                            In Class/Lab the whole time ({day} · {formatMinutes(startMin)}-{formatMinutes(endMin)}) ({fullyBusy.length})
                         </p>
                         {fullyBusy.length === 0 ? (
                             <span className="text-xs text-gray-500">Nobody&apos;s in Class/Lab for the whole window.</span>

@@ -138,7 +138,7 @@ const ATTENDANCE_ACTION: QuickAction = {
 
 const BAZAAR_ACTION: QuickAction = {
     href: "/dashboard/bazaar",
-    title: "Siesed Bazaar",
+    title: "SIESED Bazaar",
     description: "Borrow lab components, view available inventory, and track component returns.",
     icon: Package,
     badge: "Inventory",

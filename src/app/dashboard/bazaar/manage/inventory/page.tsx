@@ -276,7 +276,7 @@ export default function BazaarManageInventoryPage() {
 
                     {/* Category */}
                     <td className="px-3 py-3 text-gray-400">
-                      {item.category?.name || "—"}
+                      {item.category?.name || " - "}
                     </td>
 
                     {/* Location */}
@@ -287,7 +287,7 @@ export default function BazaarManageInventoryPage() {
                           {item.location}
                         </span>
                       ) : (
-                        "—"
+                        " - "
                       )}
                     </td>
 

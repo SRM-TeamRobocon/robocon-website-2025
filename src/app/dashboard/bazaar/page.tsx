@@ -75,65 +75,53 @@ function BrowseContent() {
         onOpenTakeComponent={() => setIsTakeModalOpen(true)}
       />
 
-      {/* Fast Component Checkout Banner */}
-      <div className="p-4 bg-gradient-to-r from-red/20 via-black to-neutral-900 border border-red/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold tracking-widest text-red">
-            Lab Fast Checkout
-          </span>
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            Taking a component or need something not listed yet?
-          </h3>
-          <p className="text-xs text-gray-400">
-            Log what you took or need immediately so leads can track it, even before it&apos;s cataloged.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsTakeModalOpen(true)}
-          className="bg-red hover:bg-red/80 text-white font-bold px-4 py-2 text-xs uppercase tracking-wider transition-colors inline-flex items-center gap-2 shrink-0 self-start sm:self-auto shadow-lg shadow-red/20"
-        >
-          <ClipboardList className="w-4 h-4" /> Log / Take Component
-        </button>
-      </div>
-
-      {/* Filter Toolbar */}
-      <div className="bg-black border border-white/10 p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+      {/* Quick Action Bar & Filter */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
           {/* Search Bar */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-500 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
             <input
               type="text"
-              placeholder="Search components by name, specs..."
+              placeholder="Search components, sensors, microcontrollers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-neutral-900 border border-white/10 pl-9 pr-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-red focus:outline-none"
+              className="w-full bg-neutral-900 border border-white/10 pl-9 pr-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-red focus:outline-none transition-colors"
             />
           </div>
 
-          {/* In-Stock Toggle */}
-          <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer select-none border border-white/10 px-3 py-2 bg-neutral-900 hover:border-white/20 transition-colors">
-            <input
-              type="checkbox"
-              checked={inStockOnly}
-              onChange={(e) => setInStockOnly(e.target.checked)}
-              className="accent-red"
-            />
-            <span className="font-semibold uppercase tracking-wider text-[11px]">
-              In Stock Only
-            </span>
-          </label>
+          <div className="flex items-center gap-2">
+            {/* In-Stock Toggle */}
+            <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer select-none border border-white/10 px-3.5 py-2.5 bg-neutral-900 hover:border-white/20 transition-colors">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={(e) => setInStockOnly(e.target.checked)}
+                className="accent-red"
+              />
+              <span className="font-semibold text-[11px] uppercase tracking-wider">
+                In Stock Only
+              </span>
+            </label>
+
+            <button
+              onClick={() => setIsTakeModalOpen(true)}
+              className="bg-red hover:bg-red/80 text-white font-bold px-3.5 py-2.5 text-xs uppercase tracking-wider transition-colors inline-flex items-center gap-1.5 shrink-0"
+            >
+              <ClipboardList className="w-4 h-4" /> Quick Take
+            </button>
+          </div>
         </div>
 
-        {/* Category Chips */}
+        {/* Category Pills */}
         {categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/5">
+          <div className="flex flex-wrap gap-1.5 pt-1">
             <button
               onClick={() => setSelectedCategory("")}
-              className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border transition-colors ${
+              className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider border transition-colors ${
                 selectedCategory === ""
                   ? "bg-red text-white border-red"
-                  : "bg-neutral-900 border-white/10 text-gray-400 hover:text-white"
+                  : "bg-neutral-950 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
               }`}
             >
               All
@@ -142,10 +130,10 @@ function BrowseContent() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(selectedCategory === cat.id ? "" : cat.id)}
-                className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border transition-colors ${
+                className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider border transition-colors ${
                   selectedCategory === cat.id
                     ? "bg-red text-white border-red"
-                    : "bg-neutral-900 border-white/10 text-gray-400 hover:text-white"
+                    : "bg-neutral-950 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
                 }`}
               >
                 {cat.name}
@@ -190,17 +178,17 @@ function BrowseContent() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {items.map((item) => {
             const inStock = item.available_quantity > 0;
             return (
               <div
                 key={item.id}
-                className="bg-black border border-white/10 flex flex-col justify-between hover:border-white/30 transition-colors group"
+                className="bg-neutral-950 border border-white/10 flex flex-col justify-between hover:border-white/30 transition-all group"
               >
                 {/* Photo & Badge */}
                 <div>
-                  <div className="h-44 bg-neutral-900 relative overflow-hidden border-b border-white/10 flex items-center justify-center">
+                  <div className="h-40 bg-neutral-900 relative overflow-hidden border-b border-white/10 flex items-center justify-center">
                     {item.image_url ? (
                       <Image
                         src={item.image_url}
@@ -210,21 +198,21 @@ function BrowseContent() {
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       />
                     ) : (
-                      <div className="flex flex-col items-center gap-1 text-gray-600">
-                        <Package className="w-8 h-8" />
-                        <span className="text-[10px] font-mono uppercase">No photo</span>
+                      <div className="flex flex-col items-center gap-1.5 text-gray-600">
+                        <Package className="w-8 h-8 opacity-40" />
+                        <span className="text-[10px] font-mono uppercase tracking-wider">No photo</span>
                       </div>
                     )}
 
-                    {/* Stock pill */}
-                    <div className="absolute top-2 right-2">
+                    {/* Stock status indicator */}
+                    <div className="absolute top-2.5 right-2.5">
                       {inStock ? (
                         <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">
                           {item.available_quantity} available
                         </span>
                       ) : (
                         <span className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">
-                          0 in stock
+                          Out of stock
                         </span>
                       )}
                     </div>
@@ -233,11 +221,11 @@ function BrowseContent() {
                   {/* Info */}
                   <div className="p-4 space-y-2">
                     {item.category?.name && (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-red">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-red block">
                         {item.category.name}
                       </span>
                     )}
-                    <h3 className="text-sm font-bold text-white line-clamp-2 leading-snug">
+                    <h3 className="text-sm font-bold text-white line-clamp-1 leading-snug">
                       {item.name}
                     </h3>
 
@@ -249,7 +237,7 @@ function BrowseContent() {
 
                     {item.location && (
                       <div className="flex items-center gap-1.5 text-[11px] text-gray-500 pt-1">
-                        <MapPin className="w-3 h-3 text-gray-400" />
+                        <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">{item.location}</span>
                       </div>
                     )}
@@ -266,7 +254,7 @@ function BrowseContent() {
                         : "border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/20"
                     }`}
                   >
-                    {inStock ? "Request Item" : "Request Anyway (0 in stock)"}
+                    {inStock ? "Request Component" : "Request Anyway (0 left)"}
                   </button>
                 </div>
               </div>

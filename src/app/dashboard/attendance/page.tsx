@@ -774,7 +774,7 @@ export default function AttendanceBoardPage() {
                                         >
                                             <td className="py-2.5 font-semibold text-white">{m.name}</td>
                                             <td className="py-2.5 font-mono text-gray-300">
-                                                {latestSessions.get(m.memberAccountId) ? formatDuration(latestSessions.get(m.memberAccountId)!.durationMs) : "—"}
+                                                {latestSessions.get(m.memberAccountId) ? formatDuration(latestSessions.get(m.memberAccountId)!.durationMs) : " - "}
                                             </td>
                                             <td className="py-2.5 text-gray-400">{m.domain}</td>
                                             <td className="py-2.5">

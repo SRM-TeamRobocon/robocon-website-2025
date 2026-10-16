@@ -1,4 +1,4 @@
-export const BAZAAR_NAME = "Siesed Bazaar";
+export const BAZAAR_NAME = "SIESED Bazaar";
 
 export function getBazaarConfig() {
   const leadEmailsEnv = process.env.BAZAAR_LEAD_EMAILS || "";
