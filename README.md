@@ -36,15 +36,57 @@ npm run test:email
 
 `npm run lint` currently calls `next lint`, which is not compatible with this installed Next.js version.
 
+## Direct Postgres Connection (`db.js`)
+
+[`db.js`](./db.js) exports a `postgres` (npm) connection for use in scripts and server-side admin utilities.
+It reads `DATABASE_URL` from the environment.
+
+Connection parameters:
+```
+host:     db.fcdaqslblhrjzioeuloe.supabase.co
+port:     5432
+database: postgres
+user:     postgres
+```
+
+Add to `.env.local`:
+```
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.fcdaqslblhrjzioeuloe.supabase.co:5432/postgres
+```
+
+> If the password contains special characters, percent-encode them in the connection string.
+
+## Scheduled Cron Jobs
+
+All crons are in [`vercel.json`](./vercel.json). **Vercel crons run in UTC** — IST = UTC + 5:30.
+
+| Path | UTC Schedule | IST Time | Purpose |
+|---|---|---|---|
+| `/api/attendance/auto-checkout` | `30 18 * * *` | 00:00 IST | Force-close open lab sessions at midnight |
+| `/api/cron/attendance-reminders` | `30 16 * * *` | **22:00 IST (10pm)** | Email + push members still checked IN to tap out |
+| `/api/cron/academia-sync` | `0 1 * * *` | 06:30 IST | Sync day-order from SRMIST Academia portal |
+| `/api/cron/bazaar-reminders` | `0 4 * * *` | 09:30 IST | Remind borrowers of overdue Bazaar loans |
+
+All cron routes require `Authorization: Bearer $CRON_SECRET`. Vercel automatically attaches this when `CRON_SECRET` is set.
+
+**Troubleshooting the 10pm attendance reminder emails** (`/api/cron/attendance-reminders`):
+- Emails are sent via Gmail SMTP (`getRecruitmentBulkMailTransporter()`), not Brevo.
+- If emails are not arriving: verify `SMTP_PASSWORD_GOOGLE` (Gmail App Password) **and** `SMTP_EMAIL` are set in Vercel env vars. If either is missing, the cron fires but emails are silently skipped — there is no error visible in the cron log.
+- Also verify `CRON_SECRET` matches across `vercel.json` and Vercel env vars.
+
 ## Environment Variables
 
 Use `.env.example` as the source of truth. Do not commit `.env.local`.
 
-Supabase backend:
+Supabase (REST API — used by app code via supabase-js):
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+Supabase (direct Postgres — used by `db.js` and scripts):
+
+- `DATABASE_URL` — full connection string: `postgresql://postgres:[PASSWORD]@db.fcdaqslblhrjzioeuloe.supabase.co:5432/postgres`
 
 Workshop/event registration (Google Sheets):
 
@@ -65,13 +107,14 @@ Attendance phone push:
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` — generate a matching key pair with `npx web-push generate-vapid-keys`, then set these in local and deployment environments. Keep the private key server-only. `VAPID_SUBJECT` should be a `mailto:` address or an HTTPS contact URL.
 - Apply `supabase/attendance-push-subscriptions.sql` once in the Supabase SQL editor for an existing database. The table has RLS enabled and is only accessible to the server's service role; the same table is included in `supabase/schema.sql` for new databases.
 - iPhone users need to add STR Hub to their Home Screen before Safari can enable web push.
+- **Troubleshooting notifications**: verify `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` are all set in Vercel env vars. All three must be present or push is silently disabled. The browser must also grant notification permission, and iPhone users must add the site to the Home Screen first.
 
 Email:
 
 - `SMTP_EMAIL`
 - `SMTP_PASSWORD`
 - `ORGANIZER_EMAIL`
-- `SMTP_PASSWORD_GOOGLE` — Gmail App Password for the recruitment "Send Mail" bulk-BCC feature (`src/lib/mailer.ts`'s `getRecruitmentBulkMailTransporter()`); pairs with `SMTP_EMAIL` as the Gmail account, kept separate from the Brevo SMTP config above.
+- `SMTP_PASSWORD_GOOGLE` — Gmail App Password for the **10pm IST attendance reminder BCC emails** and the recruitment "Send Mail" bulk-BCC feature (`src/lib/mailer.ts`'s `getRecruitmentBulkMailTransporter()`); pairs with `SMTP_EMAIL` as the Gmail account, kept separate from the Brevo SMTP config above.
 
 Existing admin auth:
 
