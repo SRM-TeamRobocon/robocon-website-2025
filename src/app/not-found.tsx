@@ -10,7 +10,7 @@ export default function NotFound() {
             </div>
 
             <div className="relative z-10 w-full max-w-3xl flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
-                <Image
+                {/* <Image
                     src="/404/404.png"
                     alt=""
                     width={433}
@@ -18,7 +18,7 @@ export default function NotFound() {
                     unoptimized
                     priority
                     className="w-40 sm:w-56 h-auto object-contain select-none order-2 sm:order-1"
-                />
+                /> */}
 
                 <div className="text-center sm:text-left order-1 sm:order-2">
                     <h1 className="text-7xl sm:text-8xl font-bold tracking-tight text-white leading-none">
