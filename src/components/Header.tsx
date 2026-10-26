@@ -15,7 +15,7 @@ export default function Header() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch("/api/admin/me");
+        const response = await fetch("/api/admin/me", { cache: "no-store" });
         const data: { success?: boolean } = await response.json();
         setIsLoggedIn(response.ok && data.success === true);
       } catch (error) {
