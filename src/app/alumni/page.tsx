@@ -1,7 +1,12 @@
+import { publicPageMetadata } from "@/lib/seo";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AlumniCard from "@/components/AlumniCard";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+
+export const metadata = publicPageMetadata("/alumni");
+
 
 interface Alumni {
   Name: string;

@@ -9,12 +9,26 @@ import ConditionalParticles from "@/components/ConditionalParticles";
 import PublicAOS from "@/components/PublicAOS";
 import { Analytics } from "@vercel/analytics/react";
 import { cn } from "@/lib/utils";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "srmteamrobocon",
-  description: "Robotics Reimagined",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  // Public pages explicitly opt in; account and operational routes stay out of search.
+  robots: { index: false, follow: false },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_IN",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [SOCIAL_IMAGE],
+  },
+  twitter: { card: "summary_large_image", title: SITE_NAME, description: SITE_DESCRIPTION, images: [SOCIAL_IMAGE] },
 };
 
 export default function RootLayout({

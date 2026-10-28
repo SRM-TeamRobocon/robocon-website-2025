@@ -1,7 +1,12 @@
+import { publicPageMetadata } from "@/lib/seo";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import TeamClient, { type TeamData } from "./TeamClient";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+
+export const metadata = publicPageMetadata("/team");
+
 
 const PLACEHOLDER_PHOTO = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
 

@@ -1,8 +1,13 @@
+import { publicPageMetadata } from "@/lib/seo";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import GalleryClient from "./GalleryClient";
 import type { Album } from "./AlbumCard";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+
+export const metadata = publicPageMetadata("/gallery");
+
 
 async function getAlbums(): Promise<Album[]> {
   const supabase = createPublicSupabaseClient();

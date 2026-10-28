@@ -1,6 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import CountUpUnit from "@/components/CountUpUnit";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,55 +9,55 @@ import {
 } from "@/constants/constants";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import JoselinSection from "@/components/JoselinSection";
 import RecruitmentSection from "@/components/RecruitmentSection";
-import GlassCard from "@/components/recruit/GlassCard";
-import { useRouter } from "next/navigation";
+import { publicPageMetadata, serializeJsonLd, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+
+
+export const metadata = publicPageMetadata("/");
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: `${SITE_URL}/LOGO.png`,
+      description: SITE_DESCRIPTION,
+      foundingDate: "2011",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "SRM Team Robocon Lab, Aarush Building, SRMIST Main Campus",
+        addressLocality: "Kattankulathur",
+        addressRegion: "Tamil Nadu",
+        postalCode: "603203",
+        addressCountry: "IN",
+      },
+      sameAs: [
+        "https://www.facebook.com/roboconindia/",
+        "https://in.linkedin.com/company/srmteamrobocon/",
+        "https://www.instagram.com/srmteamrobocon/",
+        "https://www.youtube.com/channel/UCDPES1-ulIEMp-mEpOsdaoA/",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: SITE_NAME,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      inLanguage: "en-IN",
+    },
+  ],
+};
 
 export default function Home() {
-  const router = useRouter();
-  const [showJoinPopup, setShowJoinPopup] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setShowJoinPopup(true), 500);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   return (
     <div className="overflow-x-hidden">
-      {/* {showJoinPopup && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/55 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-md [clip-path:polygon(10%_0%,100%_0%,90%_100%,0%_100%)]">
-            <GlassCard
-              borderRadius={4}
-              className="w-full border border-white/30 shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
-              contentClassName="relative px-12 py-12 text-white"
-            >
-              <button
-                type="button"
-                aria-label="Close join popup"
-                onClick={() => setShowJoinPopup(false)}
-                className="absolute right-5 top-4 z-10 h-9 w-9 border border-white/35 bg-black/40 text-2xl leading-none text-white transition-colors hover:bg-black/60"
-              >
-                ×
-              </button>
-              <p className="text-center text-3xl font-extrabold tracking-wide">
-                DARE TO JOIN US?
-              </p>
-              <div className="mt-8 flex justify-center">
-                <Link
-                  href="/recruit/register"
-                  onClick={() => setShowJoinPopup(false)}
-                  className="border border-white/35 bg-red px-7 py-3 text-lg font-bold uppercase tracking-wider text-white transition-transform duration-150 hover:-translate-y-0.5 hover:bg-red/90"
-                >
-                  Join Us
-                </Link>
-              </div>
-            </GlassCard>
-          </div>
-          </div>
-      )} */}
-      <Header />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} />
+      <Header animate />
+      <main id="main-content">
       {/* First section */}
       <section className="w-full md:h-full overflow-x-hidden">
         {/* Hero srction */}
@@ -68,43 +65,32 @@ export default function Home() {
           <div>
             <div
               className="bg-white p-10 border-blue-500 w-[1000px] md:w-[600px] hero-clip md:pr-32 mt-10 flex-shrink-0 flex justify-center"
-              // data-aos="slide-left"
+              data-aos="slide-right"
             >
               <Image
                 src={"/LOGO.png"}
-                alt="logo"
+                alt="SRM Team Robocon logo"
                 width={400}
                 height={400}
                 className="w-72 md:w-96"
-                unoptimized
+                priority
+                sizes="(min-width: 768px) 384px, 288px"
               ></Image>
             </div>
           </div>
             <div
               className="flex flex-col gap-5 mx-10"
-              // data-aos="slide-right"
-              // data-aos-delay="400"
-              // data-aos-anchor-placement="top-bottom"
+              data-aos="fade-right"
+              data-aos-delay="400"
+              data-aos-anchor-placement="top-bottom"
             >
-            {/* <button onClick={() => router.push("/recruit/register")} rel="noopener noreferrer"
-              className="group recruit-cta-electric relative mt-8 inline-flex appearance-none items-center justify-center overflow-hidden px-10 py-3 font-bold text-white shadow-lg shadow-red/30 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
-              style={{
-                clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)",
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-            <span className="recruit-cta-electric-edge" aria-hidden="true" />
-            <span className="recruit-cta-electric-fill" aria-hidden="true" />
-            <span
-              className="absolute inset-[2px] -translate-x-full transition-transform duration-200 ease-out group-hover:translate-x-0"
-              style={{clipPath: "polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%)",backgroundColor: "#D4AF37", }}/>
-                <span className="relative transition-colors duration-200 group-hover:text-black">Click here to Register for Recruitment 2026
-            </span>
-            </button> */}
-            <div className="text-5xl text-red font-bold">Robotics</div>
-            <div className="pl-10 text-5xl font-bold text-white">Reimagined</div>
+            <h1 className="flex flex-col gap-5 text-5xl font-bold">
+              <span className="sr-only">SRM Team Robocon: </span>
+              <span className="text-red">Robotics</span>
+              <span className="pl-10 text-white">Reimagined</span>
+            </h1>
             <div className="text-xl md:pr-20 pt-5 border-t-2 border-red text-white">
-              We are the official team of SRM participating in{" "}
+              We are the official robotics team of SRMIST, Kattankulathur, participating in{" "}
               <Link
                 href="https://aburobocon2024.vtv.gov.vn/"
                 className="hover:text-red hover:cursor-pointer underline underline-offset-4 whitespace-nowrap"
@@ -118,10 +104,10 @@ export default function Home() {
         <div className="md:flex justify-center mt-14 hidden">
           <Image
             src={"/downArrow.svg"}
-            alt="Down Arrow"
+            alt=""
             width={50}
             height={50}
-            className="animate-bounce"
+            className="animate-bounce motion-reduce:animate-none"
           ></Image>
         </div>
       </section>
@@ -174,7 +160,7 @@ export default function Home() {
             <div
               className="md:w-[500px] px-5 md:px-10 w-full text-white"
             >
-              <div className="text-3xl mb-5 font-bold">Our Mission</div>
+              <h2 className="text-3xl mb-5 font-bold">Our Mission</h2>
               <p className="text-xl w-full">
                 Reimagine the knowledge from robotics into producing a solution
                 for the growing society, for a better tomorrow.
@@ -185,7 +171,7 @@ export default function Home() {
             <div
               className="md:w-[500px] px-5 md:px-10 w-full"
             >
-              <div className="text-3xl mb-5 font-bold text-white">Our Vision</div>
+              <h2 className="text-3xl mb-5 font-bold text-white">Our Vision</h2>
               <div className="text-xl w-full text-white">
                 Emerge as a renowned robotics systems lab centred at SRMIST,
                 INDIA by inculcating a collaborative work culture.
@@ -209,12 +195,13 @@ export default function Home() {
         <WorkshopReg />
       </section> */}
       <section className="w-full h-full">
-        <div className="text-3xl md:text-4xl pl-10 md:pl-44 mt-44 text-white">
+        <h2 className="text-3xl md:text-4xl pl-10 md:pl-44 mt-44 text-white">
           Our Sponsors
-        </div>
+        </h2>
         <SponsorCarousel />
       </section>
 
+      </main>
       {/* Footer */}
       <Footer />
     </div>

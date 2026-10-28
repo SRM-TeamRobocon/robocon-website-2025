@@ -1,8 +1,13 @@
+import { publicPageMetadata } from "@/lib/seo";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BlogCard from "@/components/blog/BlogCard";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getBlogExcerpt, type BlogBlock } from "@/lib/blog";
+
+export const metadata = publicPageMetadata("/blog");
+
 
 export const revalidate = 60;
 

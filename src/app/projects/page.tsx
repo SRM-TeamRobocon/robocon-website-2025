@@ -1,8 +1,13 @@
+import { publicPageMetadata } from "@/lib/seo";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ContentGrid, { type ContentCardItem } from "@/components/ContentGrid";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { Project } from "@/constants/types";
+
+export const metadata = publicPageMetadata("/projects");
+
 
 // Set to `false` to make this page fully static (only updates on redeploy).
 // Set to a number of seconds (e.g. 60) to auto-refresh after that many seconds - Next.js requires

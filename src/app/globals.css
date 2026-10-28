@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* AOS must never hide content when JavaScript is unavailable or has not initialized. */
+[data-aos]:not(.aos-init) {
+  opacity: 1 !important;
+  transform: none !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-aos] {
+    opacity: 1 !important;
+    transform: none !important;
+    visibility: visible !important;
+    transition: none !important;
+    pointer-events: auto !important;
+  }
+}
+
 .nav-bar-clip {
   clip-path: polygon(0 0, 100% 0, 100% 100%, 12% 100%);
 }

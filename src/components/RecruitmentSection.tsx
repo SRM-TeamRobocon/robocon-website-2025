@@ -68,11 +68,11 @@ const RecruitmentSection = () => {
                     <div className="mb-6 inline-block max-w-full bg-red px-4 py-1.5 text-xs font-bold tracking-[0.24em] text-white md:text-sm md:tracking-[0.3em]">
                         RECRUITMENT
                     </div>
-                    <h1 className="text-black text-5xl font-bold leading-[1.02] tracking-tight md:text-7xl">
+                    <h2 className="text-black text-5xl font-bold leading-[1.02] tracking-tight md:text-7xl">
                         DARE TO
                         <br />
                         JOIN US?
-                    </h1>
+                    </h2>
                     <p className="mt-4 text-xl font-bold tracking-tight text-red md:text-2xl">
                         RANKED. RESPECTED. RELENTLESS.
                     </p>
