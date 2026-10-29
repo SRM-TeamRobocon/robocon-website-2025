@@ -92,7 +92,7 @@ export default function Home() {
             <div className="text-xl md:pr-20 pt-5 border-t-2 border-red text-white">
               We are the official robotics team of SRMIST, Kattankulathur, participating in{" "}
               <Link
-                href="https://aburobocon2024.vtv.gov.vn/"
+                href="https://aburobocon2027.id"
                 className="hover:text-red hover:cursor-pointer underline underline-offset-4 whitespace-nowrap"
               >
                 ABU Robocon
