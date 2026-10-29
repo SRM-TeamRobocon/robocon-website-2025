@@ -15,6 +15,30 @@ export interface ContentCardItem {
   badges?: string[];
 }
 
+function ContentImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-white/5 px-6 text-center text-sm text-white/60">
+        Sorry, couldn’t load this image.
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      unoptimized
+      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+      className="object-cover transition duration-300 group-hover:scale-105"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export default function ContentGrid({
   items,
   searchPlaceholder,
@@ -62,14 +86,7 @@ export default function ContentGrid({
               className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] text-left transition hover:border-red/40 hover:bg-white/[0.06]"
             >
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
-                <Image
-                  src={item.coverImage}
-                  alt={item.name}
-                  fill
-                  unoptimized
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover transition duration-300 group-hover:scale-105"
-                />
+                <ContentImage src={item.coverImage} alt={item.name} />
               </div>
               <div className="p-4">
                 <h3 className="line-clamp-1 font-bold text-white">{item.name}</h3>

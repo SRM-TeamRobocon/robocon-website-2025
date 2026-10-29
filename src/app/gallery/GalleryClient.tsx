@@ -458,15 +458,22 @@ function FadeImage({
   className?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   return (
     <>
-      <div
-        className={cn(
-          "absolute inset-0 bg-white/5 transition-opacity duration-300",
-          loaded ? "opacity-0" : "opacity-100 animate-pulse"
-        )}
-      />
+      {failed ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/5 px-6 text-center text-sm text-white/60">
+          Sorry, couldn’t load this image.
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "absolute inset-0 bg-white/5 transition-opacity duration-300",
+            loaded ? "opacity-0" : "opacity-100 animate-pulse"
+          )}
+        />
+      )}
       <Image
         src={src}
         alt={alt}
@@ -474,6 +481,7 @@ function FadeImage({
         sizes={sizes}
         priority={priority}
         onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
         className={cn(className, "transition-opacity duration-500", loaded ? "opacity-100" : "opacity-0")}
       />
     </>
