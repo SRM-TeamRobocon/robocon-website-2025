@@ -194,7 +194,7 @@ export default function HalloweenPhotoBooth() {
   return <section id="halloween-booth" className="haunt-booth" aria-labelledby="booth-title">
     <div className="haunt-booth-heading"><h2 id="booth-title">Halloween photo booth</h2></div>
     <div className="haunt-machine">
-      <div className="haunt-machine-top"><span><Aperture size={20} /> Robocon after dark</span><span className="haunt-status"><i />{stage === "decorate" ? "In the darkroom" : stream ? "Camera online" : "Booth available"}</span></div>
+      {/* <div className="haunt-machine-top"><span><Aperture size={20} /> </span><span className="haunt-status"><i />{stage === "decorate" ? "absolute baddie" : stream ? "Camera online" : "Pose Diva"}</span></div> */}
       {stage === "capture" ? <>
         <div className="haunt-camera-stage">
           <div className="haunt-curtain" aria-hidden="true" /><div className="haunt-curtain haunt-curtain-right" aria-hidden="true" />

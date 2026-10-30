@@ -81,7 +81,7 @@ const RecruitmentSection = () => {
                         tiebreak. Ranked 5th of 110+ teams nationally in 2026.
                     </p>
 
-                    <button
+                    {/* <button
                         // onClick={() => router.push("/recruit/register")}
                         rel="noopener noreferrer"
                         className="group relative mt-8 inline-flex items-center justify-center overflow-hidden bg-red px-10 py-3 font-bold text-white shadow-lg shadow-red/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red/40 active:translate-y-0 active:scale-[0.97]"
@@ -97,7 +97,7 @@ const RecruitmentSection = () => {
                         <span className="relative transition-colors duration-200 group-hover:text-black">
                             Registerations will open soon. Stay tuned for updates.
                         </span>
-                    </button>
+                    </button> */}
                 </div>
 
                 {/* Tagline */}
@@ -161,17 +161,17 @@ const RecruitmentSection = () => {
                 {/* Join WhatsApp / follow Instagram - same card used on the recruit
                     dashboard (src/components/recruit/SocialSection.tsx), reused here
                     so visitors who haven't registered yet can still find these. */}
-                <div className="w-full max-w-xl">
+                {/* <div className="w-full max-w-xl">
                     <SocialSection />
-                </div>
+                </div> */}
 
                 {/* Ask a Doubt - inline chatbot, sharp red/white/black to match the
                     rest of this section rather than the dashboard's dark glass theme.
                     Public endpoint (/api/recruit/public-chat): works for visitors who
                     haven't registered yet. */}
-                <div className="w-full max-w-xl">
+                {/* <div className="w-full max-w-xl">
                     <InlineChatWidget />
-                </div>
+                </div> */}
             </div>
         </section>
     );
