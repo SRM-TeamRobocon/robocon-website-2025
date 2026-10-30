@@ -2,9 +2,7 @@
 alexa
 .codebase-memory
 bazaar-cline-pack
-docs
 .clinerules
-.scratch
 .scratch
 # dependencies
 /node_modules
@@ -40,6 +38,8 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 .env*
+!.env.example
+!*.env.example
 
 # local workspace and generated agent files
 .vscode/
@@ -65,6 +65,22 @@ alexa/secrets.py
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local test reports, exports, editor and OS temporary files
+/test-results/
+/playwright-report/
+/blob-report/
+/exports/
+/tmp/
+*.tmp
+*.tmp.*
+*.swp
+*.swo
+*~
+Thumbs.db
+Desktop.ini
+pnpm-debug.log*
+.eslintcache
 
 # claude code
 CLAUDE.md

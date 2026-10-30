@@ -1,3 +1,5 @@
+> Historical proposal, not implemented functionality. Do not execute its rollout as part of routine maintenance.
+
 # Centralized Digital Storage — Implementation Plan
 
 Status: **planning only — nothing in this doc is built yet.** This is a spec for a new dashboard module that gives leads/admins/members a single place to store, organize, and retrieve team documents, photographs, letters, and other files, backed by Google Drive.
@@ -20,7 +22,7 @@ Two viable backends exist in this codebase already. Worth deciding explicitly be
 
 | | Google Drive | Supabase Storage |
 |---|---|---|
-| Already used here for | Sheets (attendance/registration) via a service account (`GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY`, [googleSheets.ts](src/utils/googleSheets.ts)) | Member photos, gallery, event posters, project covers ([admin.ts](src/lib/supabase/admin.ts)) |
+| Already used here for | Sheets (attendance/registration) via a service account (`GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_PRIVATE_KEY`, [googleSheets.ts](../../src/utils/googleSheets.ts)) | Member photos, gallery, event posters, project covers ([admin.ts](../../src/lib/supabase/admin.ts)) |
 | Familiar to non-technical members? | Yes — most people already think in "Drive folders" | No — just an API-backed bucket |
 | Quota gotcha | **Service accounts have 0 bytes of personal Drive storage.** Files must land in a **Shared Drive** (Google Workspace) that the service account is added to as a member — otherwise every upload fails with a storage-quota error. Need to confirm SRM's `srmist.edu.in` Workspace has a Shared Drive available (or create one) and add the existing service account to it. | No quota gotcha — billed against the Supabase project's storage plan |
 | Upload size limits | Drive resumable upload sessions bypass server body-size limits entirely (see §5) | Also supports large files, but still round-trips through our own API route unless using signed upload URLs |
@@ -31,11 +33,11 @@ The rest of this doc assumes **Google Drive via Shared Drive** as the chosen bac
 
 ## 3. Access model
 
-Reuses the existing single-JWT/three-role system (`admin_token` cookie, `lead | admin | member` — see [session.ts](src/lib/session.ts)). No new auth mechanism.
+Reuses the existing single-JWT/three-role system (`admin_token` cookie, `lead | admin | member` — see [session.ts](../../src/lib/session.ts)). No new auth mechanism.
 
 - `admin` / `lead`: full access to all folders by default (create, rename, move, delete, manage permissions).
 - `member`: read/write scoped per-folder via a permissions table (§4) — e.g. a "Domain Docs" folder visible to everyone, an "Interview Panel" folder visible to leads only, a personal "My Uploads" folder per member.
-- Route protection: `/dashboard/storage/*` falls under the existing `/dashboard/*` middleware gate in [proxy.ts](src/proxy.ts) (login required); fine-grained folder permission checks happen inside the route handlers, same pattern as `/api/member/*` routes checking ownership today.
+- Route protection: `/dashboard/storage/*` falls under the existing `/dashboard/*` middleware gate in [proxy.ts](../../src/proxy.ts) (login required); fine-grained folder permission checks happen inside the route handlers, same pattern as `/api/member/*` routes checking ownership today.
 
 ## 4. Data model (Supabase — metadata only, bytes live in Drive)
 
@@ -79,7 +81,7 @@ Admins/leads implicitly bypass `storage_permissions` (same as they bypass per-re
 
 ## 5. Upload flow (why not a normal file-upload API route)
 
-Vercel serverless functions cap request bodies at ~4.5MB ([vercel.json](vercel.json) is already in this repo, confirming Vercel hosting) — fine for the Sheets/CMS payloads today, not fine for PDFs/photos/videos here. So uploads should **not** proxy raw bytes through our own API:
+Vercel serverless functions cap request bodies at ~4.5MB ([vercel.json](../../vercel.json) is already in this repo, confirming Vercel hosting) — fine for the Sheets/CMS payloads today, not fine for PDFs/photos/videos here. So uploads should **not** proxy raw bytes through our own API:
 
 1. Client asks `POST /api/dashboard/storage/upload-session` for a target folder + filename + mime type.
 2. Server (holding the service-account credentials) opens a **Drive resumable upload session** (`uploadType=resumable`) and returns the session URL to the client. A pending `storage_files` row is *not* created yet — nothing to clean up if the client abandons the upload.
@@ -106,7 +108,7 @@ All under `/api/dashboard/storage/*`, session-gated by existing middleware, role
 
 ## 7. UI (`/dashboard/storage`)
 
-- Folder tree sidebar + breadcrumb, matching the visual language of the existing [AdminSidebar.tsx](src/components/admin/AdminSidebar.tsx) dashboard shell.
+- Folder tree sidebar + breadcrumb, matching the visual language of the existing [AdminSidebar.tsx](../../src/components/admin/AdminSidebar.tsx) dashboard shell.
 - Toolbar: new folder, upload (drag-and-drop → §5 flow with a progress bar), search box.
 - File list/grid with type icons; click opens a preview modal (`<img>`/`<iframe>` pointed at the authenticated `/files/:id/content` route for images/PDFs; other types show a "download to view" state).
 - Context menu per row: rename, move, download, delete, tag — visibility of each action driven by the same read/write check the API enforces (don't just hide the button, since the API is the real gate).
@@ -142,4 +144,4 @@ Reuses the existing Google service account (extend its OAuth scope to include Dr
 
 1. **Shared Drive availability** (§2) — blocks Phase 1 upload if unresolved; Supabase Storage is the fallback backend if Drive isn't available.
 2. Any file type/size restrictions needed (e.g. block executables, cap per-file size)?
-3. Should member-uploaded files require lead/admin approval before becoming visible to others (same "propose → approve" pattern as [content_edits](src/app/api/admin/content-edits/route.ts) and blogs), or is direct upload fine for this use case?
+3. Should member-uploaded files require lead/admin approval before becoming visible to others (same "propose → approve" pattern as [content_edits](../../src/app/api/admin/content-edits/route.ts) and blogs), or is direct upload fine for this use case?

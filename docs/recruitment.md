@@ -1,3 +1,5 @@
+> Preserved feature reference: includes dated implementation history and superseded sections. Verify against current source; use AGENTS.md for UI rules and docs/authentication.md for current session guidance.
+
 # Recruitment Module - Consolidated Reference
 
 This is the consolidated spec/reference for the SRM Team Robocon recruitment module - the junior-recruitment pipeline (registration → orientation → exam → shortlisting → walk-in interviews → training → onboarding) layered on top of the existing robocon website. It merges what were formerly seven separate numbered docs (`01-OVERVIEW.md` through `07-INTERVIEW-MODULE.md`) plus the session-handoff notes (`summary.md`) into one file. Those seven docs were reconciled with the actual code on 2026-08-09, so the content below reflects what is actually built, not the original intent. The final section preserves the handoff notes' history, gaps, and pending work.
@@ -587,8 +589,8 @@ the copy row collides with the original on the old key. Keep that ordering if yo
 
 `year` mirrors `recruit_accounts.year`: a checked text column of `'1'`/`'2'` (tightened from
 `('1','2','3')` by migration 016), not an enum, so a third year is a CHECK change rather than
-an `ALTER TYPE`. The canonical list lives in [recruit-year.ts](src/lib/recruit-year.ts), the
-year counterpart to [gender.ts](src/lib/gender.ts) - both the cutoffs page and the compute
+an `ALTER TYPE`. The canonical list lives in [recruit-year.ts](../src/lib/recruit-year.ts), the
+year counterpart to [gender.ts](../src/lib/gender.ts) - both the cutoffs page and the compute
 engine derive their grids from those two arrays rather than hardcoding four combinations.
 
 ### Table: `recruit_shortlist_status`
