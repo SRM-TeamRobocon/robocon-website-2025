@@ -1,0 +1,6 @@
+.env*
+.playwright-mcp/
+.claude/
+.agents/
+.codebase-memory/
+.vscode/

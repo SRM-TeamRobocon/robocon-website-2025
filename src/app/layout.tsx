@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Aldrich, Geist } from "next/font/google";
-const aldrich = Aldrich({ weight: "400", subsets: ["latin"] });
+const aldrich = Aldrich({ weight: "400", subsets: ["latin"], variable: "--font-robocon" });
 import "aos/dist/aos.css";
 import Script from "next/script";
 import MenuContextProvider from "@/context/MenuContextProvider";
@@ -38,7 +38,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={cn("!scroll-smooth bg-black", "font-sans", geist.variable)}>
-      <body className={aldrich.className}>
+      <body className={`${aldrich.className} ${aldrich.variable}`}>
         {/* Vercel already 307s the bare apex to www at the edge, but that only fires on a
             real top-level navigation. A tab that's been client-side-routing (Next.js Link/
             router.push) since before that redirect ran, or one restored from bfcache, keeps

@@ -426,3 +426,8 @@
     font-family: var(--font-sans), sans-serif;
   }
 }
+
+.halloween-home {
+  background-image: radial-gradient(ellipse at 78% 0%, rgba(84, 26, 105, 0.28), transparent 36%),
+    radial-gradient(ellipse at 8% 38%, rgba(91, 30, 20, 0.14), transparent 25%);
+}
