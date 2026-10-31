@@ -14,6 +14,7 @@ editing. Current source is authoritative; archived plans are not implementation 
 | Safe changes | [Workflow](development-workflow.md), [agent guide](agent-guide.md) |
 | Operations | [Deployment](deployment.md), [troubleshooting](troubleshooting.md) |
 | Recruitment | [Detailed reference](recruitment.md); verify dated sections against source |
+| Academia | [Member dashboard integration](academia.md) |
 | RFID hardware | [Attendance README](../attendance/README.md) |
 | Bazaar | [Feature notes](bazaar/README.md) |
 | Halloween | [Design](halloween-design.md), [product scope](halloween-product.md) |
