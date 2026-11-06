@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
 import Menu3FillIcon from "remixicon-react/Menu3FillIcon";
 import { useMenuContext } from "@/context/MenuContext";
 
-const links = [
+const baseLinks = [
   ["/", "Home"],
   ["/team", "Team"],
   ["/projects", "Projects"],
@@ -15,11 +16,20 @@ const links = [
   ["/events", "Events"],
   ["/blog", "Blog"],
   ["/alumni", "Alumni"],
-  ["/login", "Login"],
 ];
 
 export default function Header({ animate = false }: { animate?: boolean }) {
   const { isMenuOpen, setMenuValue } = useMenuContext();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((response) => response.json())
+      .then((data) => setIsLoggedIn(data.success === true))
+      .catch(() => setIsLoggedIn(false));
+  }, []);
+
+  const links = [...baseLinks, [isLoggedIn ? "/dashboard" : "/login", isLoggedIn ? "Dashboard" : "Login"]];
 
   return (
     <header>
