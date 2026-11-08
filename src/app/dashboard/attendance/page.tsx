@@ -500,7 +500,8 @@ export default function AttendanceBoardPage() {
             }
 
             const { maxStreak } = computeTopStreak(periodDates);
-            const isStreakActive = isPeriodCurrent ? liveActive && currentStreak > 0 : false;
+            // Highest streak is only marked active if the current live streak is their highest streak
+            const isStreakActive = isPeriodCurrent && liveActive && currentStreak > 0 && currentStreak >= maxStreak;
             const sortedPeriodDates = Array.from(periodDates).sort();
             const lastVisitedDate = sortedPeriodDates.length > 0 ? sortedPeriodDates[sortedPeriodDates.length - 1] : null;
 
