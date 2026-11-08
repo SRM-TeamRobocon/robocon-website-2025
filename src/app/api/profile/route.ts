@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { CONTENT_RESOURCES, normalizePayload } from "@/lib/content-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
+import { validateMemberProfileLinks } from "@/lib/member-profile-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,10 @@ export async function PATCH(request: Request) {
 
         const body = await request.json();
         const payload = normalizePayload(CONTENT_RESOURCES.members, body.payload || {});
+        const socialLinkError = validateMemberProfileLinks(payload);
+        if (socialLinkError) {
+            return NextResponse.json({ success: false, error: socialLinkError }, { status: 400 });
+        }
         delete payload.is_active;
         delete payload.display_order;
 

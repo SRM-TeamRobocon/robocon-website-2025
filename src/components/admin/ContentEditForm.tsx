@@ -154,11 +154,13 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                         />
                     ) : (
                         <input
-                            type="text"
+                            type={field.type}
                             required={field.required}
+                            pattern={field.pattern}
                             value={values[field.name] ?? ""}
                             onChange={(e) => setField(field.name, e.target.value)}
-                            placeholder={field.type === "url" ? "https://..." : undefined}
+                            placeholder={field.placeholder ?? (field.type === "url" ? "https://..." : undefined)}
+                            title={field.type === "url" ? `Enter a valid ${field.label.toLowerCase()}.` : undefined}
                             className="block w-full border-0 bg-white/5 py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-blue-500 text-sm transition-all"
                         />
                     )}
