@@ -10,22 +10,11 @@ import {
     SingleImageField,
     MultiImageField,
 } from "@/components/ContentImageFields";
-import OtherSocialsField from "@/components/admin/OtherSocialsField";
 
 type Row = Record<string, any>;
 
 function valueForInput(field: ContentField, row: Row) {
     const value = row[field.name];
-    if (field.type === "other_socials") {
-        if (Array.isArray(value)) return value;
-        if (typeof value === "string" && value.trim()) {
-            try {
-                const parsed = JSON.parse(value);
-                if (Array.isArray(parsed)) return parsed;
-            } catch {}
-        }
-        return [];
-    }
     if (IMAGE_ARRAY_FIELDS.has(field.name)) return Array.isArray(value) ? value : [];
     if (field.type === "tags") return Array.isArray(value) ? value.join(", ") : value ?? "";
     if (field.type === "datetime" && typeof value === "string") return value.slice(0, 16);
@@ -115,11 +104,6 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
                             onChange={(next) => setField(field.name, next)}
                             onUploadFiles={(files) => uploadMultiple(field, files)}
                             uploading={uploadingField === field.name}
-                        />
-                    ) : field.type === "other_socials" ? (
-                        <OtherSocialsField
-                            value={values[field.name]}
-                            onChange={(next) => setField(field.name, next)}
                         />
                     ) : field.type === "textarea" ? (
                         <textarea

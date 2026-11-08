@@ -216,9 +216,6 @@ alter table member_accounts add column if not exists role text not null default 
 -- claim an existing public roster row by their env username instead.
 alter table members add column if not exists lead_username text unique;
 
--- Custom social media handles (heading and link pairs) stored as JSONB.
-alter table members add column if not exists other_socials jsonb default '[]'::jsonb;
-
 -- Blog posts: any dashboard role (member/lead/admin) can author a draft, held for
 -- lead/admin approval before it goes live. `visibility` decides where an approved
 -- post shows: 'public' on the marketing site, 'private' only inside the dashboard.

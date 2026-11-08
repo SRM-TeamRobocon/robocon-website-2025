@@ -5,8 +5,7 @@ import { getSession, requireRole } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-const PROFILE_SELECT = "id, name, role, domain, year, photo_url, linkedin_url, instagram_url, other_socials";
-const PROFILE_SELECT_FALLBACK = "id, name, role, domain, year, photo_url, linkedin_url, instagram_url";
+const PROFILE_SELECT = "id, name, role, domain, year, photo_url, linkedin_url, instagram_url, facebook_url";
 
 export async function GET() {
     const session = await getSession();
@@ -17,45 +16,27 @@ export async function GET() {
     const supabase = createSupabaseAdminClient();
 
     if (session.memberAccountId) {
-        let res = await supabase
+        const { data } = await supabase
             .from("members")
             .select(PROFILE_SELECT)
             .eq("member_account_id", session.memberAccountId)
             .maybeSingle();
 
-        if (res.error && res.error.message?.includes("other_socials")) {
-            res = await supabase
-                .from("members")
-                .select(PROFILE_SELECT_FALLBACK)
-                .eq("member_account_id", session.memberAccountId)
-                .maybeSingle();
-            if (res.data) res.data.other_socials = [];
-        }
-
-        if (!res.data) {
+        if (!data) {
             return NextResponse.json({ success: false, error: "Your profile isn't set up yet." }, { status: 404 });
         }
-        return NextResponse.json({ success: true, claimed: true, data: res.data });
+        return NextResponse.json({ success: true, claimed: true, data });
     }
 
     // Legacy env-based staff login - no member_accounts row, link by env username instead.
-    let claimedRes = await supabase
+    const { data: claimedRow } = await supabase
         .from("members")
         .select(PROFILE_SELECT)
         .eq("lead_username", session.user)
         .maybeSingle();
 
-    if (claimedRes.error && claimedRes.error.message?.includes("other_socials")) {
-        claimedRes = await supabase
-            .from("members")
-            .select(PROFILE_SELECT_FALLBACK)
-            .eq("lead_username", session.user)
-            .maybeSingle();
-        if (claimedRes.data) claimedRes.data.other_socials = [];
-    }
-
-    if (claimedRes.data) {
-        return NextResponse.json({ success: true, claimed: true, data: claimedRes.data });
+    if (claimedRow) {
+        return NextResponse.json({ success: true, claimed: true, data: claimedRow });
     }
 
     const { data: candidatesRaw } = await supabase
@@ -94,14 +75,7 @@ export async function PATCH(request: Request) {
                 return NextResponse.json({ success: false, error: "Your profile isn't set up yet." }, { status: 404 });
             }
 
-            let { data, error } = await (supabase.from("members") as any).update(payload).eq("id", existing.id).select(PROFILE_SELECT).single();
-            if (error && error.message?.includes("other_socials")) {
-                const safePayload = { ...payload };
-                delete safePayload.other_socials;
-                const retry = await (supabase.from("members") as any).update(safePayload).eq("id", existing.id).select(PROFILE_SELECT_FALLBACK).single();
-                data = retry.data ? { ...retry.data, other_socials: [] } : null;
-                error = retry.error;
-            }
+            const { data, error } = await (supabase.from("members") as any).update(payload).eq("id", existing.id).select(PROFILE_SELECT).single();
             if (error) return NextResponse.json({ success: false, error: "Could not update profile." }, { status: 500 });
             return NextResponse.json({ success: true, data });
         }
@@ -117,20 +91,10 @@ export async function PATCH(request: Request) {
 
         if (!targetId) {
             if (body.createNew) {
-                let { data: created, error } = await (supabase.from("members") as any)
+                const { data: created, error } = await (supabase.from("members") as any)
                     .insert({ ...payload, lead_username: session.user, name: payload.name || session.name || session.user, role: payload.role || "Team Member", is_active: true })
                     .select("id")
                     .single();
-                if (error && error.message?.includes("other_socials")) {
-                    const safePayload = { ...payload };
-                    delete safePayload.other_socials;
-                    const retry = await (supabase.from("members") as any)
-                        .insert({ ...safePayload, lead_username: session.user, name: safePayload.name || session.name || session.user, role: safePayload.role || "Team Member", is_active: true })
-                        .select("id")
-                        .single();
-                    created = retry.data;
-                    error = retry.error;
-                }
                 if (error || !created) return NextResponse.json({ success: false, error: "Could not create profile." }, { status: 500 });
                 targetId = created.id;
             } else if (body.claimRowId) {
@@ -146,14 +110,7 @@ export async function PATCH(request: Request) {
             }
         }
 
-        let { data, error } = await (supabase.from("members") as any).update(payload).eq("id", targetId).select(PROFILE_SELECT).single();
-        if (error && error.message?.includes("other_socials")) {
-            const safePayload = { ...payload };
-            delete safePayload.other_socials;
-            const retry = await (supabase.from("members") as any).update(safePayload).eq("id", targetId).select(PROFILE_SELECT_FALLBACK).single();
-            data = retry.data ? { ...retry.data, other_socials: [] } : null;
-            error = retry.error;
-        }
+        const { data, error } = await (supabase.from("members") as any).update(payload).eq("id", targetId).select(PROFILE_SELECT).single();
         if (error) return NextResponse.json({ success: false, error: "Could not update profile." }, { status: 500 });
         return NextResponse.json({ success: true, data });
     } catch (error) {

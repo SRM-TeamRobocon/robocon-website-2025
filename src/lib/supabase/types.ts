@@ -14,7 +14,6 @@ export type Database = {
           linkedin_url: string | null;
           instagram_url: string | null;
           facebook_url: string | null;
-          other_socials?: Json | null;
           is_active: boolean;
           display_order: number;
           member_account_id: string | null;
@@ -31,7 +30,6 @@ export type Database = {
           linkedin_url?: string | null;
           instagram_url?: string | null;
           facebook_url?: string | null;
-          other_socials?: Json | null;
           is_active?: boolean;
           display_order?: number;
           member_account_id?: string | null;
