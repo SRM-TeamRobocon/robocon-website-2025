@@ -3,6 +3,7 @@ import { publicPageMetadata } from "@/lib/seo";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import TeamClient, { type TeamData } from "./TeamClient";
+import type { OtherSocialLink } from "@/components/MemberCard";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const metadata = publicPageMetadata("/team");
@@ -23,7 +24,23 @@ interface SupabaseMember {
   linkedin_url: string | null;
   instagram_url: string | null;
   facebook_url: string | null;
+  other_socials?: OtherSocialLink[] | string | null;
   is_active: boolean;
+}
+
+function parseOtherSocials(value: unknown): OtherSocialLink[] {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item && typeof item === "object" && item.name && item.url);
+  }
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item) => item && typeof item === "object" && item.name && item.url);
+      }
+    } catch {}
+  }
+  return [];
 }
 
 function groupSupabaseMembers(members: SupabaseMember[]): TeamData {
@@ -32,12 +49,18 @@ function groupSupabaseMembers(members: SupabaseMember[]): TeamData {
     .reduce<TeamData>((groups, member) => {
       const domain = (member.domain || "MEMBERS").toUpperCase();
       groups[domain] = groups[domain] || [];
+
+      const parsedOthers = parseOtherSocials(member.other_socials);
+      if (member.facebook_url && !parsedOthers.some((o) => o.name.toLowerCase() === "facebook")) {
+        parsedOthers.push({ name: "Facebook", url: member.facebook_url });
+      }
+
       groups[domain].push({
         Name: member.name,
         Designation: member.role,
         Linkedin: member.linkedin_url || undefined,
         Instagram: member.instagram_url || undefined,
-        Facebook: member.facebook_url || undefined,
+        Others: parsedOthers.length > 0 ? parsedOthers : undefined,
         ImageUrl: member.photo_url || PLACEHOLDER_PHOTO,
       });
       return groups;
@@ -48,13 +71,22 @@ async function getTeamData(): Promise<TeamData> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) return {};
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("members")
-    .select("name, role, domain, photo_url, linkedin_url, instagram_url, facebook_url, is_active")
+    .select("name, role, domain, photo_url, linkedin_url, instagram_url, facebook_url, other_socials, is_active")
     .order("display_order", { ascending: true });
 
+  if (error && error.message?.includes("other_socials")) {
+    const fallback = await supabase
+      .from("members")
+      .select("name, role, domain, photo_url, linkedin_url, instagram_url, facebook_url, is_active")
+      .order("display_order", { ascending: true });
+    data = fallback.data as any;
+    error = fallback.error;
+  }
+
   if (error || !data?.length) return {};
-  return groupSupabaseMembers(data);
+  return groupSupabaseMembers(data as any);
 }
 
 export default async function Team() {

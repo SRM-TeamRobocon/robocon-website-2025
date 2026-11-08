@@ -8,7 +8,7 @@ export type ContentResource =
   | "contact_submissions"
   | "faq";
 
-export type ContentFieldType = "text" | "textarea" | "url" | "number" | "date" | "datetime" | "boolean" | "tags";
+export type ContentFieldType = "text" | "textarea" | "url" | "number" | "date" | "datetime" | "boolean" | "tags" | "other_socials";
 
 export type ContentField = {
   name: string;
@@ -45,7 +45,7 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "photo_url", label: "Photo URL", type: "url" },
       { name: "linkedin_url", label: "LinkedIn URL", type: "url" },
       { name: "instagram_url", label: "Instagram URL", type: "url" },
-      { name: "facebook_url", label: "Facebook URL", type: "url" },
+      { name: "other_socials", label: "Other Social Media", type: "other_socials" },
       { name: "is_active", label: "Active", type: "boolean" },
       { name: "display_order", label: "Display Order", type: "number" },
     ],
@@ -222,6 +222,38 @@ export function normalizePayload(config: ContentResourceConfig, body: Record<str
             .split(",")
             .map((item) => item.trim())
             .filter(Boolean);
+      continue;
+    }
+
+    if (field.type === "other_socials") {
+      if (Array.isArray(value)) {
+        payload[field.name] = value
+          .filter((item) => item && typeof item === "object")
+          .map((item: any) => ({
+            name: String(item.name || "").trim(),
+            url: String(item.url || "").trim(),
+          }))
+          .filter((item) => item.name && item.url);
+      } else if (typeof value === "string" && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            payload[field.name] = parsed
+              .filter((item: any) => item && typeof item === "object")
+              .map((item: any) => ({
+                name: String(item.name || "").trim(),
+                url: String(item.url || "").trim(),
+              }))
+              .filter((item) => item.name && item.url);
+          } else {
+            payload[field.name] = [];
+          }
+        } catch {
+          payload[field.name] = [];
+        }
+      } else {
+        payload[field.name] = [];
+      }
       continue;
     }
 

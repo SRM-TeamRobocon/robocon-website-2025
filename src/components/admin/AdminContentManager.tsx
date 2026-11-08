@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ContentField, ContentResourceConfig } from "@/lib/content-resources";
+import OtherSocialsField from "@/components/admin/OtherSocialsField";
 import { Search } from "lucide-react";
 import {
   IMAGE_URL_FIELDS,
@@ -20,6 +21,17 @@ const EMPTY_ROW: Row = {};
 
 function valueForInput(field: ContentField, row: Row) {
   const value = row[field.name];
+
+  if (field.type === "other_socials") {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+    return [];
+  }
 
   if (field.type === "tags") {
     return Array.isArray(value) ? value.join(", ") : value ?? "";
@@ -375,6 +387,18 @@ export default function AdminContentManager({ config }: { config: ContentResourc
                       uploading={uploadingField === field.name}
                     />
                   </label>
+                );
+              }
+
+              if (field.type === "other_socials") {
+                return (
+                  <div key={field.name} className="block text-sm font-medium text-gray-300">
+                    <span className="block mb-2">{field.label}</span>
+                    <OtherSocialsField
+                      value={activeRow[field.name]}
+                      onChange={(next) => setField(field.name, next)}
+                    />
+                  </div>
                 );
               }
 

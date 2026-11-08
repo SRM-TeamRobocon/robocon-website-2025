@@ -75,6 +75,7 @@ export default function TeamClient({ initialData }: { initialData: TeamData }) {
                   Facebook={obj["Facebook"]}
                   Linkedin={obj["Linkedin"]}
                   Instagram={obj["Instagram"]}
+                  Others={obj["Others"]}
                   ImageUrl={obj["ImageUrl"] || PLACEHOLDER_PHOTO}
                 />
               ))}
