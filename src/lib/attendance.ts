@@ -191,7 +191,7 @@ export function calculateStats(events: AttendanceEvent[], nowMs: number, ghostDe
   return results;
 }
 
-function calculateStreak(datesVisited: Set<string>, nowMs: number): number {
+export function calculateStreak(datesVisited: Set<string>, nowMs: number): number {
   if (datesVisited.size === 0) return 0;
 
   const ONE_DAY = 86_400_000;
@@ -214,6 +214,110 @@ function calculateStreak(datesVisited: Set<string>, nowMs: number): number {
     cursor -= ONE_DAY;
   }
   return streak;
+}
+
+export function computeTopStreak(dates: Set<string>): { maxStreak: number; bestStreakDates: string[] } {
+  if (dates.size === 0) return { maxStreak: 0, bestStreakDates: [] };
+
+  const sorted = Array.from(dates).sort();
+  let maxStreak = 0;
+  let bestDates: string[] = [];
+
+  let currentRun: string[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const dateStr = sorted[i];
+    if (currentRun.length === 0) {
+      currentRun.push(dateStr);
+    } else {
+      const prevDateStr = currentRun[currentRun.length - 1];
+      const prevDay = Math.round(Date.parse(`${prevDateStr}T12:00:00+05:30`) / 86_400_000);
+      const currDay = Math.round(Date.parse(`${dateStr}T12:00:00+05:30`) / 86_400_000);
+
+      if (currDay === prevDay + 1) {
+        currentRun.push(dateStr);
+      } else {
+        if (currentRun.length > maxStreak) {
+          maxStreak = currentRun.length;
+          bestDates = [...currentRun];
+        }
+        currentRun = [dateStr];
+      }
+    }
+  }
+
+  if (currentRun.length > maxStreak) {
+    maxStreak = currentRun.length;
+    bestDates = [...currentRun];
+  }
+
+  return { maxStreak, bestStreakDates: bestDates };
+}
+
+export function isMemberStreakActive(datesVisited: Set<string>, nowMs: number): boolean {
+  if (datesVisited.size === 0) return false;
+  const ONE_DAY = 86_400_000;
+  const todayKey = istDateKey(nowMs);
+  const yesterdayKey = istDateKey(nowMs - ONE_DAY);
+  return datesVisited.has(todayKey) || datesVisited.has(yesterdayKey);
+}
+
+export function getISTWeekBounds(timestamp: number) {
+  const istDate = new Date(timestamp + IST_OFFSET_MS);
+  const day = istDate.getUTCDay();
+  const diffToMonday = (day + 6) % 7;
+  const mondayMs = Date.UTC(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate() - diffToMonday) - IST_OFFSET_MS;
+  const sundayEndMs = mondayMs + 7 * 86_400_000 - 1;
+
+  const mondayDateKey = istDateKey(mondayMs);
+  const sundayDateKey = istDateKey(sundayEndMs);
+
+  return {
+    start: mondayMs,
+    end: sundayEndMs,
+    startDateKey: mondayDateKey,
+    endDateKey: sundayDateKey,
+    key: `${mondayDateKey}_${sundayDateKey}`,
+  };
+}
+
+export function formatWeekLabel(
+  week: { start: number; end: number; startDateKey: string; endDateKey: string },
+  nowMs: number
+): string {
+  const currentWeek = getISTWeekBounds(nowMs);
+  const isCurrent = week.startDateKey === currentWeek.startDateKey;
+
+  const startD = new Date(week.start + IST_OFFSET_MS);
+  const endD = new Date(week.end + IST_OFFSET_MS);
+
+  const startStr = startD.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const endStr = endD.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+  if (isCurrent) return `This week (${startStr} – ${endStr})`;
+  return `${startStr} – ${endStr}`;
+}
+
+export function getMemberVisitedDates(
+  events: AttendanceEvent[],
+  ghostDetectionEvents: AttendanceEvent[] = events
+): Map<string, Set<string>> {
+  const sorted = [...events].sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt));
+  const ghostedDays = getGhostedAttendanceDays(ghostDetectionEvents);
+  const byMember = new Map<string, Set<string>>();
+
+  for (const event of sorted) {
+    if (!byMember.has(event.memberAccountId)) {
+      byMember.set(event.memberAccountId, new Set());
+    }
+    const ts = Date.parse(event.occurredAt);
+    const eventDay = istDateKey(ts);
+    if (event.source !== "auto_checkout" && !ghostedDays.get(event.memberAccountId)?.has(eventDay)) {
+      byMember.get(event.memberAccountId)!.add(eventDay);
+    }
+  }
+
+  return byMember;
 }
 
 // Formats a Date for an <input type="datetime-local"> value, in the browser's own
