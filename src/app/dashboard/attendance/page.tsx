@@ -476,7 +476,8 @@ export default function AttendanceBoardPage() {
             domain: string;
             streak: number;
             currentStreak: number;
-            isStreakActive: boolean;
+            isCurrentLive: boolean;
+            isTopStreakActive: boolean;
             lastVisitedDate: string | null;
             totalDaysInPeriod: number;
         }
@@ -500,20 +501,22 @@ export default function AttendanceBoardPage() {
             }
 
             const { maxStreak } = computeTopStreak(periodDates);
-            // Highest streak is only marked active if the current live streak is their highest streak
-            const isStreakActive = isPeriodCurrent && liveActive && currentStreak > 0 && currentStreak >= maxStreak;
+            const isCurrentLive = isPeriodCurrent && liveActive && currentStreak >= 1;
+            // Highest streak is only marked active if their current live streak is at or above their highest streak
+            const isTopStreakActive = isCurrentLive && currentStreak >= maxStreak;
             const sortedPeriodDates = Array.from(periodDates).sort();
             const lastVisitedDate = sortedPeriodDates.length > 0 ? sortedPeriodDates[sortedPeriodDates.length - 1] : null;
 
-            // Only mention those people in the streak leaderboard who have at least a 1-day streak
-            if (maxStreak >= 1) {
+            // Mention members who have at least a 1-day streak in this period OR have an active live streak
+            if (maxStreak >= 1 || isCurrentLive) {
                 entries.push({
                     memberAccountId: member.memberAccountId,
                     name: member.name,
                     domain: member.domain,
                     streak: maxStreak,
                     currentStreak,
-                    isStreakActive,
+                    isCurrentLive,
+                    isTopStreakActive,
                     lastVisitedDate,
                     totalDaysInPeriod: periodDates.size,
                 });
@@ -522,7 +525,7 @@ export default function AttendanceBoardPage() {
 
         return entries.sort((a, b) => {
             if (b.streak !== a.streak) return b.streak - a.streak;
-            if (b.isStreakActive !== a.isStreakActive) return b.isStreakActive ? 1 : -1;
+            if (b.isTopStreakActive !== a.isTopStreakActive) return b.isTopStreakActive ? 1 : -1;
             if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
             return a.name.localeCompare(b.name);
         });
@@ -542,11 +545,26 @@ export default function AttendanceBoardPage() {
 
     const filteredStreakLeaderboard = useMemo(() => {
         const query = streakSearch.trim().toLowerCase();
-        return streakLeaderboard.filter((entry) => {
+        const list = streakLeaderboard.filter((entry) => {
             const matchesQuery = !query || entry.name.toLowerCase().includes(query) || entry.domain.toLowerCase().includes(query);
             const matchesDomain = streakDomainFilter === "all" || entry.domain === streakDomainFilter;
-            const matchesActive = !streakActiveOnly || entry.isStreakActive;
+            // In active streak mode, include all members who have an active current streak
+            const matchesActive = !streakActiveOnly || entry.isCurrentLive;
             return matchesQuery && matchesDomain && matchesActive;
+        });
+
+        // When viewing active streak leaderboard (streakActiveOnly === true), rank by current streaks!
+        // When viewing all streaks, rank by top highest streaks.
+        return list.sort((a, b) => {
+            if (streakActiveOnly) {
+                if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
+                if (b.streak !== a.streak) return b.streak - a.streak;
+                return a.name.localeCompare(b.name);
+            }
+            if (b.streak !== a.streak) return b.streak - a.streak;
+            if (b.isTopStreakActive !== a.isTopStreakActive) return b.isTopStreakActive ? 1 : -1;
+            if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
+            return a.name.localeCompare(b.name);
         });
     }, [streakLeaderboard, streakSearch, streakDomainFilter, streakActiveOnly]);
 
@@ -556,19 +574,22 @@ export default function AttendanceBoardPage() {
     }, [filteredStreakLeaderboard, streakDisplayLimit]);
 
     const activeStreaksCount = useMemo(
-        () => streakLeaderboard.filter((e) => e.isStreakActive && e.streak > 0).length,
+        () => streakLeaderboard.filter((e) => e.isCurrentLive && e.currentStreak >= 1).length,
         [streakLeaderboard]
     );
 
     const lostStreaksCount = useMemo(
-        () => streakLeaderboard.filter((e) => !e.isStreakActive && e.streak > 0).length,
+        () => streakLeaderboard.filter((e) => !e.isCurrentLive).length,
         [streakLeaderboard]
     );
 
-    const topStreakInPeriod = useMemo(
-        () => Math.max(0, ...streakLeaderboard.map((e) => e.streak)),
-        [streakLeaderboard]
-    );
+    const topStreakInPeriod = useMemo(() => {
+        if (streakActiveOnly) {
+            const activeList = streakLeaderboard.filter((e) => e.isCurrentLive);
+            return activeList.length > 0 ? Math.max(0, ...activeList.map((e) => e.currentStreak)) : 0;
+        }
+        return Math.max(0, ...streakLeaderboard.map((e) => e.streak));
+    }, [streakLeaderboard, streakActiveOnly]);
 
     const selectedTimelineEvents = useMemo(() => {
         if (!selected) return [];
@@ -810,7 +831,7 @@ export default function AttendanceBoardPage() {
                         <div>
                             <div className="flex items-center gap-2">
                                 <h2 className="text-sm font-bold uppercase tracking-widest text-white group-hover:text-amber-300 transition-colors">
-                                    Streak Leaderboard
+                                    {streakActiveOnly ? "Active Streak Leaderboard" : "Streak Leaderboard"}
                                 </h2>
                                 <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/25">
                                     {filteredStreakLeaderboard.length} {filteredStreakLeaderboard.length === 1 ? "member" : "members"}
@@ -818,7 +839,9 @@ export default function AttendanceBoardPage() {
                             </div>
                             <p className="mt-0.5 text-xs text-gray-400">
                                 {isStreakExpanded
-                                    ? "Ranked by consecutive-day attendance streaks (min 1 day)"
+                                    ? streakActiveOnly
+                                        ? "Ranked by current active attendance streaks"
+                                        : "Ranked by consecutive-day attendance streaks (min 1 day)"
                                     : "Click to expand streak rankings and details"}
                             </p>
                         </div>
@@ -1023,8 +1046,12 @@ export default function AttendanceBoardPage() {
                                                         <th className="pb-2.5 font-bold w-12 text-center">#</th>
                                                         <th className="pb-2.5 font-bold">Name</th>
                                                         <th className="pb-2.5 font-bold">Domain</th>
-                                                        <th className="pb-2.5 font-bold">Top Streak</th>
-                                                        <th className="pb-2.5 font-bold">Current</th>
+                                                        <th className="pb-2.5 font-bold">
+                                                            {streakActiveOnly ? "Active Streak" : "Top Streak"}
+                                                        </th>
+                                                        <th className="pb-2.5 font-bold">
+                                                            {streakActiveOnly ? "Best Record" : "Current"}
+                                                        </th>
                                                         <th className="pb-2.5 font-bold">Status</th>
                                                         <th className="pb-2.5 font-bold">Last Visited</th>
                                                     </tr>
@@ -1070,10 +1097,23 @@ export default function AttendanceBoardPage() {
                                                                 {/* Domain */}
                                                                 <td className="py-2.5 text-xs text-gray-400">{entry.domain}</td>
 
-                                                                {/* Top Streak with Glowing vs Faded Fire Symbol */}
+                                                                {/* Streak column */}
                                                                 <td className="py-2.5">
-                                                                    {entry.streak > 0 ? (
-                                                                        entry.isStreakActive ? (
+                                                                    {streakActiveOnly ? (
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="relative flex items-center justify-center">
+                                                                                <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                                                <Flame
+                                                                                    className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
+                                                                                    strokeWidth={1.8}
+                                                                                />
+                                                                            </div>
+                                                                            <span className="font-semibold text-amber-300">
+                                                                                {entry.currentStreak} {entry.currentStreak === 1 ? "day" : "days"}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : entry.streak > 0 ? (
+                                                                        entry.isTopStreakActive ? (
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="relative flex items-center justify-center">
                                                                                     <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
@@ -1099,9 +1139,13 @@ export default function AttendanceBoardPage() {
                                                                     )}
                                                                 </td>
 
-                                                                {/* Current Streak */}
+                                                                {/* Secondary column: Best Record in Active mode, Current in Top Streak mode */}
                                                                 <td className="py-2.5">
-                                                                    {entry.currentStreak > 0 ? (
+                                                                    {streakActiveOnly ? (
+                                                                        <span className="font-mono text-xs text-gray-400">
+                                                                            {entry.streak > 0 ? `${entry.streak}d` : "-"}
+                                                                        </span>
+                                                                    ) : entry.currentStreak > 0 ? (
                                                                         <span className="font-mono text-xs font-bold text-amber-400">
                                                                             {entry.currentStreak}d
                                                                         </span>
@@ -1112,14 +1156,14 @@ export default function AttendanceBoardPage() {
 
                                                                 {/* Status Badge */}
                                                                 <td className="py-2.5">
-                                                                    {entry.streak <= 0 ? (
-                                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-600">
-                                                                            No visits
-                                                                        </span>
-                                                                    ) : entry.isStreakActive ? (
+                                                                    {streakActiveOnly || entry.isTopStreakActive ? (
                                                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
                                                                             <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                                                                             Active
+                                                                        </span>
+                                                                    ) : entry.streak <= 0 ? (
+                                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-600">
+                                                                            No visits
                                                                         </span>
                                                                     ) : (
                                                                         <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-white/5 text-gray-500 border border-white/10">
