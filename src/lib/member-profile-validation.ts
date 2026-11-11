@@ -1,7 +1,7 @@
 const PROFILE_URL_RULES = {
-  linkedin_url: /^https:\/\/(www\.)?linkedin\.com\/in\/[A-Za-z0-9-]+\/?$/,
-  instagram_url: /^https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?$/,
-  facebook_url: /^https:\/\/(www\.)?facebook\.com\/([A-Za-z0-9.-]+|profile\.php\?id=[0-9]+)\/?$/,
+  linkedin_url: /^https:\/\/(www\.)?linkedin\.com\/in\/[A-Za-z0-9-]+\/?(?:\?[^#\s]*)?$/,
+  instagram_url: /^https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._]+\/?(?:\?[^#\s]*)?$/,
+  facebook_url: /^https:\/\/(www\.)?facebook\.com\/([A-Za-z0-9.-]+|profile\.php\?id=[0-9]+)\/?(?:\?[^#\s]*)?$/,
 } as const;
 
 type SocialField = keyof typeof PROFILE_URL_RULES;
