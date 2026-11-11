@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import toast from "react-hot-toast";
-import { FilePlus2, ArrowLeft } from "lucide-react";
+import { FilePlus2, ArrowLeft, ListChecks } from "lucide-react";
 import ContentEditForm from "@/components/admin/ContentEditForm";
 import AdminGalleryManager from "@/components/admin/AdminGalleryManager";
 import { CONTENT_RESOURCES, type ContentResource } from "@/lib/content-resources";
@@ -55,7 +56,7 @@ export default function ProposeContentPage() {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                toast.success("Proposal submitted for approval");
+                toast.success("Proposal submitted! You can edit it in My Submissions until approved.");
                 setEditing(null);
             } else {
                 toast.error(data.error || "Could not submit proposal");
@@ -122,15 +123,24 @@ export default function ProposeContentPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                    <FilePlus2 className="w-7 h-7 text-red" />
-                    Propose Content
-                </h1>
-                <p className="mt-2 text-gray-400 text-sm max-w-xl">
-                    Suggest a new project, achievement, event, or gallery photo, or edit an existing one. A lead
-                    reviews every proposal before it goes live.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                        <FilePlus2 className="w-7 h-7 text-red" />
+                        Propose Content
+                    </h1>
+                    <p className="mt-2 text-gray-400 text-sm max-w-xl">
+                        Suggest a new project, achievement, event, or gallery photo, or edit an existing one. A lead
+                        reviews every proposal before it goes live.
+                    </p>
+                </div>
+                <Link
+                    href="/dashboard/my-submissions"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs font-semibold ring-1 ring-inset ring-white/10 transition self-start sm:self-auto"
+                >
+                    <ListChecks className="w-4 h-4 text-amber-400" />
+                    <span>My Submissions & Edits →</span>
+                </Link>
             </div>
 
             {tabs}
