@@ -138,7 +138,7 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
                             className="shrink-0 transition-transform duration-200 group-hover:scale-105"
                         />
                         {!collapsed && (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold tracking-wider uppercase bg-red/15 text-white border border-red/40 shadow-sm transition-all duration-200 group-hover:bg-red/25 group-hover:border-red group-hover:shadow-[0_0_12px_rgba(194,0,0,0.35)] truncate">
+                                <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold tracking-wider uppercase bg-red/15 text-white border border-red/40 shadow-sm transition-all duration-200 group-hover:bg-red/25 group-hover:border-red group-hover:shadow-[0_0_12px_rgba(194,0,0,0.35)] truncate">
                                 ROBOCON HUB
                             </span>
                         )}

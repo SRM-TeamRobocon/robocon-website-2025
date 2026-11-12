@@ -10,6 +10,7 @@ create table if not exists members (
   linkedin_url text,
   instagram_url text,
   facebook_url text,
+  portfolio_url text,
   is_active boolean default true,
   display_order integer default 0,
   created_at timestamptz default now()

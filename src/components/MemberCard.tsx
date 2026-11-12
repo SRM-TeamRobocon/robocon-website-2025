@@ -1,13 +1,13 @@
 import Image from "next/image";
-import FacebookBoxFillIcon from "remixicon-react/FacebookBoxFillIcon";
 import InstagramFillIcon from "remixicon-react/InstagramFillIcon";
 import LinkedinBoxFillIcon from "remixicon-react/LinkedinBoxFillIcon";
+import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export interface MemberCardPropsType {
   Name: string;
   Designation: string;
-  Facebook?: string;
+  Portfolio?: string;
   Linkedin?: string;
   Instagram?: string;
   ImageUrl?:string;
@@ -16,7 +16,7 @@ export interface MemberCardPropsType {
 export default function MemberCard({
   Name,
   Designation,
-  Facebook,
+  Portfolio,
   Linkedin,
   Instagram,
   ImageUrl
@@ -42,12 +42,9 @@ export default function MemberCard({
           </div>
           <div className="absolute inset-0 h-full w-full bg-red/80 text-center text-slate-200 [transform:rotateY(180deg)] [backface-visibility:hidden] flex flex-col items-center justify-center gap-3 py-5 px-3">
             <div className="flex gap-5 m-4">
-              {Facebook ? (
-                <Link href={Facebook}>
-                  <FacebookBoxFillIcon
-                    size={50}
-                    className="hover:fill-white hover:scale-105 hover:cursor-pointer"
-                  />
+              {Portfolio ? (
+                <Link href={Portfolio} target="_blank" rel="noopener noreferrer" aria-label={`${Name}'s portfolio`}>
+                  <ExternalLink size={42} className="hover:scale-105 hover:cursor-pointer" />
                 </Link>
               ) : null}
               {Linkedin ? (

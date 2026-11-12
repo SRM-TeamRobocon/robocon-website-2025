@@ -35,6 +35,10 @@ Do not run all SQL alphabetically or rerun the full schema on production. Keep
 schema, types, validation, RLS, and API docs aligned. Service-role access still
 requires route authorization.
 
+Member profiles use `portfolio_url` instead of Facebook. On an existing project,
+apply [`member-portfolio.sql`](../supabase/member-portfolio.sql) before deploying;
+legacy `facebook_url` values remain in the database and are not copied over.
+
 Asset URLs can be stored in database rows or constructed dynamically. Absence from
 an import search does not justify deleting an asset. No live database was audited
 as part of this repository cleanup.

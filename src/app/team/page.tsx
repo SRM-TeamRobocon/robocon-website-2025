@@ -22,7 +22,7 @@ interface SupabaseMember {
   photo_url: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;
-  facebook_url: string | null;
+  portfolio_url: string | null;
   is_active: boolean;
 }
 
@@ -37,7 +37,7 @@ function groupSupabaseMembers(members: SupabaseMember[]): TeamData {
         Designation: member.role,
         Linkedin: member.linkedin_url || undefined,
         Instagram: member.instagram_url || undefined,
-        Facebook: member.facebook_url || undefined,
+        Portfolio: member.portfolio_url || undefined,
         ImageUrl: member.photo_url || PLACEHOLDER_PHOTO,
       });
       return groups;
@@ -50,7 +50,7 @@ async function getTeamData(): Promise<TeamData> {
 
   const { data, error } = await supabase
     .from("members")
-    .select("name, role, domain, photo_url, linkedin_url, instagram_url, facebook_url, is_active")
+    .select("name, role, domain, photo_url, linkedin_url, instagram_url, portfolio_url, is_active")
     .order("display_order", { ascending: true });
 
   if (error || !data?.length) return {};

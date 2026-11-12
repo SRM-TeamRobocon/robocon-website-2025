@@ -6,7 +6,7 @@ import { validateMemberProfileLinks } from "@/lib/member-profile-validation";
 
 export const dynamic = "force-dynamic";
 
-const PROFILE_SELECT = "id, name, role, domain, year, photo_url, linkedin_url, instagram_url, facebook_url";
+const PROFILE_SELECT = "id, name, role, domain, year, photo_url, linkedin_url, instagram_url, portfolio_url";
 
 export async function GET() {
     const session = await getSession();

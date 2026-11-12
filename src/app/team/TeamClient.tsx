@@ -72,7 +72,7 @@ export default function TeamClient({ initialData }: { initialData: TeamData }) {
                   key={i}
                   Name={obj["Name"]}
                   Designation={obj["Designation"]}
-                  Facebook={obj["Facebook"]}
+                  Portfolio={obj["Portfolio"]}
                   Linkedin={obj["Linkedin"]}
                   Instagram={obj["Instagram"]}
                   ImageUrl={obj["ImageUrl"] || PLACEHOLDER_PHOTO}

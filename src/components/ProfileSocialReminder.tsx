@@ -26,13 +26,13 @@ export default function ProfileSocialReminder() {
         photo_url?: string | null;
         linkedin_url?: string | null;
         instagram_url?: string | null;
-        facebook_url?: string | null;
+        portfolio_url?: string | null;
     }): MissingDetails => {
         const photo = !profile.photo_url || !String(profile.photo_url).trim();
         const socials: string[] = [];
         if (!profile.linkedin_url || !String(profile.linkedin_url).trim()) socials.push("LinkedIn");
         if (!profile.instagram_url || !String(profile.instagram_url).trim()) socials.push("Instagram");
-        if (!profile.facebook_url || !String(profile.facebook_url).trim()) socials.push("Facebook");
+        if (!profile.portfolio_url || !String(profile.portfolio_url).trim()) socials.push("Portfolio");
         return { photo, socials };
     };
 
@@ -52,7 +52,7 @@ export default function ProfileSocialReminder() {
 
             if (res.status === 404) {
                 // Member account exists but profile hasn't been set up in roster yet
-                setMissingDetails({ photo: true, socials: ["LinkedIn", "Instagram", "Facebook"] });
+                setMissingDetails({ photo: true, socials: ["LinkedIn", "Instagram", "Portfolio"] });
                 setVisible(true);
                 return;
             }
@@ -75,7 +75,7 @@ export default function ProfileSocialReminder() {
                     setVisible(false);
                 }
             } else if (json.success && !json.claimed) {
-                setMissingDetails({ photo: true, socials: ["LinkedIn", "Instagram", "Facebook"] });
+                setMissingDetails({ photo: true, socials: ["LinkedIn", "Instagram", "Portfolio"] });
                 setVisible(true);
             } else {
                 setVisible(false);
@@ -136,8 +136,8 @@ export default function ProfileSocialReminder() {
     const { photo, socials } = missingDetails;
     const socialsText =
         socials.length === 3
-            ? "social media handles (LinkedIn, Instagram, Facebook)"
-            : `social links (${socials.join(", ")})`;
+            ? "links (LinkedIn, Instagram, Portfolio)"
+            : `links (${socials.join(", ")})`;
 
     let message = "";
     if (photo && socials.length > 0) {
@@ -151,7 +151,7 @@ export default function ProfileSocialReminder() {
     return (
         <aside
             aria-label="Profile completion reminder"
-            className="w-full bg-gradient-to-r from-red/20 via-[#16171b] to-[#101114] border-b border-red/40 text-white shadow-md transition-all"
+            className="sticky top-16 z-10 w-full bg-gradient-to-r from-red/20 via-[#16171b] to-[#101114] border-b border-red/40 text-white shadow-md transition-all"
         >
             <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
                 <div className="flex items-center gap-2.5 min-w-0">
