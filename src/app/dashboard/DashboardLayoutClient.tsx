@@ -7,6 +7,7 @@ import AdminSidebar, { type NavRole } from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import GoogleConnectReminder from "@/components/dashboard/GoogleConnectReminder";
 import InstallPrompt from "@/components/dashboard/InstallPrompt";
+import ProfileSocialReminder from "@/components/ProfileSocialReminder";
 import { displayNameForUsername } from "@/lib/admin-users";
 
 export default function DashboardLayoutClient({
@@ -105,6 +106,7 @@ export default function DashboardLayoutClient({
                     photoUrl={photoUrl}
                     onOpenMobile={() => setMobileOpen(true)}
                 />
+                <ProfileSocialReminder />
                 <main className="flex-grow w-full max-w-7xl mx-auto min-w-0 p-4 md:p-8">
                     {children}
                 </main>

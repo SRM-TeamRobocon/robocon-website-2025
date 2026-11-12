@@ -16,6 +16,8 @@ export type ContentField = {
   type: ContentFieldType;
   required?: boolean;
   readonly?: boolean;
+  pattern?: string;
+  placeholder?: string;
 };
 
 export type ContentResourceConfig = {
@@ -43,9 +45,27 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "domain", label: "Domain", type: "text" },
       { name: "year", label: "Year", type: "text" },
       { name: "photo_url", label: "Photo URL", type: "url" },
-      { name: "linkedin_url", label: "LinkedIn URL", type: "url" },
-      { name: "instagram_url", label: "Instagram URL", type: "url" },
-      { name: "facebook_url", label: "Facebook URL", type: "url" },
+      {
+        name: "linkedin_url",
+        label: "LinkedIn Profile URL",
+        type: "url",
+        pattern: "https://(www\\.)?linkedin\\.com/in/[A-Za-z0-9-]+/?(?:\\?[^#\\s]*)?",
+        placeholder: "https://www.linkedin.com/in/your-profile",
+      },
+      {
+        name: "instagram_url",
+        label: "Instagram Profile URL",
+        type: "url",
+        pattern: "https://(www\\.)?instagram\\.com/[A-Za-z0-9._]+/?(?:\\?[^#\\s]*)?",
+        placeholder: "https://www.instagram.com/your-profile",
+      },
+      {
+        name: "facebook_url",
+        label: "Facebook Profile URL",
+        type: "url",
+        pattern: "https://(www\\.)?facebook\\.com/([A-Za-z0-9.-]+|profile\\.php\\?id=[0-9]+)/?(?:\\?[^#\\s]*)?",
+        placeholder: "https://www.facebook.com/your-profile",
+      },
       { name: "is_active", label: "Active", type: "boolean" },
       { name: "display_order", label: "Display Order", type: "number" },
     ],
@@ -128,9 +148,9 @@ export const CONTENT_RESOURCES: Record<ContentResource, ContentResourceConfig> =
       { name: "profession", label: "Profession", type: "text" },
       { name: "batch", label: "Batch", type: "text" },
       { name: "photo_url", label: "Photo URL", type: "url" },
-      { name: "linkedin_url", label: "LinkedIn URL", type: "url" },
-      { name: "instagram_url", label: "Instagram URL", type: "url" },
-      { name: "facebook_url", label: "Facebook URL", type: "url" },
+      { name: "linkedin_url", label: "LinkedIn Profile URL", type: "url" },
+      { name: "instagram_url", label: "Instagram Profile URL", type: "url" },
+      { name: "facebook_url", label: "Facebook Profile URL", type: "url" },
     ],
   },
   gallery: {

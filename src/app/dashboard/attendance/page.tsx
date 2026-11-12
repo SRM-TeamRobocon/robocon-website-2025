@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
-import { Download, Flame, Radio, Clock, Users, UserCircle2, X, Ghost, Moon, LogIn, LogOut, Search } from "lucide-react";
+import { Download, Flame, Radio, Clock, Users, UserCircle2, X, Ghost, Moon, LogIn, LogOut, Search, Trophy, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import {
     calculateStats,
     buildSessions,
@@ -14,6 +14,10 @@ import {
     generateSessionCSV,
     formatDuration,
     toLocalDatetimeValue,
+    calculateStreak,
+    computeTopStreak,
+    isMemberStreakActive,
+    getMemberVisitedDates,
     type AttendanceEvent,
     type MemberAttendanceStats,
     type AttendanceSession,
@@ -47,6 +51,16 @@ const monthBounds = (key: string) => {
 const monthLabel = (key: string) => {
     const { start } = monthBounds(key);
     return new Date(start + IST_OFFSET_MS).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+};
+const formatLastVisitedDate = (dateKey: string | null, nowMs: number) => {
+    if (!dateKey) return "Never";
+    const today = istDateKey(nowMs);
+    const yesterday = istDateKey(nowMs - 86_400_000);
+    if (dateKey === today) return "Today";
+    if (dateKey === yesterday) return "Yesterday";
+    const [year, month, day] = dateKey.split("-").map(Number);
+    const d = new Date(Date.UTC(year, month - 1, day));
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 };
 const sourceLabel = (source?: string | null) => {
     if (source === "rfid") return "RFID";
@@ -117,6 +131,14 @@ export default function AttendanceBoardPage() {
     const [memberSearch, setMemberSearch] = useState("");
     const [domainFilter, setDomainFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
+
+    const [streakPeriodType, setStreakPeriodType] = useState<"all" | "month">("all");
+    const [streakSelectedMonth, setStreakSelectedMonth] = useState(() => monthKey(Date.now()));
+    const [streakDomainFilter, setStreakDomainFilter] = useState("all");
+    const [streakSearch, setStreakSearch] = useState("");
+    const [streakActiveOnly, setStreakActiveOnly] = useState(false);
+    const [isStreakExpanded, setIsStreakExpanded] = useState(false);
+    const [streakDisplayLimit, setStreakDisplayLimit] = useState<number | "all">(5);
 
     const [correcting, setCorrecting] = useState(false);
     const [showCorrectionForm, setShowCorrectionForm] = useState(false);
@@ -434,6 +456,141 @@ export default function AttendanceBoardPage() {
     }, [leaderboard, memberSearch, domainFilter, statusFilter, onLeaveMap, now, overnightIds]);
     const maxDomainTotal = Math.max(1, ...domainTotals.map((d) => d.total));
 
+    useEffect(() => {
+        if (selectedMonth !== "all") {
+            setStreakSelectedMonth(selectedMonth);
+        }
+    }, [selectedMonth]);
+
+    const allVisitedDatesByMember = useMemo(
+        () => getMemberVisitedDates(events),
+        [events]
+    );
+
+    const currentMonthKey = useMemo(() => monthKey(now), [now]);
+
+    const streakLeaderboard = useMemo(() => {
+        interface StreakEntry {
+            memberAccountId: string;
+            name: string;
+            domain: string;
+            streak: number;
+            currentStreak: number;
+            isCurrentLive: boolean;
+            isTopStreakActive: boolean;
+            lastVisitedDate: string | null;
+            totalDaysInPeriod: number;
+        }
+
+        const entries: StreakEntry[] = [];
+
+        for (const member of stats) {
+            const allDates = allVisitedDatesByMember.get(member.memberAccountId) || new Set<string>();
+            const currentStreak = calculateStreak(allDates, now);
+            const liveActive = isMemberStreakActive(allDates, now);
+
+            let periodDates: Set<string>;
+            let isPeriodCurrent = false;
+
+            if (streakPeriodType === "all") {
+                periodDates = allDates;
+                isPeriodCurrent = true;
+            } else {
+                periodDates = new Set(Array.from(allDates).filter((d) => d.startsWith(streakSelectedMonth)));
+                isPeriodCurrent = streakSelectedMonth === currentMonthKey;
+            }
+
+            const { maxStreak } = computeTopStreak(periodDates);
+            const isCurrentLive = isPeriodCurrent && liveActive && currentStreak >= 1;
+            // Highest streak is only marked active if their current live streak is at or above their highest streak
+            const isTopStreakActive = isCurrentLive && currentStreak >= maxStreak;
+            const sortedPeriodDates = Array.from(periodDates).sort();
+            const lastVisitedDate = sortedPeriodDates.length > 0 ? sortedPeriodDates[sortedPeriodDates.length - 1] : null;
+
+            // Mention members who have at least a 1-day streak in this period OR have an active live streak
+            if (maxStreak >= 1 || isCurrentLive) {
+                entries.push({
+                    memberAccountId: member.memberAccountId,
+                    name: member.name,
+                    domain: member.domain,
+                    streak: maxStreak,
+                    currentStreak,
+                    isCurrentLive,
+                    isTopStreakActive,
+                    lastVisitedDate,
+                    totalDaysInPeriod: periodDates.size,
+                });
+            }
+        }
+
+        return entries.sort((a, b) => {
+            if (b.streak !== a.streak) return b.streak - a.streak;
+            if (b.isTopStreakActive !== a.isTopStreakActive) return b.isTopStreakActive ? 1 : -1;
+            if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
+            return a.name.localeCompare(b.name);
+        });
+    }, [
+        stats,
+        allVisitedDatesByMember,
+        now,
+        streakPeriodType,
+        streakSelectedMonth,
+        currentMonthKey,
+    ]);
+
+    const streakDomains = useMemo(
+        () => Array.from(new Set(streakLeaderboard.map((m) => m.domain))).sort((a, b) => a.localeCompare(b)),
+        [streakLeaderboard]
+    );
+
+    const filteredStreakLeaderboard = useMemo(() => {
+        const query = streakSearch.trim().toLowerCase();
+        const list = streakLeaderboard.filter((entry) => {
+            const matchesQuery = !query || entry.name.toLowerCase().includes(query) || entry.domain.toLowerCase().includes(query);
+            const matchesDomain = streakDomainFilter === "all" || entry.domain === streakDomainFilter;
+            // In active streak mode, include all members who have an active current streak
+            const matchesActive = !streakActiveOnly || entry.isCurrentLive;
+            return matchesQuery && matchesDomain && matchesActive;
+        });
+
+        // When viewing active streak leaderboard (streakActiveOnly === true), rank by current streaks!
+        // When viewing all streaks, rank by top highest streaks.
+        return list.sort((a, b) => {
+            if (streakActiveOnly) {
+                if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
+                if (b.streak !== a.streak) return b.streak - a.streak;
+                return a.name.localeCompare(b.name);
+            }
+            if (b.streak !== a.streak) return b.streak - a.streak;
+            if (b.isTopStreakActive !== a.isTopStreakActive) return b.isTopStreakActive ? 1 : -1;
+            if (b.currentStreak !== a.currentStreak) return b.currentStreak - a.currentStreak;
+            return a.name.localeCompare(b.name);
+        });
+    }, [streakLeaderboard, streakSearch, streakDomainFilter, streakActiveOnly]);
+
+    const displayedStreakEntries = useMemo(() => {
+        if (streakDisplayLimit === "all") return filteredStreakLeaderboard;
+        return filteredStreakLeaderboard.slice(0, streakDisplayLimit);
+    }, [filteredStreakLeaderboard, streakDisplayLimit]);
+
+    const activeStreaksCount = useMemo(
+        () => streakLeaderboard.filter((e) => e.isCurrentLive && e.currentStreak >= 1).length,
+        [streakLeaderboard]
+    );
+
+    const lostStreaksCount = useMemo(
+        () => streakLeaderboard.filter((e) => !e.isCurrentLive).length,
+        [streakLeaderboard]
+    );
+
+    const topStreakInPeriod = useMemo(() => {
+        if (streakActiveOnly) {
+            const activeList = streakLeaderboard.filter((e) => e.isCurrentLive);
+            return activeList.length > 0 ? Math.max(0, ...activeList.map((e) => e.currentStreak)) : 0;
+        }
+        return Math.max(0, ...streakLeaderboard.map((e) => e.streak));
+    }, [streakLeaderboard, streakActiveOnly]);
+
     const selectedTimelineEvents = useMemo(() => {
         if (!selected) return [];
         const bounds = selectedMonth === "all" ? null : monthBounds(selectedMonth);
@@ -503,15 +660,15 @@ export default function AttendanceBoardPage() {
                         href="/dashboard/attendance/me"
                         className={
                             viewerHasAccount && viewerLinked === false
-                                ? "flex items-center gap-2 border border-red bg-black px-4 py-2 text-xs font-bold tracking-wider text-red transition hover:bg-red/20"
-                                : "flex items-center gap-2 border border-white/10 bg-black px-4 py-2 text-xs font-bold tracking-wider text-white transition hover:bg-white/10"
+                                ? "flex items-center gap-2 border border-red bg-black px-4 py-2 text-xs font-bold tracking-wider text-red transition hover:bg-red/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] hover:shadow-[0_0_12px_rgba(239,68,68,0.35)]"
+                                : "flex items-center gap-2 border border-white/10 bg-black px-4 py-2 text-xs font-bold tracking-wider text-white transition hover:bg-white/10 shadow-[0_0_6px_rgba(255,255,255,0.05)] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
                         }
                     >
                         <UserCircle2 className="h-4 w-4" /> {viewerHasAccount && viewerLinked === false ? "Link My Card" : "My Card"}
                     </Link>
                     <button
                         onClick={handleDownload}
-                        className="flex items-center gap-2 border border-white/10 bg-black px-4 py-2 text-xs font-bold tracking-wider text-white transition hover:bg-white/10"
+                        className="flex items-center gap-2 border border-white/10 bg-black px-4 py-2 text-xs font-bold tracking-wider text-white transition hover:bg-white/10 shadow-[0_0_6px_rgba(255,255,255,0.05)] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
                     >
                         <Download className="h-4 w-4" /> Export CSV
                     </button>
@@ -533,7 +690,7 @@ export default function AttendanceBoardPage() {
                                     setSelfCorrectionType(viewerStatus === "IN" ? "checked_out_at" : "checked_in_at");
                                     setCorrectionTime(toLocalDatetimeValue(new Date()));
                                 }}
-                                className="flex w-fit items-center gap-1.5 border border-white/10 px-4 py-2 text-xs font-bold text-gray-200 transition hover:bg-white/10"
+                                className="flex w-fit items-center gap-1.5 border border-white/10 px-4 py-2 text-xs font-bold text-gray-200 transition hover:bg-white/10 shadow-[0_0_6px_rgba(255,255,255,0.05)] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
                             >
                                 {viewerStatus === "IN" ? <LogOut className="h-3.5 w-3.5" /> : <LogIn className="h-3.5 w-3.5" />}
                                 {viewerStatus === "IN" ? "I left at…" : "I arrived at…"}
@@ -633,10 +790,17 @@ export default function AttendanceBoardPage() {
                         <p className="text-sm text-gray-500">No data yet.</p>
                     ) : (
                         <div className="space-y-3">
-                            {domainTotals.map((d) => (
+                            {domainTotals.map((d, index) => (
                                 <div key={d.domain}>
                                     <div className="mb-1 flex items-center justify-between text-xs">
-                                        <span className="font-bold text-gray-300">{d.domain}</span>
+                                        <span className="flex items-center gap-2 font-bold text-gray-300">
+                                            {index === 0 && (
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                    1
+                                                </span>
+                                            )}
+                                            {d.domain}
+                                        </span>
                                         <span className="font-mono text-gray-500">
                                             {formatDuration(d.total)} · {d.members} member{d.members === 1 ? "" : "s"}
                                         </span>
@@ -650,6 +814,421 @@ export default function AttendanceBoardPage() {
                     )}
                 </Card>
             </div>
+
+            {/* Streak Leaderboard */}
+            <Card className="p-4 sm:p-5 transition-all">
+                {/* Header / Expand Trigger Bar */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                        type="button"
+                        onClick={() => setIsStreakExpanded((prev) => !prev)}
+                        className="group flex items-center gap-3 text-left focus:outline-none"
+                    >
+                        <div className="relative flex items-center justify-center">
+                            <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                            <Flame className="relative h-5 w-5 text-amber-400 fill-amber-400/90 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-sm font-bold uppercase tracking-widest text-white group-hover:text-amber-300 transition-colors">
+                                    {streakActiveOnly ? "Active Streak Leaderboard" : "Streak Leaderboard"}
+                                </h2>
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/25">
+                                    {filteredStreakLeaderboard.length} {filteredStreakLeaderboard.length === 1 ? "member" : "members"}
+                                </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-gray-400">
+                                {isStreakExpanded
+                                    ? streakActiveOnly
+                                        ? "Ranked by current active attendance streaks"
+                                        : "Ranked by consecutive-day attendance streaks (min 1 day)"
+                                    : "Click to expand streak rankings and details"}
+                            </p>
+                        </div>
+                    </button>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 text-gray-300">
+                                <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                                Top: <strong className="text-white font-bold">{topStreakInPeriod}d</strong>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setStreakActiveOnly((prev) => !prev);
+                                    if (!isStreakExpanded) setIsStreakExpanded(true);
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer select-none border ${
+                                    streakActiveOnly
+                                        ? "bg-amber-500/20 border-amber-400/50 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.22)]"
+                                        : "bg-amber-500/10 border-amber-500/25 text-amber-300 hover:bg-amber-500/15 shadow-[0_0_6px_rgba(245,158,11,0.12)] hover:shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                                }`}
+                                title={streakActiveOnly ? "Showing active streaks only. Click to show all." : "Click to show only active streaks."}
+                            >
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Active: <strong className="font-bold text-white">{activeStreaksCount}</strong>
+                                {streakActiveOnly && (
+                                    <span className="ml-1 rounded bg-amber-400/25 px-1 py-0.2 text-[9px] uppercase tracking-wider text-amber-100 font-bold">
+                                        Active Only ✓
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setIsStreakExpanded((prev) => !prev)}
+                            className="flex items-center gap-1.5 border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-300 transition shadow-[0_0_8px_rgba(245,158,11,0.18)] hover:shadow-[0_0_12px_rgba(245,158,11,0.28)]"
+                            aria-expanded={isStreakExpanded}
+                        >
+                            <span>{isStreakExpanded ? "Collapse" : "Expand"}</span>
+                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isStreakExpanded ? "rotate-180" : ""}`} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Collapsible Content */}
+                <AnimatePresence initial={false}>
+                    {isStreakExpanded && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                        >
+                            <div className="mt-4 border-t border-white/10 pt-4">
+                                {/* Period switcher & info */}
+                                <div className="flex flex-col gap-3 pb-4 border-b border-white/5 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-xs text-gray-400">
+                                        Glowing flame indicates an active streak; faded flame indicates a broken streak.
+                                    </p>
+
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {/* Period tabs */}
+                                        <div className="flex border border-white/10 bg-black/40 p-0.5 text-xs font-semibold">
+                                            <button
+                                                type="button"
+                                                onClick={() => setStreakPeriodType("all")}
+                                                className={`px-3 py-1.5 transition-all ${
+                                                    streakPeriodType === "all"
+                                                        ? "bg-amber-500/15 text-amber-300 font-bold border border-amber-500/35 shadow-[0_0_8px_rgba(245,158,11,0.18)]"
+                                                        : "text-gray-400 hover:text-white"
+                                                }`}
+                                            >
+                                                All time
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setStreakPeriodType("month")}
+                                                className={`px-3 py-1.5 transition-all ${
+                                                    streakPeriodType === "month"
+                                                        ? "bg-amber-500/15 text-amber-300 font-bold border border-amber-500/35 shadow-[0_0_8px_rgba(245,158,11,0.18)]"
+                                                        : "text-gray-400 hover:text-white"
+                                                }`}
+                                            >
+                                                Month
+                                            </button>
+                                        </div>
+
+                                        {/* Month Selector */}
+                                        {streakPeriodType === "month" && (
+                                            <select
+                                                value={streakSelectedMonth}
+                                                onChange={(e) => setStreakSelectedMonth(e.target.value)}
+                                                className="border border-white/10 bg-black px-3 py-1.5 text-xs font-semibold text-white focus:outline-none"
+                                            >
+                                                {monthOptions.map((m) => (
+                                                    <option key={m} value={m}>
+                                                        {monthLabel(m)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Sub-bar: stats pills, search, domain filter & rows dropdown */}
+                                <div className="my-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 text-gray-300">
+                                            <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                                            Top: <strong className="text-white font-bold">{topStreakInPeriod}d</strong>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStreakActiveOnly((prev) => !prev)}
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer select-none border ${
+                                                streakActiveOnly
+                                                    ? "bg-amber-500/20 border-amber-400/50 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.22)]"
+                                                    : "bg-amber-500/10 border-amber-500/25 text-amber-300 hover:bg-amber-500/15 shadow-[0_0_6px_rgba(245,158,11,0.12)] hover:shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                                            }`}
+                                            title={streakActiveOnly ? "Showing active streaks only. Click to show all." : "Click to show only active streaks."}
+                                        >
+                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                            Active: <strong className="font-bold text-white">{activeStreaksCount}</strong>
+                                            {streakActiveOnly && (
+                                                <span className="ml-1 rounded bg-amber-400/25 px-1 py-0.2 text-[9px] uppercase tracking-wider text-amber-100 font-bold">
+                                                    Active Only ✓
+                                                </span>
+                                            )}
+                                        </button>
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-white/5 border border-white/10 text-gray-400">
+                                            Lost: <strong className="text-gray-300 font-bold">{lostStreaksCount}</strong>
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <label className="relative min-w-0 sm:w-44">
+                                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+                                            <input
+                                                type="search"
+                                                value={streakSearch}
+                                                onChange={(e) => setStreakSearch(e.target.value)}
+                                                placeholder="Search streaks..."
+                                                className="w-full border border-white/10 bg-black/40 py-1.5 pl-8 pr-3 text-xs text-white placeholder:text-gray-600 focus:border-amber-500/50 focus:outline-none"
+                                            />
+                                        </label>
+                                        <select
+                                            value={streakDomainFilter}
+                                            onChange={(e) => setStreakDomainFilter(e.target.value)}
+                                            className="border border-white/10 bg-black px-2.5 py-1.5 text-xs font-semibold text-gray-300 focus:outline-none"
+                                        >
+                                            <option value="all">All domains</option>
+                                            {streakDomains.map((d) => (
+                                                <option key={d} value={d}>
+                                                    {d}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        {/* Rows Dropdown */}
+                                        <label className="flex items-center gap-1.5 border border-white/10 bg-black/40 px-2.5 py-1.5 text-xs text-gray-400">
+                                            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Show</span>
+                                            <select
+                                                value={streakDisplayLimit}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setStreakDisplayLimit(val === "all" ? "all" : Number(val));
+                                                }}
+                                                className="bg-transparent font-semibold text-white focus:outline-none cursor-pointer"
+                                            >
+                                                <option value={5} className="bg-black text-white">Top 5</option>
+                                                <option value={10} className="bg-black text-white">Top 10</option>
+                                                <option value={25} className="bg-black text-white">Top 25</option>
+                                                <option value="all" className="bg-black text-white">All</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {/* Table */}
+                                {loading ? (
+                                    <div className="space-y-2">
+                                        {[0, 1, 2, 3].map((i) => (
+                                            <div key={i} className="h-10 animate-pulse bg-white/5" />
+                                        ))}
+                                    </div>
+                                ) : filteredStreakLeaderboard.length === 0 ? (
+                                    <p className="py-6 text-center text-sm text-gray-500">
+                                        {streakActiveOnly
+                                            ? "No members with active streaks in this period."
+                                            : "No members with attendance streaks (≥ 1 day) in this period."}
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full min-w-[650px] text-left text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
+                                                        <th className="pb-2.5 font-bold w-12 text-center">#</th>
+                                                        <th className="pb-2.5 font-bold">Name</th>
+                                                        <th className="pb-2.5 font-bold">Domain</th>
+                                                        <th className="pb-2.5 font-bold">
+                                                            {streakActiveOnly ? "Active Streak" : "Top Streak"}
+                                                        </th>
+                                                        <th className="pb-2.5 font-bold">
+                                                            {streakActiveOnly ? "Best Record" : "Current"}
+                                                        </th>
+                                                        <th className="pb-2.5 font-bold">Status</th>
+                                                        <th className="pb-2.5 font-bold">Last Visited</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {displayedStreakEntries.map((entry, index) => {
+                                                        const memberStat = stats.find((s) => s.memberAccountId === entry.memberAccountId);
+                                                        return (
+                                                            <tr
+                                                                key={entry.memberAccountId}
+                                                                onClick={() => memberStat && setSelected(memberStat)}
+                                                                className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
+                                                            >
+                                                                {/* Rank */}
+                                                                <td className="py-2.5 text-center">
+                                                                    {index === 0 ? (
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                                            1
+                                                                        </span>
+                                                                    ) : index === 1 ? (
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                                            2
+                                                                        </span>
+                                                                    ) : index === 2 ? (
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                                            3
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="font-mono text-xs text-gray-500">{index + 1}</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Name */}
+                                                                <td className="py-2.5 font-semibold text-white">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span>{entry.name}</span>
+                                                                        {overnightIds.has(entry.memberAccountId) && (
+                                                                            <Moon className="h-3.5 w-3.5 shrink-0 text-indigo-400" strokeWidth={2} />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+
+                                                                {/* Domain */}
+                                                                <td className="py-2.5 text-xs text-gray-400">{entry.domain}</td>
+
+                                                                {/* Streak column */}
+                                                                <td className="py-2.5">
+                                                                    {streakActiveOnly ? (
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="relative flex items-center justify-center">
+                                                                                <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                                                <Flame
+                                                                                    className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
+                                                                                    strokeWidth={1.8}
+                                                                                />
+                                                                            </div>
+                                                                            <span className="font-semibold text-amber-300">
+                                                                                {entry.currentStreak} {entry.currentStreak === 1 ? "day" : "days"}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : entry.streak > 0 ? (
+                                                                        entry.isTopStreakActive ? (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="relative flex items-center justify-center">
+                                                                                    <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                                                    <Flame
+                                                                                        className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
+                                                                                        strokeWidth={1.8}
+                                                                                    />
+                                                                                </div>
+                                                                                <span className="font-semibold text-amber-300">
+                                                                                    {entry.streak} {entry.streak === 1 ? "day" : "days"}
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-2 opacity-40 grayscale transition-opacity hover:opacity-70">
+                                                                                <Flame className="h-4 w-4 text-gray-500 fill-gray-500" strokeWidth={1.5} />
+                                                                                <span className="font-medium text-gray-400">
+                                                                                    {entry.streak} {entry.streak === 1 ? "day" : "days"}
+                                                                                </span>
+                                                                            </div>
+                                                                        )
+                                                                    ) : (
+                                                                        <span className="font-mono text-xs text-gray-600">-</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Secondary column: Best Record in Active mode, Current in Top Streak mode */}
+                                                                <td className="py-2.5">
+                                                                    {streakActiveOnly ? (
+                                                                        <span className="font-mono text-xs text-gray-400">
+                                                                            {entry.streak > 0 ? `${entry.streak}d` : "-"}
+                                                                        </span>
+                                                                    ) : entry.currentStreak > 0 ? (
+                                                                        <span className="font-mono text-xs font-bold text-amber-400">
+                                                                            {entry.currentStreak}d
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="font-mono text-xs text-gray-600">0d</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Status Badge */}
+                                                                <td className="py-2.5">
+                                                                    {streakActiveOnly || entry.isTopStreakActive ? (
+                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
+                                                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                                                            Active
+                                                                        </span>
+                                                                    ) : entry.streak <= 0 ? (
+                                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-600">
+                                                                            No visits
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-white/5 text-gray-500 border border-white/10">
+                                                                            Lost
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Last Visited */}
+                                                                <td className="py-2.5 text-xs text-gray-400">
+                                                                    {formatLastVisitedDate(entry.lastVisitedDate, now)}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Table Footer: Pagination info / Show All toggle & Collapse shortcut */}
+                                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-3 text-xs text-gray-400">
+                                            <div>
+                                                Showing <strong className="text-white font-semibold">{displayedStreakEntries.length}</strong> of{" "}
+                                                <strong className="text-white font-semibold">{filteredStreakLeaderboard.length}</strong> members
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                {streakDisplayLimit !== "all" && filteredStreakLeaderboard.length > streakDisplayLimit && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setStreakDisplayLimit("all")}
+                                                        className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition underline underline-offset-4 hover:drop-shadow-[0_0_6px_rgba(245,158,11,0.25)]"
+                                                    >
+                                                        Show all ({filteredStreakLeaderboard.length})
+                                                    </button>
+                                                )}
+                                                {streakDisplayLimit === "all" && filteredStreakLeaderboard.length > 5 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setStreakDisplayLimit(5)}
+                                                        className="text-xs font-semibold text-gray-400 hover:text-white transition underline underline-offset-4"
+                                                    >
+                                                        Show fewer (Top 5)
+                                                    </button>
+                                                )}
+
+                                                <span className="text-gray-600">·</span>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsStreakExpanded(false)}
+                                                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-amber-300 transition hover:drop-shadow-[0_0_6px_rgba(245,158,11,0.2)]"
+                                                >
+                                                    <ChevronUp className="h-3.5 w-3.5" />
+                                                    Collapse
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </Card>
 
             <Card className="p-5 sm:p-6">
                 <div className="mb-1 flex items-center gap-2">
@@ -673,7 +1252,7 @@ export default function AttendanceBoardPage() {
                         <table className="w-full min-w-[420px] text-left text-sm">
                             <thead>
                                 <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
-                                    <th className="pb-2 font-bold">#</th>
+                                    <th className="pb-2 font-bold w-12 text-center">#</th>
                                     <th className="pb-2 font-bold">Name</th>
                                     <th className="pb-2 font-bold">Domain</th>
                                     <th className="pb-2 font-bold">Ghosted</th>
@@ -683,7 +1262,23 @@ export default function AttendanceBoardPage() {
                             <tbody>
                                 {ghosts.map((g, i) => (
                                     <tr key={g.memberAccountId} className="border-b border-white/5">
-                                        <td className="py-2.5 font-mono text-xs text-gray-600">{i + 1}</td>
+                                        <td className="py-2.5 text-center">
+                                            {i === 0 ? (
+                                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                    1
+                                                </span>
+                                            ) : i === 1 ? (
+                                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                    2
+                                                </span>
+                                            ) : i === 2 ? (
+                                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                    3
+                                                </span>
+                                            ) : (
+                                                <span className="font-mono text-xs text-gray-500">{i + 1}</span>
+                                            )}
+                                        </td>
                                         <td className="py-2.5 font-semibold text-white">
                                             {i === 0 && <span className="mr-1.5">👻</span>}
                                             {g.name}
@@ -751,6 +1346,7 @@ export default function AttendanceBoardPage() {
                         <table className="w-full min-w-[650px] text-left text-sm">
                             <thead>
                                 <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
+                                    <th className="pb-2 font-bold w-12 text-center">#</th>
                                     <th className="pb-2 font-bold">Name</th>
                                     <th className="pb-2 font-bold">In for</th>
                                     <th className="pb-2 font-bold">Domain</th>
@@ -760,7 +1356,7 @@ export default function AttendanceBoardPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredLeaderboard.map((m) => {
+                                {filteredLeaderboard.map((m, index) => {
                                     const leave = onLeaveMap.get(m.memberAccountId);
                                     const onLeaveNow = leave && isWithinLeaveWindow(leave, now);
                                     // Only worth flagging while they're actually in the lab - a pass
@@ -772,6 +1368,23 @@ export default function AttendanceBoardPage() {
                                             onClick={() => setSelected(m)}
                                             className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
                                         >
+                                            <td className="py-2.5 text-center">
+                                                {index === 0 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                        1
+                                                    </span>
+                                                ) : index === 1 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                        2
+                                                    </span>
+                                                ) : index === 2 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                        3
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-mono text-xs text-gray-500">{index + 1}</span>
+                                                )}
+                                            </td>
                                             <td className="py-2.5 font-semibold text-white">{m.name}</td>
                                             <td className="py-2.5 font-mono text-gray-300">
                                                 {latestSessions.get(m.memberAccountId) ? formatDuration(latestSessions.get(m.memberAccountId)!.durationMs) : " - "}
@@ -786,18 +1399,33 @@ export default function AttendanceBoardPage() {
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-indigo-500/15 text-indigo-300 ring-indigo-500/30">
                                                         <Moon className="h-2.5 w-2.5" strokeWidth={2.5} /> Overnight
                                                     </span>
+                                                ) : m.status === "IN" ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-red/20 text-red ring-red/30">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-red animate-pulse" />
+                                                        IN
+                                                    </span>
                                                 ) : (
-                                                    <span
-                                                        className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${
-                                                            m.status === "IN" ? "bg-red/20 text-red ring-red/30" : "bg-white/5 text-gray-400 ring-white/10"
-                                                        }`}
-                                                    >
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-white/5 text-gray-400 ring-white/10">
                                                         {m.status}
                                                     </span>
                                                 )}
                                             </td>
                                             <td className="py-2.5 font-mono text-gray-300">{formatDuration(m.totalTimeMs)}</td>
-                                            <td className="py-2.5 text-amber-400">{m.currentStreak > 0 ? `🔥 ${m.currentStreak}` : "-"}</td>
+                                            <td className="py-2.5">
+                                                {m.currentStreak > 0 ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="relative flex items-center justify-center">
+                                                            <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                            <Flame className="relative h-3.5 w-3.5 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]" />
+                                                        </span>
+                                                        <span className="font-semibold text-amber-300">
+                                                            {m.currentStreak}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-600 font-mono text-xs">-</span>
+                                                )}
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -822,15 +1450,16 @@ export default function AttendanceBoardPage() {
                             <div>
                                 <p className="flex items-center gap-2 text-sm font-bold text-white">
                                     {selected.name}
-                                    <span
-                                        className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ring-1 ring-inset ${
-                                            selected.status === "IN"
-                                                ? "bg-red/20 text-red ring-red/30"
-                                                : "bg-white/5 text-gray-400 ring-white/10"
-                                        }`}
-                                    >
-                                        {selected.status}
-                                    </span>
+                                    {selected.status === "IN" ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ring-1 ring-inset bg-red/20 text-red ring-red/30">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-red animate-pulse" />
+                                            IN
+                                        </span>
+                                    ) : (
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ring-1 ring-inset bg-white/5 text-gray-400 ring-white/10">
+                                            {selected.status}
+                                        </span>
+                                    )}
                                 </p>
                                 <p className="text-[10px] uppercase tracking-widest text-gray-500">{selected.domain}</p>
                             </div>

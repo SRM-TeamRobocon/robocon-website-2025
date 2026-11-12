@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, LogOut, UserCircle } from "lucide-react";
+import { Menu, LogOut, UserCircle, Home } from "lucide-react";
 import { ADMIN_NAV_ITEMS } from "./AdminSidebar";
 
 function pageTitleFor(pathname: string) {
@@ -122,6 +122,15 @@ export default function AdminTopbar({ username, role, photoUrl, onOpenMobile }: 
                                 >
                                     <UserCircle className="w-4 h-4" />
                                     My Profile
+                                </Link>
+                                <Link
+                                    href="/"
+                                    role="menuitem"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-200 hover:bg-white/5 hover:text-white transition-colors border-t border-white/10"
+                                >
+                                    <Home className="w-4 h-4" />
+                                    Back to Website
                                 </Link>
                             </div>
                         )}
