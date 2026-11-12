@@ -242,6 +242,7 @@ begin
 end $$;
 
 -- 9. Permissions
+revoke execute on function bazaar_create_request(text,text,text,text,uuid,text,int,text,text,date,date,text,text,int,int) from public, anon, authenticated;
 grant execute on function bazaar_create_request(text,text,text,text,uuid,text,int,text,text,date,date,text,text,int,int) to service_role;
 grant execute on function bazaar_approve_request(uuid,text,text,boolean)  to service_role;
 grant execute on function bazaar_reject_request(uuid,text,text)           to service_role;

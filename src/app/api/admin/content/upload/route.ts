@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSession, requireRole } from "@/lib/session";
+import { optimizeUploadedImage } from "@/lib/optimize-uploaded-image";
 
 const ALLOWED_BUCKETS = new Set(["member-photos", "gallery", "event-posters", "project-covers", "achievement-images", "media", "blog-images"]);
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
@@ -36,12 +37,12 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const extension = file.name.split(".").pop() || "bin";
-  const pathname = `${folder}/${crypto.randomUUID()}.${extension}`;
-  const bytes = await file.arrayBuffer();
+  const optimized = await optimizeUploadedImage(file, bucket === "member-photos" ? 1200 : bucket === "event-posters" ? 2200 : 1600);
+  const pathname = `${folder}/${crypto.randomUUID()}.${optimized.extension}`;
 
-  const { error } = await supabase.storage.from(bucket).upload(pathname, bytes, {
-    contentType: file.type || "application/octet-stream",
+  const { error } = await supabase.storage.from(bucket).upload(pathname, optimized.bytes, {
+    contentType: optimized.contentType,
+    cacheControl: "31536000",
     upsert: false,
   });
 

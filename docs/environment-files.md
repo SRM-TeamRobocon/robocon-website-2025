@@ -1,6 +1,7 @@
 # Environment files
 
 - `.env.local` remains the complete local Next.js environment.
+- `main.env` is a private, Git-ignored consolidated reference snapshot. It takes values from `.env.local` first, then grouped local files, and includes backup keys and blank entries for keys found only in templates/source. Old/replacement database files do not override active values. Next.js does not load `main.env` automatically; it is not synchronized with Vercel or updated automatically.
 - `.env.supabase.old` and `.env.supabase.new` keep the old and replacement Supabase settings separate. The new file still needs its server key.
 - `.env.recruitment.local`, `.env.attendance.local`, and `.env.integrations.local` are private copies grouped by area.
 - `.env.vercel.local` isolates the short-lived Vercel OIDC token.

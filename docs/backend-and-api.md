@@ -38,3 +38,8 @@ requires route authorization.
 Asset URLs can be stored in database rows or constructed dynamically. Absence from
 an import search does not justify deleting an asset. No live database was audited
 as part of this repository cleanup.
+
+Static image uploads through the content, profile-photo, and Bazaar routes are
+resized and converted to WebP when it saves space. Animated images and images
+that would grow are kept in their original format. New UUID-named objects use a
+one-year browser cache. Existing Storage objects are unchanged until replaced.

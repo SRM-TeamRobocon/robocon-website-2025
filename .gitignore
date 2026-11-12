@@ -33,6 +33,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+/main.env
 .env
 .env.local
 .env.development.local
@@ -89,3 +90,9 @@ CLAUDE.md
 CLAUDE.md.*
 *WebDev*
 *.docx
+
+# Private Supabase recovery artifacts; keep copies outside this repository.
+/fcdaqslblhrjzioeuloe.storage.zip
+/fcdaqslblhrjzioeuloe.storage.optimized.zip
+/fcdaqslblhrjzioeuloe.storage.optimized.json
+/robocon-database-export-20261029/

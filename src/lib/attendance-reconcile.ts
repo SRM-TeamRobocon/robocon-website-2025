@@ -63,7 +63,8 @@ export async function reconcileMidnightAttendance(
                 action: "OUT" as const,
                 source: "auto_checkout" as const,
                 note: "Auto checkout at IST midnight",
-                occurred_at: nowIso,
+                // A delayed sweep must precede scans captured after midnight.
+                occurred_at: boundaryIso,
             }))
         );
         if (error) throw new Error(`attendance reconciliation insert failed: ${error.message}`);

@@ -7,6 +7,7 @@ import type { Album } from "./AlbumCard";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const metadata = publicPageMetadata("/gallery");
+export const revalidate = 60;
 
 
 async function getAlbums(): Promise<Album[]> {

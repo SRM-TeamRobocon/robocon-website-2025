@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src scripts",
     "test:email": "tsx scripts/test-email.ts",
     "seed:recruitment": "tsx --env-file=.env.local scripts/seed-recruitment.ts",
     "import:alumni": "tsx --env-file=.env.local scripts/import-alumni.ts",
@@ -41,7 +41,6 @@
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "eslint": "^8.57.1",
     "eslint-config-next": "^16.2.4",
     "framer-motion": "^11.18.2",
     "googleapis": "^171.4.0",
@@ -90,6 +89,7 @@
     "@types/react-responsive-masonry": "^2.1.0",
     "@types/react-slick": "^0.23.13",
     "@types/web-push": "^3.6.4",
+    "eslint": "^9.39.5",
     "puppeteer": "^25.7.0",
     "tsx": "^4.21.0"
   }

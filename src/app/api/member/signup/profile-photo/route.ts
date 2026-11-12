@@ -3,17 +3,12 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { MEMBER_GOOGLE_PENDING_COOKIE, verifyPendingGoogleProfile } from "@/lib/member-oauth";
+import { optimizeUploadedImage } from "@/lib/optimize-uploaded-image";
 
 export const dynamic = "force-dynamic";
 
 const BUCKET = "member-photos";
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const EXTENSIONS: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-};
-
 export async function POST(request: Request) {
     const cookieStore = await cookies();
     const pendingGoogle = await verifyPendingGoogleProfile(cookieStore.get(MEMBER_GOOGLE_PENDING_COOKIE)?.value);
@@ -27,17 +22,18 @@ export async function POST(request: Request) {
         if (!(photo instanceof File) || photo.size === 0) {
             return NextResponse.json({ error: "Choose a profile photo." }, { status: 400 });
         }
-        if (!EXTENSIONS[photo.type]) {
+        if (!["image/jpeg", "image/png", "image/webp"].includes(photo.type)) {
             return NextResponse.json({ error: "Use a JPEG, PNG, or WebP image." }, { status: 400 });
         }
         if (photo.size > MAX_FILE_SIZE) {
             return NextResponse.json({ error: "Profile photos must be 5 MB or smaller." }, { status: 400 });
         }
 
-        const path = `signup/${pendingGoogle.google_uid}/${randomUUID()}.${EXTENSIONS[photo.type]}`;
+        const optimized = await optimizeUploadedImage(photo, 1200);
+        const path = `signup/${pendingGoogle.google_uid}/${randomUUID()}.${optimized.extension}`;
         const supabase = createSupabaseAdminClient();
-        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, photo, {
-            contentType: photo.type,
+        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, optimized.bytes, {
+            contentType: optimized.contentType,
             cacheControl: "31536000",
             upsert: false,
         });

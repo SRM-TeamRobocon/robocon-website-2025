@@ -3,7 +3,7 @@
 | Symptom | Check |
 | --- | --- |
 | PowerShell blocks npm | Use `npm.cmd`/`npx.cmd`; do not change execution policy |
-| `Invalid project directory ... /lint` | Existing `next lint` command is incompatible with Next 16; tooling migration remains open |
+| Lint reports existing source errors | `npm run lint` now runs ESLint directly; review the reported files and fix findings without suppressing rules |
 | Build cannot fetch Aldrich/Geist | Allow build-time access to Google Fonts; keep the existing fonts/theme |
 | Public fallback content appears | Check `/api/content/<resource>`, Supabase URL/key, RLS, and response; fallback is not a successful DB connection |
 | Dashboard 401/redirect | Use `/login`, same host/origin, valid JWT secret and cookie; layout canonicalizes production apex to www |

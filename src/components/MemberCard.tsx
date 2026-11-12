@@ -21,6 +21,7 @@ export default function MemberCard({
   Instagram,
   ImageUrl
 }: MemberCardPropsType) {
+  const isSupabaseImage = /^https:\/\/[^/]+\.supabase\.co\//.test(ImageUrl ?? "");
   return (
     <article>
       <div className="group w-[300px] h-[300px] [perspective:1000px] overflow-hidden">
@@ -29,10 +30,11 @@ export default function MemberCard({
             <Image
               src={`${ImageUrl}`}
               alt="Project data image"
-              width={500}
-              height={500}
-              className="object-cover"
-              unoptimized
+              width={300}
+              height={300}
+              sizes="300px"
+              className="h-full w-full object-cover"
+              unoptimized={!isSupabaseImage}
             ></Image>
             <h1 className="text-xl absolute bottom-2 z-10 w-full bg-black/50 text-white group-hover:hidden text-center">
               {Name} <br /> <p className="text-lg">{Designation}</p>{" "}

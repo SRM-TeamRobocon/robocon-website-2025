@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/bazaar/auth";
 import { getBazaarDb } from "@/lib/bazaar/supabase";
 import { jsonError, BazaarError } from "@/lib/bazaar/errors";
+import { optimizeUploadedImage } from "@/lib/optimize-uploaded-image";
 
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB limit per spec
@@ -31,14 +32,14 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getBazaarDb();
-    const extension = file.name.split(".").pop()?.toLowerCase() || "png";
-    const filename = `${crypto.randomUUID()}.${extension}`;
-    const bytes = await file.arrayBuffer();
+    const optimized = await optimizeUploadedImage(file, 1600);
+    const filename = `${crypto.randomUUID()}.${optimized.extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from("bazaar-items")
-      .upload(filename, bytes, {
-        contentType: file.type,
+      .upload(filename, optimized.bytes, {
+        contentType: optimized.contentType,
+        cacheControl: "31536000",
         upsert: false,
       });
 

@@ -13,6 +13,7 @@ editing. Current source is authoritative; archived plans are not implementation 
 | Permissions | [Authentication](authentication.md) |
 | Safe changes | [Workflow](development-workflow.md), [agent guide](agent-guide.md) |
 | Operations | [Deployment](deployment.md), [troubleshooting](troubleshooting.md) |
+| Supabase recovery | [Cutover checklist](supabase-cutover.md) |
 | Recruitment | [Detailed reference](recruitment.md); verify dated sections against source |
 | Academia | [Member dashboard integration](academia.md) |
 | RFID hardware | [Attendance README](../attendance/README.md) |

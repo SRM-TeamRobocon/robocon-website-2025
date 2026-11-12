@@ -14,10 +14,9 @@ npm run build
 git diff --check
 ```
 
-`lint` currently invokes removed `next lint` and fails before inspecting source.
-The legacy `.eslintrc.json`, ESLint 8, and Next 16 config need a separate tooling
-migration; do not claim lint passed or suppress rules to make a cleanup green.
-Type checking and the build remain useful independent checks. Build requires
+`lint` now runs ESLint directly with the flat config. The repository currently has
+pre-existing lint findings; do not claim lint passed or suppress rules to make a
+cleanup green. Type checking and the build remain useful independent checks. Build requires
 Google Fonts access and can read configured content services during prerendering.
 
 There is no general automated test script in `package.json`. For behavior changes,

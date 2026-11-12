@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ImageOff, Pencil } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import type { BlogVisibility } from "@/lib/blog";
@@ -21,15 +22,17 @@ export default function BlogCard({ href, title, excerpt, coverImageUrl, authorNa
         <div className="group relative h-full">
             <Link
                 href={href}
-                className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl transition hover:border-white/20 hover:bg-white/[0.05]"
+                className="flex h-full flex-col overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-xl transition hover:border-white/20 hover:bg-white/[0.05]"
             >
-                <div className="flex aspect-video w-full items-center justify-center overflow-hidden bg-white/5">
+                <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-white/5">
                     {coverImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                             src={coverImageUrl}
                             alt={title}
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            unoptimized={!/^https:\/\/[^/]+\.supabase\.co\//.test(coverImageUrl)}
                         />
                     ) : (
                         <ImageOff className="h-8 w-8 text-gray-700" />
@@ -37,7 +40,7 @@ export default function BlogCard({ href, title, excerpt, coverImageUrl, authorNa
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                     {visibility === "private" && (
-                        <span className="mb-2 inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30">
+                        <span className="mb-2 inline-flex w-fit items-center bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30">
                             Members only
                         </span>
                     )}
@@ -53,7 +56,7 @@ export default function BlogCard({ href, title, excerpt, coverImageUrl, authorNa
                 <Link
                     href={editHref}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-lg bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur transition hover:bg-black/90"
+                    className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur transition hover:bg-black/90"
                 >
                     <Pencil className="h-3 w-3" /> Edit
                 </Link>

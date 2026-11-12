@@ -1,457 +1,279 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <Preferences.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <time.h>  // configTime/time() for the NTP sync the pinned cert depends on
-
-// WiFi credentials and the device bearer secret live in secrets.h, which is
-// gitignored — this repo is public, so nothing that grants network/API access goes
-// in main.ino. Copy secrets.example.h to secrets.h and fill in real values before
-// flashing (see attendance/README.md).
+#include <esp_timer.h>
+#include <atomic>
+#include <time.h>
+#include <sys/time.h>
 #include "secrets.h"
+#include "trust-root.h"
+#include "tap-queue.h"
 
-/* ── RFID ─────────────────────────────────── */
-#define SS_PIN 21
-#define RST_PIN 22
-MFRC522 rfid(SS_PIN, RST_PIN);
-
-/* ── LCD ──────────────────────────────────── */
+// Existing wiring: RFID SPI defaults + SS 21/RST 22; LCD SDA 33/SCL 32.
+MFRC522 rfid(21, 22);
 LiquidCrystal_I2C lcd(0x3F, 16, 2);
+const char* tapURL = "https://www.srmteamrobocon.com/api/attendance/queued-tap";
+const char* deviceId = "lobby-scanner-1"; // Give each scanner a unique ID.
+const time_t CLOCK_READY = 1700000000;
+Preferences storage;
+TapQueue pending, proposed;
+SemaphoreHandle_t queueMutex;
+QueueHandle_t results;
+std::atomic<bool> storageFailed{false};
+std::atomic<int> networkCode{0};
+uint64_t bootId;
+uint64_t sequence = 0;
+char latestId[33] = {};
+String lastUid;
+uint32_t lastScan = 0, screenSince = 0, badgeSince = 0;
+bool resultVisible = false;
 
-// Declared globally (not inside sendTap()) and reused across every request. A fresh
-// WiFiClientSecure means a fresh TLS handshake — the slowest part of each tap, often
-// 500ms-1s+ on ESP32 — so keeping one connection alive across taps is what actually
-// makes back-to-back taps feel instant, not just cosmetic loading text.
-WiFiClientSecure secureClient;
-
-/* ── Pinned trust root ────────────────────────────────────────────────────
-   ISRG Root X1 (Let's Encrypt), the root the site's certificate chains to:
-   leaf -> YR1 -> Root YR -> ISRG Root X1. Valid until 2035-06-04.
-
-   This replaces setInsecure(). Without cert validation, anyone who can get the
-   device to talk to them — a rogue AP answering for our host — is handed
-   DEVICE_SECRET in the Authorization header, which is enough to forge taps for the
-   whole team. WPA2 on the AP raises that bar but doesn't remove it: the pre-shared
-   key is on every phone in the lab, so "on our WiFi" is not a trust boundary.
-
-   Two consequences worth knowing before you debug a "why is every tap failing":
-   1. If the site is ever moved off Let's Encrypt, this must be reflashed. That's
-      the cost of pinning — verify with:
-      openssl s_client -connect www.srmteamrobocon.com:443 -showcerts
-   2. Certificate validation checks notBefore/notAfter, so the device needs a real
-      clock. The ESP32 boots at 1970, which is "before" every cert — hence the NTP
-      sync in ensureOnline(). Skipping it makes every handshake fail. */
-const char* ISRG_ROOT_X1 = R"EOF(
------BEGIN CERTIFICATE-----
-MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAwTzELMAkG
-A1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2VhcmNoIEdyb3VwMRUw
-EwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4WhcNMzUwNjA0MTEwNDM4WjBP
-MQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3Jv
-dXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoC
-ggIBAK3oJHP0FDfzm54rVygch77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj
-/RQSa78f0uoxmyF+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7i
-S4+3mX6UA5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
-T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyHB5T0Y3Hs
-LuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UCB5iPNgiV5+I3lg02
-dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUvKBds0pjBqAlkd25HN7rOrFle
-aJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWnOlFuhjuefXKnEgV4We0+UXgVCwOPjdAv
-BbI+e0ocS3MFEvzG6uBQE3xDk3SzynTnjh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymC
-zLq9gwQbooMDQaHWBfEbwrbwqHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC
-1CLQJ13hef4Y53CIrU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIB
-BjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
-hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZLubhzEFnT
-IZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ3BebYhtF8GaV0nxv
-wuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KKNFtY2PwByVS5uCbMiogziUwt
-hDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5ORAzI4JMPJ+GslWYHb4phowim57iaztX
-OoJwTdwJx4nLCgdNbOhdjsnvzqvHu7UrTkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIu
-vtd7u+Nxe5AW0wdeRlN8NwdCjNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1N
-bdWhscdCb+ZAJzVcoyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4k
-qKOJ2qxq4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
-mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57demyPxgcY
-xn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
------END CERTIFICATE-----
-)EOF";
-
-/* ── Backend ──────────────────────────────────────────────────────────────
-   Card UIDs are no longer hardcoded here — they're bound to a member's
-   account via self-service pairing from the website dashboard. This device
-   just forwards taps to one endpoint and shows whatever it says back.
-
-   Must be the canonical host — srmteamrobocon.com (no www) 307-redirects here, and
-   ESP32's HTTPClient doesn't follow POST redirects by default (see
-   setFollowRedirects below, which is a defensive fallback, not a substitute for
-   the right URL). Give each physical scanner its own deviceId if you add more
-   than one. */
-const char* tapURL = "https://www.srmteamrobocon.com/api/attendance/tap";
-const char* deviceId = "lobby-scanner-1";
-
-String lastUID = "";
-unsigned long lastScanTime = 0;
-const unsigned long DEBOUNCE_MS = 3000;
-
-/* ── Minimal JSON field readers ─────────────────────────────────────────
-   We control both ends of this API and the response is always a small,
-   fixed shape, so a full parser (ArduinoJson) isn't worth the dependency. */
-String extractJsonString(const String& json, const String& key) {
-  String pattern = "\"" + key + "\":\"";
-  int start = json.indexOf(pattern);
-  if (start == -1) return "";
-  start += pattern.length();
-  int end = json.indexOf("\"", start);
-  if (end == -1) return "";
-  return json.substring(start, end);
-}
-
-bool extractJsonBool(const String& json, const String& key) {
-  return json.indexOf("\"" + key + "\":true") != -1;
-}
-
-/* ── LCD message pools ────────────────────────────────────────────────────
-   One of each gets picked at random (ESP32's random() is hardware-seeded —
-   no randomSeed() needed). Diagnostic states (no signal / server error /
-   generic error) only randomize the flavor line — the actual code or event
-   string stays on the other line, since that's what you want to read off
-   the screen when a scanner is actually broken. */
-struct LcdMsg { const char* line1; const char* line2; };
-
-const LcdMsg IDLE_MSGS[] = {
-  {"Tap In Bestie", "SRM Robocon"},
-  {"Yo Tap That", "Lets Gooo"},
-  {"Scan Ur Card", "No Cap"},
-  {"Ready When U R", "SRM Robocon"},
-  {"Who Dis? Tap In", "Find Out"},
+// HTTPClient decodes chunked responses into this bounded sink as well.
+class ReplyBuffer : public Stream {
+public:
+  String text;
+  size_t write(uint8_t value) override { return write(&value, 1); }
+  size_t write(const uint8_t* data, size_t size) override {
+    if (text.length() + size > 256) return 0;
+    if (!text.concat((const char*)data, size)) return 0;
+    return size;
+  }
+  int available() override { return 0; }
+  int read() override { return -1; }
+  int peek() override { return -1; }
+  void flush() override {}
 };
 
-const LcdMsg CHECKING_MSGS[] = {
-  {"Checking Vibes", "hold up..."},
-  {"One Sec Bestie", "loading..."},
-  {"Hold My Beer", "checking..."},
-  {"Vibe Check", "pls wait..."},
-  {"Lemme See", "one sec..."},
-};
-
-const LcdMsg UNAUTHORIZED_MSGS[] = {
-  {"Not On The List", "Sry Bestie"},
-  {"Fuck Off Dude", "No Cap"},
-  {"Nice Try Buddy", "Try Again"},
-  {"Who Tf Is This", "Not Today"},
-};
-
-const char* NO_SIGNAL_VIBES[] = {"No Signal Fam", "Lost In Space", "Wifi Ghosted Us", "Cant Even Rn"};
-const char* SERVER_ERR_VIBES[] = {"Server Yikes", "Server Said Nah", "Big Oof Fr", "Not Vibing Rn"};
-const char* GENERIC_ERR_VIBES[] = {"Big Yikes", "Oop Error", "Not Todayyy", "Sumthin Broke"};
-
-const char* IN_VIBES[] = {
-  "Welcome Dawg", "Lesgooo", "Ur In Cutie", "Locked In Bb",
-  "Welcome Back", "Ayyy Ur In", "In The Building", "Slay Ur In",
-};
-const char* OUT_VIBES[] = {
-  "Fuck Off Dude", "Byeee Bestie", "Ghosted Lol", "Cya Nerd",
-  "Dipped Out", "Later Gator", "Peace Out", "Get Home Safe",
-};
-const char* LINKED_REVEALS[] = {"ONLINE", "LOCKED IN", "VERIFIED", "ACTIVATED", "LEGIT NOW"};
-
-#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))
-
-/* ── Signal badge ─────────────────────────────────────────────────────────
-   The last two columns of the bottom row always show WiFi quality as 0-99,
-   higher is better. It's the one number that explains most field problems
-   (a scanner "being slow" is nearly always a scanner at 30), and it's on every
-   screen so it's still there while you're staring at a failing tap.
-
-   Two columns is the whole budget, hence the cap at 99 rather than 100, and
-   "--" when we're not associated at all — which is meaningfully different from
-   being associated with a terrible signal, and worth telling apart at a glance. */
-// How long an IN/OUT result stays readable. This is a hold, not a delay() — a card
-// tapped during it is read immediately and replaces the screen, so a longer, easier
-// to read result costs nothing in throughput for a queue of people.
-const unsigned long RESULT_HOLD_MS = 4000;
-unsigned long resultUntilMs = 0;
-
-const int BADGE_COL = 14;
-const unsigned long BADGE_REFRESH_MS = 5000;
-unsigned long lastBadgeMs = 0;
-
-String wifiBadge() {
-  if (WiFi.status() != WL_CONNECTED) return "--";
-
-  // RSSI is roughly -50 dBm (excellent) to -100 dBm (unusable); the doubling is the
-  // conventional linear map onto a percentage.
-  long rssi = WiFi.RSSI();
-  int quality = 2 * (int)(rssi + 100);
-  if (quality > 99) quality = 99;
-  if (quality < 0) quality = 0;
-
-  String out = String(quality);
-  if (out.length() < 2) out = " " + out;  // right-align so it hugs the edge
-  return out;
-}
-
-// Redraws just the two badge columns. No lcd.clear(), so it can run on a screen
-// that's already up without flicker.
-void drawBadge() {
-  lastBadgeMs = millis();
-  lcd.setCursor(BADGE_COL, 1);
-  lcd.print(wifiBadge());
-}
-
-void showMessage(const String& line1, const String& line2) {
-  lcd.clear();
+void showMessage(const String& top, const String& bottom) {
   lcd.setCursor(0, 0);
-  lcd.print(line1.substring(0, 16));
+  lcd.print("                ");
+  lcd.setCursor(0, 0);
+  lcd.print(top.substring(0, 16));
   lcd.setCursor(0, 1);
-  // Truncated to BADGE_COL, not 16, to keep the badge's columns free. No current
-  // message is that long, and error screens put their HTTP code at the left of this
-  // line, so nothing readable gets clipped.
-  lcd.print(line2.substring(0, BADGE_COL));
+  lcd.print("                ");
+  lcd.setCursor(0, 1);
+  lcd.print(bottom.substring(0, 14));
+  screenSince = millis();
+  resultVisible = true;
+}
+
+void drawBadge() {
+  lcd.setCursor(14, 1);
+  if (WiFi.status() != WL_CONNECTED) lcd.print("--");
+  else {
+    int quality = constrain(2 * (WiFi.RSSI() + 100), 0, 99);
+    if (quality < 10) lcd.print('0');
+    lcd.print(quality);
+  }
+}
+
+// Called only while holding queueMutex. NVS commits the blob before RAM changes.
+bool commitQueue() {
+  if (storage.putBytes("queue-v1", &proposed, sizeof(proposed)) != sizeof(proposed)) {
+    storageFailed = true;
+    return false;
+  }
+  pending = proposed;
+  return true;
+}
+
+uint32_t pendingCount() {
+  xSemaphoreTake(queueMutex, portMAX_DELAY);
+  uint32_t count = pending.count;
+  xSemaphoreGive(queueMutex);
+  return count;
+}
+
+void showIdle() {
+  uint32_t count = pendingCount();
+  if (storageFailed) showMessage("Storage error", "Stop and repair");
+  else if (networkCode == 401 || networkCode == 403) showMessage("Device key error", "Taps saved: " + String(count));
+  else if (networkCode == 404) showMessage("Deploy API first", "Taps saved: " + String(count));
+  else if (count) showMessage("Pending: " + String(count), WiFi.status() == WL_CONNECTED ? "Syncing..." : "Offline / saved");
+  else showMessage("Scan card", WiFi.status() == WL_CONNECTED ? "Ready" : "Offline / ready");
+  resultVisible = false;
   drawBadge();
 }
 
-/* ── Getting online ───────────────────────────────────────────────────────
-   Two things have to succeed before a tap can be sent, and they fail
-   independently:
-
-     1. ASSOCIATE with the access point — a plain WPA2-Personal SSID + password.
-     2. SET THE CLOCK over NTP, because the pinned certificate can't be validated
-        against a device that thinks it's 1970. Skipping this makes every TLS
-        handshake fail, which looks exactly like the network being down.
-
-   Both are re-checked before every tap rather than done once in setup(): APs
-   reboot, DHCP leases lapse, and this device sits idle for hours between taps.
-   There is one network and no backup — a fallback pointing at a router that never
-   answers buys nothing but a 20s stall on every reconnect. */
-const unsigned long WIFI_ATTEMPT_TIMEOUT_MS = 20000;
-const unsigned long CLOCK_SYNC_TIMEOUT_MS = 10000;
-// Any timestamp after 2020 proves NTP replied rather than the RTC still being at boot.
-const time_t CLOCK_SANITY_EPOCH = 1600000000;
-
-bool clockSynced = false;
-
-// Poll until associated or out of time.
-bool awaitConnection(unsigned long timeoutMs) {
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
-    delay(250);
-  }
-  return WiFi.status() == WL_CONNECTED;
+bool saveTap(const String& uid) {
+  StoredTap tap = {};
+  tap.sequence = ++sequence;
+  tap.boot = bootId;
+  tap.uptimeUs = esp_timer_get_time();
+  timeval now;
+  gettimeofday(&now, nullptr);
+  tap.epoch = now.tv_sec >= CLOCK_READY ? (int64_t)now.tv_sec * 1000 + now.tv_usec / 1000 : 0;
+  snprintf(tap.id, sizeof(tap.id), "%08lx%08lx%08lx%08lx",
+    (unsigned long)esp_random(), (unsigned long)esp_random(),
+    (unsigned long)esp_random(), (unsigned long)esp_random());
+  uid.toCharArray(tap.uid, sizeof(tap.uid));
+  xSemaphoreTake(queueMutex, portMAX_DELAY);
+  proposed = pending;
+  bool full = proposed.count == 64;
+  bool saved = !storageFailed && proposed.push(tap) && commitQueue();
+  xSemaphoreGive(queueMutex);
+  if (saved) {
+    memcpy(latestId, tap.id, sizeof(latestId));
+    showMessage("Saved locally", "Awaiting sync");
+  } else showMessage(full ? "Queue full" : "Storage error", "NOT saved / retry");
+  return saved;
 }
 
-bool connectWifi() {
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  return awaitConnection(WIFI_ATTEMPT_TIMEOUT_MS);
+// Protocol is four newline-separated fields, with the durable event ID echoed first.
+// Never delete a queued tap based only on HTTP 200 or an unrecognised response.
+bool parseReply(const String& response, const StoredTap& tap, UploadResult& result) {
+  if (response.length() > 256) return false;
+  int first = response.indexOf('\n');
+  int second = response.indexOf('\n', first + 1);
+  int third = response.indexOf('\n', second + 1);
+  if (first != 32 || second < first || third < second || response.substring(0, first) != tap.id) return false;
+  String event = response.substring(first + 1, second);
+  String action = response.substring(second + 1, third);
+  if (event != "tap" && event != "linked" && event != "unauthorized" && event != "review") return false;
+  if (event == "tap" && action != "IN" && action != "OUT") return false;
+  memcpy(result.id, tap.id, sizeof(result.id));
+  event.toCharArray(result.event, sizeof(result.event));
+  action.toCharArray(result.action, sizeof(result.action));
+  response.substring(third + 1).toCharArray(result.name, sizeof(result.name));
+  return true;
 }
 
-// Needed for certificate validity checks — see the ISRG_ROOT_X1 comment.
-bool syncClock() {
-  if (clockSynced) return true;
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  unsigned long start = millis();
-  while (time(nullptr) < CLOCK_SANITY_EPOCH && millis() - start < CLOCK_SYNC_TIMEOUT_MS) {
-    delay(200);
-  }
-  clockSynced = time(nullptr) >= CLOCK_SANITY_EPOCH;
-  if (!clockSynced) {
-    // Deliberately not falling back to setInsecure() here: silently dropping to an
-    // unvalidated connection is the exact failure this pinning exists to prevent.
-    // Better a visible error than a quiet downgrade.
-    Serial.println("clock: NTP sync failed — TLS will reject certs until this works.");
-  }
-  return clockSynced;
-}
-
-/* Cheap no-op once everything's up, so it's safe to call on every tap. */
-bool ensureOnline() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi down — reconnecting...");
-    if (!connectWifi()) {
-      Serial.println("WiFi association failed.");
-      return false;
+// The network owns a separate task: DNS, TLS and HTTP can wait without blocking RFID.
+void uploadTask(void*) {
+  WiFiClientSecure tls;
+  tls.setCACert(ISRG_ROOT_X1);
+  tls.setHandshakeTimeout(20);
+  HTTPClient http;
+  uint32_t reconnectAt = millis() + 30000, retryAt = millis(), backoff = 1000;
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    uint32_t nowMs = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      if ((int32_t)(nowMs - reconnectAt) >= 0) {
+        WiFi.reconnect();
+        reconnectAt = nowMs + 30000;
+      }
+      continue;
     }
-    Serial.println("Connected: " + WiFi.localIP().toString());
+    time_t now = time(nullptr);
+    if (now < CLOCK_READY || storageFailed || (int32_t)(nowMs - retryAt) < 0) continue;
+    StoredTap tap = {};
+    xSemaphoreTake(queueMutex, portMAX_DELAY);
+    if (pending.count) {
+      proposed = pending;
+      // A tap before the first NTP sync can be dated while the same boot is alive.
+      if (!proposed.taps[0].epoch && proposed.taps[0].boot == bootId) {
+        timeval wall;
+        gettimeofday(&wall, nullptr);
+        proposed.taps[0].epoch = (int64_t)wall.tv_sec * 1000 + wall.tv_usec / 1000
+          - (esp_timer_get_time() - proposed.taps[0].uptimeUs) / 1000;
+        commitQueue();
+      }
+      tap = pending.taps[0];
+    }
+    xSemaphoreGive(queueMutex);
+    if (!tap.id[0] || storageFailed) continue;
+    if (!http.begin(tls, tapURL)) {
+      retryAt = millis() + 10000;
+      continue;
+    }
+    http.setReuse(true);
+    http.setConnectTimeout(15000);
+    http.setTimeout(20000);
+    // No redirects: never forward a bearer token to another host.
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", String("Bearer ") + DEVICE_SECRET);
+    char body[256];
+    snprintf(body, sizeof(body), "{\"eventId\":\"%s\",\"uid\":\"%s\",\"deviceId\":\"%s\",\"timestamp\":%lld}",
+      tap.id, tap.uid, deviceId, (long long)tap.epoch);
+    int code = http.POST((uint8_t*)body, strlen(body));
+    networkCode = code;
+    ReplyBuffer response;
+    bool readOk = code == 200 && http.getSize() <= 256 && http.writeToStream(&response) >= 0;
+    http.end();
+    UploadResult result = {};
+    if (readOk && parseReply(response.text, tap, result)) {
+      xSemaphoreTake(queueMutex, portMAX_DELAY);
+      proposed = pending;
+      bool removed = proposed.pop(result.id) && commitQueue();
+      xSemaphoreGive(queueMutex);
+      if (removed) xQueueSend(results, &result, 0);
+      backoff = 1000;
+      retryAt = millis() + 100;
+    } else {
+      Serial.printf("upload failed: HTTP %d; tap retained\n", code);
+      retryAt = millis() + backoff + (esp_random() % 500);
+      backoff = min(backoff * 2, (uint32_t)60000);
+    }
   }
-  return syncClock();
 }
 
-/* ── Setup ────────────────────────────────── */
 void setup() {
   Serial.begin(115200);
-
   Wire.begin(33, 32);
   lcd.init();
   lcd.backlight();
-
-  // Pin the trust root before the first request. Must happen before ensureOnline(),
-  // which does an NTP sync that this validation depends on.
-  secureClient.setCACert(ISRG_ROOT_X1);
-
-  lcd.print("Linking Up...");
-  // Boot even if the network is down: the scanner still comes up and shows a clear
-  // error per tap, and ensureOnline() retries from loop(). Better than a blank screen
-  // and a silent reboot loop when the router is having a day.
-  if (!ensureOnline()) {
-    showMessage("No Wifi Fam", "will retry...");
-    delay(2000);
-  }
-
-  lcd.clear();
-  lcd.print("Locked & Loaded");
-
   SPI.begin();
   rfid.PCD_Init();
-
-  delay(1500);
-  LcdMsg idle = IDLE_MSGS[random(ARRAY_LEN(IDLE_MSGS))];
-  showMessage(idle.line1, idle.line2);
-}
-
-/* ── POST one tap, return the raw JSON response body (or "" on failure) ──
-   httpCode is filled in either way so the caller can tell "never reached the
-   server" (negative, from HTTPClient itself) apart from "server answered
-   with something other than 200" (a real status code — 404 means this route
-   isn't deployed yet, 401 means deviceSecret doesn't match the server's
-   ATTENDANCE_DEVICE_SECRET). */
-String sendTap(const String& uid, int& httpCode) {
-  // Was the TLS connection still alive from the last tap? setReuse(true) keeps it
-  // open, but a socket idle for hours gets dropped by the far end — so in practice
-  // most real taps pay a full handshake, and with a pinned root that means verifying
-  // a three-cert chain ending in RSA-4096. Knowing which case you're in is the
-  // difference between optimising the device and optimising the server.
-  bool reused = secureClient.connected();
-  unsigned long tStart = millis();
-
-  HTTPClient http;
-  http.begin(secureClient, tapURL);
-  // Reuse the underlying TCP+TLS connection across taps instead of tearing it down
-  // after every request — that's the single biggest win for making back-to-back
-  // taps feel instant, since it skips re-negotiating TLS each time.
-  http.setReuse(true);
-  // Defensive: tapURL above should already be the canonical (non-redirecting) host,
-  // but if that ever changes, STRICT mode follows 307/308 without turning the POST
-  // into a GET (unlike the default, which doesn't follow redirects at all).
-  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + DEVICE_SECRET);
-
-  String body = String("{\"uid\":\"") + uid + "\",\"deviceId\":\"" + deviceId + "\"}";
-  httpCode = http.POST(body);
-
-  String response = "";
-  if (httpCode == 200) {
-    response = http.getString();
-  } else {
-    Serial.println("Tap request failed, HTTP code: " + String(httpCode));
-    Serial.println("Response: " + http.getString());
+  queueMutex = xSemaphoreCreateMutex();
+  results = xQueueCreate(8, sizeof(UploadResult));
+  if (!queueMutex || !results) {
+    showMessage("Startup failed", "Restart device");
+    while (true) delay(1000);
   }
-  http.end();
-
-  Serial.println("timing: sendTap=" + String(millis() - tStart) + "ms reusedTLS=" + String(reused ? "yes" : "no"));
-  return response;
+  bootId = ((uint64_t)esp_random() << 32) | esp_random();
+  if (!storage.begin("attendance", false)) storageFailed = true;
+  else if (storage.isKey("queue-v1")) {
+    if (storage.getBytesLength("queue-v1") != sizeof(pending) ||
+        storage.getBytes("queue-v1", &pending, sizeof(pending)) != sizeof(pending) || !pending.valid()) {
+      storageFailed = true; // Preserve corrupt/unknown data for recovery; never erase it.
+    }
+  }
+  if (!storageFailed && pending.count) sequence = pending.taps[pending.count - 1].sequence;
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov", "time.google.com");
+  if (xTaskCreate(uploadTask, "attendance-upload", 16384, nullptr, 1, nullptr) != pdPASS) storageFailed = true;
+  showIdle();
 }
 
-/* ── Loop ─────────────────────────────────── */
 void loop() {
-  // The idle screen can sit untouched for hours; a frozen signal number is worse
-  // than no number, so refresh it in place.
-  if (millis() - lastBadgeMs > BADGE_REFRESH_MS) drawBadge();
-
-  // Retire a finished result screen. Doing this here rather than with a delay() at
-  // the end of the tap is what lets the next person tap straight into it.
-  if (resultUntilMs != 0 && millis() > resultUntilMs) {
-    resultUntilMs = 0;
-    LcdMsg back = IDLE_MSGS[random(ARRAY_LEN(IDLE_MSGS))];
-    showMessage(back.line1, back.line2);
+  UploadResult result;
+  while (xQueueReceive(results, &result, 0) == pdTRUE) {
+    // An old upload must not replace the feedback for someone who just scanned.
+    if (strcmp(result.id, latestId) != 0 && strcmp(result.event, "review") != 0) continue;
+    if (!strcmp(result.event, "tap")) showMessage(result.name, String("Confirmed ") + result.action);
+    else if (!strcmp(result.event, "linked")) showMessage(result.name, "Card linked");
+    else if (!strcmp(result.event, "review")) showMessage("Needs review", "Saved on server");
+    else showMessage("Unknown card", "Link on website");
+    drawBadge();
   }
-
-  if (!rfid.PICC_IsNewCardPresent()) return;
-  if (!rfid.PICC_ReadCardSerial()) return;
-
-  // Zero-pad every byte to two hex digits. String(b, HEX) drops the leading zero on
-  // anything below 0x10, which makes the joined string ambiguous — {04,A1,B2,C3} and
-  // {4A,1B,2C,03} both render as "4a1b2c3". Two different cards collapsing onto one
-  // identity means one member silently taps in as another, which is exactly the class
-  // of drift this whole system was rebuilt to eliminate.
-  String uid = "";
-  for (byte i = 0; i < rfid.uid.size; i++) {
-    if (rfid.uid.uidByte[i] < 0x10) uid += "0";
-    uid += String(rfid.uid.uidByte[i], HEX);
+  if (resultVisible && millis() - screenSince >= 4000) showIdle();
+  if (millis() - badgeSince >= 5000) {
+    badgeSince = millis();
+    if (!resultVisible) showIdle();
+    else drawBadge();
   }
-  uid.toUpperCase();
-
-  rfid.PICC_HaltA();
-  rfid.PCD_StopCrypto1();
-
-  // Client-side debounce is just a courtesy — the server enforces its own,
-  // authoritative debounce regardless of what this device thinks happened.
-  if (uid == lastUID && millis() - lastScanTime < DEBOUNCE_MS) return;
-  lastUID = uid;
-  lastScanTime = millis();
-
-  LcdMsg checking = CHECKING_MSGS[random(ARRAY_LEN(CHECKING_MSGS))];
-  showMessage(checking.line1, checking.line2);
-
-  unsigned long tTapStart = millis();
-  int httpCode = 0;
-  String response = "";
-  if (ensureOnline()) {
-    unsigned long tOnline = millis() - tTapStart;
-    Serial.println("timing: ensureOnline=" + String(tOnline) + "ms");
-    response = sendTap(uid, httpCode);
-  } else {
-    // Negative code so the branch below reads this the same as any other
-    // never-reached-the-server failure.
-    httpCode = -1;
-  }
-
-  if (response == "") {
-    // Negative = never reached the server (WiFi/DNS/TLS). A positive code
-    // that isn't 200 means the server answered but rejected the request —
-    // 404 = this route isn't deployed yet, 401 = wrong deviceSecret. Codes
-    // stay on-screen (not just flavor text) since they're the first thing
-    // you'll want to read off when debugging a scanner in the field.
-    const char* vibe = httpCode < 0
-      ? NO_SIGNAL_VIBES[random(ARRAY_LEN(NO_SIGNAL_VIBES))]
-      : SERVER_ERR_VIBES[random(ARRAY_LEN(SERVER_ERR_VIBES))];
-    showMessage(vibe, String(httpCode));
-  } else if (!extractJsonBool(response, "ok")) {
-    String event = extractJsonString(response, "event");
-    if (event == "unauthorized") {
-      LcdMsg m = UNAUTHORIZED_MSGS[random(ARRAY_LEN(UNAUTHORIZED_MSGS))];
-      showMessage(m.line1, m.line2);
-    } else {
-      showMessage(GENERIC_ERR_VIBES[random(ARRAY_LEN(GENERIC_ERR_VIBES))], event);
-    }
-  } else {
-    String event = extractJsonString(response, "event");
-    String name = extractJsonString(response, "name");
-    if (event == "linked") {
-      // A little HUD-style boot sequence instead of a flat "Card Linked!" —
-      // this is the moment someone's card goes live, worth a beat of drama.
-      for (int i = 0; i < 3; i++) {
-        String dots = "";
-        for (int d = 0; d <= i; d++) dots += ".";
-        showMessage(name + " is...", "syncing" + dots);
-        delay(300);
+  if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+    char uid[21] = {};
+    for (byte i = 0; i < rfid.uid.size && i < 10; ++i) snprintf(uid + 2 * i, 3, "%02X", rfid.uid.uidByte[i]);
+    rfid.PICC_HaltA();
+    rfid.PCD_StopCrypto1();
+    if (lastUid != uid || millis() - lastScan >= 3000) {
+      if (saveTap(String(uid))) {
+        lastUid = uid;
+        lastScan = millis();
       }
-      showMessage(name + " is", LINKED_REVEALS[random(ARRAY_LEN(LINKED_REVEALS))]);
-    } else {
-      String action = extractJsonString(response, "action");
-      const char* vibe = action == "IN"
-        ? IN_VIBES[random(ARRAY_LEN(IN_VIBES))]
-        : OUT_VIBES[random(ARRAY_LEN(OUT_VIBES))];
-      showMessage(vibe, name);
+      drawBadge();
     }
   }
-
-  Serial.println("timing: TOTAL tap->screen=" + String(millis() - tTapStart) + "ms");
-  Serial.println(response);
-
-  // Hand the result screen to the timer at the top of loop() instead of blocking
-  // here. The reader stays live throughout, so back-to-back taps by different people
-  // are picked up instantly.
-  resultUntilMs = millis() + RESULT_HOLD_MS;
+  delay(5);
 }

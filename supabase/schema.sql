@@ -294,6 +294,7 @@ create table if not exists attendance_logs (
   created_at timestamptz not null default now()
 );
 create index if not exists attendance_logs_member_idx on attendance_logs (member_account_id, occurred_at desc);
+-- Queued scanner receipts and the atomic ingest RPC are in attendance-queued-taps.sql.
 alter table attendance_logs add column if not exists last_long_stay_reminder_at timestamptz;
 
 alter table attendance_logs enable row level security;

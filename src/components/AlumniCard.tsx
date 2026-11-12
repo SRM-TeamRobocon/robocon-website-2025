@@ -36,6 +36,7 @@ export default function AlumniCard({
   PhotoUrl,
 }: AlumniCardPropsType) {
   const [slideNo, setSlideNo] = useState(0);
+  const isSupabaseImage = /^https:\/\/[^/]+\.supabase\.co\//.test(PhotoUrl ?? "");
 
   return (
     <article>
@@ -45,10 +46,11 @@ export default function AlumniCard({
             <Image
               src={PhotoUrl || PLACEHOLDER_PHOTO}
               alt="Project data image"
-              width={500}
-              height={500}
+              width={300}
+              height={300}
+              sizes="300px"
               className="w-auto h-full"
-              unoptimized
+              unoptimized={!isSupabaseImage}
             ></Image>
             <h1 className="text-xl absolute bottom-2 z-10 w-full bg-black/50 text-white group-hover:hidden text-center">
               {Name} <br />{" "}

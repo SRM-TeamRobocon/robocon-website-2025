@@ -6,6 +6,7 @@ import AlumniCard from "@/components/AlumniCard";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const metadata = publicPageMetadata("/alumni");
+export const revalidate = 60;
 
 
 interface Alumni {

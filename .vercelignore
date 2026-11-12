@@ -4,3 +4,9 @@
 .agents/
 .codebase-memory/
 .vscode/
+
+# Local Supabase recovery artifacts
+fcdaqslblhrjzioeuloe.storage.zip
+fcdaqslblhrjzioeuloe.storage.optimized.zip
+fcdaqslblhrjzioeuloe.storage.optimized.json
+robocon-database-export-20261029/

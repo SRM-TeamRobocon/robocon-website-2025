@@ -531,7 +531,12 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      record_queued_attendance_tap: {
+        Args: { p_event_id: string; p_device_id: string; p_uid: string; p_scanned_at: string | null };
+        Returns: Json;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
