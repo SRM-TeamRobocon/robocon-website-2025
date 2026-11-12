@@ -16,7 +16,6 @@ import {
     ChevronsLeft,
     ChevronsRight,
     X,
-    Sparkles,
     Newspaper,
     CalendarClock,
     Radio,
@@ -197,27 +196,6 @@ export default function AdminSidebar({ role, collapsed, onToggleCollapse, mobile
                         </button>
                     )}
                 </nav>
-
-                {/* Future members teaser */}
-                {!collapsed && (
-                    <div
-                        className="mx-3 mb-3 bg-white/10 p-px"
-                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                    >
-                        <div
-                            className="h-full w-full bg-white/[0.03] p-3"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 100% 92%, 92% 100%, 0 100%)" }}
-                        >
-                            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-red">
-                                <Sparkles className="w-3.5 h-3.5" />
-                                More coming
-                            </div>
-                            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
-                                This hub is being built out for every Robocon member, domain by domain.
-                            </p>
-                        </div>
-                    </div>
-                )}
 
                 {/* Collapse toggle (desktop only) */}
                 <div className="hidden lg:flex border-t border-white/10 p-3">

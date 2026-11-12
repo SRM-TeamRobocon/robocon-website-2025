@@ -15,6 +15,7 @@ import {
     CalendarClock,
     Radio,
     Package,
+    GraduationCap,
 } from "lucide-react";
 import { displayNameForUsername } from "@/lib/admin-users";
 
@@ -62,6 +63,18 @@ const TIMETABLE_ACTION: QuickAction = {
     badgeClass: "bg-cyan-500/20 text-cyan-400 ring-cyan-500/30",
     iconClass: "text-cyan-400",
     textClass: "group-hover:text-cyan-400",
+};
+
+const ACADEMIA_ACTION: QuickAction = {
+    href: "/dashboard/academia",
+    title: "Academia",
+    description: "Check your attendance, marks, courses, timetable, and academic updates.",
+    icon: GraduationCap,
+    badge: "Academics",
+    accent: "border border-violet-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)]",
+    badgeClass: "bg-violet-500/20 text-violet-400 ring-violet-500/30",
+    iconClass: "text-violet-400",
+    textClass: "group-hover:text-violet-400",
 };
 
 const RECRUITMENTS_ACTION: QuickAction = {
@@ -409,7 +422,7 @@ export default function AdminDashboard() {
             <div className="space-y-8">
                 {header}
                 {/* <StatGrid cards={cards} loading={loading} /> */}
-                <ActionGrid actions={[ATTENDANCE_ACTION, BAZAAR_ACTION, TIMETABLE_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, PROFILE_ACTION, PROPOSE_ACTION, SUBMISSIONS_ACTION]} />
+                <ActionGrid actions={[ATTENDANCE_ACTION, BAZAAR_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, PROFILE_ACTION, PROPOSE_ACTION, SUBMISSIONS_ACTION]} />
             </div>
         );
     }
@@ -424,8 +437,8 @@ export default function AdminDashboard() {
 
     const staffActions =
         role === "lead" || role === "admin"
-            ? [ATTENDANCE_ACTION, BAZAAR_ACTION, TIMETABLE_ACTION, CONTENT_ACTION, APPROVALS_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION]
-            : [ATTENDANCE_ACTION, BAZAAR_ACTION, TIMETABLE_ACTION, CONTENT_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION];
+            ? [ATTENDANCE_ACTION, BAZAAR_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, CONTENT_ACTION, APPROVALS_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION]
+            : [ATTENDANCE_ACTION, BAZAAR_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, CONTENT_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION];
 
     return (
         <div className="space-y-8">
