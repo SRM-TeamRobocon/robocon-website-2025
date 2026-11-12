@@ -16,6 +16,7 @@ editing. Current source is authoritative; archived plans are not implementation 
 | Supabase recovery | [Cutover checklist](supabase-cutover.md) |
 | Recruitment | [Detailed reference](recruitment.md); verify dated sections against source |
 | Academia | [Member dashboard integration](academia.md) |
+| Team Splits | [Direct UPI expense sharing](team-splits.md) |
 | RFID hardware | [Attendance README](../attendance/README.md) |
 | Bazaar | [Feature notes](bazaar/README.md) |
 | Past Halloween design | [Design](halloween-design.md), [product scope](halloween-product.md) |

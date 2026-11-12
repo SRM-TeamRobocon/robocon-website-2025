@@ -3,6 +3,12 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      team_splits: {
+        Row: import("../team-splits").TeamSplit;
+        Insert: import("../team-splits").TeamSplit;
+        Update: Partial<import("../team-splits").TeamSplit>;
+        Relationships: [];
+      };
       members: {
         Row: {
           id: string;
