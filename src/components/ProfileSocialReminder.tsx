@@ -2,10 +2,15 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Share2, ArrowRight, X } from "lucide-react";
+import { UserCircle, ArrowRight, X } from "lucide-react";
 
 const STORAGE_KEY_NEVER = "profile_socials_reminder_never";
 const STORAGE_KEY_SESSION = "profile_socials_reminder_dismissed";
+
+interface MissingDetails {
+    photo: boolean;
+    socials: string[];
+}
 
 export default function ProfileSocialReminder() {
     const pathname = usePathname();
@@ -13,20 +18,22 @@ export default function ProfileSocialReminder() {
     const [, startTransition] = useTransition();
 
     const [visible, setVisible] = useState(false);
-    const [missingHandles, setMissingHandles] = useState<string[]>([]);
+    const [missingDetails, setMissingDetails] = useState<MissingDetails>({ photo: false, socials: [] });
     const [dontAskAgain, setDontAskAgain] = useState(false);
     const [accountKey, setAccountKey] = useState<string | null>(null);
 
     const evaluateProfile = (profile: {
+        photo_url?: string | null;
         linkedin_url?: string | null;
         instagram_url?: string | null;
         facebook_url?: string | null;
-    }) => {
-        const missing: string[] = [];
-        if (!profile.linkedin_url || !String(profile.linkedin_url).trim()) missing.push("LinkedIn");
-        if (!profile.instagram_url || !String(profile.instagram_url).trim()) missing.push("Instagram");
-        if (!profile.facebook_url || !String(profile.facebook_url).trim()) missing.push("Facebook");
-        return missing;
+    }): MissingDetails => {
+        const photo = !profile.photo_url || !String(profile.photo_url).trim();
+        const socials: string[] = [];
+        if (!profile.linkedin_url || !String(profile.linkedin_url).trim()) socials.push("LinkedIn");
+        if (!profile.instagram_url || !String(profile.instagram_url).trim()) socials.push("Instagram");
+        if (!profile.facebook_url || !String(profile.facebook_url).trim()) socials.push("Facebook");
+        return { photo, socials };
     };
 
     const checkStatus = async () => {
@@ -45,7 +52,7 @@ export default function ProfileSocialReminder() {
 
             if (res.status === 404) {
                 // Member account exists but profile hasn't been set up in roster yet
-                setMissingHandles(["LinkedIn", "Instagram", "Facebook"]);
+                setMissingDetails({ photo: true, socials: ["LinkedIn", "Instagram", "Facebook"] });
                 setVisible(true);
                 return;
             }
@@ -61,14 +68,14 @@ export default function ProfileSocialReminder() {
                 }
 
                 const missing = evaluateProfile(json.data);
-                if (missing.length > 0) {
-                    setMissingHandles(missing);
+                if (missing.photo || missing.socials.length > 0) {
+                    setMissingDetails(missing);
                     setVisible(true);
                 } else {
                     setVisible(false);
                 }
             } else if (json.success && !json.claimed) {
-                setMissingHandles(["LinkedIn", "Instagram", "Facebook"]);
+                setMissingDetails({ photo: true, socials: ["LinkedIn", "Instagram", "Facebook"] });
                 setVisible(true);
             } else {
                 setVisible(false);
@@ -89,10 +96,10 @@ export default function ProfileSocialReminder() {
             const updated = customEvent.detail;
             if (updated) {
                 const missing = evaluateProfile(updated);
-                if (missing.length === 0) {
+                if (!missing.photo && missing.socials.length === 0) {
                     setVisible(false);
                 } else {
-                    setMissingHandles(missing);
+                    setMissingDetails(missing);
                 }
             }
         };
@@ -102,8 +109,9 @@ export default function ProfileSocialReminder() {
     }, []);
 
     const handleDoNow = () => {
+        const targetHash = missingDetails.photo ? "#photo" : "#socials";
         startTransition(() => {
-            router.push("/dashboard/profile#socials");
+            router.push(`/dashboard/profile${targetHash}`);
         });
     };
 
@@ -125,14 +133,24 @@ export default function ProfileSocialReminder() {
         return null;
     }
 
-    const handlesText =
-        missingHandles.length === 3
-            ? "LinkedIn, Instagram, Facebook"
-            : missingHandles.join(", ");
+    const { photo, socials } = missingDetails;
+    const socialsText =
+        socials.length === 3
+            ? "social media handles (LinkedIn, Instagram, Facebook)"
+            : `social links (${socials.join(", ")})`;
+
+    let message = "";
+    if (photo && socials.length > 0) {
+        message = `You haven't added your profile photo and ${socialsText} to your profile.`;
+    } else if (photo) {
+        message = "You haven't added a profile photo to your profile.";
+    } else {
+        message = `You haven't added your ${socialsText} to your profile.`;
+    }
 
     return (
         <aside
-            aria-label="Profile social links reminder"
+            aria-label="Profile completion reminder"
             className="w-full bg-gradient-to-r from-red/20 via-[#16171b] to-[#101114] border-b border-red/40 text-white shadow-md transition-all"
         >
             <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
@@ -141,9 +159,9 @@ export default function ProfileSocialReminder() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red"></span>
                     </span>
-                    <Share2 className="w-4 h-4 text-red shrink-0" />
+                    <UserCircle className="w-4 h-4 text-red shrink-0" />
                     <span className="text-gray-200">
-                        <strong className="text-white font-semibold">Reminder:</strong> You haven&apos;t added your social media handles ({handlesText}) to your profile.
+                        <strong className="text-white font-semibold">Reminder:</strong> {message}
                     </span>
                 </div>
 

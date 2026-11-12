@@ -105,16 +105,20 @@ export default function ProfilePage() {
     useEffect(load, []);
 
     useEffect(() => {
-        if (typeof window !== "undefined" && window.location.hash === "#socials") {
-            const timer = setTimeout(() => {
-                const el = document.getElementById("field-linkedin_url");
-                if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.add("ring-2", "ring-red/50", "transition-all");
-                    setTimeout(() => el.classList.remove("ring-2", "ring-red/50"), 2500);
-                }
-            }, 350);
-            return () => clearTimeout(timer);
+        if (typeof window !== "undefined") {
+            const hash = window.location.hash;
+            if (hash === "#socials" || hash === "#photo") {
+                const targetId = hash === "#photo" ? "field-photo_url" : "field-linkedin_url";
+                const timer = setTimeout(() => {
+                    const el = document.getElementById(targetId);
+                    if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        el.classList.add("ring-2", "ring-red/50", "transition-all");
+                        setTimeout(() => el.classList.remove("ring-2", "ring-red/50"), 2500);
+                    }
+                }, 350);
+                return () => clearTimeout(timer);
+            }
         }
     }, [mode]);
 
