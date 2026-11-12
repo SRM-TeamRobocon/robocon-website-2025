@@ -104,6 +104,20 @@ export default function ProfilePage() {
 
     useEffect(load, []);
 
+    useEffect(() => {
+        if (typeof window !== "undefined" && window.location.hash === "#socials") {
+            const timer = setTimeout(() => {
+                const el = document.getElementById("field-linkedin_url");
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.add("ring-2", "ring-red/50", "transition-all");
+                    setTimeout(() => el.classList.remove("ring-2", "ring-red/50"), 2500);
+                }
+            }, 350);
+            return () => clearTimeout(timer);
+        }
+    }, [mode]);
+
     const handleSubmit = async (payload: Record<string, any>, extra: Record<string, any> = {}) => {
         setSubmitting(true);
         try {
@@ -117,6 +131,9 @@ export default function ProfilePage() {
                 toast.success("Profile updated");
                 setProfile(data.data);
                 setMode("claimed");
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("profile-updated", { detail: data.data }));
+                }
             } else {
                 toast.error(data.error || "Could not update profile");
             }

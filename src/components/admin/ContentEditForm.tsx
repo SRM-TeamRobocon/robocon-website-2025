@@ -83,7 +83,7 @@ export default function ContentEditForm({ fields, initialValues = {}, submitLabe
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
             {fields.map((field) => (
-                <div key={field.name}>
+                <div key={field.name} id={`field-${field.name}`}>
                     <label className="block text-sm font-medium leading-6 text-gray-300 mb-2">
                         {field.label}
                         {field.required && <span className="text-red ml-1">*</span>}
