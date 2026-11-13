@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { applySplitAction, splitActionSchema, splitForViewer, SplitError } from "@/lib/team-splits";
+import { applySplitAction, canDeleteSplit, splitActionSchema, splitForViewer, SplitError } from "@/lib/team-splits";
 import { readSplit, splitActor, splitBody, splitFailure, splitResponse } from "@/lib/team-splits-server";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
@@ -30,5 +30,19 @@ export async function PATCH(request: Request, context: Context) {
     if (error) throw new Error("Could not update split.");
     if (!data) throw new SplitError("This split changed. Refresh before trying again.", 409);
     return splitResponse({ data: splitForViewer(next, actor) });
+  } catch (error) { return splitFailure(error); }
+}
+export async function DELETE(request: Request, context: Context) {
+  try {
+    const actor = await splitActor();
+    const body = z.object({ version: z.number().int().min(0) }).strict().safeParse(await splitBody(request));
+    if (!body.success) throw new SplitError("Invalid delete request.");
+    const split = await readSplit(await splitId(context), actor);
+    if (!canDeleteSplit(split, actor)) throw new SplitError("Only the creator can delete a split before any payment activity.", 409);
+    const { data, error } = await createSupabaseAdminClient().from("team_splits")
+      .delete().eq("id", split.id).eq("version", body.data.version).select("id").maybeSingle();
+    if (error) throw new Error("Could not delete split.");
+    if (!data) throw new SplitError("This split changed. Refresh before trying again.", 409);
+    return splitResponse({ deleted: true });
   } catch (error) { return splitFailure(error); }
 }

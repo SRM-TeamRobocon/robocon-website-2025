@@ -18,7 +18,7 @@ create table if not exists public.team_splits (
 );
 alter table public.team_splits enable row level security;
 revoke all on public.team_splits from public, anon, authenticated;
-grant select, insert, update on public.team_splits to service_role;
+grant select, insert, update, delete on public.team_splits to service_role;
 create index if not exists team_splits_creator_created_idx on public.team_splits (creator_key, created_at desc);
 create index if not exists team_splits_participants_idx on public.team_splits using gin (participant_ids);
 commit;

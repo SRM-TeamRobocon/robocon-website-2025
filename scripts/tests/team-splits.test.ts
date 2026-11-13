@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  allocateShares, applySplitAction, canViewSplit, createSplitSchema, parseRupees,
+  allocateShares, applySplitAction, canDeleteSplit, canViewSplit, coverCollectorShare, createSplitSchema, parseRupees,
   paymentUri, sameCreateRequest, SplitError, splitActionSchema, splitForViewer,
   type SplitActor, type SplitMember, type TeamSplit,
 } from "../../src/lib/team-splits";
@@ -30,7 +30,7 @@ function freshSplit(): TeamSplit {
   const request = input();
   const shares = allocateShares(request, members, creator.memberId);
   return {
-    id: request.id, creator_key: creator.key, creator_name: creator.name,
+    id: request.id, creator_key: creator.key, creator_name: creator.name, collector_member_id: null, collector_name: creator.name,
     title: request.title, description: request.description, upi_id: request.upiId,
     payee_name: request.payeeName, total_paise: parseRupees(request.total),
     participant_ids: shares.map(s => s.memberId), shares, events: [], status: "open", version: 0, created_at: now,
@@ -40,7 +40,7 @@ function errorStatus(status: number) {
   return (error: unknown) => error instanceof SplitError && error.status === status;
 }
 function report(split = freshSplit(), reference = "utr123456") {
-  return applySplitAction(split, payer, { action: "report", memberId: payer.memberId!, reference, version: split.version }, now);
+  return applySplitAction(split, payer, { action: "report", memberId: payer.memberId!, method: "upi", reference, paymentNote: "", version: split.version }, now);
 }
 
 test("money parsing preserves paise and rejects unsafe or out-of-range inputs", () => {
@@ -72,12 +72,22 @@ test("custom shares require exact positive totals", () => {
   assert.throws(() => allocateShares({ ...request, participants: [{ memberId: ids[0], amount: "0" }] }, members, creator.memberId), errorStatus(400));
 });
 
-test("participants must be unique, approved, and different from the creator", () => {
+test("participants must be unique and approved; creator can be included", () => {
   assert.throws(() => allocateShares({ ...input(), participants: [{ memberId: ids[0] }, { memberId: ids[0] }] }, members, creator.memberId), errorStatus(400));
   assert.throws(() => allocateShares(input(), members.slice(0, 2), creator.memberId), errorStatus(400));
-  assert.throws(() => allocateShares(input(), members, ids[0]), errorStatus(400));
+  assert.equal(allocateShares(input(), members, ids[0])[0].memberId, ids[0]);
   const shares = allocateShares(input(), members, null);
   assert.deepEqual(shares.map(s => s.name), members.map(m => m.name));
+});
+
+test("collector share is covered without recording an incoming payment", () => {
+  const shares = allocateShares(input(), members, null);
+  const covered = coverCollectorShare(shares, ids[1], now);
+  assert.equal(covered[1].status, "confirmed");
+  assert.equal(covered[1].method, "self");
+  assert.equal(covered[1].confirmedAt, now);
+  assert.equal(covered[0].status, "unpaid");
+  assert.equal(shares[1].status, "unpaid");
 });
 
 test("request schemas reject forged ownership, malformed UPI IDs and empty participant lists", () => {
@@ -87,13 +97,15 @@ test("request schemas reject forged ownership, malformed UPI IDs and empty parti
   assert.equal(createSplitSchema.safeParse({ ...input(), participants: [] }).success, false);
   assert.equal(splitActionSchema.safeParse({ action: "confirm", memberId: ids[0], version: 0, amountPaise: 1 }).success, false);
   assert.equal(splitActionSchema.safeParse({ action: "reject", memberId: ids[0], version: 0, note: " " }).success, false);
-  assert.equal(splitActionSchema.safeParse({ action: "report", memberId: ids[0], version: 0, reference: "<script>" }).success, false);
+  assert.equal(splitActionSchema.safeParse({ action: "report", memberId: ids[0], version: 0, method: "upi", reference: "<script>", paymentNote: "" }).success, true);
+  assert.throws(() => applySplitAction(freshSplit(), payer, { action: "report", memberId: ids[0], method: "upi", reference: "<script>", paymentNote: "", version: 0 }, now), errorStatus(400));
 });
 
 test("creation retries match the original payment request", () => {
   const split = freshSplit();
   assert.equal(sameCreateRequest(split, input(), creator.memberId), true);
   assert.equal(sameCreateRequest(split, { ...input(), upiId: "other@bank" }, creator.memberId), false);
+  assert.equal(sameCreateRequest(split, { ...input(), collectorMemberId: ids[1] }, creator.memberId), false);
   assert.equal(sameCreateRequest(split, { ...input(), total: "101.00" }, creator.memberId), false);
   assert.equal(sameCreateRequest(split, { ...input(), participants: [...input().participants].reverse() }, creator.memberId), false);
 });
@@ -124,7 +136,7 @@ test("reporting changes only the payer's share and never marks money confirmed",
 test("another payer or the creator cannot report on behalf of a participant", () => {
   const split = freshSplit();
   for (const actor of [secondPayer, creator]) {
-    assert.throws(() => applySplitAction(split, actor, { action: "report", memberId: ids[0], reference: "123456789012", version: 0 }, now), errorStatus(403));
+    assert.throws(() => applySplitAction(split, actor, { action: "report", memberId: ids[0], method: "upi", reference: "123456789012", paymentNote: "", version: 0 }, now), errorStatus(403));
   }
 });
 
@@ -161,9 +173,9 @@ test("rejection retains an audit trail and allows corrected submission", () => {
 
 test("the same transaction reference cannot be reused by another participant", () => {
   const pending = report();
-  assert.throws(() => applySplitAction(pending, secondPayer, { action: "report", memberId: ids[1], reference: "utr123456", version: 1 }, now), errorStatus(409));
+  assert.throws(() => applySplitAction(pending, secondPayer, { action: "report", memberId: ids[1], method: "upi", reference: "utr123456", paymentNote: "", version: 1 }, now), errorStatus(409));
   const rejected = applySplitAction(pending, creator, { action: "reject", memberId: ids[0], version: 1, note: "No matching payment" }, now);
-  const corrected = applySplitAction(rejected, secondPayer, { action: "report", memberId: ids[1], reference: "utr123456", version: 2 }, now);
+  const corrected = applySplitAction(rejected, secondPayer, { action: "report", memberId: ids[1], method: "upi", reference: "utr123456", paymentNote: "", version: 2 }, now);
   assert.equal(corrected.shares[1].status, "reported");
 });
 
@@ -180,7 +192,7 @@ test("only an untouched request can be cancelled by its creator", () => {
 
 test("participants cannot see another participant's reference, review note, or payment events", () => {
   let split = report();
-  split = applySplitAction(split, secondPayer, { action: "report", memberId: ids[1], reference: "222222222222", version: split.version }, now);
+  split = applySplitAction(split, secondPayer, { action: "report", memberId: ids[1], method: "upi", reference: "222222222222", paymentNote: "", version: split.version }, now);
   split = applySplitAction(split, creator, { action: "reject", memberId: ids[1], note: "Private review note", version: split.version }, now);
   split = applySplitAction(split, creator, { action: "confirm", memberId: ids[0], version: split.version }, now);
   const view = splitForViewer(split, payer);
@@ -204,4 +216,42 @@ test("UPI payload preserves the exact recipient, amount and encoded name", () =>
   assert.equal(uri.searchParams.get("am"), "33.34");
   assert.equal(uri.searchParams.get("cu"), "INR");
   assert.equal(uri.searchParams.get("tn"), "Split 55555555 11111111");
+});
+
+test("a separate collector can review while the creator can still owe a share", () => {
+  const split = freshSplit();
+  split.collector_member_id = ids[1];
+  split.collector_name = "Member 2";
+  split.participant_ids.push(creator.memberId!);
+  split.shares.push({ memberId: creator.memberId!, name: creator.name, amountPaise: 100, status: "unpaid", reference: null, reportedAt: null, confirmedAt: null, note: null });
+  assert.equal(canViewSplit(split, secondPayer), true);
+  assert.throws(() => applySplitAction(report(split), creator, { action: "confirm", memberId: ids[0], version: 1 }, now), errorStatus(403));
+  const pending = report(split);
+  const confirmed = applySplitAction(pending, secondPayer, { action: "confirm", memberId: ids[0], version: 1 }, now);
+  assert.equal(confirmed.shares[0].status, "confirmed");
+});
+
+test("cash requires a note and the collector can record it for an absent member", () => {
+  const split = freshSplit();
+  assert.throws(() => applySplitAction(split, payer, { action: "report", memberId: ids[0], method: "cash", reference: "", paymentNote: "", version: 0 }, now), errorStatus(400));
+  const pending = applySplitAction(split, payer, { action: "report", memberId: ids[0], method: "cash", reference: "", paymentNote: "Given at workshop", version: 0 }, now);
+  assert.equal(pending.shares[0].status, "reported");
+  assert.equal(pending.shares[0].method, "cash");
+  assert.throws(() => applySplitAction(split, payer, { action: "record", memberId: ids[1], method: "cash", reference: "", paymentNote: "At workshop", version: 0 }, now), errorStatus(403));
+  const recorded = applySplitAction(pending, creator, { action: "record", memberId: ids[1], method: "cash", reference: "", paymentNote: "At workshop", version: 1 }, now);
+  assert.equal(recorded.shares[1].status, "confirmed");
+  assert.equal(recorded.events[1].action, "record");
+});
+
+test("confirmed payments can be reopened with a reason and cannot be deleted", () => {
+  const split = freshSplit();
+  assert.equal(canDeleteSplit(split, creator), true);
+  const confirmed = applySplitAction(report(split), creator, { action: "confirm", memberId: ids[0], version: 1 }, now);
+  assert.equal(canDeleteSplit(confirmed, creator), false);
+  assert.throws(() => applySplitAction(confirmed, payer, { action: "reopen", memberId: ids[0], note: "Refunded", version: 2 }, now), errorStatus(403));
+  const reopened = applySplitAction(confirmed, creator, { action: "reopen", memberId: ids[0], note: "Refunded", version: 2 }, now);
+  assert.equal(reopened.shares[0].status, "unpaid");
+  assert.equal(reopened.shares[0].confirmedAt, null);
+  assert.equal(reopened.events[2].note, "Refunded");
+  assert.equal(canDeleteSplit(reopened, creator), false);
 });

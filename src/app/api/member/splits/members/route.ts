@@ -7,6 +7,6 @@ export async function GET() {
     const { data, error } = await createSupabaseAdminClient().from("member_accounts")
       .select("id, name, domain").eq("is_approved", true).order("name").limit(1000);
     if (error) throw new Error("Could not load participants.");
-    return splitResponse({ data: data.filter(m => m.id !== actor.memberId) });
+    return splitResponse({ data, actorMemberId: actor.memberId });
   } catch (error) { return splitFailure(error); }
 }
