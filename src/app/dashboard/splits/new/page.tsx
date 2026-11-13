@@ -21,7 +21,7 @@ export default function NewSplitPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    const controller = new AbortController(); setLoading(true); setLoadError("");
+    const controller = new AbortController();
     splitRequest<{ data: SplitMember[] }>("/api/member/splits/members", { signal: controller.signal })
       .then(r => setMembers(r.data)).catch(err => { if (!controller.signal.aborted) setLoadError(err.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -66,7 +66,7 @@ export default function NewSplitPage() {
         <section className="border border-white/15 p-4">
           <div className="flex items-center justify-between gap-3"><h2 className="font-bold text-white">Participants ({participants.length}/100)</h2><button type="button" onClick={() => setSelected({})} className="text-xs text-gray-400 hover:text-white">Clear</button></div>
           <label className="mt-3 block text-sm text-gray-300">Find members<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or domain" className={inputClass} /></label>
-          {loading ? <p role="status" className="py-4 text-sm text-gray-400">Loading members…</p> : loadError ? <div role="alert" className="py-4 text-sm text-red-300">{loadError}<button type="button" onClick={() => setAttempt(a => a + 1)} className="ml-3 underline">Retry</button></div> : <>
+          {loading ? <p role="status" className="py-4 text-sm text-gray-400">Loading members…</p> : loadError ? <div role="alert" className="py-4 text-sm text-red-300">{loadError}<button type="button" onClick={() => { setLoading(true); setLoadError(""); setAttempt(a => a + 1); }} className="ml-3 underline">Retry</button></div> : <>
             <button type="button" onClick={() => setSelected(current => { const next = { ...current }; for (const member of filtered) { if (Object.keys(next).length >= 100) break; next[member.id] ??= ""; } return next; })} className="my-3 text-xs text-gray-300 underline">Select matching members (up to 100)</button>
             <div className="max-h-80 space-y-1 overflow-y-auto">{filtered.length === 0 ? <p className="text-sm text-gray-400">No members found.</p> : filtered.map(member => <div key={member.id} className="flex items-center gap-3 border-b border-white/5 py-2">
               <label className="flex min-w-0 flex-1 items-center gap-3 text-sm text-white"><input type="checkbox" checked={member.id in selected} disabled={!(member.id in selected) && participants.length >= 100} onChange={e => setSelected(current => { const next = { ...current }; if (e.target.checked) next[member.id] = ""; else delete next[member.id]; return next; })} className="accent-red" /><span className="break-words">{member.name}<span className="ml-2 text-xs text-gray-500">{member.domain}</span></span></label>

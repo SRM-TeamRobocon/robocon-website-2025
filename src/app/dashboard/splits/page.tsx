@@ -21,22 +21,21 @@ export default function SplitsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true); setError("");
     try {
       const result = await splitRequest<{ data: Summary[]; hasMore: boolean }>(`/api/member/splits?scope=${scope}&page=${page}`, { signal });
       setRows(result.data); setHasMore(result.hasMore);
     } catch (err) { if (!signal?.aborted) setError(err instanceof Error ? err.message : "Could not load splits."); }
     finally { if (!signal?.aborted) setLoading(false); }
   }, [scope, page]);
-  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load]);
+  useEffect(() => { const controller = new AbortController(); queueMicrotask(() => { if (!controller.signal.aborted) void load(controller.signal); }); return () => controller.abort(); }, [load]);
   return <div className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><h1 className="text-3xl font-bold text-white">Team Splits</h1><p className="mt-2 text-sm text-gray-400">Share expenses. Pay the creator directly through UPI.</p></div>
       <Link href="/dashboard/splits/new" className="inline-flex items-center gap-2 border border-red bg-red px-4 py-3 text-sm font-bold text-white hover:bg-red/80"><Plus size={16} /> Create split</Link>
     </div>
     <div className="flex flex-wrap items-center gap-2">
-      {[["owed", "My payments"], ["created", "Created by me"]].map(([value, label]) => <button key={value} aria-pressed={scope === value} onClick={() => { setScope(value); setPage(0); }} className={`border px-4 py-2 text-sm ${scope === value ? "border-red bg-red/10 text-white" : "border-white/15 text-gray-400 hover:text-white"}`}>{label}</button>)}
-      <button disabled={loading} onClick={() => void load()} className="ml-auto flex items-center gap-2 border border-white/15 px-3 py-2 text-sm text-gray-300 disabled:opacity-50"><RefreshCw size={14} />Refresh</button>
+      {[["owed", "My payments"], ["created", "Created by me"]].map(([value, label]) => <button key={value} aria-pressed={scope === value} onClick={() => { if (scope !== value) { setLoading(true); setError(""); setScope(value); setPage(0); } }} className={`border px-4 py-2 text-sm ${scope === value ? "border-red bg-red/10 text-white" : "border-white/15 text-gray-400 hover:text-white"}`}>{label}</button>)}
+      <button disabled={loading} onClick={() => { setLoading(true); setError(""); void load(); }} className="ml-auto flex items-center gap-2 border border-white/15 px-3 py-2 text-sm text-gray-300 disabled:opacity-50"><RefreshCw size={14} />Refresh</button>
     </div>
     {error ? <p role="alert" className="border border-red/40 p-4 text-sm text-red-300">{error}</p> : loading ? <p role="status" className="text-gray-400">Loading splits…</p> : rows.length === 0 ? <div className="border border-white/10 p-8 text-gray-400">{scope === "owed" ? "No payment requests on this page." : "No splits created on this page. Create one to collect an expense."}</div> : <div className="grid gap-4 md:grid-cols-2">{rows.map(row => <Link key={row.id} href={`/dashboard/splits/${row.id}`} className="group border border-white/15 bg-black p-5 transition hover:border-red/50">
       <div className="flex items-start justify-between gap-3"><h2 className="break-words text-lg font-bold text-white">{row.title}</h2><ArrowUpRight className="shrink-0 text-gray-500 group-hover:text-red" size={18} /></div>
@@ -45,8 +44,8 @@ export default function SplitsPage() {
       <p className="mt-2 text-sm text-gray-300">{row.status === "cancelled" ? "Cancelled" : row.confirmedPaise === row.totalPaise ? "All payments confirmed" : scope === "owed" && row.mine ? statuses[row.mine.status] : `${formatRupees(row.confirmedPaise)} received · ${row.reportedCount} to review`}</p>
     </Link>)}</div>}
     <div className="flex items-center justify-between gap-3 text-sm text-gray-400">
-      <button disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)} className="border border-white/15 px-4 py-2 disabled:opacity-30">Previous</button><span>Page {page + 1}</span>
-      <button disabled={!hasMore || loading} onClick={() => setPage(p => p + 1)} className="border border-white/15 px-4 py-2 disabled:opacity-30">Next</button>
+      <button disabled={page === 0 || loading} onClick={() => { setLoading(true); setError(""); setPage(p => p - 1); }} className="border border-white/15 px-4 py-2 disabled:opacity-30">Previous</button><span>Page {page + 1}</span>
+      <button disabled={!hasMore || loading} onClick={() => { setLoading(true); setError(""); setPage(p => p + 1); }} className="border border-white/15 px-4 py-2 disabled:opacity-30">Next</button>
     </div>
   </div>;
 }

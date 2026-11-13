@@ -24,7 +24,8 @@ function PaymentPanel({ split, share, busy, onReport }: { split: TeamSplit; shar
   return <section className="space-y-4 border border-red/40 bg-red/5 p-5">
     <h2 className="text-xl font-bold text-white">Your share: {formatRupees(share.amountPaise)}</h2>
     <p className="text-sm text-gray-300">Pay {split.payee_name} at <strong className="break-all text-white">{split.upi_id}</strong>. Check the recipient name in your UPI app before paying.</p>
-    <div className="flex flex-wrap items-center gap-5">
+    {share.reference && <p className="border border-amber-500/30 p-3 text-sm text-amber-200">A previous payment was reported. Check its status with the creator and correct the reference below. Do not pay again unless that payment failed or was refunded.</p>}
+    {!share.reference && <div className="flex flex-wrap items-center gap-5">
       <canvas ref={canvas} role="img" aria-label={`UPI QR: pay ${formatRupees(share.amountPaise)} to ${split.upi_id}`} className="max-w-full" />
       <div className="space-y-3">
         <a href={uri} className="inline-block border border-red bg-red px-5 py-3 text-sm font-bold text-white">Pay with UPI</a>
@@ -32,13 +33,13 @@ function PaymentPanel({ split, share, busy, onReport }: { split: TeamSplit; shar
         <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(split.upi_id); setCopied("UPI ID copied"); } catch { setCopied("Copy the UPI ID displayed above."); } }} className="text-xs text-gray-300 underline">Copy UPI ID</button>
         <p aria-live="polite" className="text-xs text-gray-400">{copied}</p>
       </div>
-    </div>
+    </div>}
     {qrError && <p role="alert" className="text-sm text-red-300">{qrError}</p>}
     {share.note && <p className="border border-amber-500/30 p-3 text-sm text-amber-200">Creator’s review: {share.note}</p>}
     <form onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); void onReport(String(data.get("reference") || "")); }} className="space-y-3 border-t border-white/10 pt-4">
-      <label className="block text-sm text-gray-300">Transaction reference / UTR<input name="reference" required minLength={6} maxLength={40} pattern="[a-zA-Z0-9\-]+" autoComplete="off" placeholder="Reference from your successful UPI payment" className="mt-1 block w-full max-w-md border border-white/20 bg-black px-3 py-2 text-white focus:border-red" /></label>
+      <label className="block text-sm text-gray-300">{share.reference ? "Corrected transaction reference / UTR" : "Transaction reference / UTR"}<input name="reference" required minLength={6} maxLength={40} pattern="[a-zA-Z0-9\-]+" autoComplete="off" placeholder="Reference from your successful UPI payment" className="mt-1 block w-full max-w-md border border-white/20 bg-black px-3 py-2 text-white focus:border-red" /></label>
       <label className="flex items-start gap-2 text-xs text-gray-400"><input type="checkbox" required className="mt-0.5 accent-red" />My UPI app shows this payment as successful. The creator still needs to confirm receipt.</label>
-      <button disabled={busy} className="border border-white/20 px-4 py-2 text-sm font-bold text-white hover:border-red disabled:opacity-40">{busy ? "Submitting…" : "I paid — submit reference"}</button>
+      <button disabled={busy} className="border border-white/20 px-4 py-2 text-sm font-bold text-white hover:border-red disabled:opacity-40">{busy ? "Submitting…" : share.reference ? "Submit corrected reference" : "I paid — submit reference"}</button>
     </form>
   </section>;
 }
@@ -63,14 +64,13 @@ export default function SplitDetailPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true); setError("");
     try {
       const result = await splitRequest<{ data: TeamSplit; actor: SplitActor }>(`/api/member/splits/${id}`, { signal });
       setSplit(result.data); setActor(result.actor);
     } catch (err) { if (!signal?.aborted) setError(err instanceof Error ? err.message : "Could not load split."); }
     finally { if (!signal?.aborted) setLoading(false); }
   }, [id]);
-  useEffect(() => { const controller = new AbortController(); setSplit(null); void load(controller.signal); return () => controller.abort(); }, [load]);
+  useEffect(() => { const controller = new AbortController(); queueMicrotask(() => { if (!controller.signal.aborted) void load(controller.signal); }); return () => controller.abort(); }, [load]);
   async function act(action: ActionInput) {
     if (!split || busy) return;
     setBusy(true); setError(""); setNotice("");
@@ -87,7 +87,7 @@ export default function SplitDetailPage() {
   const mine = split?.shares.find(s => s.memberId === actor?.memberId);
   const received = split?.shares.filter(s => s.status === "confirmed").reduce((sum, s) => sum + s.amountPaise, 0) ?? 0;
   return <div className="max-w-4xl space-y-6">
-    <div className="flex items-center justify-between gap-3"><Link href="/dashboard/splits" className="text-sm text-gray-400 hover:text-white">← Team Splits</Link><button disabled={loading || busy} onClick={() => void load()} className="border border-white/15 px-3 py-2 text-xs text-gray-300 disabled:opacity-40">Refresh status</button></div>
+    <div className="flex items-center justify-between gap-3"><Link href="/dashboard/splits" className="text-sm text-gray-400 hover:text-white">← Team Splits</Link><button disabled={loading || busy} onClick={() => { setLoading(true); setError(""); void load(); }} className="border border-white/15 px-3 py-2 text-xs text-gray-300 disabled:opacity-40">Refresh status</button></div>
     {error && <p role="alert" className="border border-red/40 p-3 text-sm text-red-300">{error}</p>}
     {notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
     {loading ? <p role="status" className="text-gray-400">Loading split…</p> : split && <>

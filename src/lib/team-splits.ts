@@ -87,6 +87,12 @@ export function canViewSplit(split: Pick<TeamSplit, "creator_key" | "participant
   return split.creator_key === actor.key || (!!actor.memberId && split.participant_ids.includes(actor.memberId));
 }
 
+export function sameCreateRequest(split: TeamSplit, input: z.infer<typeof createSplitSchema>, creatorId: string | null) {
+  if (split.title !== input.title || split.description !== input.description || split.upi_id !== input.upiId || split.payee_name !== input.payeeName || split.total_paise !== parseRupees(input.total)) return false;
+  const shares = allocateShares(input, split.shares.map(s => ({ id: s.memberId, name: s.name, domain: "" })), creatorId);
+  return shares.length === split.shares.length && shares.every((s, i) => s.memberId === split.shares[i].memberId && s.amountPaise === split.shares[i].amountPaise);
+}
+
 export function applySplitAction(split: TeamSplit, actor: SplitActor, action: SplitAction, now: string): TeamSplit {
   if (!canViewSplit(split, actor)) throw new SplitError("Split not found.", 404);
   if (action.version !== split.version) throw new SplitError("This split changed. Refresh before trying again.", 409);
@@ -105,7 +111,7 @@ export function applySplitAction(split: TeamSplit, actor: SplitActor, action: Sp
       if (actor.memberId !== share.memberId) throw new SplitError("You can only report your own payment.", 403);
       if (share.status !== "unpaid") throw new SplitError("This payment has already been submitted.", 409);
       const reference = action.reference.toUpperCase();
-      if (next.shares.some(s => s.memberId !== share.memberId && s.reference === reference)) throw new SplitError("This reference is already reported in this split.", 409);
+      if (next.shares.some(s => s.memberId !== share.memberId && s.status !== "unpaid" && s.reference === reference)) throw new SplitError("This reference is already reported in this split.", 409);
       share.status = "reported";
       share.reference = reference;
       share.reportedAt = now;

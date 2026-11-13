@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   allocateShares, applySplitAction, canViewSplit, createSplitSchema, parseRupees,
-  paymentUri, SplitError, splitActionSchema, splitForViewer,
+  paymentUri, sameCreateRequest, SplitError, splitActionSchema, splitForViewer,
   type SplitActor, type SplitMember, type TeamSplit,
 } from "../../src/lib/team-splits";
 
@@ -90,6 +90,14 @@ test("request schemas reject forged ownership, malformed UPI IDs and empty parti
   assert.equal(splitActionSchema.safeParse({ action: "report", memberId: ids[0], version: 0, reference: "<script>" }).success, false);
 });
 
+test("creation retries match the original payment request", () => {
+  const split = freshSplit();
+  assert.equal(sameCreateRequest(split, input(), creator.memberId), true);
+  assert.equal(sameCreateRequest(split, { ...input(), upiId: "other@bank" }, creator.memberId), false);
+  assert.equal(sameCreateRequest(split, { ...input(), total: "101.00" }, creator.memberId), false);
+  assert.equal(sameCreateRequest(split, { ...input(), participants: [...input().participants].reverse() }, creator.memberId), false);
+});
+
 test("split visibility is limited to creator and participants, without an admin bypass", () => {
   const split = freshSplit();
   assert.equal(canViewSplit(split, creator), true);
@@ -154,6 +162,9 @@ test("rejection retains an audit trail and allows corrected submission", () => {
 test("the same transaction reference cannot be reused by another participant", () => {
   const pending = report();
   assert.throws(() => applySplitAction(pending, secondPayer, { action: "report", memberId: ids[1], reference: "utr123456", version: 1 }, now), errorStatus(409));
+  const rejected = applySplitAction(pending, creator, { action: "reject", memberId: ids[0], version: 1, note: "No matching payment" }, now);
+  const corrected = applySplitAction(rejected, secondPayer, { action: "report", memberId: ids[1], reference: "utr123456", version: 2 }, now);
+  assert.equal(corrected.shares[1].status, "reported");
 });
 
 test("only an untouched request can be cancelled by its creator", () => {

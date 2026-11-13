@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { allocateShares, createSplitSchema, parseRupees, SplitError, type TeamSplit } from "@/lib/team-splits";
+import { allocateShares, createSplitSchema, parseRupees, sameCreateRequest, SplitError, type TeamSplit } from "@/lib/team-splits";
 import { splitActor, splitBody, splitFailure, splitResponse } from "@/lib/team-splits-server";
 
 export const dynamic = "force-dynamic";
@@ -38,10 +38,11 @@ export async function POST(request: Request) {
     if (!parsed.success) throw new SplitError(parsed.error.issues[0]?.message || "Invalid split.");
     const input = parsed.data;
     const db = createSupabaseAdminClient();
-    const { data: existing, error: lookupError } = await db.from("team_splits").select("id, creator_key").eq("id", input.id).maybeSingle();
+    const { data: existing, error: lookupError } = await db.from("team_splits").select("*").eq("id", input.id).maybeSingle();
     if (lookupError) throw new Error("Could not check request.");
     if (existing) {
       if (existing.creator_key !== actor.key) throw new SplitError("Request ID is unavailable.", 409);
+      if (!sameCreateRequest(existing, input, actor.memberId)) throw new SplitError("A split was already created from this form with different details. Open your existing split from Created by me.", 409);
       return splitResponse({ id: existing.id });
     }
     const { data: members, error } = await db.from("member_accounts").select("id, name, domain").eq("is_approved", true).in("id", input.participants.map(p => p.memberId));
@@ -54,8 +55,11 @@ export async function POST(request: Request) {
       status: "open", version: 0, created_at: new Date().toISOString() };
     const { error: insertError } = await db.from("team_splits").insert(split);
     if (insertError?.code === "23505") {
-      const { data: retry } = await db.from("team_splits").select("creator_key").eq("id", input.id).maybeSingle();
-      if (retry?.creator_key === actor.key) return splitResponse({ id: input.id });
+      const { data: retry } = await db.from("team_splits").select("*").eq("id", input.id).maybeSingle();
+      if (retry?.creator_key === actor.key) {
+        if (!sameCreateRequest(retry, input, actor.memberId)) throw new SplitError("A split was already created from this form with different details. Open your existing split from Created by me.", 409);
+        return splitResponse({ id: input.id });
+      }
     }
     if (insertError) throw new Error("Could not create split.");
     return splitResponse({ id: split.id }, 201);
