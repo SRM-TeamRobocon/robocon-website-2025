@@ -13,21 +13,23 @@ export async function GET(request: Request) {
     if (!Number.isInteger(page) || page < 0 || page > 10000) throw new SplitError("Invalid page.");
     const requestedScope = url.searchParams.get("scope");
     const scope = requestedScope === "created" || requestedScope === "collecting" ? requestedScope : "owed";
-    let query = db.from("team_splits").select("id, title, creator_name, creator_key, collector_member_id, collector_name, total_paise, shares, status, created_at").order("created_at", { ascending: false }).order("id").range(page * 20, page * 20 + 20);
+    let query = db.from("team_splits").select("id, title, creator_name, creator_key, collector_member_id, collector_name, total_paise, shares, status, created_at, due_date").order("created_at", { ascending: false }).order("id").range(page * 20, page * 20 + 20);
     if (scope === "created") query = query.eq("creator_key", actor.key);
-    else if (scope === "collecting" && actor.memberId) query = query.eq("collector_member_id", actor.memberId);
+    else if (scope === "collecting") query = query.or(`collector_member_id.eq.${actor.memberId ?? "00000000-0000-0000-0000-000000000000"},and(collector_member_id.is.null,creator_key.eq.${JSON.stringify(actor.key)})`);
     else if (actor.memberId) query = query.contains("participant_ids", [actor.memberId]);
     else return splitResponse({ actor, data: [], hasMore: false });
     const { data, error } = await query;
     if (error) throw new Error("Could not list team splits.");
     return splitResponse({ actor, hasMore: data.length > 20, data: data.slice(0, 20).map(split => ({
       id: split.id, title: split.title, creatorName: split.creator_name, collectorName: split.collector_name || split.creator_name, totalPaise: split.total_paise,
-      status: split.status, createdAt: split.created_at,
+      status: split.status, createdAt: split.created_at, dueDate: split.due_date,
+      settledCount: split.shares.filter(s => s.status === "confirmed").length, participantCount: split.shares.length,
       confirmedPaise: split.shares.filter(s => s.status === "confirmed").reduce((sum, s) => sum + s.amountPaise, 0),
       reportedCount: split.shares.filter(s => s.status === "reported").length,
       mine: split.shares.find(s => s.memberId === actor.memberId) ? {
         amountPaise: split.shares.find(s => s.memberId === actor.memberId)!.amountPaise,
         status: split.shares.find(s => s.memberId === actor.memberId)!.status,
+        remindedAt: split.shares.find(s => s.memberId === actor.memberId)!.remindedAt,
       } : null,
     })) });
   } catch (error) { return splitFailure(error); }
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
       title: input.title, description: input.description, upi_id: input.upiId, payee_name: input.payeeName,
       total_paise: parseRupees(input.total), participant_ids: shares.map(s => s.memberId), shares,
       events: [{ action: "created", actor: actor.key, memberId: null, at: new Date().toISOString() }],
-      status: "open", version: 0, created_at: new Date().toISOString() };
+      status: "open", version: 0, due_date: input.dueDate ?? null, created_at: new Date().toISOString() };
     const { error: insertError } = await db.from("team_splits").insert(split);
     if (insertError?.code === "23505") {
       const { data: retry } = await db.from("team_splits").select("*").eq("id", input.id).maybeSingle();

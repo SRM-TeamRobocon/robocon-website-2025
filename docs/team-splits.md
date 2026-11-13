@@ -19,7 +19,7 @@ The total is the full expense, including the creator when selected. When the
 collector is a participant, their share is marked as covered at creation and
 does not require a transfer to themselves. The progress bar shows covered
 amount separately from money received from other members. Title, recipient
-details, participants, and amounts are immutable after creation. A creator can
+details, participants, and amounts can be edited by the creator until any payment is reported. A creator can
 cancel or delete only before any external payment activity. Deleting removes
 the unused request; payment history is retained once money is reported.
 
@@ -44,7 +44,9 @@ member-backed sessions.
 | `POST /api/member/splits` | Create one request with a client UUID, chosen collector, UPI details, full expense, split mode, and participant IDs/custom amounts. |
 | `GET /api/member/splits/members` | Return approved member IDs, names, and domains, including the current member; at most 1,000 directory entries. |
 | `GET /api/member/splits/[id]` | Read a request as its creator, collector, or selected participant. |
-| `PATCH /api/member/splits/[id]` | Apply `report`, `record`, `confirm`, `reject`, `reopen`, or `cancel` with the current `version`. |
+| `PATCH /api/member/splits/[id]` | Apply `report`, `record`, `confirm`, `reject`, `reopen`, `remind`, or `cancel` with the current `version`. |
+| `PUT /api/member/splits/[id]` | Edit an unused open split with its current version. |
+| `GET /api/member/splits/overview` | Return all open split totals for the current session. |
 | `DELETE /api/member/splits/[id]` | Delete an unused split as its creator with the current `version`. |
 
 The server derives the actor from the session and resolves participant and
@@ -105,5 +107,33 @@ UPI app launch depends on the browser, device, and installed payment app; the
 QR and visible UPI ID are alternative ways to pay. The website cannot check UPI
 account ownership or whether funds actually arrived. Creators must reconcile
 their receiving bank records, and handle incorrect payments, refunds, and
-disputes outside this first version. Confirmed records cannot be reversed in
-the dashboard. No automatic reminders or emails are sent by Team Splits.
+disputes outside this first version. Collectors can reopen mistaken confirmations with a recorded reason. No automated emails are sent by Team Splits.
+
+
+## Due dates, reminders, edits and exports
+
+Apply `supabase/team-splits-overview.sql` after the collector migration. It adds
+an optional due date and a service-role-only SQL function for aggregate totals.
+Due dates expire at the end of the selected day in Asia/Kolkata.
+
+The overview shows all open splits: unpaid personal shares, outstanding amounts
+you collect, your reported payments awaiting confirmation, and payments requiring
+your review. Totals are calculated in Postgres, independent of list pagination.
+
+Collectors can send dashboard reminders to unpaid members at most once every
+24 hours per split. Reported and confirmed shares are excluded. Reminders appear
+on the member's dashboard and payment list until the share is reported. This
+button sends no emails or push messages. Reminder batches use the same version
+check as payment changes, preventing concurrent duplicate reminders.
+
+The creator can edit an open split using `/dashboard/splits/[id]/edit` before any
+payment activity. `PUT /api/member/splits/[id]` validates approved members and
+collector details again and rebuilds shares atomically with the current version.
+Edits preserve activity history and clear previous reminders for the changed shares.
+A cancelled split cannot be edited. No payment or correction history can be erased
+through an edit, even after a rejected payment returns to unpaid status.
+
+Creators and collectors can export one split using
+`GET /api/member/splits/[id]?format=csv`. The file includes member, amount, status,
+method, reference, confirmation date and due date. It is private and escapes
+spreadsheet formulas and CSV delimiters. Other participants cannot export it.

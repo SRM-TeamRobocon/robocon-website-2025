@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import DashboardLayoutClient from "./DashboardLayoutClient";
+import SplitOverview from "@/components/dashboard/SplitOverview";
 
 export const metadata: Metadata = {
     manifest: "/manifest.webmanifest",
@@ -26,5 +27,5 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+    return <DashboardLayoutClient><SplitOverview compact />{children}</DashboardLayoutClient>;
 }

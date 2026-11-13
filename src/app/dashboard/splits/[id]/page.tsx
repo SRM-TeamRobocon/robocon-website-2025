@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { canDeleteSplit, collectorKey, formatRupees, paymentUri, type SplitActor, type SplitAction, type SplitShare, type TeamSplit } from "@/lib/team-splits";
+import { canDeleteSplit, collectorKey, formatRupees, isSplitOverdue, paymentUri, type SplitActor, type SplitAction, type SplitShare, type TeamSplit } from "@/lib/team-splits";
 import { splitRequest } from "@/lib/team-splits-client";
 
 const statusText = { unpaid: "Payment due", reported: "Awaiting confirmation", confirmed: "Confirmed" };
 type PaymentMethod = "upi" | "cash" | "bank";
-type ActionInput = { action: "report" | "record"; memberId: string; method: PaymentMethod; reference: string; paymentNote: string } | { action: "confirm"; memberId: string } | { action: "reject" | "reopen"; memberId: string; note: string } | { action: "cancel" };
+type ActionInput = { action: "report" | "record"; memberId: string; method: PaymentMethod; reference: string; paymentNote: string } | { action: "confirm"; memberId: string } | { action: "reject" | "reopen"; memberId: string; note: string } | { action: "cancel" | "remind" };
 
 function PaymentPanel({ split, share, busy, onReport }: { split: TeamSplit; share: SplitShare; busy: boolean; onReport: (method: PaymentMethod, reference: string, paymentNote: string) => Promise<void> }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -101,7 +101,7 @@ export default function SplitDetailPage() {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...action, version: split.version } satisfies SplitAction),
       });
       setSplit(result.data);
-      setNotice(action.action === "report" ? "Payment reported. Waiting for the creator to confirm receipt." : "Split updated.");
+      setNotice(action.action === "report" ? "Payment reported. Waiting for the collector to confirm receipt." : action.action === "remind" ? "Dashboard reminders sent to unpaid members." : "Split updated.");
     } catch (err) { setError(err instanceof Error ? err.message : "Could not update split."); }
     finally { setBusy(false); }
   }
@@ -124,6 +124,13 @@ export default function SplitDetailPage() {
     {notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
     {loading ? <p role="status" className="text-gray-400">Loading split…</p> : split && <>
       <header className="border-l-2 border-red pl-5"><h1 className="break-words text-3xl font-bold text-white">{split.title}</h1><p className="mt-2 text-sm text-gray-400">Created by {split.creator_name} · collected by {split.collector_name || split.creator_name} · {new Date(split.created_at).toLocaleDateString("en-IN")}</p>{split.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-300">{split.description}</p>}</header>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {split.due_date && <span className={split.status === "open" && covered < split.total_paise && isSplitOverdue(split.due_date) ? "text-amber-200" : "text-gray-400"}>Due {split.due_date}{split.status === "open" && covered < split.total_paise && isSplitOverdue(split.due_date) ? " ? Overdue" : ""}</span>}
+        {(owner || collector) && <a href={`/api/member/splits/${split.id}?format=csv`} className="border border-white/20 px-3 py-2 text-gray-300">Export CSV</a>}
+        {owner && split.status === "open" && canDeleteSplit(split, actor!) && <Link href={`/dashboard/splits/${split.id}/edit`} className="border border-white/20 px-3 py-2 text-gray-300">Edit split</Link>}
+        {collector && split.status === "open" && split.shares.some(s => s.status === "unpaid") && <button disabled={busy} onClick={() => void act({ action: "remind" })} className="border border-white/20 px-3 py-2 text-gray-300 disabled:opacity-40">Remind unpaid members</button>}
+      </div>
+      <p className="text-sm text-gray-400">{split.shares.filter(s => s.status === "confirmed").length} of {split.shares.length} members settled</p>
       <section className="space-y-4 border border-white/15 bg-white/[0.03] p-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm text-gray-400">Expense progress</p><p className="mt-1 text-2xl text-white">{formatRupees(covered)} <span className="text-base text-gray-400">/ {formatRupees(split.total_paise)} covered</span></p></div><p className="text-sm text-gray-300">{formatRupees(received)} received from payments</p></div><div role="progressbar" aria-label="Expense covered" aria-valuemin={0} aria-valuemax={split.total_paise} aria-valuenow={covered} className="h-3 w-full bg-white/10"><div className="h-full bg-emerald-400 transition-[width]" style={{ width: `${Math.min(100, covered / split.total_paise * 100)}%` }} /></div><p className="text-sm text-gray-400">{formatRupees(split.total_paise - covered)} still due</p></section>
       {split.status === "cancelled" ? <p className="border border-white/20 p-4 text-gray-300">This request was cancelled. Do not make a payment. Contact the collector if you already paid.</p> : covered === split.total_paise ? <p className="border border-emerald-500/30 p-4 text-emerald-300">Every share has been covered.</p> : mine?.status === "unpaid" ? <PaymentPanel split={split} share={mine} busy={busy} onReport={(method, reference, paymentNote) => act({ action: "report", memberId: mine.memberId, method, reference, paymentNote })} /> : mine && <p className="border border-white/15 p-4 text-gray-300">{mine.method === "self" ? "Your share is covered as the collector." : statusText[mine.status]}{mine.status === "reported" ? " Do not pay again while waiting for confirmation." : ""}</p>}
       {collector && <p className="text-sm text-gray-400">Collecting at <span className="break-all text-white">{split.upi_id}</span> ({split.payee_name}). Verify payments before confirming them.</p>}
@@ -138,7 +145,7 @@ export default function SplitDetailPage() {
         {collector && share.status === "reported" && split.status === "open" && <ReviewShare key={`${share.memberId}:${split.version}`} share={share} busy={busy} onAction={act} />}
         {collector && share.status === "confirmed" && share.method !== "self" && split.status === "open" && <CorrectPayment share={share} busy={busy} onReopen={note => act({ action: "reopen", memberId: share.memberId, note })} />}
       </article>)}</section>
-      <details className="border border-white/15 p-4"><summary className="cursor-pointer text-sm text-gray-300">Payment activity</summary><ul className="mt-3 space-y-2 text-xs text-gray-400">{split.events.slice(-50).reverse().map((event, index) => <li key={`${event.at}:${index}`} className="break-words">{new Date(event.at).toLocaleString("en-IN")} · {({ created: "Request created", report: "Payment reported", record: "Payment recorded by collector", confirm: "Receipt confirmed by collector", reject: "Returned for correction", reopen: "Confirmed payment reopened", cancel: "Request cancelled" } as Record<string, string>)[event.action]}{event.memberId ? ` · ${split.shares.find(s => s.memberId === event.memberId)?.name || "Member"}` : ""}{event.reference ? ` · ${event.reference}` : ""}{event.note ? ` · ${event.note}` : ""}</li>)}</ul></details>
+      <details className="border border-white/15 p-4"><summary className="cursor-pointer text-sm text-gray-300">Payment activity</summary><ul className="mt-3 space-y-2 text-xs text-gray-400">{split.events.slice(-50).reverse().map((event, index) => <li key={`${event.at}:${index}`} className="break-words">{new Date(event.at).toLocaleString("en-IN")} · {({ created: "Request created", edit: "Request edited", remind: "Dashboard reminders sent", report: "Payment reported", record: "Payment recorded by collector", confirm: "Receipt confirmed by collector", reject: "Returned for correction", reopen: "Confirmed payment reopened", cancel: "Request cancelled" } as Record<string, string>)[event.action]}{event.memberId ? ` · ${split.shares.find(s => s.memberId === event.memberId)?.name || "Member"}` : ""}{event.reference ? ` · ${event.reference}` : ""}{event.note ? ` · ${event.note}` : ""}</li>)}</ul></details>
       {owner && canDeleteSplit(split, actor!) && <div className="flex flex-wrap gap-3 border-t border-white/15 pt-4">{split.status === "open" && <button disabled={busy} onClick={() => { if (window.confirm("Cancel this request? First check that nobody has paid, including payments not reported here.")) void act({ action: "cancel" }); }} className="border border-white/20 px-4 py-2 text-sm text-gray-300 disabled:opacity-40">Cancel request</button>}<button disabled={busy} onClick={() => void deleteSplit()} className="border border-red/40 px-4 py-2 text-sm text-red-300 disabled:opacity-40">Delete unused split</button></div>}
     </>}
   </div>;

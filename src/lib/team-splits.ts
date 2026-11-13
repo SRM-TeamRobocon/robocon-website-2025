@@ -13,6 +13,7 @@ export interface SplitShare {
   note: string | null;
   method?: "upi" | "cash" | "bank" | "self" | null;
   paymentNote?: string | null;
+  remindedAt?: string | null;
 }
 export interface SplitEvent {
   action: string; actor: string; memberId: string | null; at: string;
@@ -35,6 +36,7 @@ export type TeamSplit = {
   status: "open" | "cancelled";
   version: number;
   created_at: string;
+  due_date?: string | null;
 }
 export class SplitError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -58,11 +60,13 @@ export const createSplitSchema = z.object({
   upiId: z.string().trim().regex(/^[a-zA-Z0-9._-]{2,128}@[a-zA-Z0-9.-]{2,64}$/, "Enter a valid UPI ID."),
   payeeName: z.string().trim().min(2).max(100),
   collectorMemberId: z.string().uuid().nullable().default(null),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => Number(value.slice(0, 4)) > 0 && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value, "Enter a valid date.").nullable().optional(),
   total: z.string().trim(),
   mode: z.enum(["equal", "custom"]),
   participants: z.array(z.object({ memberId: z.string().uuid(), amount: z.string().optional() })).min(1).max(100),
 }).strict();
 export const splitActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("remind"), version: z.number().int().min(0) }).strict(),
   z.object({ action: z.literal("report"), memberId: z.string().uuid(), method: z.enum(["upi", "cash", "bank"]), reference: z.string().trim().max(40).default(""), paymentNote: z.string().trim().max(300).default(""), version: z.number().int().min(0) }).strict(),
   z.object({ action: z.literal("record"), memberId: z.string().uuid(), method: z.enum(["upi", "cash", "bank"]), reference: z.string().trim().max(40).default(""), paymentNote: z.string().trim().max(300).default(""), version: z.number().int().min(0) }).strict(),
   z.object({ action: z.literal("confirm"), memberId: z.string().uuid(), version: z.number().int().min(0) }).strict(),
@@ -101,10 +105,11 @@ export function collectorKey(split: Pick<TeamSplit, "collector_member_id" | "cre
 }
 
 export function canDeleteSplit(split: TeamSplit, actor: SplitActor) {
-  return split.creator_key === actor.key && split.events.every(e => e.action === "created" || e.action === "cancel") && split.shares.every(s => s.status === "unpaid" || s.method === "self");
+  return split.creator_key === actor.key && split.events.every(e => ["created", "cancel", "edit", "remind"].includes(e.action)) && split.shares.every(s => !s.reportedAt && (s.status === "unpaid" || s.method === "self"));
 }
 
 export function sameCreateRequest(split: TeamSplit, input: z.infer<typeof createSplitSchema>, creatorId: string | null) {
+  if ((split.due_date ?? null) !== (input.dueDate ?? null)) return false;
   if (split.title !== input.title || split.description !== input.description || split.upi_id !== input.upiId || split.payee_name !== input.payeeName || (split.collector_member_id ?? null) !== input.collectorMemberId || split.total_paise !== parseRupees(input.total)) return false;
   const shares = allocateShares(input, split.shares.map(s => ({ id: s.memberId, name: s.name, domain: "" })), creatorId);
   return shares.length === split.shares.length && shares.every((s, i) => s.memberId === split.shares[i].memberId && s.amountPaise === split.shares[i].amountPaise);
@@ -117,7 +122,15 @@ export function applySplitAction(split: TeamSplit, actor: SplitActor, action: Sp
   if (split.events.length >= 1000) throw new SplitError("This split has reached its activity limit. Contact the creator.", 409);
   const next = { ...split, shares: split.shares.map(s => ({ ...s })), events: [...split.events], version: split.version + 1 };
   const event: SplitEvent = { action: action.action, actor: actor.key, memberId: "memberId" in action ? action.memberId : null, at: now };
-  if (action.action === "cancel") {
+  if (action.action === "remind") {
+    if (collectorKey(split) !== actor.key) throw new SplitError("Only the collector can send reminders.", 403);
+    const previous = split.events.filter(e => e.action === "remind").at(-1);
+    if (previous && Date.parse(now) - Date.parse(previous.at) < 86400000) throw new SplitError("Wait 24 hours before sending another reminder.", 429);
+    const unpaid = next.shares.filter(s => s.status === "unpaid");
+    if (!unpaid.length) throw new SplitError("Nobody has an unpaid share.", 409);
+    for (const share of unpaid) share.remindedAt = now;
+    event.note = `Dashboard reminder sent to ${unpaid.length} unpaid members.`;
+  } else if (action.action === "cancel") {
     if (split.creator_key !== actor.key) throw new SplitError("Only the creator can cancel this split.", 403);
     if (!canDeleteSplit(split, actor)) throw new SplitError("A payment has been recorded. Keep this request for the payment history.", 409);
     next.status = "cancelled";
@@ -179,4 +192,30 @@ export function paymentUri(split: Pick<TeamSplit, "upi_id" | "payee_name" | "id"
   const params = new URLSearchParams({ pa: split.upi_id, pn: split.payee_name,
     am: (share.amountPaise / 100).toFixed(2), cu: "INR", tn: `Split ${split.id.slice(0, 8)} ${share.memberId.slice(0, 8)}` });
   return `upi://pay?${params.toString()}`;
+}
+
+export function editSplit(split: TeamSplit, actor: SplitActor, input: z.infer<typeof createSplitSchema>, members: SplitMember[], version: number, now: string): TeamSplit {
+  if (split.version !== version) throw new SplitError("This split changed. Refresh before editing.", 409);
+  if (split.status !== "open" || !canDeleteSplit(split, actor)) throw new SplitError("Only the creator can edit an open split before payment activity.", 403);
+  if (split.events.length >= 1000) throw new SplitError("Activity limit reached.", 409);
+  if (input.id !== split.id) throw new SplitError("Split ID cannot change.");
+  const collector = input.collectorMemberId ? members.find(m => m.id === input.collectorMemberId) : null;
+  if (input.collectorMemberId && !collector) throw new SplitError("Collector must be an approved member.");
+  const shares = coverCollectorShare(allocateShares(input, members, actor.memberId), input.collectorMemberId ?? actor.memberId, now);
+  return { ...split, title: input.title, description: input.description, upi_id: input.upiId, payee_name: input.payeeName,
+    collector_member_id: input.collectorMemberId, collector_name: collector?.name ?? actor.name, due_date: input.dueDate ?? null,
+    total_paise: parseRupees(input.total), shares, participant_ids: shares.map(s => s.memberId), version: version + 1,
+    events: [...split.events, { action: "edit", actor: actor.key, memberId: null, at: now }] };
+}
+
+export function splitCsv(split: TeamSplit) {
+  const cell = (value: string) => `"${(/^[\s]*[=+@-]/.test(value) ? "'" + value : value).replace(/"/g, '""')}"`;
+  const rows = [["Member", "Amount INR", "Status", "Method", "Reference", "Confirmed at", "Due date"]];
+  for (const s of split.shares) rows.push([s.name, (s.amountPaise / 100).toFixed(2), s.status, s.method ?? "", s.reference ?? "", s.confirmedAt ?? "", split.due_date ?? ""]);
+  return "\uFEFF" + rows.map(row => row.map(cell).join(",")).join("\r\n");
+}
+
+export function isSplitOverdue(dueDate: string | null | undefined, now = new Date()) {
+  // Due dates end at midnight in the team's India timezone.
+  return !!dueDate && now.getTime() > Date.parse(`${dueDate}T23:59:59.999+05:30`);
 }

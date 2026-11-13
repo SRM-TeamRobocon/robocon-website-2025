@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   allocateShares, applySplitAction, canDeleteSplit, canViewSplit, coverCollectorShare, createSplitSchema, parseRupees,
-  paymentUri, sameCreateRequest, SplitError, splitActionSchema, splitForViewer,
+  paymentUri, sameCreateRequest, editSplit, isSplitOverdue, splitCsv, SplitError, splitActionSchema, splitForViewer,
   type SplitActor, type SplitMember, type TeamSplit,
 } from "../../src/lib/team-splits";
 
@@ -254,4 +254,47 @@ test("confirmed payments can be reopened with a reason and cannot be deleted", (
   assert.equal(reopened.shares[0].confirmedAt, null);
   assert.equal(reopened.events[2].note, "Refunded");
   assert.equal(canDeleteSplit(reopened, creator), false);
+});
+
+test("reminders target unpaid shares, require collector permission, and enforce a daily cooldown", () => {
+  const pending = report();
+  assert.throws(() => applySplitAction(pending, payer, { action: "remind", version: 1 }, now), errorStatus(403));
+  const reminded = applySplitAction(pending, creator, { action: "remind", version: 1 }, now);
+  assert.equal(reminded.shares[0].remindedAt, undefined);
+  assert.equal(reminded.shares[1].remindedAt, now);
+  assert.throws(() => applySplitAction(reminded, creator, { action: "remind", version: 2 }, now), errorStatus(429));
+  assert.equal(applySplitAction(reminded, creator, { action: "remind", version: 2 }, "2026-11-13T12:00:00.000Z").version, 3);
+});
+
+test("unused splits can be edited with fresh shares but payment history locks edits", () => {
+  const original = freshSplit();
+  const changed = { ...input("120.00"), collectorMemberId: ids[1], dueDate: "2026-12-01" };
+  const edited = editSplit(original, creator, changed, members, 0, now);
+  assert.equal(edited.total_paise, 12000);
+  assert.equal(edited.shares[1].method, "self");
+  assert.equal(edited.due_date, "2026-12-01");
+  assert.equal(edited.events[0].action, "edit");
+  assert.equal(canDeleteSplit(edited, creator), true);
+  assert.throws(() => editSplit(original, payer, changed, members, 0, now), errorStatus(403));
+  assert.throws(() => editSplit(edited, creator, changed, members, 0, now), errorStatus(409));
+  assert.throws(() => editSplit(report(), creator, changed, members, 1, now), errorStatus(403));
+  assert.equal(original.total_paise, 10000);
+});
+
+test("due dates reject impossible days and become overdue after the India day ends", () => {
+  assert.equal(createSplitSchema.safeParse({ ...input(), dueDate: "2026-02-30" }).success, false);
+  assert.equal(isSplitOverdue("2026-11-13", new Date("2026-11-13T18:29:59.000Z")), false);
+  assert.equal(isSplitOverdue("2026-11-13", new Date("2026-11-13T18:30:00.000Z")), true);
+  assert.equal(isSplitOverdue(null), false);
+});
+
+test("CSV exports preserve paise and quote spreadsheet formulas, commas and newlines safely", () => {
+  const split = freshSplit();
+  split.shares[0].name = '=HYPERLINK("bad")';
+  split.shares[1].name = 'Member, "Two"\nTeam';
+  const csv = splitCsv(split);
+  assert.ok(csv.startsWith("\uFEFF"));
+  assert.ok(csv.includes('"\'=HYPERLINK(""bad"")"'));
+  assert.ok(csv.includes('"Member, ""Two""\nTeam"'));
+  assert.ok(csv.includes('"33.34"'));
 });
