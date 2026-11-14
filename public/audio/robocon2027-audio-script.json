@@ -1,0 +1,341 @@
+{
+  "metadata": {
+    "title": "Mustika Nusantara Expedition Narration",
+    "language": "en",
+    "version": "1.0.0",
+    "generatedAudioIncluded": true,
+    "audioBase": "./audio/narration/",
+    "audioPack": {
+      "provider": "ElevenLabs",
+      "voiceId": "TNHbwIMY5QmLqZdvjhNn",
+      "voiceName": "Leo - Energetic Indian Voice",
+      "modelId": "eleven_multilingual_v2",
+      "outputFormat": "mp3_44100_128",
+      "clipCount": 28,
+      "generatedAt": "2026-08-03T05:39:46.619Z"
+    }
+  },
+  "schema": {
+    "segment": ["id", "trigger", "text", "emotion", "direction", "pace", "intensity", "pauseAfterMs", "audio"],
+    "triggerTypes": ["onboarding", "tour-step", "match-phase", "match-score"],
+    "note": "Audio paths are optional production targets. The field guide remains fully usable with captions when files are absent."
+  },
+  "voiceNotes": {
+    "voice": "Warm Indonesian expedition archivist; grounded, precise, quietly adventurous.",
+    "pronunciation": {
+      "Mustika": "moos-TEE-kah",
+      "Nusantara": "noo-san-TAH-rah"
+    },
+    "mix": "Dry close voice, no baked-in music, leave headroom for interface effects."
+  },
+  "segments": [
+    {
+      "id": "onboarding.welcome",
+      "trigger": {"type": "onboarding"},
+      "text": "Welcome, explorer. Orbit the temple field, inspect its relics, or open the match chronicle. Narration is optional and never starts without your choice.",
+      "emotion": "welcoming",
+      "direction": "Invite the listener into an archaeological field survey.",
+      "pace": "measured",
+      "intensity": 0.35,
+      "pauseAfterMs": 650,
+      "audio": "./audio/narration/onboarding-welcome.mp3"
+    },
+    {
+      "id": "tour.field",
+      "trigger": {"type": "tour-step", "stepId": "field"},
+      "text": "This is Mustika Nusantara: an eleven by eleven metre stepped temple where Red and Blue rebuild an ancient energy grid in three minutes.",
+      "emotion": "wonder",
+      "direction": "Reveal the full field with restrained awe.",
+      "pace": "measured",
+      "intensity": 0.45,
+      "pauseAfterMs": 700,
+      "audio": "./audio/narration/tour-field.mp3"
+    },
+    {
+      "id": "tour.ground",
+      "trigger": {"type": "tour-step", "stepId": "ground"},
+      "text": "The Ground Area belongs to the Transporter Robot. It contains the start zones, storage, shared block bank, and Mustika Pillar.",
+      "emotion": "informative",
+      "direction": "Explain the base layer clearly.",
+      "pace": "steady",
+      "intensity": 0.3,
+      "pauseAfterMs": 500,
+      "audio": "./audio/narration/tour-ground.mp3"
+    },
+    {
+      "id": "tour.startzone",
+      "trigger": {"type": "tour-step", "stepId": "startzone"},
+      "text": "Each team begins in its marked Start Zones, one for the Transporter and one for the autonomous Builder.",
+      "emotion": "focused",
+      "direction": "Mark the beginning of an expedition route.",
+      "pace": "steady",
+      "intensity": 0.3,
+      "pauseAfterMs": 450,
+      "audio": "./audio/narration/tour-startzone.mp3"
+    },
+    {
+      "id": "tour.storage",
+      "trigger": {"type": "tour-step", "stepId": "storage"},
+      "text": "Team storage holds the Earth Blocks: the foundation stones for every tower.",
+      "emotion": "informative",
+      "direction": "Keep it concise and tactile.",
+      "pace": "steady",
+      "intensity": 0.3,
+      "pauseAfterMs": 450,
+      "audio": "./audio/narration/tour-storage.mp3"
+    },
+    {
+      "id": "tour.earthblock",
+      "trigger": {"type": "tour-step", "stepId": "earthblock"},
+      "text": "An Earth Block forms a tower's base and middle. Its value rises when placed higher in the temple.",
+      "emotion": "curious",
+      "direction": "Describe a recovered artifact under inspection.",
+      "pace": "measured",
+      "intensity": 0.35,
+      "pauseAfterMs": 550,
+      "audio": "./audio/narration/tour-earthblock.mp3"
+    },
+    {
+      "id": "tour.skyarea",
+      "trigger": {"type": "tour-step", "stepId": "skyarea"},
+      "text": "The shared block bank is neutral territory. Both Transporters race here for the limited Sky Blocks.",
+      "emotion": "alert",
+      "direction": "Introduce the first contested resource.",
+      "pace": "brisk",
+      "intensity": 0.5,
+      "pauseAfterMs": 500,
+      "audio": "./audio/narration/tour-skyarea.mp3"
+    },
+    {
+      "id": "tour.skyblock",
+      "trigger": {"type": "tour-step", "stepId": "skyblock"},
+      "text": "The two-faced Sky Block caps a Complete Tower. Whichever team colour faces upward claims the crown.",
+      "emotion": "intrigued",
+      "direction": "Emphasize the reversible ownership.",
+      "pace": "measured",
+      "intensity": 0.5,
+      "pauseAfterMs": 600,
+      "audio": "./audio/narration/tour-skyblock.mp3"
+    },
+    {
+      "id": "tour.mpillar",
+      "trigger": {"type": "tour-step", "stepId": "mpillar"},
+      "text": "The Mustika rests on this shared ground-level pillar, sealed until the Sanctuary Mandate is fulfilled.",
+      "emotion": "mysterious",
+      "direction": "Lower the voice slightly around the sealed relic.",
+      "pace": "slow",
+      "intensity": 0.45,
+      "pauseAfterMs": 700,
+      "audio": "./audio/narration/tour-mpillar.mp3"
+    },
+    {
+      "id": "tour.mustika",
+      "trigger": {"type": "tour-step", "stepId": "mustika"},
+      "text": "The Mustika is the field's sacred energy core and the match's decisive two-hundred-and-fifty-point relic.",
+      "emotion": "reverent",
+      "direction": "Give Mustika ceremonial weight without melodrama.",
+      "pace": "slow",
+      "intensity": 0.55,
+      "pauseAfterMs": 750,
+      "audio": "./audio/narration/tour-mustika.mp3"
+    },
+    {
+      "id": "tour.access",
+      "trigger": {"type": "tour-step", "stepId": "access"},
+      "text": "Ramps and four-step stairs carry the Builder from ground level to Level One. The Transporter remains below.",
+      "emotion": "informative",
+      "direction": "Trace the ascent with an even rhythm.",
+      "pace": "steady",
+      "intensity": 0.35,
+      "pauseAfterMs": 500,
+      "audio": "./audio/narration/tour-access.mp3"
+    },
+    {
+      "id": "tour.transfer",
+      "trigger": {"type": "tour-step", "stepId": "transfer"},
+      "text": "At the Transfer Area, the Transporter hands Earth and Sky Blocks upward to the Builder. Each valid block delivery earns five points.",
+      "emotion": "focused",
+      "direction": "Make the robot partnership explicit.",
+      "pace": "steady",
+      "intensity": 0.4,
+      "pauseAfterMs": 550,
+      "audio": "./audio/narration/tour-transfer.mp3"
+    },
+    {
+      "id": "tour.buildspot",
+      "trigger": {"type": "tour-step", "stepId": "buildspot"},
+      "text": "Green Building Spots mark valid tower sites. Some are protected on Level One; the boundary and summit sites are shared.",
+      "emotion": "analytical",
+      "direction": "Read this like a precise survey note.",
+      "pace": "steady",
+      "intensity": 0.35,
+      "pauseAfterMs": 500,
+      "audio": "./audio/narration/tour-buildspot.mp3"
+    },
+    {
+      "id": "tour.tower",
+      "trigger": {"type": "tour-step", "stepId": "tower"},
+      "text": "Two Earth Blocks, then one Sky Block, form a Complete Tower. Build two, including one in shared territory, to unlock the Mustika.",
+      "emotion": "purposeful",
+      "direction": "Count the three-block sequence distinctly.",
+      "pace": "measured",
+      "intensity": 0.55,
+      "pauseAfterMs": 650,
+      "audio": "./audio/narration/tour-tower.mp3"
+    },
+    {
+      "id": "tour.level2",
+      "trigger": {"type": "tour-step", "stepId": "level2"},
+      "text": "Level Two is the fully shared summit, nine hundred millimetres above the ground and worth the field's richest tower scores.",
+      "emotion": "elevated",
+      "direction": "Open the sound as the camera reaches the summit.",
+      "pace": "measured",
+      "intensity": 0.5,
+      "pauseAfterMs": 600,
+      "audio": "./audio/narration/tour-level2.mp3"
+    },
+    {
+      "id": "tour.cpillar",
+      "trigger": {"type": "tour-step", "stepId": "cpillar"},
+      "text": "Enshrine the Mustika in the Central Pillar to reboot the grid for two hundred and fifty points. The match continues to the buzzer.",
+      "emotion": "triumphant",
+      "direction": "Resolve the expedition with controlled grandeur.",
+      "pace": "measured",
+      "intensity": 0.75,
+      "pauseAfterMs": 900,
+      "audio": "./audio/narration/tour-cpillar.mp3"
+    },
+    {
+      "id": "match.phase.start",
+      "trigger": {"type": "match-phase", "timeSeconds": 0},
+      "text": "The match begins. Four robots leave their Start Zones.",
+      "emotion": "urgent",
+      "direction": "Crisp match call.",
+      "pace": "brisk",
+      "intensity": 0.55,
+      "pauseAfterMs": 300,
+      "audio": "./audio/narration/match-phase-start.mp3"
+    },
+    {
+      "id": "match.phase.harvest",
+      "trigger": {"type": "match-phase", "timeSeconds": 10},
+      "text": "Harvest and haul. The Transporters feed the Transfer Areas.",
+      "emotion": "focused",
+      "direction": "Track the quick opening cycle.",
+      "pace": "brisk",
+      "intensity": 0.5,
+      "pauseAfterMs": 300,
+      "audio": "./audio/narration/match-phase-harvest.mp3"
+    },
+    {
+      "id": "match.phase.first-caps",
+      "trigger": {"type": "match-phase", "timeSeconds": 62},
+      "text": "The first Level One towers are ready for their Sky caps.",
+      "emotion": "anticipatory",
+      "direction": "Build tension lightly.",
+      "pace": "brisk",
+      "intensity": 0.55,
+      "pauseAfterMs": 350,
+      "audio": "./audio/narration/match-phase-first-caps.mp3"
+    },
+    {
+      "id": "match.phase.mandate",
+      "trigger": {"type": "match-phase", "timeSeconds": 130.5},
+      "text": "The Sanctuary Mandate is fulfilled. The Mustika is unlocked.",
+      "emotion": "excited",
+      "direction": "Announce a major state change.",
+      "pace": "measured",
+      "intensity": 0.7,
+      "pauseAfterMs": 500,
+      "audio": "./audio/narration/match-phase-mandate.mp3"
+    },
+    {
+      "id": "match.phase.mustika-run",
+      "trigger": {"type": "match-phase", "timeSeconds": 131.5},
+      "text": "Red begins the Mustika run around the temple.",
+      "emotion": "urgent",
+      "direction": "Follow the relic carrier.",
+      "pace": "brisk",
+      "intensity": 0.65,
+      "pauseAfterMs": 350,
+      "audio": "./audio/narration/match-phase-mustika-run.mp3"
+    },
+    {
+      "id": "match.phase.reboot",
+      "trigger": {"type": "match-phase", "timeSeconds": 152.7},
+      "text": "The Mustika is enshrined. The ancient grid reboots for two hundred and fifty points.",
+      "emotion": "triumphant",
+      "direction": "Deliver the match's ceremonial peak.",
+      "pace": "measured",
+      "intensity": 0.9,
+      "pauseAfterMs": 750,
+      "audio": "./audio/narration/match-phase-reboot.mp3"
+    },
+    {
+      "id": "match.phase.final-push",
+      "trigger": {"type": "match-phase", "timeSeconds": 160.5},
+      "text": "Final push. Every remaining placement counts before the buzzer.",
+      "emotion": "urgent",
+      "direction": "Accelerate toward the finish.",
+      "pace": "brisk",
+      "intensity": 0.75,
+      "pauseAfterMs": 300,
+      "audio": "./audio/narration/match-phase-final-push.mp3"
+    },
+    {
+      "id": "match.score.red-tower-a",
+      "trigger": {"type": "match-score", "timeSeconds": 67.03, "team": "r", "label": "Sky cap - Tower A"},
+      "text": "Red completes Tower A for forty cap points.",
+      "emotion": "excited",
+      "direction": "Short scoring call.",
+      "pace": "brisk",
+      "intensity": 0.62,
+      "pauseAfterMs": 250,
+      "audio": "./audio/narration/match-score-red-tower-a.mp3"
+    },
+    {
+      "id": "match.score.blue-tower-a",
+      "trigger": {"type": "match-score", "timeSeconds": 70.65, "team": "b", "label": "Sky cap - Tower A"},
+      "text": "Blue answers with a completed Tower A.",
+      "emotion": "excited",
+      "direction": "Short counter-scoring call.",
+      "pace": "brisk",
+      "intensity": 0.62,
+      "pauseAfterMs": 250,
+      "audio": "./audio/narration/match-score-blue-tower-a.mp3"
+    },
+    {
+      "id": "match.score.red-tower-b",
+      "trigger": {"type": "match-score", "timeSeconds": 129.73, "team": "r", "label": "Sky cap - shared L1 tower"},
+      "text": "Red completes a second tower and secures the Sanctuary Mandate.",
+      "emotion": "decisive",
+      "direction": "Connect the score to the unlock condition.",
+      "pace": "brisk",
+      "intensity": 0.72,
+      "pauseAfterMs": 400,
+      "audio": "./audio/narration/match-score-red-tower-b.mp3"
+    },
+    {
+      "id": "match.score.blue-level2",
+      "trigger": {"type": "match-score", "timeSeconds": 111.24, "team": "b", "label": "Earth L2 (middle) - L2 tower"},
+      "text": "Blue places the middle Earth Block on Level Two for forty points.",
+      "emotion": "impressed",
+      "direction": "Acknowledge the high-value summit placement.",
+      "pace": "brisk",
+      "intensity": 0.65,
+      "pauseAfterMs": 300,
+      "audio": "./audio/narration/match-score-blue-level2.mp3"
+    },
+    {
+      "id": "match.score.mustika",
+      "trigger": {"type": "match-score", "timeSeconds": 152.69, "team": "r", "label": "MUSTIKA enshrined"},
+      "text": "Red earns the two-hundred-and-fifty-point Mustika enshrinement.",
+      "emotion": "triumphant",
+      "direction": "Strong, clean score declaration.",
+      "pace": "measured",
+      "intensity": 0.9,
+      "pauseAfterMs": 750,
+      "audio": "./audio/narration/match-score-mustika.mp3"
+    }
+  ]
+}
