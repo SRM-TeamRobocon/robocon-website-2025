@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CalendarEvent,
+  BirthdayOccurrence,
   getDaysInMonth,
   isSameDay,
   toDateStr,
@@ -15,6 +16,7 @@ interface MiniCalendarProps {
   selectedDate: Date;
   today: Date;
   events: CalendarEvent[];
+  birthdays?: BirthdayOccurrence[];
   onSelectDate: (date: Date) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -27,6 +29,7 @@ export default function MiniCalendar({
   selectedDate,
   today,
   events,
+  birthdays = [],
   onSelectDate,
   onPrev,
   onNext,
@@ -40,17 +43,24 @@ export default function MiniCalendar({
   const emptyCells = Array.from({ length: firstDow });
 
   // Build a set of date strings that have events for quick lookup
-  const eventDates = new Set(events.flatMap((e) => {
-    const dates: string[] = [];
-    const start = new Date(e.startDate + "T00:00:00");
-    const end   = new Date(e.endDate   + "T00:00:00");
-    const cur   = new Date(start);
-    while (cur <= end) {
-      dates.push(toDateStr(cur));
-      cur.setDate(cur.getDate() + 1);
-    }
-    return dates;
-  }));
+  const eventDates = new Set(
+    events.flatMap((e) => {
+      const dates: string[] = [];
+      const [sy, sm, sd] = e.startDate.split("-").map(Number);
+      const [ey, em, ed] = e.endDate.split("-").map(Number);
+      const start = new Date(sy, sm - 1, sd);
+      const end = new Date(ey, em - 1, ed);
+      const cur = new Date(start);
+      while (cur <= end) {
+        dates.push(toDateStr(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return dates;
+    })
+  );
+
+  // Set of birthday dates
+  const birthdayDates = new Set(birthdays.map((b) => b.dateStr));
 
   const monthName = viewDate.toLocaleDateString("en-US", {
     month: "long",
@@ -103,6 +113,7 @@ export default function MiniCalendar({
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
           const hasEvent = eventDates.has(ds);
+          const hasBirthday = birthdayDates.has(ds);
 
           return (
             <button
@@ -116,9 +127,14 @@ export default function MiniCalendar({
               )}
             >
               {day.getDate()}
-              {hasEvent && !isToday && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-red" />
-              )}
+              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
+                {hasBirthday && !isToday && (
+                  <span className="w-1 h-1 bg-amber-400 rounded-none shrink-0" />
+                )}
+                {hasEvent && !isToday && (
+                  <span className="w-1 h-1 bg-red rounded-none shrink-0" />
+                )}
+              </div>
             </button>
           );
         })}

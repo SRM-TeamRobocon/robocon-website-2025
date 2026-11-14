@@ -7,7 +7,6 @@ import {
   Search,
   Plus,
   Cake,
-  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -15,9 +14,9 @@ import {
   EVENT_CATEGORIES,
   formatMonthYear,
 } from "@/lib/calendar-storage";
-import toast from "react-hot-toast";
 
 export type CalendarView = "month" | "week" | "day";
+export type FilterType = EventCategory | "Birthdays" | "";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -31,14 +30,15 @@ interface CalendarToolbarProps {
   view: CalendarView;
   viewDate: Date;
   search: string;
-  categoryFilter: EventCategory | "";
+  categoryFilter: FilterType;
   onViewChange: (v: CalendarView) => void;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
   onSearchChange: (s: string) => void;
-  onCategoryChange: (c: EventCategory | "") => void;
+  onCategoryChange: (c: FilterType) => void;
   onAddEvent: () => void;
+  onAddBirthday: () => void;
   onMonthChange: (month: number) => void;
   onYearChange: (year: number) => void;
 }
@@ -55,6 +55,7 @@ export default function CalendarToolbar({
   onSearchChange,
   onCategoryChange,
   onAddEvent,
+  onAddBirthday,
   onMonthChange,
   onYearChange,
 }: CalendarToolbarProps) {
@@ -63,17 +64,6 @@ export default function CalendarToolbar({
     { key: "week",  label: "Week" },
     { key: "day",   label: "Day" },
   ];
-
-  function handleAddBirthday() {
-    toast("Birthday management coming in Part 2.", {
-      icon: "🎂",
-      style: {
-        background: "#1f2937",
-        color: "#fcd34d",
-        border: "1px solid #d97706",
-      },
-    });
-  }
 
   return (
     <div className="space-y-3">
@@ -162,20 +152,23 @@ export default function CalendarToolbar({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search events..."
+            placeholder="Search events & birthdays..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full bg-black border border-white/10 pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 outline-none focus:border-white/30 transition"
           />
         </div>
 
-        {/* Category filter */}
+        {/* Category & Birthday filter */}
         <select
           value={categoryFilter}
-          onChange={(e) => onCategoryChange(e.target.value as EventCategory | "")}
+          onChange={(e) => onCategoryChange(e.target.value as FilterType)}
           className="bg-black border border-white/10 text-xs text-gray-300 px-2 py-1.5 outline-none hover:border-white/30 transition appearance-none cursor-pointer"
         >
-          <option value="" className="bg-black">All Categories</option>
+          <option value="" className="bg-black">All Items</option>
+          <option value="Birthdays" className="bg-black text-amber-300">
+            🎂 Birthdays Only
+          </option>
           {EVENT_CATEGORIES.map((c) => (
             <option key={c} value={c} className="bg-black">
               {c}
@@ -186,10 +179,10 @@ export default function CalendarToolbar({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Add Birthday — placeholder, styled but opens toast */}
+        {/* Add Birthday — fully functional in Phase 2 */}
         <button
-          onClick={handleAddBirthday}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-widest hover:bg-amber-500/10 hover:border-amber-500/60 transition"
+          onClick={onAddBirthday}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-widest hover:bg-amber-500/10 hover:border-amber-500/60 transition cursor-pointer"
           aria-label="Add Birthday"
         >
           <Cake className="w-3.5 h-3.5" />
@@ -199,7 +192,7 @@ export default function CalendarToolbar({
         {/* Add Event — fully functional */}
         <button
           onClick={onAddEvent}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red text-white text-xs font-bold uppercase tracking-widest hover:bg-red/80 transition"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red text-white text-xs font-bold uppercase tracking-widest hover:bg-red/80 transition cursor-pointer"
           aria-label="Add Event"
         >
           <Plus className="w-3.5 h-3.5" />

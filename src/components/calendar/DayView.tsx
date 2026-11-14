@@ -1,15 +1,22 @@
 "use client";
 
 import React from "react";
-import { Plus } from "lucide-react";
+import { Plus, Cake } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CalendarEvent, CATEGORY_DOT, toDateStr } from "@/lib/calendar-storage";
+import {
+  CalendarEvent,
+  BirthdayOccurrence,
+  CATEGORY_DOT,
+  toDateStr,
+} from "@/lib/calendar-storage";
 
 interface DayViewProps {
   viewDate: Date;
   today: Date;
   events: CalendarEvent[];
+  birthdays: BirthdayOccurrence[];
   onEventClick: (event: CalendarEvent) => void;
+  onBirthdayClick: (occurrence: BirthdayOccurrence) => void;
   onAddEvent: () => void;
 }
 
@@ -27,13 +34,17 @@ export default function DayView({
   viewDate,
   today,
   events,
+  birthdays,
   onEventClick,
+  onBirthdayClick,
   onAddEvent,
 }: DayViewProps) {
   const ds = toDateStr(viewDate);
   const dayEvents = events
     .filter((e) => e.startDate <= ds && e.endDate >= ds)
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+  const dayBirthdays = birthdays.filter((b) => b.dateStr === ds);
 
   const isToday =
     viewDate.getFullYear() === today.getFullYear() &&
@@ -47,7 +58,6 @@ export default function DayView({
     year: "numeric",
   });
 
-  // Current hour for today highlight
   const nowHour = isToday ? today.getHours() : -1;
 
   return (
@@ -71,18 +81,49 @@ export default function DayView({
         </div>
         <button
           onClick={onAddEvent}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white hover:border-white/30 transition"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white hover:border-white/30 transition cursor-pointer"
         >
           <Plus className="w-3 h-3" />
           Add Event
         </button>
       </div>
 
+      {/* Dedicated Birthday Section on this day */}
+      {dayBirthdays.length > 0 && (
+        <div className="border-b border-white/10 bg-amber-500/10 p-3 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-amber-400">
+            <Cake className="w-4 h-4" />
+            <span>Birthdays on this Date</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {dayBirthdays.map((b) => (
+              <button
+                key={`bday-${b.record.id}`}
+                onClick={() => onBirthdayClick(b)}
+                className="flex items-center justify-between p-2.5 bg-black/60 border border-amber-500/30 hover:border-amber-400 text-left transition"
+              >
+                <div className="min-w-0 pr-2">
+                  <p className="text-sm font-black text-white truncate">
+                    {b.record.name}
+                  </p>
+                  <p className="text-[11px] text-amber-300 font-semibold mt-0.5">
+                    {b.statusText}
+                  </p>
+                </div>
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                  {b.age > 0 ? `Age ${b.age}` : "Born"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* All-day / no-time events */}
       {dayEvents.filter((e) => !e.startTime).length > 0 && (
         <div className="border-b border-white/10 px-4 py-2 space-y-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">
-            All Day
+            All Day Events
           </p>
           {dayEvents
             .filter((e) => !e.startTime)
@@ -162,12 +203,12 @@ export default function DayView({
       </div>
 
       {/* Empty state */}
-      {dayEvents.length === 0 && (
+      {dayEvents.length === 0 && dayBirthdays.length === 0 && (
         <div className="py-12 text-center">
-          <p className="text-gray-600 text-sm">No events scheduled for this day.</p>
+          <p className="text-gray-600 text-sm">No events or birthdays scheduled for this day.</p>
           <button
             onClick={onAddEvent}
-            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white hover:border-white/30 transition"
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 border border-white/10 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white hover:border-white/30 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Add an Event

@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { Cake } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CalendarEvent,
+  BirthdayOccurrence,
   CATEGORY_DOT,
   getDaysInMonth,
   isSameDay,
@@ -15,8 +17,10 @@ interface MonthViewProps {
   selectedDate: Date;
   today: Date;
   events: CalendarEvent[];
+  birthdays: BirthdayOccurrence[];
   onSelectDate: (date: Date) => void;
   onEventClick: (event: CalendarEvent) => void;
+  onBirthdayClick: (occurrence: BirthdayOccurrence) => void;
   onAddEventOnDate: (date: Date) => void;
 }
 
@@ -28,8 +32,10 @@ export default function MonthView({
   selectedDate,
   today,
   events,
+  birthdays,
   onSelectDate,
   onEventClick,
+  onBirthdayClick,
   onAddEventOnDate,
 }: MonthViewProps) {
   const year = viewDate.getFullYear();
@@ -38,10 +44,14 @@ export default function MonthView({
   const firstDow = days[0].getDay();
   const totalCells = Math.ceil((firstDow + days.length) / 7) * 7;
 
-  // Build a map: dateStr → events that fall on that date
   function eventsOnDate(day: Date): CalendarEvent[] {
     const ds = toDateStr(day);
     return events.filter((e) => e.startDate <= ds && e.endDate >= ds);
+  }
+
+  function birthdaysOnDate(day: Date): BirthdayOccurrence[] {
+    const ds = toDateStr(day);
+    return birthdays.filter((b) => b.dateStr === ds);
   }
 
   const cells: (Date | null)[] = [];
@@ -75,7 +85,7 @@ export default function MonthView({
             return (
               <div
                 key={`empty-${idx}`}
-                className="border-b border-r border-white/10 last:border-r-0 min-h-[90px] bg-white/[0.01]"
+                className="border-b border-r border-white/10 last:border-r-0 min-h-[96px] bg-white/[0.01]"
               />
             );
           }
@@ -84,15 +94,19 @@ export default function MonthView({
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
           const dayEvents = eventsOnDate(day);
+          const dayBirthdays = birthdaysOnDate(day);
           const isOtherMonth = day.getMonth() !== month;
           const colIdx = idx % 7;
+
+          // Combine items for visible slice
+          const totalItemsCount = dayBirthdays.length + dayEvents.length;
 
           return (
             <div
               key={ds}
               onClick={() => onSelectDate(day)}
               className={cn(
-                "relative border-b border-r border-white/10 last:border-r-0 min-h-[90px] p-1 cursor-pointer transition-colors",
+                "group relative border-b border-r border-white/10 last:border-r-0 min-h-[96px] p-1 cursor-pointer transition-colors",
                 colIdx === 6 && "border-r-0",
                 isSelected && !isToday && "bg-white/[0.04]",
                 isOtherMonth && "opacity-40",
@@ -120,42 +134,65 @@ export default function MonthView({
                   }}
                   className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition text-base leading-none"
                   aria-label="Add event"
+                  title="Add Event on this date"
                 >
                   +
                 </button>
               </div>
 
-              {/* Events */}
+              {/* Items: Birthdays first, then Events */}
               <div className="space-y-0.5">
-                {dayEvents.slice(0, MAX_VISIBLE).map((ev) => (
+                {/* Birthday Badges (visually distinct) */}
+                {dayBirthdays.slice(0, MAX_VISIBLE).map((b) => (
                   <button
-                    key={ev.id}
+                    key={`bday-${b.record.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEventClick(ev);
+                      onBirthdayClick(b);
                     }}
                     className="w-full text-left"
+                    title={`Birthday: ${b.record.name} (${b.statusText})`}
                   >
-                    <span
-                      className={cn(
-                        "flex items-center gap-1 px-1 py-0.5 text-[10px] font-medium truncate border-l-2 leading-tight",
-                        "bg-white/5 hover:bg-white/10 transition",
-                        `border-${CATEGORY_DOT[ev.category].replace("bg-", "")}`
-                      )}
-                      style={{
-                        borderLeftColor: getCategoryHex(ev.category),
-                      }}
-                    >
-                      <span
-                        className={cn("w-1.5 h-1.5 shrink-0", CATEGORY_DOT[ev.category])}
-                      />
-                      <span className="truncate text-gray-200">{ev.title}</span>
+                    <span className="flex items-center gap-1 px-1 py-0.5 text-[10px] font-bold truncate border-l-2 leading-tight bg-amber-500/15 border-amber-400 text-amber-200 hover:bg-amber-500/25 transition">
+                      <Cake className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                      <span className="truncate">
+                        {b.record.name}
+                        {b.age > 0 && ` (${b.age})`}
+                      </span>
                     </span>
                   </button>
                 ))}
-                {dayEvents.length > MAX_VISIBLE && (
-                  <span className="block text-[10px] text-gray-500 px-1">
-                    +{dayEvents.length - MAX_VISIBLE} more
+
+                {/* Event Chips */}
+                {dayEvents
+                  .slice(0, Math.max(0, MAX_VISIBLE - dayBirthdays.length))
+                  .map((ev) => (
+                    <button
+                      key={ev.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(ev);
+                      }}
+                      className="w-full text-left"
+                    >
+                      <span
+                        className="flex items-center gap-1 px-1 py-0.5 text-[10px] font-medium truncate border-l-2 leading-tight bg-white/5 hover:bg-white/10 transition"
+                        style={{
+                          borderLeftColor: getCategoryHex(ev.category),
+                        }}
+                      >
+                        <span
+                          className={cn("w-1.5 h-1.5 shrink-0", CATEGORY_DOT[ev.category])}
+                        />
+                        <span className="truncate text-gray-200">{ev.title}</span>
+                      </span>
+                    </button>
+                  ))}
+
+                {/* Overflow count */}
+                {totalItemsCount > MAX_VISIBLE && (
+                  <span className="block text-[10px] text-gray-500 px-1 font-semibold">
+                    +{totalItemsCount - MAX_VISIBLE} more
                   </span>
                 )}
               </div>

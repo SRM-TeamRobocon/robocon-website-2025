@@ -8,14 +8,18 @@ import {
   EVENT_CATEGORIES,
   EventCategory,
   NewCalendarEvent,
+  BirthdayRecord,
   toDateStr,
 } from "@/lib/calendar-storage";
+import CustomDatePicker from "./CustomDatePicker";
 
 interface EventFormModalProps {
   /** If provided, we're editing an existing event. */
   initialEvent?: CalendarEvent;
   /** Pre-fill start date when opening from a date click. */
   prefillDate?: string;
+  events?: CalendarEvent[];
+  birthdays?: BirthdayRecord[];
   onClose: () => void;
   onSave: (data: NewCalendarEvent) => void;
 }
@@ -79,6 +83,8 @@ function validate(form: FormState): Record<string, string> {
 export default function EventFormModal({
   initialEvent,
   prefillDate,
+  events = [],
+  birthdays = [],
   onClose,
   onSave,
 }: EventFormModalProps) {
@@ -193,29 +199,27 @@ export default function EventFormModal({
               </select>
             </Field>
 
-            {/* Date range */}
+            {/* Custom Date Picker for Date Range */}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Start Date" error={errors.startDate} required>
-                <input
-                  type="date"
+                <CustomDatePicker
                   value={form.startDate}
-                  onChange={(e) => set("startDate", e.target.value)}
-                  className={cn(
-                    "w-full bg-white/5 border px-3 py-2 text-sm text-white outline-none focus:border-white/40 transition",
-                    errors.startDate ? "border-red" : "border-white/10"
-                  )}
+                  onChange={(ds) => set("startDate", ds)}
+                  placeholder="Select start date"
+                  events={events}
+                  birthdays={birthdays}
+                  error={!!errors.startDate}
                 />
               </Field>
               <Field label="End Date" error={errors.endDate} required>
-                <input
-                  type="date"
+                <CustomDatePicker
                   value={form.endDate}
                   min={form.startDate}
-                  onChange={(e) => set("endDate", e.target.value)}
-                  className={cn(
-                    "w-full bg-white/5 border px-3 py-2 text-sm text-white outline-none focus:border-white/40 transition",
-                    errors.endDate ? "border-red" : "border-white/10"
-                  )}
+                  onChange={(ds) => set("endDate", ds)}
+                  placeholder="Select end date"
+                  events={events}
+                  birthdays={birthdays}
+                  error={!!errors.endDate}
                 />
               </Field>
             </div>

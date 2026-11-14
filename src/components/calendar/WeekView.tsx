@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { Cake } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CalendarEvent,
+  BirthdayOccurrence,
   CATEGORY_DOT,
   getWeekDays,
   isSameDay,
@@ -15,8 +17,10 @@ interface WeekViewProps {
   selectedDate: Date;
   today: Date;
   events: CalendarEvent[];
+  birthdays: BirthdayOccurrence[];
   onSelectDate: (date: Date) => void;
   onEventClick: (event: CalendarEvent) => void;
+  onBirthdayClick: (occurrence: BirthdayOccurrence) => void;
   onAddEventOnDate: (date: Date) => void;
 }
 
@@ -27,8 +31,10 @@ export default function WeekView({
   selectedDate,
   today,
   events,
+  birthdays,
   onSelectDate,
   onEventClick,
+  onBirthdayClick,
   onAddEventOnDate,
 }: WeekViewProps) {
   const weekDays = getWeekDays(viewDate);
@@ -36,6 +42,11 @@ export default function WeekView({
   function eventsOnDate(day: Date): CalendarEvent[] {
     const ds = toDateStr(day);
     return events.filter((e) => e.startDate <= ds && e.endDate >= ds);
+  }
+
+  function birthdaysOnDate(day: Date): BirthdayOccurrence[] {
+    const ds = toDateStr(day);
+    return birthdays.filter((b) => b.dateStr === ds);
   }
 
   return (
@@ -72,11 +83,12 @@ export default function WeekView({
         })}
       </div>
 
-      {/* Event rows per day */}
+      {/* Event & Birthday rows per day */}
       <div className="grid grid-cols-7 min-h-[320px]">
         {weekDays.map((day) => {
           const ds = toDateStr(day);
           const dayEvents = eventsOnDate(day);
+          const dayBirthdays = birthdaysOnDate(day);
           const isToday = isSameDay(day, today);
 
           return (
@@ -89,18 +101,36 @@ export default function WeekView({
               )}
               onClick={() => onSelectDate(day)}
             >
-              {dayEvents.length === 0 && (
+              {/* Birthdays first */}
+              {dayBirthdays.map((b) => (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onAddEventOnDate(day); }}
-                  className="w-full text-center py-2 text-gray-700 hover:text-gray-500 text-xs transition"
+                  key={`bday-${b.record.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onBirthdayClick(b);
+                  }}
+                  className="w-full text-left"
                 >
-                  +
+                  <div className="px-1.5 py-1 text-[11px] font-bold border-l-2 border-amber-400 bg-amber-500/15 hover:bg-amber-500/25 transition">
+                    <div className="flex items-center gap-1 text-amber-200 truncate">
+                      <Cake className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="truncate">{b.record.name}</span>
+                    </div>
+                    <div className="text-[10px] text-amber-400/80 mt-0.5 pl-4">
+                      {b.statusText}
+                    </div>
+                  </div>
                 </button>
-              )}
+              ))}
+
+              {/* Events */}
               {dayEvents.map((ev) => (
                 <button
                   key={ev.id}
-                  onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEventClick(ev);
+                  }}
                   className="w-full text-left"
                 >
                   <div
@@ -119,6 +149,19 @@ export default function WeekView({
                   </div>
                 </button>
               ))}
+
+              {dayEvents.length === 0 && dayBirthdays.length === 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddEventOnDate(day);
+                  }}
+                  className="w-full text-center py-2 text-gray-700 hover:text-gray-500 text-xs transition"
+                  title="Add Event"
+                >
+                  +
+                </button>
+              )}
             </div>
           );
         })}
