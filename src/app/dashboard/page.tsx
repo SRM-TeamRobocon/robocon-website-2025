@@ -1,6 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+const CalendarWidget = dynamic(() => import("@/components/calendar/CalendarWidget"), {
+    ssr: false,
+    loading: () => (
+        <div className="border border-white/10 bg-black p-8 text-center text-sm text-gray-600">
+            Loading calendar…
+        </div>
+    ),
+});
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -436,6 +446,7 @@ export default function AdminDashboard() {
                 {header}
                 {/* <StatGrid cards={cards} loading={loading} /> */}
                 <ActionGrid actions={[ATTENDANCE_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, PROFILE_ACTION, PROPOSE_ACTION, SUBMISSIONS_ACTION]} />
+                <CalendarWidget />
             </div>
         );
     }
@@ -458,6 +469,7 @@ export default function AdminDashboard() {
             {header}
             {/* {(role === "lead" || role === "admin") && <StatGrid cards={staffCards} loading={loading} />} */}
             <ActionGrid actions={staffActions} />
+            <CalendarWidget />
         </div>
     );
 }
