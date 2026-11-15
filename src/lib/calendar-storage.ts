@@ -1,14 +1,8 @@
 /**
  * calendar-storage.ts
  *
- * Data model, localStorage CRUD and recurrence calculation
- * for calendar events and birthdays.
- * Intentionally decoupled from UI so a future Supabase adapter
- * can be dropped in by swapping only this module.
- *
- * Storage keys:
- * - Events:    robocon_calendar_events
- * - Birthdays: robocon_calendar_birthdays
+ * Data model, client-side Supabase API integration, recurrence calculations,
+ * and seamless LocalStorage migration fallback.
  */
 
 export type EventCategory =
@@ -46,7 +40,7 @@ export const CATEGORY_DOT: Record<EventCategory, string> = {
   Other: "bg-gray-400",
 };
 
-/** Shape mirrors a future Supabase row (snake_case preserved via aliases). */
+/** Shape mirrors Supabase calendar_events row */
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -61,6 +55,7 @@ export interface CalendarEvent {
   endTime: string;
   category: EventCategory;
   location: string;
+  createdBy?: string | null;
   /** ISO timestamp */
   createdAt: string;
   /** ISO timestamp */
@@ -77,6 +72,7 @@ export interface BirthdayRecord {
   /** Complete ISO date of birth: yyyy-mm-dd */
   dob: string;
   description?: string;
+  createdBy?: string | null;
   /** ISO timestamp */
   createdAt: string;
   /** ISO timestamp */
@@ -99,14 +95,15 @@ export interface BirthdayOccurrence {
 
 const EVENTS_STORAGE_KEY = "robocon_calendar_events";
 const BIRTHDAYS_STORAGE_KEY = "robocon_calendar_birthdays";
+const MIGRATION_FLAG_KEY = "robocon_calendar_migrated_v1";
 
 function generateId(prefix = "evt"): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// ─── Safe LocalStorage Read/Write ──────────────────────────────────────────
+// ─── LocalStorage Helpers ──────────────────────────────────────────────────
 
-function readEvents(): CalendarEvent[] {
+export function readLocalEvents(): CalendarEvent[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(EVENTS_STORAGE_KEY);
@@ -119,16 +116,14 @@ function readEvents(): CalendarEvent[] {
   }
 }
 
-function writeEvents(events: CalendarEvent[]): void {
+export function writeLocalEvents(events: CalendarEvent[]): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
-  } catch {
-    // Silently ignore quota exceeded
-  }
+  } catch {}
 }
 
-function readBirthdays(): BirthdayRecord[] {
+export function readLocalBirthdays(): BirthdayRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(BIRTHDAYS_STORAGE_KEY);
@@ -141,30 +136,352 @@ function readBirthdays(): BirthdayRecord[] {
   }
 }
 
-function writeBirthdays(birthdays: BirthdayRecord[]): void {
+export function writeLocalBirthdays(birthdays: BirthdayRecord[]): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(BIRTHDAYS_STORAGE_KEY, JSON.stringify(birthdays));
-  } catch {
-    // Silently ignore quota exceeded
-  }
+  } catch {}
 }
 
-// ─── Event Storage Operations ──────────────────────────────────────────────
+// ─── Data Mappers: Supabase <-> Frontend ───────────────────────────────────
+
+export function mapSupabaseEventToFrontend(row: any): CalendarEvent {
+  const start = new Date(row.start_at);
+  const end = new Date(row.end_at);
+
+  const startDate = toDateStr(start);
+  const startTime =
+    row.start_at.includes("T") && !row.start_at.endsWith("T00:00:00.000Z") && !row.start_at.endsWith("T00:00:00Z")
+      ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`
+      : "";
+
+  const endDate = toDateStr(end);
+  const endTime =
+    row.end_at.includes("T") && !row.end_at.endsWith("T00:00:00.000Z") && !row.end_at.endsWith("T23:59:59.000Z")
+      ? `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`
+      : "";
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || "",
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    category: row.category,
+    location: row.location || "",
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapFrontendEventToSupabase(event: NewCalendarEvent) {
+  const startAt = event.startTime
+    ? new Date(`${event.startDate}T${event.startTime}:00`).toISOString()
+    : new Date(`${event.startDate}T00:00:00`).toISOString();
+
+  const endAt = event.endTime
+    ? new Date(`${event.endDate}T${event.endTime}:00`).toISOString()
+    : new Date(`${event.endDate}T23:59:59`).toISOString();
+
+  return {
+    title: event.title,
+    description: event.description || null,
+    start_at: startAt,
+    end_at: endAt,
+    category: event.category,
+    location: event.location || null,
+  };
+}
+
+export function mapSupabaseBirthdayToFrontend(row: any): BirthdayRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    dob: typeof row.date_of_birth === "string" ? row.date_of_birth.slice(0, 10) : toDateStr(new Date(row.date_of_birth)),
+    description: row.description || "",
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapFrontendBirthdayToSupabase(bday: NewBirthdayRecord) {
+  return {
+    name: bday.name,
+    date_of_birth: bday.dob,
+    description: bday.description || null,
+  };
+}
+
+// ─── Unified Client API with Supabase & Offline Migration ──────────────────
+
+export const calendarApi = {
+  // --- Events ---
+  async fetchEvents(): Promise<{ events: CalendarEvent[]; source: "supabase" | "local"; error?: string }> {
+    try {
+      const res = await fetch("/api/calendar/events", { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok && json.success && Array.isArray(json.data)) {
+        const events = json.data.map(mapSupabaseEventToFrontend);
+        writeLocalEvents(events); // update local mirror
+        return { events, source: "supabase" };
+      }
+      // If server returned table-not-ready or unauthorized, fallback to local
+      const local = readLocalEvents();
+      return { events: local, source: "local", error: json.error };
+    } catch {
+      const local = readLocalEvents();
+      return { events: local, source: "local" };
+    }
+  },
+
+  async addEvent(data: NewCalendarEvent): Promise<{ event: CalendarEvent; source: "supabase" | "local" }> {
+    try {
+      const payload = mapFrontendEventToSupabase(data);
+      const res = await fetch("/api/calendar/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        const event = mapSupabaseEventToFrontend(json.data);
+        const current = readLocalEvents();
+        writeLocalEvents([...current, event]);
+        return { event, source: "supabase" };
+      }
+    } catch {}
+
+    // Fallback: save locally
+    const now = new Date().toISOString();
+    const event: CalendarEvent = {
+      ...data,
+      id: generateId("evt"),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const current = readLocalEvents();
+    writeLocalEvents([...current, event]);
+    return { event, source: "local" };
+  },
+
+  async updateEvent(id: string, data: Partial<NewCalendarEvent>, existing: CalendarEvent): Promise<{ event: CalendarEvent; source: "supabase" | "local" }> {
+    const merged: NewCalendarEvent = {
+      title: data.title ?? existing.title,
+      description: data.description ?? existing.description,
+      startDate: data.startDate ?? existing.startDate,
+      startTime: data.startTime ?? existing.startTime,
+      endDate: data.endDate ?? existing.endDate,
+      endTime: data.endTime ?? existing.endTime,
+      category: data.category ?? existing.category,
+      location: data.location ?? existing.location,
+    };
+
+    try {
+      const payload = { id, ...mapFrontendEventToSupabase(merged) };
+      const res = await fetch("/api/calendar/events", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        const updated = mapSupabaseEventToFrontend(json.data);
+        const current = readLocalEvents().map((e) => (e.id === id ? updated : e));
+        writeLocalEvents(current);
+        return { event: updated, source: "supabase" };
+      }
+    } catch {}
+
+    // Fallback
+    const updated: CalendarEvent = {
+      ...existing,
+      ...merged,
+      updatedAt: new Date().toISOString(),
+    };
+    const current = readLocalEvents().map((e) => (e.id === id ? updated : e));
+    writeLocalEvents(current);
+    return { event: updated, source: "local" };
+  },
+
+  async deleteEvent(id: string): Promise<boolean> {
+    try {
+      await fetch(`/api/calendar/events?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch {}
+    const next = readLocalEvents().filter((e) => e.id !== id);
+    writeLocalEvents(next);
+    return true;
+  },
+
+  // --- Birthdays ---
+  async fetchBirthdays(): Promise<{ birthdays: BirthdayRecord[]; source: "supabase" | "local"; error?: string }> {
+    try {
+      const res = await fetch("/api/calendar/birthdays", { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok && json.success && Array.isArray(json.data)) {
+        const birthdays = json.data.map(mapSupabaseBirthdayToFrontend);
+        writeLocalBirthdays(birthdays);
+        return { birthdays, source: "supabase" };
+      }
+      const local = readLocalBirthdays();
+      return { birthdays: local, source: "local", error: json.error };
+    } catch {
+      const local = readLocalBirthdays();
+      return { birthdays: local, source: "local" };
+    }
+  },
+
+  async addBirthday(data: NewBirthdayRecord): Promise<{ birthday: BirthdayRecord; source: "supabase" | "local" }> {
+    try {
+      const payload = mapFrontendBirthdayToSupabase(data);
+      const res = await fetch("/api/calendar/birthdays", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        const birthday = mapSupabaseBirthdayToFrontend(json.data);
+        const current = readLocalBirthdays();
+        writeLocalBirthdays([...current, birthday]);
+        return { birthday, source: "supabase" };
+      }
+    } catch {}
+
+    // Fallback
+    const now = new Date().toISOString();
+    const birthday: BirthdayRecord = {
+      ...data,
+      id: generateId("bday"),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const current = readLocalBirthdays();
+    writeLocalBirthdays([...current, birthday]);
+    return { birthday, source: "local" };
+  },
+
+  async updateBirthday(id: string, data: Partial<NewBirthdayRecord>, existing: BirthdayRecord): Promise<{ birthday: BirthdayRecord; source: "supabase" | "local" }> {
+    const merged: NewBirthdayRecord = {
+      name: data.name ?? existing.name,
+      dob: data.dob ?? existing.dob,
+      description: data.description ?? existing.description,
+    };
+
+    try {
+      const payload = { id, ...mapFrontendBirthdayToSupabase(merged) };
+      const res = await fetch("/api/calendar/birthdays", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        const updated = mapSupabaseBirthdayToFrontend(json.data);
+        const current = readLocalBirthdays().map((b) => (b.id === id ? updated : b));
+        writeLocalBirthdays(current);
+        return { birthday: updated, source: "supabase" };
+      }
+    } catch {}
+
+    const updated: BirthdayRecord = {
+      ...existing,
+      ...merged,
+      updatedAt: new Date().toISOString(),
+    };
+    const current = readLocalBirthdays().map((b) => (b.id === id ? updated : b));
+    writeLocalBirthdays(current);
+    return { birthday: updated, source: "local" };
+  },
+
+  async deleteBirthday(id: string): Promise<boolean> {
+    try {
+      await fetch(`/api/calendar/birthdays?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch {}
+    const next = readLocalBirthdays().filter((b) => b.id !== id);
+    writeLocalBirthdays(next);
+    return true;
+  },
+
+  // --- LocalStorage Migration Handler ---
+  async syncLocalStorageToSupabase(): Promise<{ migratedEvents: number; migratedBirthdays: number }> {
+    if (typeof window === "undefined") return { migratedEvents: 0, migratedBirthdays: 0 };
+    if (window.localStorage.getItem(MIGRATION_FLAG_KEY) === "1") {
+      return { migratedEvents: 0, migratedBirthdays: 0 };
+    }
+
+    const localEvents = readLocalEvents();
+    const localBirthdays = readLocalBirthdays();
+    let migratedEvents = 0;
+    let migratedBirthdays = 0;
+
+    // Check if Supabase is reachable and tables exist
+    try {
+      const test = await fetch("/api/calendar/events", { cache: "no-store" });
+      const testJson = await test.json();
+      if (!test.ok || !testJson.success) {
+        // Database tables not ready; keep local data intact and retry later
+        return { migratedEvents: 0, migratedBirthdays: 0 };
+      }
+
+      const existingSupabaseEvents = (testJson.data || []).map(mapSupabaseEventToFrontend);
+      for (const ev of localEvents) {
+        // Prevent duplicate by matching title, startDate, endDate
+        const exists = existingSupabaseEvents.some(
+          (se: CalendarEvent) => se.title === ev.title && se.startDate === ev.startDate && se.endDate === ev.endDate
+        );
+        if (!exists) {
+          const payload = mapFrontendEventToSupabase(ev);
+          await fetch("/api/calendar/events", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          migratedEvents++;
+        }
+      }
+
+      const testBdays = await fetch("/api/calendar/birthdays", { cache: "no-store" });
+      const testBdaysJson = await testBdays.json();
+      if (testBdays.ok && testBdaysJson.success) {
+        const existingSupabaseBdays = (testBdaysJson.data || []).map(mapSupabaseBirthdayToFrontend);
+        for (const bd of localBirthdays) {
+          const exists = existingSupabaseBdays.some(
+            (sb: BirthdayRecord) => sb.name === bd.name && sb.dob === bd.dob
+          );
+          if (!exists) {
+            const payload = mapFrontendBirthdayToSupabase(bd);
+            await fetch("/api/calendar/birthdays", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            migratedBirthdays++;
+          }
+        }
+      }
+
+      window.localStorage.setItem(MIGRATION_FLAG_KEY, "1");
+    } catch {}
+
+    return { migratedEvents, migratedBirthdays };
+  },
+};
+
+// ─── Synchronous storage helpers (backwards compatibility for components) ───
 
 export const calendarStorage = {
   getAll(): CalendarEvent[] {
-    return readEvents();
+    return readLocalEvents();
   },
-
   getByDate(dateStr: string): CalendarEvent[] {
-    return readEvents().filter(
-      (e) => e.startDate <= dateStr && e.endDate >= dateStr
-    );
+    return readLocalEvents().filter((e) => e.startDate <= dateStr && e.endDate >= dateStr);
   },
-
   add(data: NewCalendarEvent): CalendarEvent {
-    const events = readEvents();
+    const events = readLocalEvents();
     const now = new Date().toISOString();
     const event: CalendarEvent = {
       ...data,
@@ -173,12 +490,11 @@ export const calendarStorage = {
       updatedAt: now,
     };
     events.push(event);
-    writeEvents(events);
+    writeLocalEvents(events);
     return event;
   },
-
   update(id: string, data: Partial<NewCalendarEvent>): CalendarEvent | null {
-    const events = readEvents();
+    const events = readLocalEvents();
     const idx = events.findIndex((e) => e.id === id);
     if (idx === -1) return null;
     const updated: CalendarEvent = {
@@ -187,32 +503,27 @@ export const calendarStorage = {
       updatedAt: new Date().toISOString(),
     };
     events[idx] = updated;
-    writeEvents(events);
+    writeLocalEvents(events);
     return updated;
   },
-
   delete(id: string): boolean {
-    const events = readEvents();
+    const events = readLocalEvents();
     const next = events.filter((e) => e.id !== id);
     if (next.length === events.length) return false;
-    writeEvents(next);
+    writeLocalEvents(next);
     return true;
   },
 };
 
-// ─── Birthday Storage Operations ───────────────────────────────────────────
-
 export const birthdayStorage = {
   getAll(): BirthdayRecord[] {
-    return readBirthdays();
+    return readLocalBirthdays();
   },
-
   getById(id: string): BirthdayRecord | null {
-    return readBirthdays().find((b) => b.id === id) ?? null;
+    return readLocalBirthdays().find((b) => b.id === id) ?? null;
   },
-
   add(data: NewBirthdayRecord): BirthdayRecord {
-    const birthdays = readBirthdays();
+    const birthdays = readLocalBirthdays();
     const now = new Date().toISOString();
     const bday: BirthdayRecord = {
       ...data,
@@ -221,12 +532,11 @@ export const birthdayStorage = {
       updatedAt: now,
     };
     birthdays.push(bday);
-    writeBirthdays(birthdays);
+    writeLocalBirthdays(birthdays);
     return bday;
   },
-
   update(id: string, data: Partial<NewBirthdayRecord>): BirthdayRecord | null {
-    const birthdays = readBirthdays();
+    const birthdays = readLocalBirthdays();
     const idx = birthdays.findIndex((b) => b.id === id);
     if (idx === -1) return null;
     const updated: BirthdayRecord = {
@@ -235,15 +545,14 @@ export const birthdayStorage = {
       updatedAt: new Date().toISOString(),
     };
     birthdays[idx] = updated;
-    writeBirthdays(birthdays);
+    writeLocalBirthdays(birthdays);
     return updated;
   },
-
   delete(id: string): boolean {
-    const birthdays = readBirthdays();
+    const birthdays = readLocalBirthdays();
     const next = birthdays.filter((b) => b.id !== id);
     if (next.length === birthdays.length) return false;
-    writeBirthdays(next);
+    writeLocalBirthdays(next);
     return true;
   },
 };
@@ -254,19 +563,6 @@ export function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
 }
 
-/**
- * Calculates a recurring birthday occurrence for a specific target year.
- * Handles:
- * - Leap year: February 29 birthdays observed on February 28 in non-leap years.
- * - Dynamic age: (targetYear - birthYear)
- * - Dynamic context status wording:
- *   - Current year:
- *     - Today: "Turns [age] Today!"
- *     - Upcoming: "Turning [age]"
- *     - Passed: "Turned [age]"
- *   - Historical year: "Turned [age]"
- *   - Future year: "Turns [age]"
- */
 export function getBirthdayOccurrence(
   record: BirthdayRecord,
   targetYear: number,
@@ -277,14 +573,12 @@ export function getBirthdayOccurrence(
   if (parts.length < 3 || parts.some(isNaN)) return null;
   const [bYear, bMonth, bDay] = parts;
 
-  // If the person was born after the target year, they don't have a birthday in that year
   if (targetYear < bYear) return null;
 
   let day = bDay;
   let month = bMonth;
   let isLeapAdjusted = false;
 
-  // Leap year Feb 29 handling
   if (month === 2 && day === 29) {
     if (!isLeapYear(targetYear)) {
       day = 28;

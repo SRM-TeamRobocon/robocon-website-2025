@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, Cake } from "lucide-react";
+import { CalendarDays, Database, CloudCheck, RefreshCw, AlertCircle } from "lucide-react";
 
 import {
   CalendarEvent,
@@ -11,8 +11,7 @@ import {
   BirthdayRecord,
   NewBirthdayRecord,
   BirthdayOccurrence,
-  calendarStorage,
-  birthdayStorage,
+  calendarApi,
   getBirthdaysForYear,
   getWeekDays,
   toDateStr,
@@ -38,6 +37,9 @@ export default function CalendarWidget() {
   // Data states
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [birthdays, setBirthdays] = useState<BirthdayRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncSource, setSyncSource] = useState<"supabase" | "local">("local");
+  const [dbNotice, setDbNotice] = useState<string | null>(null);
 
   // Modals for Events
   const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
@@ -54,11 +56,48 @@ export default function CalendarWidget() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<FilterType>("");
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    setEvents(calendarStorage.getAll());
-    setBirthdays(birthdayStorage.getAll());
+  // ─── Initial Load & LocalStorage Migration ─────────────────────────────────
+  const loadCalendarData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [eventsRes, birthdaysRes] = await Promise.all([
+        calendarApi.fetchEvents(),
+        calendarApi.fetchBirthdays(),
+      ]);
+
+      setEvents(eventsRes.events);
+      setBirthdays(birthdaysRes.birthdays);
+
+      if (eventsRes.source === "supabase" || birthdaysRes.source === "supabase") {
+        setSyncSource("supabase");
+        setDbNotice(null);
+      } else {
+        setSyncSource("local");
+        if (eventsRes.error?.includes("PGRST205") || eventsRes.error?.includes("supabase/calendar-schema.sql")) {
+          setDbNotice("Database migration pending: run supabase/calendar-schema.sql in Supabase SQL Editor. Using local mirror.");
+        }
+      }
+
+      // Background migration of local storage to Supabase
+      calendarApi.syncLocalStorageToSupabase().then((res) => {
+        if (res.migratedEvents > 0 || res.migratedBirthdays > 0) {
+          toast.success(
+            `Migrated ${res.migratedEvents} event(s) & ${res.migratedBirthdays} birthday(s) to Supabase!`
+          );
+          calendarApi.fetchEvents().then((r) => setEvents(r.events));
+          calendarApi.fetchBirthdays().then((r) => setBirthdays(r.birthdays));
+        }
+      });
+    } catch (err) {
+      console.error("Failed to load calendar data:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadCalendarData();
+  }, [loadCalendarData]);
 
   // ─── Calculate Birthday Occurrences for current view year ──────────────────
   const activeYear = viewDate.getFullYear();
@@ -68,7 +107,6 @@ export default function CalendarWidget() {
 
   // ─── Filtered Events ───────────────────────────────────────────────────────
   const filteredEvents = useMemo(() => {
-    // If filter is strictly "Birthdays", hide all events
     if (categoryFilter === "Birthdays") return [];
 
     return events.filter((e) => {
@@ -84,7 +122,6 @@ export default function CalendarWidget() {
 
   // ─── Filtered Birthdays ────────────────────────────────────────────────────
   const filteredBirthdays = useMemo(() => {
-    // If filter is set to a non-empty event category (e.g. "Meeting"), hide birthdays
     if (categoryFilter && categoryFilter !== "Birthdays") return [];
 
     return yearlyBirthdays.filter((b) => {
@@ -143,28 +180,28 @@ export default function CalendarWidget() {
   }
 
   // ─── Event CRUD Handlers ───────────────────────────────────────────────────
-  const handleAddEvent = useCallback((data: NewCalendarEvent) => {
-    const ev = calendarStorage.add(data);
-    setEvents(calendarStorage.getAll());
+  const handleAddEvent = useCallback(async (data: NewCalendarEvent) => {
+    const res = await calendarApi.addEvent(data);
+    setEvents((prev) => [...prev, res.event]);
     setAddEventOpen(false);
     setEditingEvent(null);
     setPrefillDate(undefined);
-    toast.success(`Event "${ev.title}" added to calendar.`);
+    toast.success(`Event "${res.event.title}" saved.`);
   }, []);
 
-  const handleUpdateEvent = useCallback((data: NewCalendarEvent) => {
+  const handleUpdateEvent = useCallback(async (data: NewCalendarEvent) => {
     if (!editingEvent) return;
-    calendarStorage.update(editingEvent.id, data);
-    setEvents(calendarStorage.getAll());
+    const res = await calendarApi.updateEvent(editingEvent.id, data, editingEvent);
+    setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? res.event : e)));
     setEditingEvent(null);
     setViewingEvent(null);
     toast.success("Event updated successfully.");
   }, [editingEvent]);
 
-  const handleDeleteEvent = useCallback((id: string) => {
+  const handleDeleteEvent = useCallback(async (id: string) => {
     const ev = events.find((e) => e.id === id);
-    calendarStorage.delete(id);
-    setEvents(calendarStorage.getAll());
+    await calendarApi.deleteEvent(id);
+    setEvents((prev) => prev.filter((e) => e.id !== id));
     setViewingEvent(null);
     toast.success(`Event "${ev?.title ?? "Event"}" deleted.`);
   }, [events]);
@@ -185,12 +222,12 @@ export default function CalendarWidget() {
   }
 
   // ─── Birthday CRUD Handlers ────────────────────────────────────────────────
-  const handleAddBirthday = useCallback((data: NewBirthdayRecord) => {
-    const bday = birthdayStorage.add(data);
-    setBirthdays(birthdayStorage.getAll());
+  const handleAddBirthday = useCallback(async (data: NewBirthdayRecord) => {
+    const res = await calendarApi.addBirthday(data);
+    setBirthdays((prev) => [...prev, res.birthday]);
     setAddBirthdayOpen(false);
     setEditingBirthday(null);
-    toast.success(`Birthday for ${bday.name} saved!`, {
+    toast.success(`Birthday for ${res.birthday.name} saved!`, {
       icon: "🎂",
       style: {
         background: "#1f2937",
@@ -200,10 +237,10 @@ export default function CalendarWidget() {
     });
   }, []);
 
-  const handleUpdateBirthday = useCallback((data: NewBirthdayRecord) => {
+  const handleUpdateBirthday = useCallback(async (data: NewBirthdayRecord) => {
     if (!editingBirthday) return;
-    birthdayStorage.update(editingBirthday.id, data);
-    setBirthdays(birthdayStorage.getAll());
+    const res = await calendarApi.updateBirthday(editingBirthday.id, data, editingBirthday);
+    setBirthdays((prev) => prev.map((b) => (b.id === editingBirthday.id ? res.birthday : b)));
     setEditingBirthday(null);
     setViewingBirthday(null);
     toast.success("Birthday updated.", {
@@ -216,10 +253,10 @@ export default function CalendarWidget() {
     });
   }, [editingBirthday]);
 
-  const handleDeleteBirthday = useCallback((id: string) => {
+  const handleDeleteBirthday = useCallback(async (id: string) => {
     const bday = birthdays.find((b) => b.id === id);
-    birthdayStorage.delete(id);
-    setBirthdays(birthdayStorage.getAll());
+    await calendarApi.deleteBirthday(id);
+    setBirthdays((prev) => prev.filter((b) => b.id !== id));
     setViewingBirthday(null);
     toast.success(`Birthday for ${bday?.name ?? "Member"} deleted.`);
   }, [birthdays]);
@@ -246,7 +283,6 @@ export default function CalendarWidget() {
     });
   }
 
-  // Mini-calendar birthday occurrences for miniDate's year
   const miniBirthdays = useMemo(() => {
     return getBirthdaysForYear(birthdays, miniDate.getFullYear(), today);
   }, [birthdays, miniDate, today]);
@@ -265,17 +301,46 @@ export default function CalendarWidget() {
   return (
     <div className="space-y-4">
       {/* Section header */}
-      <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-        <CalendarDays className="w-6 h-6 text-red shrink-0" />
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-white">
-            Calendar
-          </h2>
-          <p className="text-sm text-gray-400 mt-0.5">
-            Schedule team events, meetings, deadlines, and member birthdays.
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10 pb-4">
+        <div className="flex items-center gap-3">
+          <CalendarDays className="w-6 h-6 text-red shrink-0" />
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+              Calendar
+              {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-gray-500" />}
+            </h2>
+            <p className="text-sm text-gray-400 mt-0.5">
+              Schedule team events, meetings, deadlines, and member birthdays.
+            </p>
+          </div>
+        </div>
+
+        {/* Storage status badge */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {syncSource === "supabase" ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Supabase Connected
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-400 border border-white/10" title="Data stored locally until Supabase migration SQL is applied">
+              <Database className="w-3 h-3 text-gray-500" />
+              Local Storage Mirror
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Database Setup Notice if applicable */}
+      {dbNotice && (
+        <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
+          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <span className="font-semibold text-amber-300">Supabase Setup Notice: </span>
+            {dbNotice}
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <CalendarToolbar
@@ -343,9 +408,7 @@ export default function CalendarWidget() {
             >
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 shrink-0 bg-amber-400" />
-                <span className="flex items-center gap-1">
-                  Birthdays
-                </span>
+                <span>Birthdays</span>
               </div>
               <span className="text-[10px] text-gray-500">
                 {yearlyBirthdays.length}
