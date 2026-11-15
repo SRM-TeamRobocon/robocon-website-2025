@@ -1,12 +1,10 @@
 "use client";
 
 import React from "react";
-import { Cake } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CalendarEvent,
   BirthdayOccurrence,
-  CATEGORY_DOT,
   getDaysInMonth,
   isSameDay,
   toDateStr,
@@ -24,8 +22,28 @@ interface MonthViewProps {
   onAddEventOnDate: (date: Date) => void;
 }
 
-const WEEKDAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MAX_VISIBLE = 3;
+const WEEKDAY_HEADERS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const MAX_CHIPS = 2;
+
+export function getTypeStyle(category: string) {
+  switch (category) {
+    case "Birthdays":
+      return { hex: "#f5b301", bg: "#f5b30122" };
+    case "Meeting":
+      return { hex: "#5b9cf5", bg: "#5b9cf522" };
+    case "Competition":
+      return { hex: "#cc0000", bg: "#cc000022" };
+    case "Workshop":
+      return { hex: "#a78bfa", bg: "#a78bfa22" };
+    case "Deadline":
+      return { hex: "#fb923c", bg: "#fb923c22" };
+    case "Team Activity":
+      return { hex: "#34d399", bg: "#34d39922" };
+    case "Other":
+    default:
+      return { hex: "#9ca3af", bg: "#9ca3af22" };
+  }
+}
 
 export default function MonthView({
   viewDate,
@@ -43,6 +61,9 @@ export default function MonthView({
   const days = getDaysInMonth(year, month);
   const firstDow = days[0].getDay();
   const totalCells = Math.ceil((firstDow + days.length) / 7) * 7;
+
+  const isCurrentMonthView = today.getFullYear() === year && today.getMonth() === month;
+  const currentWeekday = isCurrentMonthView ? today.getDay() : -1;
 
   function eventsOnDate(day: Date): CalendarEvent[] {
     const ds = toDateStr(day);
@@ -65,27 +86,41 @@ export default function MonthView({
   }
 
   return (
-    <div className="border border-white/10 overflow-hidden">
+    <div className="border border-[#1f1f1f] bg-[#000000] overflow-hidden select-none">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b border-white/10">
-        {WEEKDAY_HEADERS.map((h) => (
-          <div
-            key={h}
-            className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-gray-500 border-r border-white/10 last:border-r-0"
-          >
-            {h}
-          </div>
-        ))}
+      <div className="grid grid-cols-7 border-b border-[#1f1f1f] bg-[#000000]">
+        {WEEKDAY_HEADERS.map((h, colIdx) => {
+          const isTodayHeader = currentWeekday === colIdx;
+          return (
+            <div
+              key={h}
+              className={cn(
+                "py-2 text-center text-[10px] font-bold uppercase tracking-[0.07em] border-r border-[#1f1f1f] last:border-r-0 transition-colors",
+                isTodayHeader
+                  ? "border-b-2 border-b-[#cc0000] text-white"
+                  : "text-[#6b7280]"
+              )}
+            >
+              {h}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Day grid */}
-      <div className="grid grid-cols-7">
+      {/* Day grid: 150ms fade animation on month change */}
+      <div key={`${year}-${month}`} className="grid grid-cols-7 animate-in fade-in duration-150">
         {cells.map((day, idx) => {
+          const colIdx = idx % 7;
+          const isWeekend = colIdx === 0 || colIdx === 6;
+
           if (!day) {
             return (
               <div
                 key={`empty-${idx}`}
-                className="border-b border-r border-white/10 last:border-r-0 min-h-[96px] bg-white/[0.01]"
+                className={cn(
+                  "border-b border-r border-[#1f1f1f] min-h-[76px] p-[5px] bg-[#050505]",
+                  colIdx === 6 && "border-r-0"
+                )}
               />
             );
           }
@@ -95,104 +130,121 @@ export default function MonthView({
           const isSelected = isSameDay(day, selectedDate);
           const dayEvents = eventsOnDate(day);
           const dayBirthdays = birthdaysOnDate(day);
-          const isOtherMonth = day.getMonth() !== month;
-          const colIdx = idx % 7;
 
-          // Combine items for visible slice
-          const totalItemsCount = dayBirthdays.length + dayEvents.length;
+          // Combined items: birthdays first, then events
+          const allItems: Array<
+            | { type: "birthday"; data: BirthdayOccurrence }
+            | { type: "event"; data: CalendarEvent }
+          > = [
+            ...dayBirthdays.map((b) => ({ type: "birthday" as const, data: b })),
+            ...dayEvents.map((e) => ({ type: "event" as const, data: e })),
+          ];
+
+          const visibleItems = allItems.slice(0, MAX_CHIPS);
+          const overflowCount = allItems.length - MAX_CHIPS;
 
           return (
             <div
               key={ds}
               onClick={() => onSelectDate(day)}
               className={cn(
-                "group relative border-b border-r border-white/10 last:border-r-0 min-h-[96px] p-1 cursor-pointer transition-colors",
+                "group relative border-b border-r border-[#1f1f1f] min-h-[76px] p-[5px] cursor-pointer transition-colors",
                 colIdx === 6 && "border-r-0",
-                isSelected && !isToday && "bg-white/[0.04]",
-                isOtherMonth && "opacity-40",
-                !isSelected && !isToday && "hover:bg-white/[0.03]"
+                isWeekend && !isToday && !isSelected && "bg-[#050505]",
+                !isWeekend && !isToday && !isSelected && "bg-[#000000]",
+                isToday && "bg-[#1a0505]",
+                isSelected && "outline outline-1 outline-[#cc0000] -outline-offset-1 z-10",
+                "hover:bg-[#0d0d0d]"
               )}
             >
-              {/* Date number */}
-              <div className="flex items-start justify-between mb-1">
-                <span
-                  className={cn(
-                    "inline-flex items-center justify-center w-6 h-6 text-xs font-bold",
-                    isToday && "bg-red text-white",
-                    !isToday && isSelected && "bg-white/15 text-white",
-                    !isToday && !isSelected && "text-gray-300"
-                  )}
-                >
-                  {day.getDate()}
-                </span>
+              {/* Day header: number + quick add "+" */}
+              <div className="flex items-start justify-between leading-none">
+                {isToday ? (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-bold bg-[#cc0000] text-white">
+                    {day.getDate()}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      "text-[11px] font-bold pl-0.5 pt-0.5",
+                      isWeekend ? "text-[#6b7280]" : "text-[#e8e8e8]"
+                    )}
+                  >
+                    {day.getDate()}
+                  </span>
+                )}
 
-                {/* Quick add button — visible on hover */}
+                {/* Hover "+" button */}
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddEventOnDate(day);
                   }}
-                  className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition text-base leading-none"
-                  aria-label="Add event"
-                  title="Add Event on this date"
+                  className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center text-[#9aa1ad] hover:text-white hover:bg-[#1a1a1a] transition text-[13px] leading-none"
+                  aria-label={`Add event on ${ds}`}
+                  title="Add event for this date"
                 >
                   +
                 </button>
               </div>
 
-              {/* Items: Birthdays first, then Events */}
-              <div className="space-y-0.5">
-                {/* Birthday Badges (visually distinct) */}
-                {dayBirthdays.slice(0, MAX_VISIBLE).map((b) => (
-                  <button
-                    key={`bday-${b.record.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onBirthdayClick(b);
-                    }}
-                    className="w-full text-left"
-                    title={`Birthday: ${b.record.name} (${b.statusText})`}
-                  >
-                    <span className="flex items-center gap-1 px-1 py-0.5 text-[10px] font-bold truncate border-l-2 leading-tight bg-amber-500/15 border-amber-400 text-amber-200 hover:bg-amber-500/25 transition">
-                      <Cake className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                      <span className="truncate">
-                        {b.record.name}
-                        {b.age > 0 && ` (${b.age})`}
-                      </span>
-                    </span>
-                  </button>
-                ))}
+              {/* Event & Birthday chips */}
+              <div className="mt-1 space-y-[3px]">
+                {visibleItems.map((item) => {
+                  if (item.type === "birthday") {
+                    const b = item.data;
+                    const style = getTypeStyle("Birthdays");
+                    return (
+                      <button
+                        key={`bday-${b.record.id}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onBirthdayClick(b);
+                        }}
+                        className="w-full text-left block truncate mt-[3px] px-[5px] py-[1px] text-[9px] text-[#e8e8e8] border-l-2 hover:brightness-125 transition"
+                        style={{
+                          borderLeftColor: style.hex,
+                          backgroundColor: style.bg,
+                        }}
+                        title={`Birthday: ${b.record.name} (${b.statusText})`}
+                      >
+                        <span className="truncate block font-normal">
+                          {b.record.name}
+                        </span>
+                      </button>
+                    );
+                  }
 
-                {/* Event Chips */}
-                {dayEvents
-                  .slice(0, Math.max(0, MAX_VISIBLE - dayBirthdays.length))
-                  .map((ev) => (
+                  const ev = item.data;
+                  const style = getTypeStyle(ev.category);
+                  return (
                     <button
-                      key={ev.id}
+                      key={`ev-${ev.id}`}
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onEventClick(ev);
                       }}
-                      className="w-full text-left"
+                      className="w-full text-left block truncate mt-[3px] px-[5px] py-[1px] text-[9px] text-[#e8e8e8] border-l-2 hover:brightness-125 transition"
+                      style={{
+                        borderLeftColor: style.hex,
+                        backgroundColor: style.bg,
+                      }}
+                      title={`${ev.category}: ${ev.title}`}
                     >
-                      <span
-                        className="flex items-center gap-1 px-1 py-0.5 text-[10px] font-medium truncate border-l-2 leading-tight bg-white/5 hover:bg-white/10 transition"
-                        style={{
-                          borderLeftColor: getCategoryHex(ev.category),
-                        }}
-                      >
-                        <span
-                          className={cn("w-1.5 h-1.5 shrink-0", CATEGORY_DOT[ev.category])}
-                        />
-                        <span className="truncate text-gray-200">{ev.title}</span>
+                      <span className="truncate block font-normal">
+                        {ev.title}
                       </span>
                     </button>
-                  ))}
+                  );
+                })}
 
-                {/* Overflow count */}
-                {totalItemsCount > MAX_VISIBLE && (
-                  <span className="block text-[10px] text-gray-500 px-1 font-semibold">
-                    +{totalItemsCount - MAX_VISIBLE} more
+                {/* Overflow label */}
+                {overflowCount > 0 && (
+                  <span className="block text-[9px] text-[#6b7280] ml-[5px] mt-[2px] font-semibold leading-none">
+                    +{overflowCount} more
                   </span>
                 )}
               </div>
@@ -202,16 +254,4 @@ export default function MonthView({
       </div>
     </div>
   );
-}
-
-function getCategoryHex(cat: string): string {
-  const map: Record<string, string> = {
-    Meeting: "#60a5fa",
-    Competition: "#C20000",
-    Workshop: "#a78bfa",
-    Deadline: "#fbbf24",
-    "Team Activity": "#34d399",
-    Other: "#9ca3af",
-  };
-  return map[cat] ?? "#9ca3af";
 }

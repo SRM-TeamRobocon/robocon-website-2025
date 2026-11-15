@@ -27,6 +27,50 @@ import EventFormModal from "./EventFormModal";
 import BirthdayModal from "./BirthdayModal";
 import BirthdayFormModal from "./BirthdayFormModal";
 
+function getRelativeDayString(target: Date, base: Date): string {
+  const t = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const b = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
+  const diffDays = Math.round((t - b) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays === -1) return "Yesterday";
+  if (diffDays > 1) return `${diffDays} days from today`;
+  return `${Math.abs(diffDays)} days ago`;
+}
+
+function formatTime12(timeStr?: string): string {
+  if (!timeStr) return "ALL DAY";
+  const [hStr, mStr] = timeStr.split(":");
+  let h = parseInt(hStr, 10);
+  if (isNaN(h)) return "ALL DAY";
+  const m = mStr ? mStr.padStart(2, "0") : "00";
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, "0")}:${m} ${ampm}`;
+}
+
+function getTypeColorHex(cat: string): string {
+  switch (cat) {
+    case "Birthdays":
+      return "#f5b301";
+    case "Meeting":
+      return "#5b9cf5";
+    case "Competition":
+      return "#cc0000";
+    case "Workshop":
+      return "#a78bfa";
+    case "Deadline":
+      return "#fb923c";
+    case "Team Activity":
+      return "#34d399";
+    case "Other":
+    default:
+      return "#9ca3af";
+  }
+}
+
 export default function CalendarWidget() {
   const today = useMemo(() => new Date(), []);
 
@@ -78,7 +122,6 @@ export default function CalendarWidget() {
         }
       }
 
-      // Background migration of local storage to Supabase
       calendarApi.syncLocalStorageToSupabase().then((res) => {
         if (res.migratedEvents > 0 || res.migratedBirthdays > 0) {
           toast.success(
@@ -99,52 +142,84 @@ export default function CalendarWidget() {
     loadCalendarData();
   }, [loadCalendarData]);
 
-  // ─── Calculate Birthday Occurrences for current view year ──────────────────
-  const activeYear = viewDate.getFullYear();
+  // Dynamic Birthday Occurrences for current view year
   const yearlyBirthdays = useMemo(() => {
-    return getBirthdaysForYear(birthdays, activeYear, today);
-  }, [birthdays, activeYear, today]);
+    return getBirthdaysForYear(birthdays, viewDate.getFullYear(), today);
+  }, [birthdays, viewDate, today]);
 
-  // ─── Filtered Events ───────────────────────────────────────────────────────
+  // Filtered Events
   const filteredEvents = useMemo(() => {
-    if (categoryFilter === "Birthdays") return [];
-
-    return events.filter((e) => {
-      const matchesSearch =
-        !search ||
-        e.title.toLowerCase().includes(search.toLowerCase()) ||
-        e.description.toLowerCase().includes(search.toLowerCase()) ||
-        e.location.toLowerCase().includes(search.toLowerCase());
-      const matchesCat = !categoryFilter || e.category === categoryFilter;
-      return matchesSearch && matchesCat;
+    return events.filter((ev) => {
+      if (categoryFilter === "Birthdays") return false;
+      if (categoryFilter && ev.category !== categoryFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchTitle = ev.title.toLowerCase().includes(q);
+        const matchDesc = ev.description?.toLowerCase().includes(q);
+        const matchLoc = ev.location?.toLowerCase().includes(q);
+        const matchCat = ev.category.toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchLoc && !matchCat) return false;
+      }
+      return true;
     });
-  }, [events, search, categoryFilter]);
+  }, [events, categoryFilter, search]);
 
-  // ─── Filtered Birthdays ────────────────────────────────────────────────────
+  // Filtered Birthdays
   const filteredBirthdays = useMemo(() => {
     if (categoryFilter && categoryFilter !== "Birthdays") return [];
-
     return yearlyBirthdays.filter((b) => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (
-        b.record.name.toLowerCase().includes(q) ||
-        (b.record.description && b.record.description.toLowerCase().includes(q))
-      );
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchName = b.record.name.toLowerCase().includes(q);
+        const matchDesc = b.record.description?.toLowerCase().includes(q);
+        if (!matchName && !matchDesc) return false;
+      }
+      return true;
     });
-  }, [yearlyBirthdays, search, categoryFilter]);
+  }, [yearlyBirthdays, categoryFilter, search]);
 
-  // ─── Navigation ────────────────────────────────────────────────────────────
-  function navigate(direction: 1 | -1) {
+  // Live Counts for Filter Chips
+  const typeCounts = useMemo(() => {
+    return {
+      Birthdays: yearlyBirthdays.length,
+      Meeting: events.filter((e) => e.category === "Meeting").length,
+      Competition: events.filter((e) => e.category === "Competition").length,
+      Workshop: events.filter((e) => e.category === "Workshop").length,
+      Deadline: events.filter((e) => e.category === "Deadline").length,
+      "Team Activity": events.filter((e) => e.category === "Team Activity").length,
+      Other: events.filter((e) => e.category === "Other").length,
+    };
+  }, [yearlyBirthdays, events]);
+
+  const totalItemCount = filteredEvents.length + filteredBirthdays.length;
+
+  // Selected Day Items
+  const selectedDateStr = useMemo(() => toDateStr(selectedDate), [selectedDate]);
+
+  const selectedDayEvents = useMemo(() => {
+    return filteredEvents.filter(
+      (e) => e.startDate <= selectedDateStr && e.endDate >= selectedDateStr
+    );
+  }, [filteredEvents, selectedDateStr]);
+
+  const selectedDayBirthdays = useMemo(() => {
+    return filteredBirthdays.filter((b) => b.dateStr === selectedDateStr);
+  }, [filteredBirthdays, selectedDateStr]);
+
+  const selectedDayItems = useMemo(() => {
+    return [
+      ...selectedDayBirthdays.map((b) => ({ type: "birthday" as const, data: b })),
+      ...selectedDayEvents.map((e) => ({ type: "event" as const, data: e })),
+    ];
+  }, [selectedDayBirthdays, selectedDayEvents]);
+
+  // Navigation handlers
+  function navigate(delta: number) {
     setViewDate((prev) => {
       const d = new Date(prev);
-      if (view === "month") {
-        d.setMonth(d.getMonth() + direction);
-      } else if (view === "week") {
-        d.setDate(d.getDate() + direction * 7);
-      } else {
-        d.setDate(d.getDate() + direction);
-      }
+      if (view === "month") d.setMonth(d.getMonth() + delta);
+      else if (view === "week") d.setDate(d.getDate() + delta * 7);
+      else if (view === "day") d.setDate(d.getDate() + delta);
       return d;
     });
   }
@@ -174,9 +249,6 @@ export default function CalendarWidget() {
   function handleSelectDate(date: Date) {
     setSelectedDate(date);
     setViewDate(new Date(date));
-    if (view === "month") {
-      setView("day");
-    }
   }
 
   // ─── Event CRUD Handlers ───────────────────────────────────────────────────
@@ -206,18 +278,20 @@ export default function CalendarWidget() {
     toast.success(`Event "${ev?.title ?? "Event"}" deleted.`);
   }, [events]);
 
-  function openAddEventOnDate(date: Date) {
-    setPrefillDate(toDateStr(date));
-    setAddEventOpen(true);
-  }
-
   function openAddEventBlank() {
+    setEditingEvent(null);
     setPrefillDate(undefined);
     setAddEventOpen(true);
   }
 
-  function openEditEvent(event: CalendarEvent) {
-    setEditingEvent(event);
+  function openAddEventOnDate(date: Date) {
+    setEditingEvent(null);
+    setPrefillDate(toDateStr(date));
+    setAddEventOpen(true);
+  }
+
+  function openEditEvent(ev: CalendarEvent) {
+    setEditingEvent(ev);
     setViewingEvent(null);
   }
 
@@ -227,7 +301,7 @@ export default function CalendarWidget() {
     setBirthdays((prev) => [...prev, res.birthday]);
     setAddBirthdayOpen(false);
     setEditingBirthday(null);
-    toast.success(`Birthday for ${res.birthday.name} saved!`, {
+    toast.success(`Birthday for ${res.birthday.name} added!`, {
       icon: "🎂",
       style: {
         background: "#1f2937",
@@ -266,7 +340,7 @@ export default function CalendarWidget() {
     setViewingBirthday(null);
   }
 
-  // ─── Mini-calendar navigation ──────────────────────────────────────────────
+  // ─── Mini-calendar navigation (for week/day views) ─────────────────────────
   const [miniDate, setMiniDate] = useState<Date>(new Date(today));
   function miniPrev() {
     setMiniDate((d) => {
@@ -287,7 +361,7 @@ export default function CalendarWidget() {
     return getBirthdaysForYear(birthdays, miniDate.getFullYear(), today);
   }, [birthdays, miniDate, today]);
 
-  // ─── Week label for header ────────────────────────────────────────────────
+  // Week label
   const weekLabel = useMemo(() => {
     const days = getWeekDays(viewDate);
     const start = days[0];
@@ -296,20 +370,18 @@ export default function CalendarWidget() {
     return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
   }, [viewDate]);
 
-  const totalItemCount = filteredEvents.length + filteredBirthdays.length;
-
   return (
     <div className="space-y-4">
       {/* Section header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#1f1f1f] pb-4">
         <div className="flex items-center gap-3">
-          <CalendarDays className="w-6 h-6 text-red shrink-0" />
+          <CalendarDays className="w-6 h-6 text-[#cc0000] shrink-0" />
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
-              Calendar
-              {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-gray-500" />}
+            <h2 className="text-2xl font-black tracking-tight text-[#e8e8e8] flex items-center gap-2.5">
+              CALENDAR
+              {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#6b7280]" />}
             </h2>
-            <p className="text-sm text-gray-400 mt-0.5">
+            <p className="text-sm text-[#9aa1ad] mt-0.5">
               Schedule team events, meetings, deadlines, and member birthdays.
             </p>
           </div>
@@ -323,8 +395,8 @@ export default function CalendarWidget() {
               Supabase Connected
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-400 border border-white/10" title="Data stored locally until Supabase migration SQL is applied">
-              <Database className="w-3 h-3 text-gray-500" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#0a0a0a] text-[#9aa1ad] border border-[#2a2a2a]" title="Data stored locally until Supabase migration SQL is applied">
+              <Database className="w-3 h-3 text-[#6b7280]" />
               Local Storage Mirror
             </span>
           )}
@@ -342,7 +414,7 @@ export default function CalendarWidget() {
         </div>
       )}
 
-      {/* Toolbar */}
+      {/* 2. TOOLBAR AND FILTER CHIPS */}
       <CalendarToolbar
         view={view}
         viewDate={viewDate}
@@ -361,157 +433,265 @@ export default function CalendarWidget() {
         }}
         onMonthChange={handleMonthChange}
         onYearChange={handleYearChange}
+        counts={typeCounts}
+        totalCount={totalItemCount}
       />
 
       {/* Week label (week view only) */}
       {view === "week" && (
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+        <p className="text-xs font-bold uppercase tracking-widest text-[#9aa1ad]">
           {weekLabel}
         </p>
       )}
 
-      {/* Main layout: sidebar + calendar view */}
-      <div className="flex gap-4 items-start">
-        {/* Mini calendar sidebar — hidden on small screens */}
-        <div className="hidden lg:block w-56 shrink-0">
-          <MiniCalendar
-            viewDate={miniDate}
+      {/* Calendar Views Layout */}
+      {view === "month" ? (
+        /* 1. MONTH GRID (main view full-width top-to-bottom layout) */
+        <div className="space-y-4">
+          <MonthView
+            viewDate={viewDate}
             selectedDate={selectedDate}
             today={today}
-            events={events}
-            birthdays={miniBirthdays}
-            onSelectDate={(date) => {
-              setSelectedDate(date);
-              setViewDate(new Date(date));
-              setMiniDate(new Date(date));
-            }}
-            onPrev={miniPrev}
-            onNext={miniNext}
+            events={filteredEvents}
+            birthdays={filteredBirthdays}
+            onSelectDate={handleSelectDate}
+            onEventClick={setViewingEvent}
+            onBirthdayClick={setViewingBirthday}
+            onAddEventOnDate={openAddEventOnDate}
           />
 
-          {/* Interactive Categories & Birthdays legend */}
-          <div className="mt-3 border border-white/10 bg-black p-3 space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
-              Filter by Type
-            </p>
-
-            {/* Birthdays Filter Item */}
-            <button
-              onClick={() =>
-                setCategoryFilter((prev) => (prev === "Birthdays" ? "" : "Birthdays"))
-              }
-              className={`flex items-center justify-between text-xs w-full text-left py-0.5 transition ${
-                categoryFilter === "Birthdays"
-                  ? "text-amber-300 font-bold"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 shrink-0 bg-amber-400" />
-                <span>Birthdays</span>
+          {/* 3. SELECTED-DAY PANEL (below the grid) */}
+          <div className="border border-[#1f1f1f] bg-[#050505] flex flex-col md:flex-row">
+            {/* Left: 1fr summary */}
+            <div className="p-4 flex-1 border-b md:border-b-0 md:border-r border-[#1f1f1f] flex flex-col justify-between space-y-3">
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.07em] text-[#6b7280]">
+                  SELECTED DAY
+                </span>
+                <h3 className="text-[22px] font-bold uppercase tracking-[0.08em] text-[#e8e8e8] mt-0.5">
+                  {selectedDate.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()} {selectedDate.getDate()}
+                </h3>
+                <p className="text-[11px] text-[#f5b301] mt-0.5">
+                  {getRelativeDayString(selectedDate, today)}
+                </p>
               </div>
-              <span className="text-[10px] text-gray-500">
-                {yearlyBirthdays.length}
-              </span>
-            </button>
 
-            {/* Event Categories */}
-            {[
-              { label: "Meeting", dot: "bg-blue-400" },
-              { label: "Competition", dot: "bg-red" },
-              { label: "Workshop", dot: "bg-violet-400" },
-              { label: "Deadline", dot: "bg-amber-400" },
-              { label: "Team Activity", dot: "bg-emerald-400" },
-              { label: "Other", dot: "bg-gray-400" },
-            ].map(({ label, dot }) => {
-              const count = events.filter((e) => e.category === label).length;
-              return (
-                <button
-                  key={label}
-                  onClick={() =>
-                    setCategoryFilter((prev) =>
-                      prev === label ? "" : (label as EventCategory)
-                    )
-                  }
-                  className={`flex items-center justify-between text-xs w-full text-left py-0.5 transition ${
-                    categoryFilter === label ? "text-white font-bold" : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 shrink-0 ${dot}`} />
-                    <span>{label}</span>
-                  </div>
-                  <span className="text-[10px] text-gray-500">{count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Item count status */}
-          <div className="mt-3 border border-white/10 bg-black px-3 py-2 text-xs text-gray-400 flex items-center justify-between">
-            <span>
-              {totalItemCount} {totalItemCount === 1 ? "item" : "items"}
-              {(search || categoryFilter) && " (filtered)"}
-            </span>
-            {(search || categoryFilter) && (
               <button
-                onClick={() => {
-                  setSearch("");
-                  setCategoryFilter("");
-                }}
-                className="text-[10px] text-red hover:underline"
+                type="button"
+                onClick={() => openAddEventOnDate(selectedDate)}
+                className="w-full bg-[#cc0000] text-white py-2 px-3 text-[11px] font-bold uppercase tracking-[0.07em] hover:bg-[#aa0000] transition cursor-pointer"
               >
-                Reset
+                + ADD TO THIS DAY
               </button>
-            )}
+            </div>
+
+            {/* Right: 1.3fr agenda list */}
+            <div className="p-4 flex-[1.3] flex flex-col">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.07em] text-[#6b7280] mb-2">
+                AGENDA - {selectedDayItems.length} {selectedDayItems.length === 1 ? "ITEM" : "ITEMS"}
+              </span>
+
+              {selectedDayItems.length === 0 ? (
+                <div className="flex-1 flex items-center text-xs text-[#6b7280] italic py-4">
+                  Nothing scheduled
+                </div>
+              ) : (
+                <div className="divide-y divide-[#1a1a1a] flex-1">
+                  {selectedDayItems.map((item) => {
+                    if (item.type === "birthday") {
+                      const b = item.data;
+                      return (
+                        <div
+                          key={`sel-bday-${b.record.id}`}
+                          onClick={() => setViewingBirthday(b)}
+                          className="py-2.5 flex items-start gap-3 cursor-pointer hover:bg-white/[0.02] px-1 transition"
+                        >
+                          <div
+                            className="w-[3px] self-stretch shrink-0"
+                            style={{ backgroundColor: "#f5b301" }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] text-[#e8e8e8] font-medium truncate">
+                              {b.record.name}
+                            </p>
+                            <p className="text-[10px] text-[#6b7280] uppercase tracking-[0.07em] mt-0.5">
+                              BIRTHDAY - {b.age > 0 ? `TURNS ${b.age}` : "ALL DAY"}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const ev = item.data;
+                    const timeText = ev.startTime ? formatTime12(ev.startTime) : "ALL DAY";
+                    return (
+                      <div
+                        key={`sel-ev-${ev.id}`}
+                        onClick={() => setViewingEvent(ev)}
+                        className="py-2.5 flex items-start gap-3 cursor-pointer hover:bg-white/[0.02] px-1 transition"
+                      >
+                        <div
+                          className="w-[3px] self-stretch shrink-0"
+                          style={{ backgroundColor: getTypeColorHex(ev.category) }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] text-[#e8e8e8] font-medium truncate">
+                            {ev.title}
+                          </p>
+                          <p className="text-[10px] text-[#6b7280] uppercase tracking-[0.07em] mt-0.5">
+                            {ev.category} - {timeText}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      ) : (
+        /* Week and Day views layout: MiniCalendar sidebar + View + Selected Day Panel */
+        <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
+            <div className="w-full lg:w-56 shrink-0 space-y-3">
+              <MiniCalendar
+                viewDate={miniDate}
+                selectedDate={selectedDate}
+                today={today}
+                events={events}
+                birthdays={miniBirthdays}
+                onSelectDate={(date) => {
+                  setSelectedDate(date);
+                  setViewDate(new Date(date));
+                  setMiniDate(new Date(date));
+                }}
+                onPrev={miniPrev}
+                onNext={miniNext}
+              />
+            </div>
 
-        {/* Calendar View */}
-        <div className="flex-1 min-w-0">
-          {view === "month" && (
-            <MonthView
-              viewDate={viewDate}
-              selectedDate={selectedDate}
-              today={today}
-              events={filteredEvents}
-              birthdays={filteredBirthdays}
-              onSelectDate={handleSelectDate}
-              onEventClick={setViewingEvent}
-              onBirthdayClick={setViewingBirthday}
-              onAddEventOnDate={openAddEventOnDate}
-            />
-          )}
-          {view === "week" && (
-            <WeekView
-              viewDate={viewDate}
-              selectedDate={selectedDate}
-              today={today}
-              events={filteredEvents}
-              birthdays={filteredBirthdays}
-              onSelectDate={(date) => {
-                setSelectedDate(date);
-                setView("day");
-                setViewDate(new Date(date));
-              }}
-              onEventClick={setViewingEvent}
-              onBirthdayClick={setViewingBirthday}
-              onAddEventOnDate={openAddEventOnDate}
-            />
-          )}
-          {view === "day" && (
-            <DayView
-              viewDate={viewDate}
-              today={today}
-              events={filteredEvents}
-              birthdays={filteredBirthdays}
-              onEventClick={setViewingEvent}
-              onBirthdayClick={setViewingBirthday}
-              onAddEvent={openAddEventBlank}
-            />
-          )}
+            <div className="flex-1 min-w-0 w-full">
+              {view === "week" && (
+                <WeekView
+                  viewDate={viewDate}
+                  selectedDate={selectedDate}
+                  today={today}
+                  events={filteredEvents}
+                  birthdays={filteredBirthdays}
+                  onSelectDate={(date) => {
+                    setSelectedDate(date);
+                    setView("day");
+                    setViewDate(new Date(date));
+                  }}
+                  onEventClick={setViewingEvent}
+                  onBirthdayClick={setViewingBirthday}
+                  onAddEventOnDate={openAddEventOnDate}
+                />
+              )}
+              {view === "day" && (
+                <DayView
+                  viewDate={viewDate}
+                  today={today}
+                  events={filteredEvents}
+                  birthdays={filteredBirthdays}
+                  onEventClick={setViewingEvent}
+                  onBirthdayClick={setViewingBirthday}
+                  onAddEvent={openAddEventBlank}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Selected-Day Panel below Week/Day view as well */}
+          <div className="border border-[#1f1f1f] bg-[#050505] flex flex-col md:flex-row">
+            <div className="p-4 flex-1 border-b md:border-b-0 md:border-r border-[#1f1f1f] flex flex-col justify-between space-y-3">
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.07em] text-[#6b7280]">
+                  SELECTED DAY
+                </span>
+                <h3 className="text-[22px] font-bold uppercase tracking-[0.08em] text-[#e8e8e8] mt-0.5">
+                  {selectedDate.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()} {selectedDate.getDate()}
+                </h3>
+                <p className="text-[11px] text-[#f5b301] mt-0.5">
+                  {getRelativeDayString(selectedDate, today)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => openAddEventOnDate(selectedDate)}
+                className="w-full bg-[#cc0000] text-white py-2 px-3 text-[11px] font-bold uppercase tracking-[0.07em] hover:bg-[#aa0000] transition cursor-pointer"
+              >
+                + ADD TO THIS DAY
+              </button>
+            </div>
+
+            <div className="p-4 flex-[1.3] flex flex-col">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.07em] text-[#6b7280] mb-2">
+                AGENDA - {selectedDayItems.length} {selectedDayItems.length === 1 ? "ITEM" : "ITEMS"}
+              </span>
+
+              {selectedDayItems.length === 0 ? (
+                <div className="flex-1 flex items-center text-xs text-[#6b7280] italic py-4">
+                  Nothing scheduled
+                </div>
+              ) : (
+                <div className="divide-y divide-[#1a1a1a] flex-1">
+                  {selectedDayItems.map((item) => {
+                    if (item.type === "birthday") {
+                      const b = item.data;
+                      return (
+                        <div
+                          key={`sel-bday-${b.record.id}`}
+                          onClick={() => setViewingBirthday(b)}
+                          className="py-2.5 flex items-start gap-3 cursor-pointer hover:bg-white/[0.02] px-1 transition"
+                        >
+                          <div
+                            className="w-[3px] self-stretch shrink-0"
+                            style={{ backgroundColor: "#f5b301" }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] text-[#e8e8e8] font-medium truncate">
+                              {b.record.name}
+                            </p>
+                            <p className="text-[10px] text-[#6b7280] uppercase tracking-[0.07em] mt-0.5">
+                              BIRTHDAY - {b.age > 0 ? `TURNS ${b.age}` : "ALL DAY"}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const ev = item.data;
+                    const timeText = ev.startTime ? formatTime12(ev.startTime) : "ALL DAY";
+                    return (
+                      <div
+                        key={`sel-ev-${ev.id}`}
+                        onClick={() => setViewingEvent(ev)}
+                        className="py-2.5 flex items-start gap-3 cursor-pointer hover:bg-white/[0.02] px-1 transition"
+                      >
+                        <div
+                          className="w-[3px] self-stretch shrink-0"
+                          style={{ backgroundColor: getTypeColorHex(ev.category) }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] text-[#e8e8e8] font-medium truncate">
+                            {ev.title}
+                          </p>
+                          <p className="text-[10px] text-[#6b7280] uppercase tracking-[0.07em] mt-0.5">
+                            {ev.category} - {timeText}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Event Details Modal */}
       {viewingEvent && !editingEvent && (
