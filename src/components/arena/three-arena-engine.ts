@@ -22,6 +22,7 @@ export interface EngineInstance {
     demoAssembleTower: () => void;
     resetDemoTower: () => void;
     takeScreenshot: () => string | null;
+    setMatchSimStage: (stage: "start" | "harvest" | "place_earth" | "cap_tower" | "enshrine_mustika" | "reset") => void;
 }
 
 export function createArenaEngine(
@@ -285,11 +286,19 @@ export function createArenaEngine(
 
     // =========================================================================
     // 5. GROUND SHARED AREA & 12 SKY BLOCKS (Center line z = 0, x = -4.25)
-    // 5x5 grid of 200mm cells, checkerboard pattern of 12 blocks
-    // Distinct solid team blocks: 6 Red blocks and 6 Blue blocks
+    // Ground Shared Area pad: One Red half (z < 0) and One Blue half (z > 0)
+    // 5x5 grid of 200mm cells, 12 Sky Blocks distributed randomly between Red and Blue
     // =========================================================================
-    const skyPad = box(1.2, 0.02, 1.2, C.sharedPad, -4.25, 0.01, 0);
-    registerPart("skyarea", skyPad, ARENA_PARTS.skyarea);
+    const skyPadR = box(1.2, 0.02, 0.6, 0xd92626, -4.25, 0.01, -0.3); // Red half
+    const skyPadB = box(1.2, 0.02, 0.6, 0x2563eb, -4.25, 0.01, 0.3);  // Blue half
+    // Boundary rim for Ground Shared Area
+    box(1.24, 0.022, 0.03, 0x7f1d1d, -4.25, 0.012, -0.6);
+    box(1.24, 0.022, 0.03, 0x1e3a8a, -4.25, 0.012, 0.6);
+    box(0.03, 0.022, 0.62, 0x7f1d1d, -4.85, 0.012, -0.3);
+    box(0.03, 0.022, 0.62, 0x1e3a8a, -4.85, 0.012, 0.3);
+    box(0.03, 0.022, 0.62, 0x7f1d1d, -3.65, 0.012, -0.3);
+    box(0.03, 0.022, 0.62, 0x1e3a8a, -3.65, 0.012, 0.3);
+    registerPart("skyarea", skyPadR, ARENA_PARTS.skyarea);
 
     const skyGroup = new THREE.Group();
     scene.add(skyGroup);
@@ -298,37 +307,37 @@ export function createArenaEngine(
     const sMatR = mat(C.skyR, { roughness: 0.55 });
     const sMatB = mat(C.skyB, { roughness: 0.55 });
 
-    const skyPattern = [
-        [0, 1, 0, 1, 0],
-        [1, 0, 1, 0, 1],
-        [0, 1, 0, 1, 0],
-        [1, 0, 1, 0, 1],
-        [0, 1, 0, 1, 0],
+    // Official Rulebook Appendix Fig 4 cell layout (12 blocks)
+    const skyLayout = [
+        { r: 0, c: 0 }, { r: 0, c: 2 }, { r: 0, c: 4 },
+        { r: 1, c: 1 },                 { r: 1, c: 3 },
+        { r: 2, c: 0 },                                 { r: 2, c: 4 },
+        { r: 3, c: 1 },                 { r: 3, c: 3 },
+        { r: 4, c: 0 }, { r: 4, c: 2 }, { r: 4, c: 4 },
+    ];
+
+    // Random distribution of Red and Blue blocks (6 Red blocks, 6 Blue blocks)
+    const skyColors = [
+        C.skyR, C.skyB, C.skyR,
+        C.skyB, C.skyR,
+        C.skyB,         C.skyR,
+        C.skyR, C.skyB,
+        C.skyB, C.skyR, C.skyB,
     ];
 
     let firstSky: any = null;
-    for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-            if (skyPattern[r][c] === 1) {
-                const px = -4.25 + (r - 2) * 0.2;
-                const pz = (c - 2) * 0.2;
+    skyLayout.forEach((cell, i) => {
+        const px = -4.25 + (2 - cell.r) * 0.20;
+        const pz = (cell.c - 2) * 0.20;
+        const sMat = skyColors[i] === C.skyR ? sMatR : sMatB;
 
-                // Distinct Red and Blue blocks (6 Red blocks, 6 Blue blocks)
-                // c < 2 (Red half z < 0) => Red block
-                // c > 2 (Blue half z > 0) => Blue block
-                // c == 2 (center line z = 0): alternating by row (r=1 Red, r=3 Blue)
-                const isRed = c < 2 || (c === 2 && r === 1);
-                const sMat = isRed ? sMatR : sMatB;
-
-                const sMesh = new THREE.Mesh(skyGeom, sMat);
-                sMesh.position.set(px, 0.1, pz);
-                sMesh.castShadow = true;
-                sMesh.receiveShadow = true;
-                skyGroup.add(sMesh);
-                if (!firstSky) firstSky = sMesh;
-            }
-        }
-    }
+        const sMesh = new THREE.Mesh(skyGeom, sMat);
+        sMesh.position.set(px, 0.1, pz);
+        sMesh.castShadow = true;
+        sMesh.receiveShadow = true;
+        skyGroup.add(sMesh);
+        if (!firstSky) firstSky = sMesh;
+    });
     registerPart("skyblock", firstSky, ARENA_PARTS.skyblock);
 
     // =========================================================================
@@ -390,9 +399,15 @@ export function createArenaEngine(
     box(1.2, barH, barT, C.barrier, -2.4, barY, 2.985);  // x from -3.0 to -1.8
     box(3.8, barH, barT, C.barrier, 1.1, barY, 2.985);   // x from -0.8 to +3.0
 
-    // Two Shared Areas on Level 1 (0.75m in X x 1.0m in Z) with Cream / Beige Underlay
-    const sharedPad1 = box(0.75, 0.022, 1.0, C.sharedPad, -2.75, 0.611, 0);
-    const sharedPad2 = box(0.75, 0.022, 1.0, C.sharedPad, 2.75, 0.611, 0);
+    // Two Shared Areas on Level 1 (0.75m in X x 1.0m in Z) - ONE RED, ONE BLUE per user request:
+    // Sits flush from x = +/-2.25 to +/-3.00m, exactly within Level 1 (NOT extending outside!)
+    const sharedPad1 = box(0.75, 0.022, 1.0, 0xd92626, -2.625, 0.611, 0); // Red Shared Area
+    const sharedPad2 = box(0.75, 0.022, 1.0, 0x2563eb, 2.625, 0.611, 0);  // Blue Shared Area
+    // Boundary rims
+    box(0.75, 0.025, 0.03, 0x7f1d1d, -2.625, 0.613, -0.5);
+    box(0.75, 0.025, 0.03, 0x7f1d1d, -2.625, 0.613, 0.5);
+    box(0.75, 0.025, 0.03, 0x1e3a8a, 2.625, 0.613, -0.5);
+    box(0.75, 0.025, 0.03, 0x1e3a8a, 2.625, 0.613, 0.5);
 
     // =========================================================================
     // 8. ACCESS STRIPS: STAIRS, TRANSFER AREA & RAMP
@@ -489,12 +504,12 @@ export function createArenaEngine(
     const spotMat = mat(0x15803d, { roughness: 0.5 }); // Emerald team spot
     let firstSpot: any = null;
 
-    // Exclusive L1 Spots (4 spots)
+    // Exclusive L1 Spots (4 spots matching F.spots)
     const exclusiveSpotsL1 = [
-        [-2.0, 0.612, -2.25], // Red L1 Spot 1
-        [2.0, 0.612, -2.25],  // Red L1 Spot 2
-        [-2.0, 0.612, 2.25],  // Blue L1 Spot 1
-        [2.0, 0.612, 2.25],   // Blue L1 Spot 2
+        [-2.75, 0.612, -2.75], // Red L1 Spot 1 (L1.R.W)
+        [2.75, 0.612, -2.75],  // Red L1 Spot 2 (L1.R.E)
+        [-2.75, 0.612, 2.75],  // Blue L1 Spot 1 (L1.B.W)
+        [2.75, 0.612, 2.75],   // Blue L1 Spot 2 (L1.B.E)
     ];
     exclusiveSpotsL1.forEach(([x, y, z]) => {
         const sm = new THREE.Mesh(spotGeom, spotMat);
@@ -504,31 +519,37 @@ export function createArenaEngine(
         if (!firstSpot) firstSpot = sm;
     });
 
-    // The 2 Shared Building Spots on Level 1 (Center line z = 0 at x = -2.75 and x = +2.75)
-    // As seen in the reference website: styled with beige/cream border and dark center
+    // The 2 Shared Building Spots on Level 1: One Red (-2.625) and One Blue (+2.625)
+    // Sits on the Shared Area pads, exactly contained within Level 1
     const sharedSpotGeom = new THREE.BoxGeometry(0.50, 0.024, 0.50);
     const sharedInnerGeom = new THREE.BoxGeometry(0.38, 0.025, 0.38);
-    const sharedBorderMat = mat(0xe5dcba, { roughness: 0.6 }); // Cream/beige outer
-    const sharedInnerMat = mat(0x28231c, { roughness: 0.8 });  // Dark center
 
-    [-2.75, 2.75].forEach((x) => {
-        const borderMesh = new THREE.Mesh(sharedSpotGeom, sharedBorderMat);
-        borderMesh.position.set(x, 0.612, 0);
-        borderMesh.receiveShadow = true;
-        scene.add(borderMesh);
+    // Red Spot on Red Shared Area (-2.625)
+    const spotBorderR = new THREE.Mesh(sharedSpotGeom, mat(0xef4444, { roughness: 0.5 }));
+    spotBorderR.position.set(-2.625, 0.612, 0);
+    spotBorderR.receiveShadow = true;
+    scene.add(spotBorderR);
+    const spotInnerR = new THREE.Mesh(sharedInnerGeom, mat(0x3a1215, { roughness: 0.8 }));
+    spotInnerR.position.set(-2.625, 0.613, 0);
+    spotInnerR.receiveShadow = true;
+    scene.add(spotInnerR);
 
-        const innerMesh = new THREE.Mesh(sharedInnerGeom, sharedInnerMat);
-        innerMesh.position.set(x, 0.613, 0);
-        innerMesh.receiveShadow = true;
-        scene.add(innerMesh);
-    });
+    // Blue Spot on Blue Shared Area (+2.625)
+    const spotBorderB = new THREE.Mesh(sharedSpotGeom, mat(0x3b82f6, { roughness: 0.5 }));
+    spotBorderB.position.set(2.625, 0.612, 0);
+    spotBorderB.receiveShadow = true;
+    scene.add(spotBorderB);
+    const spotInnerB = new THREE.Mesh(sharedInnerGeom, mat(0x131e33, { roughness: 0.8 }));
+    spotInnerB.position.set(2.625, 0.613, 0);
+    spotInnerB.receiveShadow = true;
+    scene.add(spotInnerB);
 
     // 4 Exclusive Spots on Level 2 (elevation y = 0.912)
     const spotsL2 = [
-        [-0.90, 0.912, -0.90],
-        [0.90, 0.912, -0.90],
-        [-0.90, 0.912, 0.90],
-        [0.90, 0.912, 0.90],
+        [-1.25, 0.912, -1.25],
+        [1.25, 0.912, -1.25],
+        [-1.25, 0.912, 1.25],
+        [1.25, 0.912, 1.25],
     ];
     spotsL2.forEach(([x, y, z]) => {
         const sm = new THREE.Mesh(spotGeom, spotMat);
@@ -557,11 +578,14 @@ export function createArenaEngine(
     registerPart("cpillar", cpMesh, ARENA_PARTS.cpillar);
 
     // =========================================================================
-    // 12. EXACT ROBOTS & PARKING (Placed accurately in Start Zones)
+    // 12. EXACT ROBOTS & PARKING (Reconstructed from Reference robots3d.js)
     // Red TR: (-5.15, 0, -5.15), Red BR: (-5.15, 0, -4.35) -> Facing +X
     // Blue TR: (-5.15, 0, +5.15), Blue BR: (-5.15, 0, +4.35) -> Facing +X
     // =========================================================================
     const RS = {
+        start: { l: 0.70, w: 0.70, h: 0.70 },
+        maxExt: { w: 1.00, l: 1.40, h: 1.20 },
+        massLimit: 50,
         chassis: { l: 0.56, w: 0.50, h: 0.13, clear: 0.045 },
         wheel: { r: 0.075, w: 0.05 },
         deckY: 0.175,
@@ -570,14 +594,18 @@ export function createArenaEngine(
         stage2Max: 0.48,
         liftFoot: 0.08,
         anchorZ0: 0.30,
+        armMax: 0.45,
+        lift: { tr: 0.95, br: 1.00 },
         magazineZ: -0.09,
     };
+
+    const POSE_REST = { carriageY: 0.30, armExtend: 0, gripOpen: 0.06, wheelSpin: 0 };
 
     const RG = {
         chassis: new THREE.BoxGeometry(RS.chassis.w, RS.chassis.h, RS.chassis.l),
         band: new THREE.BoxGeometry(RS.chassis.w + 0.012, 0.035, RS.chassis.l + 0.012),
         deck: new THREE.BoxGeometry(RS.chassis.w - 0.04, 0.012, RS.chassis.l - 0.04),
-        wheel: new THREE.CylinderGeometry(RS.wheel.r, RS.wheel.r, RS.wheel.w, 16).rotateZ(Math.PI / 2),
+        wheel: new THREE.CylinderGeometry(RS.wheel.r, RS.wheel.r, RS.wheel.w, 18).rotateZ(Math.PI / 2),
         roller: new THREE.BoxGeometry(RS.wheel.w + 0.004, 0.012, 0.03),
         bumper: new THREE.BoxGeometry(RS.chassis.w, 0.05, 0.03),
         mast1: new THREE.BoxGeometry(0.075, RS.stage1H - 0.04, 0.075),
@@ -595,16 +623,35 @@ export function createArenaEngine(
     };
 
     const RM = {
-        chassis: mat(0x1a1a1e, { metalness: 0.50, roughness: 0.45 }),
-        dark: mat(0x262830, { metalness: 0.55 }),
-        wheel: mat(0x0e0f12, { roughness: 0.85, metalness: 0.15 }),
-        roller: mat(0x4a4d56, { roughness: 0.6, metalness: 0.35 }),
-        mast2: mat(0xa0a5b2, { metalness: 0.75, roughness: 0.30 }),
-        slide: mat(0x787e8e, { metalness: 0.65 }),
-        jaw: mat(0x9298a8, { metalness: 0.60 }),
-        post: mat(0x5a5e6b, { metalness: 0.55 }),
-        puck: mat(0x111317, { roughness: 0.3, metalness: 0.3 }),
+        chassis: mat(0x1c1a16, { metalness: 0.40, roughness: 0.50 }),
+        dark: mat(0x2c2a24, { metalness: 0.50 }),
+        wheel: mat(0x121110, { roughness: 0.85, metalness: 0.10 }),
+        roller: mat(0x4a4740, { roughness: 0.6, metalness: 0.3 }),
+        mast2: mat(0x9c9486, { metalness: 0.65, roughness: 0.35 }),
+        slide: mat(0x7d7566, { metalness: 0.6 }),
+        jaw: mat(0x8f8779, { metalness: 0.55 }),
+        post: mat(0x5a564c, { metalness: 0.5 }),
+        puck: mat(0x111111, { roughness: 0.3, metalness: 0.2 }),
     };
+
+    function teamMats(c: number) {
+        return {
+            band: mat(c, { metalness: 0.30, roughness: 0.50 }),
+            cap: mat(c, { metalness: 0.35 }),
+        };
+    }
+
+    function roleMats(isBuilder: boolean) {
+        return {
+            plate: mat(isBuilder ? 0xc7a53a : 0x8a8578, { metalness: 0.45 }),
+            flag: mat(isBuilder ? 0xc7a53a : 0x8a8578, { metalness: 0.40 }),
+            beacon: new THREE.MeshStandardMaterial({
+                color: isBuilder ? 0xffd66b : 0xff8a5a,
+                emissive: isBuilder ? 0x8a6b1a : 0x7a2a10,
+                emissiveIntensity: 0.70,
+            }),
+        };
+    }
 
     function pin(o: any, x: number, y: number, z: number) {
         o.position.set(x, y, z);
@@ -613,115 +660,149 @@ export function createArenaEngine(
         return o;
     }
 
+    function setPose(r: any, p: any) {
+        const q = r.pose;
+        const cl = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
+        if (p.carriageY !== undefined) q.carriageY = cl(p.carriageY, 0, r.travel);
+        if (p.armExtend !== undefined) q.armExtend = cl(p.armExtend, 0, RS.armMax);
+        if (p.gripOpen !== undefined) q.gripOpen = cl(p.gripOpen, 0.06, 0.44);
+        if (p.wheelSpin !== undefined) q.wheelSpin = p.wheelSpin;
+
+        const cy = RS.liftFoot + q.carriageY;
+        r.carriage.position.y = cy;
+        const T = Math.max(RS.start.h, Math.min(RS.maxExt.h - 0.01, cy + 0.14));
+        r.mast2.position.y = T - 0.025 - (RS.stage2Max + 0.04) / 2;
+        r.mastCap.position.y = T - 0.0125;
+        r.armSlide.position.z = q.armExtend;
+
+        const len = Math.max(0.02, RS.anchorZ0 - 0.10 - (RS.mastZ + 0.08) + q.armExtend);
+        r.tube.scale.z = len;
+        r.tube.position.z = RS.mastZ + 0.08 + len / 2;
+
+        const j = q.gripOpen / 2 + 0.014;
+        r.jawL.position.x = -j;
+        r.jawR.position.x = j;
+        for (const w of r.wheels) w.rotation.x = q.wheelSpin;
+        return q;
+    }
+
     function makeExactRobot(teamColor: number, isBuilder: boolean) {
+        const tm = teamMats(teamColor);
+        const rm = roleMats(isBuilder);
+        const type = isBuilder ? "br" : "tr";
         const g = new THREE.Group();
         const cyC = RS.chassis.clear + RS.chassis.h / 2;
 
-        const teamMat = {
-            band: mat(teamColor, { metalness: 0.40, roughness: 0.40 }),
-            cap: mat(teamColor, { metalness: 0.45 }),
-        };
+        // Chassis & deck
+        const chassis = new THREE.Mesh(RG.chassis, RM.chassis);
+        chassis.castShadow = true;
+        g.add(pin(chassis, 0, cyC, 0));
 
-        const roleMat = {
-            plate: mat(isBuilder ? 0xd4af37 : 0x7c8496, { metalness: 0.50 }),
-            flag: mat(isBuilder ? 0xd4af37 : 0x7c8496, { metalness: 0.45 }),
-            beacon: new THREE.MeshStandardMaterial({
-                color: isBuilder ? 0xffd66b : 0x60a5fa,
-                emissive: isBuilder ? 0xb45309 : 0x1d4ed8,
-                emissiveIntensity: 0.85,
-            }),
-        };
-
-        // Chassis & Deck
-        const ch = new THREE.Mesh(RG.chassis, RM.chassis);
-        ch.castShadow = true;
-        g.add(pin(ch, 0, cyC, 0));
-
-        const bnd = new THREE.Mesh(RG.band, teamMat.band);
-        bnd.castShadow = true;
-        g.add(pin(bnd, 0, RS.deckY - 0.02, 0));
+        const band = new THREE.Mesh(RG.band, tm.band);
+        band.castShadow = true;
+        g.add(pin(band, 0, RS.deckY - 0.02, 0));
 
         g.add(pin(new THREE.Mesh(RG.deck, RM.dark), 0, RS.deckY + 0.006, 0));
-        g.add(pin(new THREE.Mesh(RG.bumper, teamMat.band), 0, cyC - 0.02, RS.chassis.l / 2 + 0.01));
+        g.add(pin(new THREE.Mesh(RG.bumper, tm.band), 0, cyC - 0.02, RS.chassis.l / 2 + 0.01));
 
-        // Mecanum-style Wheels with diagonal rollers
+        // Mecanum-style Wheels
         const wx = RS.chassis.w / 2 + RS.wheel.w / 2 + 0.004;
         const wz = RS.chassis.l / 2 - 0.09;
-        [[-wx, wz], [wx, wz], [-wx, -wz], [wx, -wz]].forEach(([x, z], i) => {
-            const wGroup = new THREE.Group();
-            wGroup.position.set(x, RS.wheel.r, z);
-            wGroup.add(new THREE.Mesh(RG.wheel, RM.wheel));
+        const wheels = [[-wx, wz], [wx, wz], [-wx, -wz], [wx, -wz]].map(([x, z], i) => {
+            const w = new THREE.Group();
+            w.position.set(x, RS.wheel.r, z);
+            w.add(new THREE.Mesh(RG.wheel, RM.wheel));
             for (let k = 0; k < 6; k++) {
                 const r = new THREE.Mesh(RG.roller, RM.roller);
                 const a = (k / 6) * Math.PI * 2;
                 r.position.set(0, Math.cos(a) * (RS.wheel.r - 0.006), Math.sin(a) * (RS.wheel.r - 0.006));
                 r.rotation.set(a, ((i % 2) ? 1 : -1) * 0.6, 0);
-                wGroup.add(r);
+                w.add(r);
             }
-            g.add(wGroup);
+            g.add(w);
+            return w;
         });
 
-        // Telescoping Mast
+        // Mast stage 1 fixed
         const m1 = new THREE.Mesh(RG.mast1, RM.dark);
         m1.castShadow = true;
         g.add(pin(m1, 0, 0.035 + (RS.stage1H - 0.04) / 2, RS.mastZ));
 
+        // Mast stage 2 telescoping
         const mast2 = new THREE.Mesh(RG.mast2, RM.mast2);
-        mast2.position.set(0, 0.28, RS.mastZ);
+        mast2.position.set(0, 0, RS.mastZ);
         mast2.castShadow = true;
         g.add(mast2);
 
-        const mastCap = new THREE.Mesh(RG.mastCap, teamMat.cap);
-        mastCap.position.set(0, 0.68, RS.mastZ);
+        const mastCap = new THREE.Mesh(RG.mastCap, tm.cap);
+        mastCap.position.set(0, 0, RS.mastZ);
         g.add(mastCap);
 
-        // Carriage & Gripper
+        // Carriage & Gripper mechanism
         const carriage = new THREE.Group();
-        carriage.position.y = RS.liftFoot + 0.30;
-        carriage.add(pin(new THREE.Mesh(RG.plate, roleMat.plate), 0, 0, RS.mastZ + 0.055));
+        g.add(carriage);
+        carriage.add(pin(new THREE.Mesh(RG.plate, rm.plate), 0, 0, RS.mastZ + 0.055));
         carriage.add(pin(new THREE.Mesh(RG.sleeve, RM.dark), 0, 0, RS.mastZ + 0.11));
 
         const tube = new THREE.Mesh(RG.slide, RM.slide);
-        tube.position.set(0, 0, RS.mastZ + 0.14);
         carriage.add(tube);
 
         const armSlide = new THREE.Group();
+        carriage.add(armSlide);
         armSlide.add(pin(new THREE.Mesh(RG.rail, RM.dark), 0, 0.08, RS.anchorZ0 - 0.09));
 
         const jawL = new THREE.Group();
         jawL.add(pin(new THREE.Mesh(RG.jaw, RM.jaw), 0, 0, RS.anchorZ0));
-        jawL.position.x = -0.12;
-
         const jawR = new THREE.Group();
         jawR.add(pin(new THREE.Mesh(RG.jaw, RM.jaw), 0, 0, RS.anchorZ0));
-        jawR.position.x = 0.12;
-
         armSlide.add(jawL, jawR);
-        carriage.add(armSlide);
-        g.add(carriage);
 
-        // Magazine Cage on deck
+        const anchor = new THREE.Object3D();
+        anchor.position.set(0, 0, RS.anchorZ0);
+        armSlide.add(anchor);
+
+        // Magazine cage on deck
         const slots = new THREE.Group();
         slots.position.set(0, 0, RS.magazineZ);
+        g.add(slots);
         const postH = isBuilder ? 0.36 : 0.50;
         [[-0.2, -0.19], [0.2, -0.19], [-0.2, 0.19], [0.2, 0.19]].forEach(([x, z]) => {
             const p = new THREE.Mesh(RG.post, RM.post);
             p.scale.y = postH;
             slots.add(pin(p, x, RS.deckY + postH / 2, z));
         });
-        g.add(slots);
 
-        // Status Beacon & Flag
-        const beacon = new THREE.Mesh(RG.beacon, roleMat.beacon);
+        // Beacon & Flag
+        const beacon = new THREE.Mesh(RG.beacon, rm.beacon);
         g.add(pin(beacon, 0.19, RS.deckY + 0.04, -0.24));
-        g.add(pin(new THREE.Mesh(RG.flag, roleMat.flag), -0.2, RS.deckY + 0.06, -0.20));
+        g.add(pin(new THREE.Mesh(RG.flag, rm.flag), -0.2, RS.deckY + 0.06, -0.20));
 
-        // 2D LiDAR Scanner on Builder Robot
+        // 2D LiDAR scanner on BR
         if (isBuilder) {
             g.add(pin(new THREE.Mesh(RG.puck, RM.puck), 0, RS.deckY + 0.03, RS.chassis.l / 2 - 0.05));
         }
 
         scene.add(g);
+
+        const r = {
+            g,
+            carriage,
+            armSlide,
+            tube,
+            jawL,
+            jawR,
+            anchor,
+            slots,
+            wheels,
+            beacon,
+            mast2,
+            mastCap,
+            isBuilder,
+            type,
+            travel: RS.lift[type as "tr" | "br"],
+            pose: Object.assign({}, POSE_REST),
+        };
+        setPose(r, POSE_REST);
         return g;
     }
 
@@ -730,25 +811,25 @@ export function createArenaEngine(
 
     // Robots facing +X (toward field center): rotation.y = Math.PI / 2
     // Red TR in Zone 1 (-5.15, -5.15)
-    const trRed = makeExactRobot(C.earthR, false);
+    const trRed = makeExactRobot(0xdf2222, false);
     trRed.position.set(-5.15, 0, -5.15);
     trRed.rotation.y = Math.PI / 2;
     robotsGroup.add(trRed);
 
     // Red BR in Zone 2 (-5.15, -4.35)
-    const brRed = makeExactRobot(C.earthR, true);
+    const brRed = makeExactRobot(0xdf2222, true);
     brRed.position.set(-5.15, 0, -4.35);
     brRed.rotation.y = Math.PI / 2;
     robotsGroup.add(brRed);
 
     // Blue TR in Zone 1 (-5.15, +5.15)
-    const trBlue = makeExactRobot(C.earthB, false);
+    const trBlue = makeExactRobot(0x3200ff, false);
     trBlue.position.set(-5.15, 0, 5.15);
     trBlue.rotation.y = Math.PI / 2;
     robotsGroup.add(trBlue);
 
     // Blue BR in Zone 2 (-5.15, +4.35)
-    const brBlue = makeExactRobot(C.earthB, true);
+    const brBlue = makeExactRobot(0x3200ff, true);
     brBlue.position.set(-5.15, 0, 4.35);
     brBlue.rotation.y = Math.PI / 2;
     robotsGroup.add(brBlue);
@@ -890,6 +971,23 @@ export function createArenaEngine(
     };
 
     const onTouchEnd = () => {
+        if (touchTap) {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((touchTap[0] - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((touchTap[1] - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(scene.children, true);
+            for (const hit of hits) {
+                const partId = meshToPartId.get(hit.object);
+                if (partId && ARENA_PARTS[partId]) {
+                    selectPart(partId);
+                    onSelectPart(ARENA_PARTS[partId]);
+                    break;
+                }
+            }
+            touchTap = null;
+        }
         onUp();
     };
 
@@ -952,7 +1050,7 @@ export function createArenaEngine(
         }
     }
 
-    // Demo Tower Assembly on Building Spot (-2.0, 0.61, -2.25)
+    // Demo Tower Assembly on Building Spot L1.R.W (-2.75, 0.61, -2.75)
     let demoTowerBlocks: any[] = [];
     function resetDemoTower() {
         demoTowerBlocks.forEach((b) => scene.remove(b));
@@ -961,8 +1059,8 @@ export function createArenaEngine(
 
     function demoAssembleTower() {
         resetDemoTower();
-        const px = -2.0;
-        const pz = -2.25;
+        const px = -2.75;
+        const pz = -2.75;
         const y0 = 0.61;
 
         // Layer 1 Earth
@@ -974,6 +1072,129 @@ export function createArenaEngine(
 
         demoTowerBlocks = [b1, b2, b3];
         focusTo([px, y0 + 0.5, pz], 4.2, Math.PI * 0.25, Math.PI * 0.35);
+    }
+
+    // Match Simulation 3D dynamic stage objects
+    const matchSimGroup = new THREE.Group();
+    scene.add(matchSimGroup);
+    let enshrinedMustikaMesh: any = null;
+    let victoryLight: any = null;
+
+    function setMatchSimStage(stage: "start" | "harvest" | "place_earth" | "cap_tower" | "enshrine_mustika" | "reset") {
+        while (matchSimGroup.children.length > 0) {
+            matchSimGroup.remove(matchSimGroup.children[0]);
+        }
+        if (enshrinedMustikaMesh) {
+            scene.remove(enshrinedMustikaMesh);
+            enshrinedMustikaMesh = null;
+        }
+        if (victoryLight) {
+            scene.remove(victoryLight);
+            victoryLight = null;
+        }
+
+        if (stage === "reset" || stage === "start") {
+            trRed.position.set(-5.15, 0, -5.15);
+            trRed.rotation.y = Math.PI / 2;
+            brRed.position.set(-5.15, 0, -4.35);
+            brRed.rotation.y = Math.PI / 2;
+            trBlue.position.set(-5.15, 0, 5.15);
+            trBlue.rotation.y = Math.PI / 2;
+            brBlue.position.set(-5.15, 0, 4.35);
+            brBlue.rotation.y = Math.PI / 2;
+
+            mSphereGround.visible = true;
+            focusTo([0, 0.6, 0], 16, Math.PI * 0.25, Math.PI * 0.36);
+        } else if (stage === "harvest") {
+            mSphereGround.visible = true;
+
+            trRed.position.set(-1.30, 0.60, -3.5);
+            trRed.rotation.y = 0;
+            brRed.position.set(-1.95, 0.60, -3.5);
+            brRed.rotation.y = 0;
+
+            trBlue.position.set(-1.30, 0.60, 3.5);
+            trBlue.rotation.y = 0;
+            brBlue.position.set(-1.95, 0.60, 3.5);
+            brBlue.rotation.y = 0;
+
+            const e1 = box(0.35, 0.35, 0.35, C.earthR, -1.30, 0.60 + 0.175, -3.15);
+            const e2 = box(0.35, 0.35, 0.35, C.earthB, -1.30, 0.60 + 0.175, 3.15);
+            matchSimGroup.add(e1, e2);
+
+            focusTo([-1.30, 0.80, -3.5], 5.8, Math.PI * 0.45, Math.PI * 0.36);
+        } else if (stage === "place_earth") {
+            mSphereGround.visible = true;
+
+            trRed.position.set(-3.5, 0, -3.5);
+            trRed.rotation.y = Math.PI / 2;
+            brRed.position.set(-2.25, 0.60, -2.75);
+            brRed.rotation.y = -Math.PI / 2;
+
+            trBlue.position.set(-3.5, 0, 3.5);
+            trBlue.rotation.y = Math.PI / 2;
+            brBlue.position.set(-2.25, 0.60, 2.75);
+            brBlue.rotation.y = -Math.PI / 2;
+
+            const b1 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.175, -2.75);
+            const b2 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.525, -2.75);
+            const bb1 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.175, 2.75);
+            const bb2 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.525, 2.75);
+            matchSimGroup.add(b1, b2, bb1, bb2);
+
+            focusTo([-2.75, 0.95, -2.75], 4.8, Math.PI * 0.25, Math.PI * 0.35);
+        } else if (stage === "cap_tower") {
+            mSphereGround.visible = true;
+
+            trRed.position.set(-4.25, 0, -1.0);
+            trRed.rotation.y = 0;
+            brRed.position.set(-2.20, 0.60, -2.75);
+            brRed.rotation.y = -Math.PI / 2;
+
+            brBlue.position.set(-2.20, 0.60, 2.75);
+            brBlue.rotation.y = -Math.PI / 2;
+
+            const b1 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.175, -2.75);
+            const b2 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.525, -2.75);
+            const b3 = box(0.20, 0.20, 0.20, C.skyR, -2.75, 0.61 + 0.70 + 0.10, -2.75);
+
+            const bb1 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.175, 2.75);
+            const bb2 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.525, 2.75);
+            const bb3 = box(0.20, 0.20, 0.20, C.skyB, -2.75, 0.61 + 0.70 + 0.10, 2.75);
+            matchSimGroup.add(b1, b2, b3, bb1, bb2, bb3);
+
+            focusTo([-2.75, 1.25, -2.75], 4.2, Math.PI * 0.20, Math.PI * 0.34);
+        } else if (stage === "enshrine_mustika") {
+            mSphereGround.visible = false;
+
+            const b1 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.175, -2.75);
+            const b2 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.525, -2.75);
+            const b3 = box(0.20, 0.20, 0.20, C.skyR, -2.75, 0.61 + 0.70 + 0.10, -2.75);
+            matchSimGroup.add(b1, b2, b3);
+
+            brRed.position.set(-0.65, 0.90, 0);
+            brRed.rotation.y = Math.PI / 2;
+
+            enshrinedMustikaMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.105, 32, 24),
+                new THREE.MeshStandardMaterial({
+                    color: 0xfacc15,
+                    emissive: 0xd97706,
+                    emissiveIntensity: 0.9,
+                    roughness: 0.25,
+                    metalness: 0.3,
+                })
+            );
+            enshrinedMustikaMesh.position.set(0, 1.74, 0);
+            enshrinedMustikaMesh.castShadow = true;
+            scene.add(enshrinedMustikaMesh);
+
+            victoryLight = new THREE.PointLight(0xfacc15, 2.0, 6.0);
+            victoryLight.position.set(0, 2.0, 0);
+            scene.add(victoryLight);
+
+            focusTo([0, 1.5, 0], 4.5, Math.PI * 0.15, Math.PI * 0.35);
+        }
     }
 
     // Animation Render Loop
@@ -1077,6 +1298,7 @@ export function createArenaEngine(
         },
         demoAssembleTower,
         resetDemoTower,
+        setMatchSimStage,
         takeScreenshot: () => {
             renderer.render(scene, camera);
             return canvas.toDataURL("image/png");
