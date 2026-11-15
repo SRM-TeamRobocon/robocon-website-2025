@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, Database, CloudCheck, RefreshCw, AlertCircle } from "lucide-react";
+import { CalendarDays, Database, RefreshCw, AlertCircle, Check } from "lucide-react";
 
 import {
   CalendarEvent,
