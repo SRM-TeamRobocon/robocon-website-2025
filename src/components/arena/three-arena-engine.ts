@@ -23,6 +23,7 @@ export interface EngineInstance {
     resetDemoTower: () => void;
     takeScreenshot: () => string | null;
     setMatchSimStage: (stage: "start" | "harvest" | "place_earth" | "cap_tower" | "enshrine_mustika" | "reset") => void;
+    updateMatchSimTime: (time: number) => void;
 }
 
 export function createArenaEngine(
@@ -661,28 +662,38 @@ export function createArenaEngine(
     }
 
     function setPose(r: any, p: any) {
-        const q = r.pose;
+        if (!r) return;
+        const target = r.robot || r;
+        const q = target.pose;
+        if (!q) return;
         const cl = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
-        if (p.carriageY !== undefined) q.carriageY = cl(p.carriageY, 0, r.travel);
-        if (p.armExtend !== undefined) q.armExtend = cl(p.armExtend, 0, RS.armMax);
+        const maxTravel = target.travel || (RS.lift && RS.lift[target.type as "tr" | "br"]) || 0.6;
+        if (p.carriageY !== undefined) q.carriageY = cl(p.carriageY, 0, maxTravel);
+        if (p.armExtend !== undefined) q.armExtend = cl(p.armExtend, 0, RS.armMax || 0.22);
         if (p.gripOpen !== undefined) q.gripOpen = cl(p.gripOpen, 0.06, 0.44);
         if (p.wheelSpin !== undefined) q.wheelSpin = p.wheelSpin;
 
-        const cy = RS.liftFoot + q.carriageY;
-        r.carriage.position.y = cy;
+        const cy = (RS.liftFoot || 0.08) + q.carriageY;
+        if (target.carriage) target.carriage.position.y = cy;
         const T = Math.max(RS.start.h, Math.min(RS.maxExt.h - 0.01, cy + 0.14));
-        r.mast2.position.y = T - 0.025 - (RS.stage2Max + 0.04) / 2;
-        r.mastCap.position.y = T - 0.0125;
-        r.armSlide.position.z = q.armExtend;
+        if (target.mast2) target.mast2.position.y = T - 0.025 - (RS.stage2Max + 0.04) / 2;
+        if (target.mastCap) target.mastCap.position.y = T - 0.0125;
+        if (target.armSlide) target.armSlide.position.z = q.armExtend;
 
         const len = Math.max(0.02, RS.anchorZ0 - 0.10 - (RS.mastZ + 0.08) + q.armExtend);
-        r.tube.scale.z = len;
-        r.tube.position.z = RS.mastZ + 0.08 + len / 2;
+        if (target.tube) {
+            target.tube.scale.z = len;
+            target.tube.position.z = RS.mastZ + 0.08 + len / 2;
+        }
 
         const j = q.gripOpen / 2 + 0.014;
-        r.jawL.position.x = -j;
-        r.jawR.position.x = j;
-        for (const w of r.wheels) w.rotation.x = q.wheelSpin;
+        if (target.jawL) target.jawL.position.x = -j;
+        if (target.jawR) target.jawR.position.x = j;
+        if (target.wheels) {
+            for (const w of target.wheels) {
+                if (w) w.rotation.x = q.wheelSpin;
+            }
+        }
         return q;
     }
 
@@ -802,6 +813,7 @@ export function createArenaEngine(
             travel: RS.lift[type as "tr" | "br"],
             pose: Object.assign({}, POSE_REST),
         };
+        (g as any).robot = r;
         setPose(r, POSE_REST);
         return g;
     }
@@ -870,20 +882,47 @@ export function createArenaEngine(
         theta?: number,
         phi?: number
     ) {
+        let th = theta === undefined ? cam.theta : theta;
+        while (th - cam.theta > Math.PI) th -= Math.PI * 2;
+        while (th - cam.theta < -Math.PI) th += Math.PI * 2;
+
+        const newTarget = new THREE.Vector3(...target);
+        const phiVal = phi === undefined ? cam.phi : phi;
+
+        // Avoid jarring transitions if already positioned or focused at this exact element
+        const curTarget = cam.animT < 1 && cam.to ? cam.to.target : cam.target;
+        const curRadius = cam.animT < 1 && cam.to ? cam.to.radius : cam.radius;
+        const curTheta = cam.animT < 1 && cam.to ? cam.to.theta : cam.theta;
+        const curPhi = cam.animT < 1 && cam.to ? cam.to.phi : cam.phi;
+
+        const dTarget = curTarget.distanceTo(newTarget);
+        const dRadius = Math.abs(curRadius - radius);
+        const dTheta = Math.abs(curTheta - th);
+        const dPhi = Math.abs(curPhi - phiVal);
+
+        // If target position and angles are essentially identical (e.g. storage->earthblock, skyarea->skyblock, mpillar->mustika, buildspot->tower),
+        // do NOT restart camera transition at all
+        if (dTarget < 0.65 && dTheta < 0.35 && dPhi < 0.35) {
+            cam.target.copy(newTarget);
+            cam.radius = radius;
+            cam.theta = th;
+            cam.phi = phiVal;
+            cam.animT = 1;
+            applyCam();
+            return;
+        }
+
         cam.from = {
             target: cam.target.clone(),
             radius: cam.radius,
             theta: cam.theta,
             phi: cam.phi,
         };
-        let th = theta === undefined ? cam.theta : theta;
-        while (th - cam.theta > Math.PI) th -= Math.PI * 2;
-        while (th - cam.theta < -Math.PI) th += Math.PI * 2;
         cam.to = {
-            target: new THREE.Vector3(...target),
+            target: newTarget,
             radius,
             theta: th,
-            phi: phi === undefined ? cam.phi : phi,
+            phi: phiVal,
         };
         cam.animT = 0;
     }
@@ -1071,128 +1110,372 @@ export function createArenaEngine(
         const b3 = box(0.2, 0.2, 0.2, C.skyR, px, y0 + 0.70 + 0.10, pz);
 
         demoTowerBlocks = [b1, b2, b3];
-        focusTo([px, y0 + 0.5, pz], 4.2, Math.PI * 0.25, Math.PI * 0.35);
     }
 
-    // Match Simulation 3D dynamic stage objects
+    // =========================================================================
+    // 12. CONTINUOUS PHYSICAL MATCH SIMULATION ENGINE (0s to 180s)
+    // Real-time kinematic trajectory evaluation with smoothstep interpolation
+    // =========================================================================
     const matchSimGroup = new THREE.Group();
     scene.add(matchSimGroup);
-    let enshrinedMustikaMesh: any = null;
-    let victoryLight: any = null;
+
+    const earthBoxGeom = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+    const skyBoxGeom = new THREE.BoxGeometry(0.20, 0.20, 0.20);
+    const earthMatR = mat(C.earthR, { roughness: 0.55 });
+    const earthMatB = mat(C.earthB, { roughness: 0.55 });
+    const skyMatR = mat(C.skyR, { roughness: 0.45 });
+    const skyMatB = mat(C.skyB, { roughness: 0.45 });
+
+    // Dynamic blocks for simulation
+    const simEarthR_carriedTR = new THREE.Mesh(earthBoxGeom, earthMatR);
+    const simEarthR_carriedBR = new THREE.Mesh(earthBoxGeom, earthMatR);
+    const simEarthR_placed1 = new THREE.Mesh(earthBoxGeom, earthMatR);
+    simEarthR_placed1.position.set(-2.75, 0.61 + 0.175, -2.75);
+    const simEarthR_placed2 = new THREE.Mesh(earthBoxGeom, earthMatR);
+    simEarthR_placed2.position.set(-2.75, 0.61 + 0.525, -2.75);
+
+    const simSkyR_carriedTR = new THREE.Mesh(skyBoxGeom, skyMatR);
+    const simSkyR_carriedBR = new THREE.Mesh(skyBoxGeom, skyMatR);
+    const simSkyR_placed = new THREE.Mesh(skyBoxGeom, skyMatR);
+    simSkyR_placed.position.set(-2.75, 0.61 + 0.70 + 0.10, -2.75);
+
+    // Blue Team dynamic blocks
+    const simEarthB_carriedTR = new THREE.Mesh(earthBoxGeom, earthMatB);
+    const simEarthB_carriedBR = new THREE.Mesh(earthBoxGeom, earthMatB);
+    const simEarthB_placed1 = new THREE.Mesh(earthBoxGeom, earthMatB);
+    simEarthB_placed1.position.set(-2.75, 0.61 + 0.175, 2.75);
+    const simEarthB_placed2 = new THREE.Mesh(earthBoxGeom, earthMatB);
+    simEarthB_placed2.position.set(-2.75, 0.61 + 0.525, 2.75);
+
+    const simSkyB_carriedTR = new THREE.Mesh(skyBoxGeom, skyMatB);
+    const simSkyB_carriedBR = new THREE.Mesh(skyBoxGeom, skyMatB);
+    const simSkyB_placed = new THREE.Mesh(skyBoxGeom, skyMatB);
+    simSkyB_placed.position.set(-2.75, 0.61 + 0.70 + 0.10, 2.75);
+
+    // Dynamic Mustika sphere
+    const simMustika = new THREE.Mesh(
+        new THREE.SphereGeometry(0.105, 32, 24),
+        new THREE.MeshStandardMaterial({
+            color: 0xfacc15,
+            emissive: 0xd97706,
+            emissiveIntensity: 0.8,
+            roughness: 0.25,
+            metalness: 0.3,
+        })
+    );
+    simMustika.castShadow = true;
+
+    // Victory Light
+    const simVictoryLight = new THREE.PointLight(0xfacc15, 0, 9.0);
+    simVictoryLight.position.set(0, 2.0, 0);
+
+    const simAllDynamicObjects = [
+        simEarthR_carriedTR, simEarthR_carriedBR, simEarthR_placed1, simEarthR_placed2,
+        simSkyR_carriedTR, simSkyR_carriedBR, simSkyR_placed,
+        simEarthB_carriedTR, simEarthB_carriedBR, simEarthB_placed1, simEarthB_placed2,
+        simSkyB_carriedTR, simSkyB_carriedBR, simSkyB_placed,
+        simMustika, simVictoryLight
+    ];
+    simAllDynamicObjects.forEach((obj) => {
+        if (obj.isMesh) obj.castShadow = true;
+        obj.visible = false;
+        matchSimGroup.add(obj);
+    });
+
+    interface SimWaypoint {
+        t: number;
+        pos: [number, number, number];
+        rot: number;
+        carriageY?: number;
+        armExtend?: number;
+        gripOpen?: number;
+    }
+
+    function evalTrajectory(waypoints: SimWaypoint[], t: number) {
+        if (t <= waypoints[0].t) {
+            const w = waypoints[0];
+            return {
+                pos: [...w.pos] as [number, number, number],
+                rot: w.rot,
+                carriageY: w.carriageY ?? 0,
+                armExtend: w.armExtend ?? 0,
+                gripOpen: w.gripOpen ?? 0.36,
+            };
+        }
+        const last = waypoints[waypoints.length - 1];
+        if (t >= last.t) {
+            return {
+                pos: [...last.pos] as [number, number, number],
+                rot: last.rot,
+                carriageY: last.carriageY ?? 0,
+                armExtend: last.armExtend ?? 0,
+                gripOpen: last.gripOpen ?? 0.36,
+            };
+        }
+        let i = 0;
+        while (i < waypoints.length - 1 && waypoints[i + 1].t < t) {
+            i++;
+        }
+        const w0 = waypoints[i];
+        const w1 = waypoints[i + 1];
+        const span = Math.max(0.001, w1.t - w0.t);
+        const u = Math.max(0, Math.min(1, (t - w0.t) / span));
+        const s = u * u * (3 - 2 * u);
+
+        const x = w0.pos[0] + (w1.pos[0] - w0.pos[0]) * s;
+        const y = w0.pos[1] + (w1.pos[1] - w0.pos[1]) * s;
+        const z = w0.pos[2] + (w1.pos[2] - w0.pos[2]) * s;
+
+        let diff = (w1.rot - w0.rot) % (Math.PI * 2);
+        if (diff < -Math.PI) diff += Math.PI * 2;
+        if (diff > Math.PI) diff -= Math.PI * 2;
+        const rot = w0.rot + diff * s;
+
+        const cy0 = w0.carriageY ?? 0;
+        const cy1 = w1.carriageY ?? 0;
+        const carriageY = cy0 + (cy1 - cy0) * s;
+
+        const ae0 = w0.armExtend ?? 0;
+        const ae1 = w1.armExtend ?? 0;
+        const armExtend = ae0 + (ae1 - ae0) * s;
+
+        const go0 = w0.gripOpen ?? 0.36;
+        const go1 = w1.gripOpen ?? 0.36;
+        const gripOpen = go0 + (go1 - go0) * s;
+
+        return { pos: [x, y, z] as [number, number, number], rot, carriageY, armExtend, gripOpen };
+    }
+
+    const redTRWaypoints: SimWaypoint[] = [
+        { t: 0, pos: [-5.15, 0, -5.15], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 4, pos: [-5.15, 0, -5.15], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 10, pos: [4.60, 0, -4.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 13, pos: [4.75, 0, -4.50], rot: Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 16, pos: [4.20, 0, -4.00], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 20, pos: [2.70, 0, -3.50], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 25, pos: [-0.80, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 28, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 32, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.15 },
+        { t: 36, pos: [-1.10, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 41, pos: [2.70, 0, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 46, pos: [4.75, 0, -4.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 49, pos: [4.75, 0, -4.50], rot: Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 52, pos: [2.70, 0, -3.50], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 56, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 60, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.15 },
+        { t: 64, pos: [-1.10, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 69, pos: [2.70, 0, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 74, pos: [-4.25, 0, -0.45], rot: 0, gripOpen: 0.38, carriageY: 0 },
+        { t: 77, pos: [-4.25, 0, -0.25], rot: 0, gripOpen: 0.10, carriageY: 0.10 },
+        { t: 81, pos: [2.70, 0, -3.50], rot: -Math.PI / 2, gripOpen: 0.10, carriageY: 0.10 },
+        { t: 85, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.10, carriageY: 0.10 },
+        { t: 88, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.10 },
+        { t: 92, pos: [-1.10, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 96, pos: [2.70, 0, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 104, pos: [3.80, 0, 0], rot: 0, gripOpen: 0.40, carriageY: 0.30 },
+        { t: 108, pos: [4.10, 0, 0], rot: 0, gripOpen: 0.15, carriageY: 0.35 },
+        { t: 115, pos: [2.70, 0, -3.50], rot: -Math.PI / 2, gripOpen: 0.15, carriageY: 0.35 },
+        { t: 122, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.15, carriageY: 0.35 },
+        { t: 128, pos: [-1.30, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.35 },
+        { t: 135, pos: [-0.90, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.20 },
+        { t: 180, pos: [-0.90, 0.60, -3.50], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.20 },
+    ];
+
+    const redBRWaypoints: SimWaypoint[] = [
+        { t: 0, pos: [-5.15, 0, -4.35], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 4, pos: [-5.15, 0, -4.35], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 8, pos: [-3.15, 0, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 11, pos: [-2.55, 0.30, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 14, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 18, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 30, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 36, pos: [-2.35, 0.60, -3.10], rot: -Math.PI * 0.75, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 41, pos: [-2.35, 0.60, -2.75], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.15 },
+        { t: 44, pos: [-2.35, 0.60, -2.75], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.15 },
+        { t: 48, pos: [-2.35, 0.60, -3.10], rot: Math.PI * 0.25, gripOpen: 0.38, carriageY: 0.15 },
+        { t: 53, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0 },
+        { t: 58, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.12, carriageY: 0.35 },
+        { t: 62, pos: [-2.35, 0.60, -2.75], rot: -Math.PI / 2, gripOpen: 0.12, carriageY: 0.50 },
+        { t: 66, pos: [-2.35, 0.60, -2.75], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.50 },
+        { t: 72, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0.15 },
+        { t: 86, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.10, carriageY: 0.40 },
+        { t: 91, pos: [-2.35, 0.60, -2.75], rot: -Math.PI / 2, gripOpen: 0.10, carriageY: 0.70 },
+        { t: 95, pos: [-2.35, 0.60, -2.75], rot: -Math.PI / 2, gripOpen: 0.38, carriageY: 0.70 },
+        { t: 102, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.38, carriageY: 0.20 },
+        { t: 126, pos: [-1.95, 0.60, -3.50], rot: Math.PI / 2, gripOpen: 0.15, carriageY: 0.35 },
+        { t: 135, pos: [-1.50, 0.60, -2.00], rot: 0, gripOpen: 0.15, carriageY: 0.45 },
+        { t: 145, pos: [-0.65, 0.90, 0], rot: Math.PI / 2, gripOpen: 0.15, carriageY: 0.65 },
+        { t: 156, pos: [-0.45, 0.90, 0], rot: Math.PI / 2, gripOpen: 0.15, carriageY: 0.85 },
+        { t: 165, pos: [-0.45, 0.90, 0], rot: Math.PI / 2, gripOpen: 0.40, carriageY: 0.85 },
+        { t: 180, pos: [-0.45, 0.90, 0], rot: Math.PI / 2, gripOpen: 0.40, carriageY: 0.85 },
+    ];
+
+    const blueTRWaypoints: SimWaypoint[] = redTRWaypoints.map((w) => ({
+        ...w,
+        pos: [w.pos[0], w.pos[1], -w.pos[2]],
+        rot: -w.rot,
+    }));
+
+    const blueBRWaypoints: SimWaypoint[] = redBRWaypoints.map((w) => ({
+        ...w,
+        pos: [w.pos[0], w.pos[1], -w.pos[2]],
+        rot: -w.rot,
+    }));
+
+    function updateMatchSimTime(t: number) {
+        // Red TR & BR kinematics
+        const trR = evalTrajectory(redTRWaypoints, t);
+        trRed.position.set(...trR.pos);
+        trRed.rotation.y = trR.rot;
+        setPose(trRed, { carriageY: trR.carriageY, armExtend: trR.armExtend, gripOpen: trR.gripOpen, wheelSpin: t * 8 });
+
+        const trFwdX = Math.sin(trR.rot);
+        const trFwdZ = Math.cos(trR.rot);
+        const trGripPos: [number, number, number] = [
+            trR.pos[0] + trFwdX * 0.42,
+            trR.pos[1] + 0.18 + trR.carriageY,
+            trR.pos[2] + trFwdZ * 0.42,
+        ];
+
+        const brR = evalTrajectory(redBRWaypoints, t);
+        brRed.position.set(...brR.pos);
+        brRed.rotation.y = brR.rot;
+        setPose(brRed, { carriageY: brR.carriageY, armExtend: brR.armExtend, gripOpen: brR.gripOpen, wheelSpin: t * 8 });
+
+        const brFwdX = Math.sin(brR.rot);
+        const brFwdZ = Math.cos(brR.rot);
+        const brGripPos: [number, number, number] = [
+            brR.pos[0] + brFwdX * 0.42,
+            brR.pos[1] + 0.18 + brR.carriageY,
+            brR.pos[2] + brFwdZ * 0.42,
+        ];
+
+        // Blue TR & BR kinematics
+        const trB = evalTrajectory(blueTRWaypoints, t);
+        trBlue.position.set(...trB.pos);
+        trBlue.rotation.y = trB.rot;
+        setPose(trBlue, { carriageY: trB.carriageY, armExtend: trB.armExtend, gripOpen: trB.gripOpen, wheelSpin: t * 8 });
+
+        const trBFwdX = Math.sin(trB.rot);
+        const trBFwdZ = Math.cos(trB.rot);
+        const trBGripPos: [number, number, number] = [
+            trB.pos[0] + trBFwdX * 0.42,
+            trB.pos[1] + 0.18 + trB.carriageY,
+            trB.pos[2] + trBFwdZ * 0.42,
+        ];
+
+        const brB = evalTrajectory(blueBRWaypoints, t);
+        brBlue.position.set(...brB.pos);
+        brBlue.rotation.y = brB.rot;
+        setPose(brBlue, { carriageY: brB.carriageY, armExtend: brB.armExtend, gripOpen: brB.gripOpen, wheelSpin: t * 8 });
+
+        const brBFwdX = Math.sin(brB.rot);
+        const brBFwdZ = Math.cos(brB.rot);
+        const brBGripPos: [number, number, number] = [
+            brB.pos[0] + brBFwdX * 0.42,
+            brB.pos[1] + 0.18 + brB.carriageY,
+            brB.pos[2] + brBFwdZ * 0.42,
+        ];
+
+        // Red Dynamic Blocks
+        const hasEarth1TR = t >= 13 && t < 31;
+        const hasEarth2TR = t >= 49 && t < 59;
+        const hasEarthTR = hasEarth1TR || hasEarth2TR;
+        simEarthR_carriedTR.visible = hasEarthTR;
+        if (hasEarthTR) simEarthR_carriedTR.position.set(...trGripPos);
+
+        const hasEarth1BR = t >= 31 && t < 44;
+        const hasEarth2BR = t >= 59 && t < 66;
+        const hasEarthBR = hasEarth1BR || hasEarth2BR;
+        simEarthR_carriedBR.visible = hasEarthBR;
+        if (hasEarthBR) simEarthR_carriedBR.position.set(...brGripPos);
+
+        simEarthR_placed1.visible = t >= 44;
+        simEarthR_placed2.visible = t >= 66;
+
+        const hasSkyTR = t >= 77 && t < 87;
+        simSkyR_carriedTR.visible = hasSkyTR;
+        if (hasSkyTR) simSkyR_carriedTR.position.set(...trGripPos);
+
+        const hasSkyBR = t >= 87 && t < 95;
+        simSkyR_carriedBR.visible = hasSkyBR;
+        if (hasSkyBR) simSkyR_carriedBR.position.set(...brGripPos);
+
+        simSkyR_placed.visible = t >= 95;
+
+        // Blue Dynamic Blocks
+        const hasBEarth1TR = t >= 13 && t < 31;
+        const hasBEarth2TR = t >= 49 && t < 59;
+        const hasBEarthTR = hasBEarth1TR || hasBEarth2TR;
+        simEarthB_carriedTR.visible = hasBEarthTR;
+        if (hasBEarthTR) simEarthB_carriedTR.position.set(...trBGripPos);
+
+        const hasBEarth1BR = t >= 31 && t < 44;
+        const hasBEarth2BR = t >= 59 && t < 66;
+        const hasBEarthBR = hasBEarth1BR || hasBEarth2BR;
+        simEarthB_carriedBR.visible = hasBEarthBR;
+        if (hasBEarthBR) simEarthB_carriedBR.position.set(...brBGripPos);
+
+        simEarthB_placed1.visible = t >= 44;
+        simEarthB_placed2.visible = t >= 66;
+
+        const hasBSkyTR = t >= 77 && t < 87;
+        simSkyB_carriedTR.visible = hasBSkyTR;
+        if (hasBSkyTR) simSkyB_carriedTR.position.set(...trBGripPos);
+
+        const hasBSkyBR = t >= 87 && t < 95;
+        simSkyB_carriedBR.visible = hasBSkyBR;
+        if (hasBSkyBR) simSkyB_carriedBR.position.set(...brBGripPos);
+
+        simSkyB_placed.visible = t >= 95;
+        if (hasBSkyBR) simSkyB_carriedBR.position.set(...brBGripPos);
+
+        simSkyB_placed.visible = t >= 95;
+
+        // Mustika Sacred Sphere & Victory Apex
+        if (t < 108) {
+            mSphereGround.visible = true;
+            simMustika.visible = false;
+            simVictoryLight.visible = false;
+        } else if (t < 127) {
+            mSphereGround.visible = false;
+            simMustika.visible = true;
+            simMustika.position.set(trGripPos[0], trGripPos[1] + 0.04, trGripPos[2]);
+            simVictoryLight.visible = false;
+        } else if (t < 165) {
+            mSphereGround.visible = false;
+            simMustika.visible = true;
+            simMustika.position.set(brGripPos[0], brGripPos[1] + 0.04, brGripPos[2]);
+            simVictoryLight.visible = false;
+        } else {
+            mSphereGround.visible = false;
+            simMustika.visible = true;
+            simMustika.position.set(0, 1.74, 0);
+            simVictoryLight.visible = true;
+            simVictoryLight.intensity = 2.0 + 0.6 * Math.sin(t * 6);
+        }
+
+        if (t <= 0) {
+            simAllDynamicObjects.forEach((obj) => (obj.visible = false));
+            mSphereGround.visible = true;
+        }
+    }
 
     function setMatchSimStage(stage: "start" | "harvest" | "place_earth" | "cap_tower" | "enshrine_mustika" | "reset") {
-        while (matchSimGroup.children.length > 0) {
-            matchSimGroup.remove(matchSimGroup.children[0]);
-        }
-        if (enshrinedMustikaMesh) {
-            scene.remove(enshrinedMustikaMesh);
-            enshrinedMustikaMesh = null;
-        }
-        if (victoryLight) {
-            scene.remove(victoryLight);
-            victoryLight = null;
-        }
-
         if (stage === "reset" || stage === "start") {
-            trRed.position.set(-5.15, 0, -5.15);
-            trRed.rotation.y = Math.PI / 2;
-            brRed.position.set(-5.15, 0, -4.35);
-            brRed.rotation.y = Math.PI / 2;
-            trBlue.position.set(-5.15, 0, 5.15);
-            trBlue.rotation.y = Math.PI / 2;
-            brBlue.position.set(-5.15, 0, 4.35);
-            brBlue.rotation.y = Math.PI / 2;
-
-            mSphereGround.visible = true;
+            updateMatchSimTime(0);
             focusTo([0, 0.6, 0], 16, Math.PI * 0.25, Math.PI * 0.36);
         } else if (stage === "harvest") {
-            mSphereGround.visible = true;
-
-            trRed.position.set(-1.30, 0.60, -3.5);
-            trRed.rotation.y = 0;
-            brRed.position.set(-1.95, 0.60, -3.5);
-            brRed.rotation.y = 0;
-
-            trBlue.position.set(-1.30, 0.60, 3.5);
-            trBlue.rotation.y = 0;
-            brBlue.position.set(-1.95, 0.60, 3.5);
-            brBlue.rotation.y = 0;
-
-            const e1 = box(0.35, 0.35, 0.35, C.earthR, -1.30, 0.60 + 0.175, -3.15);
-            const e2 = box(0.35, 0.35, 0.35, C.earthB, -1.30, 0.60 + 0.175, 3.15);
-            matchSimGroup.add(e1, e2);
-
+            updateMatchSimTime(30);
             focusTo([-1.30, 0.80, -3.5], 5.8, Math.PI * 0.45, Math.PI * 0.36);
         } else if (stage === "place_earth") {
-            mSphereGround.visible = true;
-
-            trRed.position.set(-3.5, 0, -3.5);
-            trRed.rotation.y = Math.PI / 2;
-            brRed.position.set(-2.25, 0.60, -2.75);
-            brRed.rotation.y = -Math.PI / 2;
-
-            trBlue.position.set(-3.5, 0, 3.5);
-            trBlue.rotation.y = Math.PI / 2;
-            brBlue.position.set(-2.25, 0.60, 2.75);
-            brBlue.rotation.y = -Math.PI / 2;
-
-            const b1 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.175, -2.75);
-            const b2 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.525, -2.75);
-            const bb1 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.175, 2.75);
-            const bb2 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.525, 2.75);
-            matchSimGroup.add(b1, b2, bb1, bb2);
-
+            updateMatchSimTime(65);
             focusTo([-2.75, 0.95, -2.75], 4.8, Math.PI * 0.25, Math.PI * 0.35);
         } else if (stage === "cap_tower") {
-            mSphereGround.visible = true;
-
-            trRed.position.set(-4.25, 0, -1.0);
-            trRed.rotation.y = 0;
-            brRed.position.set(-2.20, 0.60, -2.75);
-            brRed.rotation.y = -Math.PI / 2;
-
-            brBlue.position.set(-2.20, 0.60, 2.75);
-            brBlue.rotation.y = -Math.PI / 2;
-
-            const b1 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.175, -2.75);
-            const b2 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.525, -2.75);
-            const b3 = box(0.20, 0.20, 0.20, C.skyR, -2.75, 0.61 + 0.70 + 0.10, -2.75);
-
-            const bb1 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.175, 2.75);
-            const bb2 = box(0.35, 0.35, 0.35, C.earthB, -2.75, 0.61 + 0.525, 2.75);
-            const bb3 = box(0.20, 0.20, 0.20, C.skyB, -2.75, 0.61 + 0.70 + 0.10, 2.75);
-            matchSimGroup.add(b1, b2, b3, bb1, bb2, bb3);
-
+            updateMatchSimTime(90);
             focusTo([-2.75, 1.25, -2.75], 4.2, Math.PI * 0.20, Math.PI * 0.34);
         } else if (stage === "enshrine_mustika") {
-            mSphereGround.visible = false;
-
-            const b1 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.175, -2.75);
-            const b2 = box(0.35, 0.35, 0.35, C.earthR, -2.75, 0.61 + 0.525, -2.75);
-            const b3 = box(0.20, 0.20, 0.20, C.skyR, -2.75, 0.61 + 0.70 + 0.10, -2.75);
-            matchSimGroup.add(b1, b2, b3);
-
-            brRed.position.set(-0.65, 0.90, 0);
-            brRed.rotation.y = Math.PI / 2;
-
-            enshrinedMustikaMesh = new THREE.Mesh(
-                new THREE.SphereGeometry(0.105, 32, 24),
-                new THREE.MeshStandardMaterial({
-                    color: 0xfacc15,
-                    emissive: 0xd97706,
-                    emissiveIntensity: 0.9,
-                    roughness: 0.25,
-                    metalness: 0.3,
-                })
-            );
-            enshrinedMustikaMesh.position.set(0, 1.74, 0);
-            enshrinedMustikaMesh.castShadow = true;
-            scene.add(enshrinedMustikaMesh);
-
-            victoryLight = new THREE.PointLight(0xfacc15, 2.0, 6.0);
-            victoryLight.position.set(0, 2.0, 0);
-            scene.add(victoryLight);
-
+            updateMatchSimTime(165);
             focusTo([0, 1.5, 0], 4.5, Math.PI * 0.15, Math.PI * 0.35);
         }
     }
@@ -1299,6 +1582,7 @@ export function createArenaEngine(
         demoAssembleTower,
         resetDemoTower,
         setMatchSimStage,
+        updateMatchSimTime,
         takeScreenshot: () => {
             renderer.render(scene, camera);
             return canvas.toDataURL("image/png");

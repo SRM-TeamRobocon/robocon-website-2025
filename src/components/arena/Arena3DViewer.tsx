@@ -49,6 +49,7 @@ export default function Arena3DViewer({
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const engineRef = useRef<EngineInstance | null>(null);
+    const lastSelectedIdRef = useRef<string | null>(null);
 
     const [threeLoaded, setThreeLoaded] = useState(false);
     const [mode, setMode] = useState<MainMode>("tour");
@@ -184,6 +185,8 @@ export default function Arena3DViewer({
     // React to selectedPart changes
     useEffect(() => {
         if (!engineRef.current || !selectedPart) return;
+        if (lastSelectedIdRef.current === selectedPart.id) return;
+        lastSelectedIdRef.current = selectedPart.id;
         engineRef.current.selectPart(selectedPart.id);
     }, [selectedPart]);
 
@@ -196,6 +199,7 @@ export default function Arena3DViewer({
 
             const part = ARENA_PARTS[step.key];
             if (part) {
+                lastSelectedIdRef.current = step.key;
                 onSelectPart(part);
                 if (engineRef.current) {
                     engineRef.current.selectPart(step.key);
@@ -214,39 +218,32 @@ export default function Arena3DViewer({
         [onSelectPart, playAudioFile]
     );
 
-    const updateSimStage = useCallback((time: number) => {
-        if (!engineRef.current) return;
-        if (time < 30) {
-            engineRef.current.setMatchSimStage("start");
-        } else if (time < 65) {
-            engineRef.current.setMatchSimStage("harvest");
-        } else if (time < 90) {
-            engineRef.current.setMatchSimStage("place_earth");
-        } else if (time < 135) {
-            engineRef.current.setMatchSimStage("cap_tower");
-        } else {
-            engineRef.current.setMatchSimStage("enshrine_mustika");
-        }
-    }, []);
-
-    // Handle Match Simulator tick
+    // Handle Match Simulator tick with smooth 50ms continuous movement
     useEffect(() => {
         if (!isPlaying) return;
 
+        const intervalMs = 50;
         const interval = setInterval(() => {
             setSimTime((prev) => {
-                const next = prev + 1 * simSpeed;
-                if (next >= 180) {
-                    setIsPlaying(false);
-                    return 180;
+                const dt = (intervalMs / 1000) * simSpeed;
+                const next = Math.min(180, prev + dt);
+
+                if (engineRef.current) {
+                    try {
+                        engineRef.current.updateMatchSimTime(next);
+                    } catch (e) {
+                        console.error("Match Sim tick error:", e);
+                    }
                 }
 
-                // Simulated scoring milestones with audio voiceover and 3D stage animation
+                if (next >= 180) {
+                    setIsPlaying(false);
+                }
+
+                // Simulated scoring milestones with audio voiceover and synchronized game state
                 if (prev < 1 && next >= 1) {
-                    updateSimStage(1);
                     playAudioFile("/audio/narration/match-phase-start.mp3");
                 } else if (prev < 30 && next >= 30) {
-                    updateSimStage(30);
                     setRedScore((s) => s + 5);
                     setBlueScore((s) => s + 5);
                     setMatchLog((l) => [
@@ -255,7 +252,6 @@ export default function Arena3DViewer({
                     ]);
                     playAudioFile("/audio/narration/match-phase-harvest.mp3");
                 } else if (prev < 65 && next >= 65) {
-                    updateSimStage(65);
                     setRedScore((s) => s + 20);
                     setMatchLog((l) => [
                         "1:05 - Red Builder Robot places two Earth Blocks on L1 Building Spot.",
@@ -263,7 +259,6 @@ export default function Arena3DViewer({
                     ]);
                     playAudioFile("/audio/narration/match-score-red-tower-a.mp3");
                 } else if (prev < 90 && next >= 90) {
-                    updateSimStage(90);
                     setRedScore((s) => s + 40);
                     setBlueScore((s) => s + 20);
                     setMatchLog((l) => [
@@ -273,7 +268,6 @@ export default function Arena3DViewer({
                     ]);
                     playAudioFile("/audio/narration/match-phase-first-caps.mp3");
                 } else if (prev < 135 && next >= 135) {
-                    updateSimStage(135);
                     setRedScore((s) => s + 250);
                     setMatchLog((l) => [
                         "2:15 - RED ENSHRINES THE MUSTIKA ON CENTRAL PILLAR (+250 PTS)!",
@@ -286,10 +280,10 @@ export default function Arena3DViewer({
 
                 return next;
             });
-        }, 1000 / simSpeed);
+        }, intervalMs);
 
         return () => clearInterval(interval);
-    }, [isPlaying, simSpeed, playAudioFile, updateSimStage]);
+    }, [isPlaying, simSpeed, playAudioFile]);
 
     const resetMatch = () => {
         setIsPlaying(false);
@@ -298,7 +292,7 @@ export default function Arena3DViewer({
         setBlueScore(0);
         setMatchLog(["0:00 - Match reset. Ready for 3-minute simulation."]);
         if (engineRef.current) {
-            engineRef.current.setMatchSimStage("reset");
+            engineRef.current.updateMatchSimTime(0);
         }
     };
 
@@ -388,7 +382,7 @@ export default function Arena3DViewer({
                             setMode("match");
                             if (engineRef.current) {
                                 engineRef.current.resetDemoTower();
-                                updateSimStage(simTime);
+                                engineRef.current.updateMatchSimTime(simTime);
                             }
                         }}
                         className={`px-2.5 py-1.5 text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
@@ -702,11 +696,14 @@ export default function Arena3DViewer({
                                 type="range"
                                 min={0}
                                 max={180}
+                                step={0.5}
                                 value={simTime}
                                 onChange={(e) => {
                                     const val = Number(e.target.value);
                                     setSimTime(val);
-                                    updateSimStage(val);
+                                    if (engineRef.current) {
+                                        engineRef.current.updateMatchSimTime(val);
+                                    }
                                 }}
                                 className="flex-1 min-w-[100px] accent-red cursor-pointer"
                             />
