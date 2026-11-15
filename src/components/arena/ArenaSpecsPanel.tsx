@@ -47,43 +47,43 @@ export default function ArenaSpecsPanel({
                     </h2>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-xs overflow-x-auto no-scrollbar max-w-full pb-1 sm:pb-0 sm:flex-wrap">
                     <button
                         onClick={() => setTab("blueprint")}
-                        className={`px-3 py-2 border transition ${
+                        className={`px-2.5 py-1.5 sm:px-3 sm:py-2 border transition whitespace-nowrap flex-shrink-0 ${
                             tab === "blueprint"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                     >
                         <Ruler className="w-3.5 h-3.5 inline mr-1" />
-                        Blueprints & Diagrams
+                        Blueprints
                     </button>
                     <button
                         onClick={() => setTab("specs")}
-                        className={`px-3 py-2 border transition ${
+                        className={`px-2.5 py-1.5 sm:px-3 sm:py-2 border transition whitespace-nowrap flex-shrink-0 ${
                             tab === "specs"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                     >
                         <FileText className="w-3.5 h-3.5 inline mr-1" />
-                        Dimension Table
+                        Dimensions
                     </button>
                     <button
                         onClick={() => setTab("objects")}
-                        className={`px-3 py-2 border transition ${
+                        className={`px-2.5 py-1.5 sm:px-3 sm:py-2 border transition whitespace-nowrap flex-shrink-0 ${
                             tab === "objects"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                     >
                         <Box className="w-3.5 h-3.5 inline mr-1" />
-                        Game Objects (Page 10)
+                        Game Objects
                     </button>
                     <button
                         onClick={() => setTab("scoring")}
-                        className={`px-3 py-2 border transition ${
+                        className={`px-2.5 py-1.5 sm:px-3 sm:py-2 border transition whitespace-nowrap flex-shrink-0 ${
                             tab === "scoring"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
@@ -111,7 +111,7 @@ export default function ArenaSpecsPanel({
                     </p>
 
                     <div className="overflow-x-auto border border-white/10">
-                        <table className="w-full text-left text-xs border-collapse">
+                        <table className="w-full text-left text-xs border-collapse min-w-[620px]">
                             <thead>
                                 <tr className="border-b border-white/20 bg-white/5 text-gray-300 uppercase tracking-wider text-[11px]">
                                     <th className="p-3">Field Element</th>

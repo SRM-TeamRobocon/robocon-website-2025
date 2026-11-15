@@ -81,7 +81,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Stacking", "Max 2 layers high (§4.1.3)"],
             ["Access", "Team exclusive (TR)"],
         ],
-        camera: { target: [5.0, 0.4, -4.5], radius: 6.5, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
+        camera: { target: [4.85, 0.45, -4.5], radius: 4.5, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Fig 3.1, Fig 3.2(b)",
     },
     earthblock: {
@@ -95,7 +95,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Quantity", "20 per team"],
             ["Scoring", "L1: 10/20 pts · L2: 20/40 pts"],
         ],
-        camera: { target: [4.7, 0.5, -4.5], radius: 3.5, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
+        camera: { target: [4.85, 0.45, -4.5], radius: 4.5, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Fig 2.1, Appendix p. 10",
     },
     skyarea: {
@@ -109,7 +109,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Quantity", "12 Sky Blocks (center empty)"],
             ["Access", "Shared by both teams"],
         ],
-        camera: { target: [-4.25, 0.3, 0], radius: 5.5, theta: Math.PI * 0.75, phi: Math.PI * 0.35 },
+        camera: { target: [-4.25, 0.35, 0], radius: 4.2, theta: Math.PI * 0.75, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Section 14, Fig 3.2(c)",
     },
     skyblock: {
@@ -123,7 +123,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Quantity", "12 shared total (6 Red, 6 Blue)"],
             ["Scoring", "L1: 40 pts · L2: 80 pts"],
         ],
-        camera: { target: [-4.25, 0.4, 0], radius: 3.2, theta: Math.PI * 0.75, phi: Math.PI * 0.35 },
+        camera: { target: [-4.25, 0.35, 0], radius: 4.2, theta: Math.PI * 0.75, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Fig 2.1, Appendix p. 10",
     },
     mpillar: {
@@ -137,7 +137,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Cup Receptacle", "Ø 180 mm × 100 mm depth"],
             ["Location", "On center line (Ground Shared Area)"],
         ],
-        camera: { target: [4.25, 0.5, 0], radius: 5.5, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
+        camera: { target: [4.25, 0.55, 0], radius: 3.8, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Fig 3.2(d), Fig 3.5",
     },
     mustika: {
@@ -152,7 +152,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Goal Position", "Central Pillar cup (Level 2)"],
             ["Reward", "+250 pts on enshrinement"],
         ],
-        camera: { target: [4.25, 0.65, 0], radius: 2.8, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
+        camera: { target: [4.25, 0.55, 0], radius: 3.8, theta: -Math.PI * 0.25, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Section 14, Fig 2.1, Fig 3.5",
     },
     access: {
@@ -194,7 +194,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["L1 Spots", "4 Exclusive, 2 Shared"],
             ["L2 Spots", "4 Shared (summit corners)"],
         ],
-        camera: { target: [-2.75, 0.75, -2.75], radius: 4.5, theta: Math.PI * 0.25, phi: Math.PI * 0.35 },
+        camera: { target: [-2.75, 0.85, -2.75], radius: 4.2, theta: Math.PI * 0.25, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Fig 3.3, Fig 3.4",
     },
     tower: {
@@ -208,7 +208,7 @@ export const ARENA_PARTS: Record<string, ArenaPartInfo> = {
             ["Layer 3 (Top)", "Sky Block (40 pts L1 / 80 pts L2)"],
             ["Mandate", "2 Complete Towers unlocks Mustika"],
         ],
-        camera: { target: [-2.75, 1.1, -2.75], radius: 4.2, theta: Math.PI * 0.25, phi: Math.PI * 0.35 },
+        camera: { target: [-2.75, 0.85, -2.75], radius: 4.2, theta: Math.PI * 0.25, phi: Math.PI * 0.35 },
         ruleRef: "Section 2, Section 4, Rule 4.1",
     },
     level1: {

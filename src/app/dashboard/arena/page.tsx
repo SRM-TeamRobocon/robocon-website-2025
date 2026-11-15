@@ -8,7 +8,7 @@ import {
     OFFICIAL_DOC_DETAILS,
     type ArenaPartInfo,
 } from "@/components/arena/arena-constants";
-import { Box, ExternalLink, Globe } from "lucide-react";
+import { Box, ExternalLink } from "lucide-react";
 
 export default function ArenaDashboardPage() {
     const [selectedPart, setSelectedPart] = useState<ArenaPartInfo>(ARENA_PARTS.field);
@@ -44,15 +44,6 @@ export default function ArenaDashboardPage() {
                     >
                         Official Website
                         <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                    <a
-                        href="https://robocon2027.netlify.app"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold border border-red/40 bg-red/10 text-red hover:bg-red hover:text-white transition"
-                    >
-                        <Globe className="w-3.5 h-3.5" />
-                        Reference Lab
                     </a>
                 </div>
             </div>
