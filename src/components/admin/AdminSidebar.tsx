@@ -23,6 +23,7 @@ import {
     CalendarOff,
     Download,
     Boxes,
+    Box,
     GraduationCap,
     Wallet,
 } from "lucide-react";
@@ -46,6 +47,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true, roles: ALL_ROLES },
     { label: BAZAAR_NAME, href: "/dashboard/bazaar", icon: Boxes, roles: ALL_ROLES },
     { label: "Attendance", href: "/dashboard/attendance", icon: Radio, roles: ALL_ROLES },
+    { label: "Arena 3D", href: "/dashboard/arena", icon: Box, roles: ALL_ROLES },
     { label: "Timetable", href: "/dashboard/timetable", icon: CalendarClock, roles: ALL_ROLES },
     { label: "Academia", href: "/dashboard/academia", icon: GraduationCap, roles: ALL_ROLES },
     { label: "Team Splits", href: "/dashboard/splits", icon: Wallet, roles: ALL_ROLES },

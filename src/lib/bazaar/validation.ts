@@ -40,12 +40,22 @@ export const createRequestSchema = z
     }
   );
 
+const imagePathOrUrl = z
+  .string()
+  .refine(
+    (val) => !val || val.startsWith("/") || /^https?:\/\//.test(val),
+    "Invalid image path or URL"
+  )
+  .optional()
+  .nullable()
+  .or(z.literal(""));
+
 export const createItemSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120, "Name too long"),
   description: z.string().trim().max(1000, "Description too long").optional().nullable(),
   category_id: z.string().uuid("Invalid category ID").optional().nullable(),
   location: z.string().trim().max(100, "Location too long").optional().nullable(),
-  image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
+  image_url: imagePathOrUrl,
   total_quantity: z.coerce.number().int().min(0, "Total quantity cannot be negative"),
   low_stock_threshold: z.coerce.number().int().min(0, "Threshold cannot be negative").default(0),
 });
@@ -55,7 +65,7 @@ export const updateItemSchema = z.object({
   description: z.string().trim().max(1000).optional().nullable(),
   category_id: z.string().uuid("Invalid category ID").optional().nullable(),
   location: z.string().trim().max(100).optional().nullable(),
-  image_url: z.string().url("Invalid image URL").optional().nullable().or(z.literal("")),
+  image_url: imagePathOrUrl,
   low_stock_threshold: z.coerce.number().int().min(0).optional(),
   is_active: z.boolean().optional(),
 });

@@ -20,6 +20,7 @@ import { AddItemModal } from "@/components/bazaar/AddItemModal";
 import { AdjustStockModal } from "@/components/bazaar/AdjustStockModal";
 import { ManageCategoriesModal } from "@/components/bazaar/ManageCategoriesModal";
 import { BazaarItem, BazaarCategory } from "@/lib/bazaar/types";
+import { getBazaarItemPhoto } from "@/lib/bazaar/images";
 
 export default function BazaarManageInventoryPage() {
   const [items, setItems] = useState<BazaarItem[]>([]);
@@ -202,7 +203,7 @@ export default function BazaarManageInventoryPage() {
       {/* Inventory Table */}
       {loading ? (
         <div className="p-16 border border-white/10 bg-black text-center space-y-2">
-          <div className="w-6 h-6 border-2 border-red border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-6 h-6 border-2 border-red border-t-transparent animate-spin mx-auto" />
           <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">
             Loading Inventory...
           </p>
@@ -250,17 +251,17 @@ export default function BazaarManageInventoryPage() {
                     {/* Component Info */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-neutral-900 border border-white/10 shrink-0 relative overflow-hidden flex items-center justify-center">
-                          {item.image_url ? (
+                        <div className="w-10 h-10 bg-white border border-white/10 shrink-0 relative overflow-hidden flex items-center justify-center p-0.5">
+                          {getBazaarItemPhoto(item) ? (
                             <Image
-                              src={item.image_url}
+                              src={getBazaarItemPhoto(item)!}
                               alt={item.name}
                               fill
-                              className="object-cover"
+                              className="object-contain p-0.5"
                               sizes="40px"
                             />
                           ) : (
-                            <Package className="w-4 h-4 text-gray-600" />
+                            <Package className="w-4 h-4 text-gray-400" />
                           )}
                         </div>
                         <div>

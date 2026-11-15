@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/bazaar/StatusBadge";
 import { AddItemModal } from "@/components/bazaar/AddItemModal";
 import { formatDate } from "@/lib/bazaar/dates";
 import { BazaarRequest } from "@/lib/bazaar/types";
+import { getBazaarItemPhoto } from "@/lib/bazaar/images";
 
 export default function MyRequestsPage() {
   const [requests, setRequests] = useState<BazaarRequest[]>([]);
@@ -160,17 +161,17 @@ export default function MyRequestsPage() {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-neutral-900 border border-white/10 shrink-0 relative overflow-hidden flex items-center justify-center">
-                      {req.item?.image_url ? (
+                    <div className="w-12 h-12 bg-white border border-white/10 shrink-0 relative overflow-hidden flex items-center justify-center p-1">
+                      {getBazaarItemPhoto(req.item || { name: req.custom_item_name }) ? (
                         <Image
-                          src={req.item.image_url}
-                          alt={req.item.name || "Item"}
+                          src={getBazaarItemPhoto(req.item || { name: req.custom_item_name })!}
+                          alt={req.item?.name || req.custom_item_name || "Item"}
                           fill
-                          className="object-cover"
+                          className="object-contain p-0.5"
                           sizes="48px"
                         />
                       ) : (
-                        <Package className="w-5 h-5 text-gray-600" />
+                        <Package className="w-5 h-5 text-gray-400" />
                       )}
                     </div>
                     <div>
