@@ -8,6 +8,7 @@ import { BazaarNav } from "@/components/bazaar/BazaarNav";
 import { RequestModal } from "@/components/bazaar/RequestModal";
 import { AddItemModal } from "@/components/bazaar/AddItemModal";
 import { BazaarPublicItem, BazaarCategory } from "@/lib/bazaar/types";
+import { getBazaarItemPhoto } from "@/lib/bazaar/images";
 
 function BrowseContent() {
   const searchParams = useSearchParams();
@@ -146,7 +147,7 @@ function BrowseContent() {
       {/* Components Grid */}
       {loading ? (
         <div className="p-16 border border-white/10 bg-black text-center space-y-2">
-          <div className="w-6 h-6 border-2 border-red border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-6 h-6 border-2 border-red border-t-transparent animate-spin mx-auto" />
           <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">
             Loading Inventory...
           </p>
@@ -181,6 +182,7 @@ function BrowseContent() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {items.map((item) => {
             const inStock = item.available_quantity > 0;
+            const photoUrl = getBazaarItemPhoto(item);
             return (
               <div
                 key={item.id}
@@ -188,24 +190,24 @@ function BrowseContent() {
               >
                 {/* Photo & Badge */}
                 <div>
-                  <div className="h-40 bg-neutral-900 relative overflow-hidden border-b border-white/10 flex items-center justify-center">
-                    {item.image_url ? (
+                  <div className="h-44 bg-white relative overflow-hidden border-b border-white/10 flex items-center justify-center p-2.5">
+                    {photoUrl ? (
                       <Image
-                        src={item.image_url}
+                        src={photoUrl}
                         alt={item.name}
                         fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       />
                     ) : (
-                      <div className="flex flex-col items-center gap-1.5 text-gray-600">
+                      <div className="flex flex-col items-center gap-1.5 text-gray-400">
                         <Package className="w-8 h-8 opacity-40" />
                         <span className="text-[10px] font-mono uppercase tracking-wider">No photo</span>
                       </div>
                     )}
 
                     {/* Stock status indicator */}
-                    <div className="absolute top-2.5 right-2.5">
+                    <div className="absolute top-2.5 right-2.5 z-10">
                       {inStock ? (
                         <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">
                           {item.available_quantity} available
@@ -290,7 +292,7 @@ export default function BazaarBrowsePage() {
     <Suspense
       fallback={
         <div className="p-16 border border-white/10 bg-black text-center space-y-2">
-          <div className="w-6 h-6 border-2 border-red border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-6 h-6 border-2 border-red border-t-transparent animate-spin mx-auto" />
           <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">
             Loading Bazaar...
           </p>

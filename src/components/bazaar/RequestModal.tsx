@@ -172,7 +172,7 @@ export function RequestModal({ item: initialItem, onClose, onSuccess }: RequestM
               {submittedSummary.map((it, idx) => (
                 <div key={idx} className="py-1.5 flex justify-between items-center text-xs">
                   <span className="text-white font-medium">{it.name}</span>
-                  <span className="font-mono font-bold text-red bg-red/10 border border-red/30 px-2 py-0.5 rounded text-[11px]">
+                  <span className="font-mono font-bold text-red bg-red/10 border border-red/30 px-2 py-0.5 text-[11px]">
                     Qty: {it.quantity}
                   </span>
                 </div>
