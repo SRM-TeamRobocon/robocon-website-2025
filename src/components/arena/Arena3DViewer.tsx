@@ -49,6 +49,7 @@ export default function Arena3DViewer({
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const engineRef = useRef<EngineInstance | null>(null);
+    const lastSelectedIdRef = useRef<string | null>(null);
 
     const [threeLoaded, setThreeLoaded] = useState(false);
     const [mode, setMode] = useState<MainMode>("tour");
@@ -184,6 +185,8 @@ export default function Arena3DViewer({
     // React to selectedPart changes
     useEffect(() => {
         if (!engineRef.current || !selectedPart) return;
+        if (lastSelectedIdRef.current === selectedPart.id) return;
+        lastSelectedIdRef.current = selectedPart.id;
         engineRef.current.selectPart(selectedPart.id);
     }, [selectedPart]);
 
@@ -196,6 +199,7 @@ export default function Arena3DViewer({
 
             const part = ARENA_PARTS[step.key];
             if (part) {
+                lastSelectedIdRef.current = step.key;
                 onSelectPart(part);
                 if (engineRef.current) {
                     engineRef.current.selectPart(step.key);
@@ -214,19 +218,29 @@ export default function Arena3DViewer({
         [onSelectPart, playAudioFile]
     );
 
-    // Handle Match Simulator tick
+    // Handle Match Simulator tick with smooth 50ms continuous movement
     useEffect(() => {
         if (!isPlaying) return;
 
+        const intervalMs = 50;
         const interval = setInterval(() => {
             setSimTime((prev) => {
-                const next = prev + 1 * simSpeed;
-                if (next >= 180) {
-                    setIsPlaying(false);
-                    return 180;
+                const dt = (intervalMs / 1000) * simSpeed;
+                const next = Math.min(180, prev + dt);
+
+                if (engineRef.current) {
+                    try {
+                        engineRef.current.updateMatchSimTime(next);
+                    } catch (e) {
+                        console.error("Match Sim tick error:", e);
+                    }
                 }
 
-                // Simulated scoring milestones with audio voiceover
+                if (next >= 180) {
+                    setIsPlaying(false);
+                }
+
+                // Simulated scoring milestones with audio voiceover and synchronized game state
                 if (prev < 1 && next >= 1) {
                     playAudioFile("/audio/narration/match-phase-start.mp3");
                 } else if (prev < 30 && next >= 30) {
@@ -266,7 +280,7 @@ export default function Arena3DViewer({
 
                 return next;
             });
-        }, 1000 / simSpeed);
+        }, intervalMs);
 
         return () => clearInterval(interval);
     }, [isPlaying, simSpeed, playAudioFile]);
@@ -277,6 +291,9 @@ export default function Arena3DViewer({
         setRedScore(0);
         setBlueScore(0);
         setMatchLog(["0:00 - Match reset. Ready for 3-minute simulation."]);
+        if (engineRef.current) {
+            engineRef.current.updateMatchSimTime(0);
+        }
     };
 
     // Camera preset buttons
@@ -326,62 +343,69 @@ export default function Arena3DViewer({
             )}
 
             {/* Top Mode Switcher Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-black p-2.5">
-                <div className="flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border border-white/10 bg-black p-2 sm:p-2.5">
+                <div className="grid grid-cols-1 xs:grid-cols-3 sm:flex items-center gap-1.5 w-full sm:w-auto">
                     <button
                         onClick={() => {
                             setMode("tour");
+                            if (engineRef.current) engineRef.current.setMatchSimStage("reset");
                             goToTourStep(0);
                         }}
-                        className={`px-3 py-1.5 text-xs font-bold border transition flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1.5 text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
                             mode === "tour"
                                 ? "border-red bg-red text-white"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                     >
-                        <Compass className="w-3.5 h-3.5" />
-                        Guided Tour ({TOUR_STEPS.length} Steps)
+                        <Compass className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">Guided Tour ({TOUR_STEPS.length})</span>
                     </button>
                     <button
                         onClick={() => {
                             setMode("free");
-                            if (engineRef.current) engineRef.current.resetDemoTower();
+                            if (engineRef.current) {
+                                engineRef.current.resetDemoTower();
+                                engineRef.current.setMatchSimStage("reset");
+                            }
                         }}
-                        className={`px-3 py-1.5 text-xs font-bold border transition flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1.5 text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
                             mode === "free"
                                 ? "border-red bg-red text-white"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                     >
-                        <Box className="w-3.5 h-3.5" />
-                        Free 3D Orbit & Inspector
+                        <Box className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">Free Orbit</span>
                     </button>
                     <button
                         onClick={() => {
                             setMode("match");
-                            if (engineRef.current) engineRef.current.resetDemoTower();
+                            if (engineRef.current) {
+                                engineRef.current.resetDemoTower();
+                                engineRef.current.updateMatchSimTime(simTime);
+                            }
                         }}
-                        className={`px-3 py-1.5 text-xs font-bold border transition flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1.5 text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
                             mode === "match"
                                 ? "border-red bg-red text-white"
                                 : "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                     >
-                        <Flag className="w-3.5 h-3.5" />
-                        3-Minute Match Simulator
+                        <Flag className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">3-Min Match Sim</span>
                     </button>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs">
-                    <span className="text-[11px] text-gray-400 uppercase font-mono tracking-wider hidden sm:inline">
-                        Three.js Digital Twin
+                <div className="flex items-center justify-between sm:justify-end gap-1 text-xs">
+                    <span className="text-[10px] text-gray-400 uppercase font-mono tracking-wider">
+                        Three.js Digital Twin · Appendix V1.1
                     </span>
                 </div>
             </div>
 
             {/* Audio Voice Narration Control Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-black/90 p-2.5 text-xs text-white">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border border-white/10 bg-black/90 p-2 sm:p-2.5 text-xs text-white">
+                <div className="flex items-center justify-between sm:justify-start gap-2">
                     <button
                         onClick={() => {
                             const next = !audioEnabled;
@@ -397,28 +421,28 @@ export default function Arena3DViewer({
                                 setAudioStatus("Captions on · voice off");
                             }
                         }}
-                        className={`px-3 py-1.5 border font-bold flex items-center gap-1.5 transition ${
+                        className={`px-2.5 py-1.5 border font-bold flex items-center gap-1.5 transition text-xs ${
                             audioEnabled
                                 ? "border-amber-400 bg-amber-400/20 text-amber-300"
                                 : "border-white/15 bg-white/5 text-gray-400 hover:text-white"
                         }`}
                     >
-                        {audioEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                        {audioEnabled ? "Voice Narration: ON" : "Voice Narration: OFF"}
+                        {audioEnabled ? <Volume2 className="w-3.5 h-3.5 flex-shrink-0" /> : <VolumeX className="w-3.5 h-3.5 flex-shrink-0" />}
+                        <span>{audioEnabled ? "Voice: ON" : "Voice: OFF"}</span>
                     </button>
 
                     <button
                         disabled={!currentAudioSrc}
                         onClick={replayCurrentAudio}
                         title="Replay Voice Line"
-                        className="px-2.5 py-1.5 border border-white/15 bg-white/5 text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1 transition"
+                        className="px-2 py-1.5 border border-white/15 bg-white/5 text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1 transition text-xs"
                     >
-                        <RotateCcw className="w-3.5 h-3.5" />
+                        <RotateCcw className="w-3.5 h-3.5 flex-shrink-0" />
                         Replay
                     </button>
 
-                    <div className="hidden sm:flex items-center gap-2">
-                        <span className="text-[10px] text-gray-400 uppercase font-mono">Vol</span>
+                    <div className="flex items-center gap-1.5 pl-1">
+                        <span className="text-[9px] text-gray-400 uppercase font-mono">Vol</span>
                         <input
                             type="range"
                             min={0}
@@ -430,14 +454,14 @@ export default function Arena3DViewer({
                                 setAudioVolume(v);
                                 if (audioRef.current) audioRef.current.volume = v;
                             }}
-                            className="w-16 sm:w-20 accent-red cursor-pointer"
+                            className="w-14 sm:w-20 accent-red cursor-pointer"
                         />
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Radio className={`w-3 h-3 ${audioEnabled ? "text-amber-400 animate-pulse" : "text-gray-500"}`} />
-                    <span className="text-[11px] font-mono text-gray-300">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                    <Radio className={`w-3 h-3 flex-shrink-0 ${audioEnabled ? "text-amber-400 animate-pulse" : "text-gray-500"}`} />
+                    <span className="text-[10px] sm:text-[11px] font-mono text-gray-300 truncate">
                         {audioStatus}
                     </span>
                 </div>
@@ -446,58 +470,62 @@ export default function Arena3DViewer({
             {/* Main 3D Viewport Box */}
             <div
                 ref={containerRef}
-                className="relative w-full h-[540px] lg:h-[640px] bg-black border border-white/15 overflow-hidden select-none flex flex-col"
+                className="relative w-full h-[380px] xs:h-[440px] sm:h-[520px] lg:h-[620px] bg-black border border-white/15 overflow-hidden select-none flex flex-col touch-none"
             >
                 {/* Canvas element */}
-                <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
+                <canvas
+                    ref={canvasRef}
+                    className="w-full h-full block cursor-grab active:cursor-grabbing touch-none"
+                    style={{ touchAction: "none" }}
+                />
 
                 {/* Top Viewport Toolbar */}
-                <div className="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                <div className="absolute top-2 left-2 right-2 sm:top-3 sm:left-3 sm:right-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 pointer-events-none">
                     {/* Camera Presets */}
-                    <div className="flex flex-wrap items-center gap-1 pointer-events-auto bg-black/90 backdrop-blur-md p-1 border border-white/15 text-xs">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 py-1">
+                    <div className="flex items-center gap-1 pointer-events-auto bg-black/90 backdrop-blur-md p-1 border border-white/15 text-xs max-w-full overflow-x-auto no-scrollbar">
+                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-gray-400 px-1.5 py-0.5 flex-shrink-0">
                             Views:
                         </span>
                         <button
                             onClick={() => handlePreset("iso")}
-                            className="px-2.5 py-1 text-gray-300 hover:text-white hover:bg-white/10 transition border border-white/10"
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-gray-300 hover:text-white hover:bg-white/10 transition border border-white/10 whitespace-nowrap flex-shrink-0"
                         >
                             Isometric
                         </button>
                         <button
                             onClick={() => handlePreset("top")}
-                            className="px-2.5 py-1 text-gray-300 hover:text-white hover:bg-white/10 transition border border-white/10"
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-gray-300 hover:text-white hover:bg-white/10 transition border border-white/10 whitespace-nowrap flex-shrink-0"
                         >
-                            Top (Plan)
+                            Top
                         </button>
                         <button
                             onClick={() => handlePreset("side")}
-                            className="px-2.5 py-1 text-gray-300 hover:text-white hover:bg-white/10 transition border border-white/10"
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-gray-300 hover:text-white hover:bg-white/10 transition border border-white/10 whitespace-nowrap flex-shrink-0"
                         >
-                            Side (Profile)
+                            Side
                         </button>
                         <button
                             onClick={() => handlePreset("red")}
-                            className="px-2.5 py-1 text-red-400 hover:text-white hover:bg-red/20 transition border border-red/40"
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-red-400 hover:text-white hover:bg-red/20 transition border border-red/40 whitespace-nowrap flex-shrink-0"
                         >
-                            Red Flank
+                            Red
                         </button>
                         <button
                             onClick={() => handlePreset("blue")}
-                            className="px-2.5 py-1 text-blue-400 hover:text-white hover:bg-blue/20 transition border border-blue/40"
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-blue-400 hover:text-white hover:bg-blue/20 transition border border-blue/40 whitespace-nowrap flex-shrink-0"
                         >
-                            Blue Flank
+                            Blue
                         </button>
                         <button
                             onClick={() => handlePreset("summit")}
-                            className="px-2.5 py-1 text-amber-300 hover:text-white hover:bg-amber-400/20 transition border border-amber-400/40"
+                            className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-amber-300 hover:text-white hover:bg-amber-400/20 transition border border-amber-400/40 whitespace-nowrap flex-shrink-0"
                         >
-                            Summit (L2)
+                            Summit
                         </button>
                     </div>
 
                     {/* View Tools */}
-                    <div className="flex items-center gap-1 pointer-events-auto bg-black/90 backdrop-blur-md p-1 border border-white/15">
+                    <div className="flex items-center gap-1 pointer-events-auto bg-black/90 backdrop-blur-md p-1 border border-white/15 self-end sm:self-auto">
                         <button
                             onClick={() => {
                                 const next = !autoRotate;
@@ -511,7 +539,7 @@ export default function Arena3DViewer({
                                     : "text-gray-400 hover:text-white border-transparent"
                             }`}
                         >
-                            <RotateCw className="w-4 h-4" />
+                            <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         <button
                             onClick={() => {
@@ -526,7 +554,7 @@ export default function Arena3DViewer({
                                     : "text-gray-500 hover:text-white border-transparent"
                             }`}
                         >
-                            <Bot className="w-4 h-4" />
+                            <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         <button
                             onClick={() => {
@@ -541,7 +569,7 @@ export default function Arena3DViewer({
                                     : "text-gray-400 hover:text-white border-transparent"
                             }`}
                         >
-                            <Layers className="w-4 h-4" />
+                            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         <button
                             onClick={() => {
@@ -556,14 +584,14 @@ export default function Arena3DViewer({
                                     : "text-gray-400 hover:text-white border-transparent"
                             }`}
                         >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         <button
                             onClick={handleScreenshot}
                             title="Save PNG Screenshot"
                             className="p-1.5 text-gray-400 hover:text-white border border-transparent transition"
                         >
-                            <Camera className="w-4 h-4" />
+                            <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         <button
                             onClick={toggleFullscreen}
@@ -571,9 +599,9 @@ export default function Arena3DViewer({
                             className="p-1.5 text-gray-400 hover:text-white border border-transparent transition"
                         >
                             {isFullscreen ? (
-                                <Minimize2 className="w-4 h-4" />
+                                <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             ) : (
-                                <Maximize2 className="w-4 h-4" />
+                                <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             )}
                         </button>
                     </div>
@@ -581,12 +609,12 @@ export default function Arena3DViewer({
 
                 {/* MODE 1 OVERLAY: GUIDED TOUR CONTROL DOCK */}
                 {mode === "tour" && (
-                    <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-md pointer-events-auto bg-black/95 backdrop-blur-md p-4 border border-white/20 text-white space-y-3">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-red">
-                                Tour Step {String(tourStep + 1).padStart(2, "0")} / {TOUR_STEPS.length}
+                    <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-auto sm:max-w-md pointer-events-auto bg-black/95 backdrop-blur-md p-3 sm:p-4 border border-white/20 text-white space-y-2.5 sm:space-y-3 max-h-[48%] overflow-y-auto">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-1.5 sm:pb-2">
+                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-red">
+                                Step {String(tourStep + 1).padStart(2, "0")} / {TOUR_STEPS.length}
                             </span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-400 truncate max-w-[200px]">
                                 {TOUR_STEPS[tourStep].title}
                             </span>
                         </div>
@@ -601,22 +629,22 @@ export default function Arena3DViewer({
                             />
                         </div>
 
-                        <p className="text-xs text-gray-300 leading-relaxed max-h-24 overflow-y-auto">
+                        <p className="text-[11px] sm:text-xs text-gray-300 leading-relaxed max-h-20 sm:max-h-24 overflow-y-auto">
                             {selectedPart?.desc || "Explore each element of the Robocon 2027 Arena."}
                         </p>
 
-                        <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
                             <button
                                 disabled={tourStep === 0}
                                 onClick={() => goToTourStep(tourStep - 1)}
-                                className="px-3 py-1.5 text-xs font-bold border border-white/20 bg-white/5 text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1 transition"
+                                className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-bold border border-white/20 bg-white/5 text-gray-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1 transition"
                             >
                                 <ChevronLeft className="w-3.5 h-3.5" /> Back
                             </button>
 
                             <button
                                 onClick={() => goToTourStep((tourStep + 1) % TOUR_STEPS.length)}
-                                className="px-4 py-1.5 text-xs font-bold border border-red bg-red text-white hover:bg-red/80 flex items-center gap-1 transition"
+                                className="px-3 py-1 sm:px-4 sm:py-1.5 text-xs font-bold border border-red bg-red text-white hover:bg-red/80 flex items-center gap-1 transition"
                             >
                                 {tourStep === TOUR_STEPS.length - 1 ? "Restart" : "Next"}{" "}
                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -627,49 +655,59 @@ export default function Arena3DViewer({
 
                 {/* MODE 2 OVERLAY: MATCH SIMULATOR DOCK */}
                 {mode === "match" && (
-                    <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-lg pointer-events-auto bg-black/95 backdrop-blur-md p-4 border border-white/20 text-white space-y-3">
+                    <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-auto sm:max-w-lg pointer-events-auto bg-black/95 backdrop-blur-md p-3 sm:p-4 border border-white/20 text-white space-y-2.5 sm:space-y-3 max-h-[55%] overflow-y-auto">
                         {/* Scoreline */}
-                        <div className="grid grid-cols-3 items-center text-center border-b border-white/10 pb-2.5">
+                        <div className="grid grid-cols-3 items-center text-center border-b border-white/10 pb-2">
                             <div className="border-r border-white/10">
-                                <span className="block text-[10px] uppercase font-bold text-red">Red Team</span>
-                                <span className="text-2xl font-black text-red">{redScore}</span>
+                                <span className="block text-[9px] sm:text-[10px] uppercase font-bold text-red">Red Team</span>
+                                <span className="text-xl sm:text-2xl font-black text-red">{redScore}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] uppercase font-bold text-gray-400">Clock</span>
-                                <span className="text-xl font-mono font-bold text-white">
+                                <span className="block text-[9px] sm:text-[10px] uppercase font-bold text-gray-400">Clock</span>
+                                <span className="text-lg sm:text-xl font-mono font-bold text-white">
                                     {formatClock(simTime)}
                                 </span>
                             </div>
                             <div className="border-l border-white/10">
-                                <span className="block text-[10px] uppercase font-bold text-blue-400">Blue Team</span>
-                                <span className="text-2xl font-black text-blue-400">{blueScore}</span>
+                                <span className="block text-[9px] sm:text-[10px] uppercase font-bold text-blue-400">Blue Team</span>
+                                <span className="text-xl sm:text-2xl font-black text-blue-400">{blueScore}</span>
                             </div>
                         </div>
 
                         {/* Controls */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setIsPlaying(!isPlaying)}
-                                className="px-3 py-1.5 border border-red bg-red text-white text-xs font-bold flex items-center gap-1 hover:bg-red/80 transition"
-                            >
-                                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                                {isPlaying ? "Pause" : "Play"}
-                            </button>
-                            <button
-                                onClick={resetMatch}
-                                className="px-2.5 py-1.5 border border-white/20 bg-white/5 text-gray-300 hover:text-white text-xs font-bold transition"
-                            >
-                                <SkipBack className="w-3.5 h-3.5" />
-                            </button>
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => setIsPlaying(!isPlaying)}
+                                    className="px-2.5 py-1 border border-red bg-red text-white text-xs font-bold flex items-center gap-1 hover:bg-red/80 transition"
+                                >
+                                    {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                                    {isPlaying ? "Pause" : "Play"}
+                                </button>
+                                <button
+                                    onClick={resetMatch}
+                                    title="Reset Match"
+                                    className="px-2 py-1 border border-white/20 bg-white/5 text-gray-300 hover:text-white text-xs font-bold transition"
+                                >
+                                    <SkipBack className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                             <input
                                 type="range"
                                 min={0}
                                 max={180}
+                                step={0.5}
                                 value={simTime}
-                                onChange={(e) => setSimTime(Number(e.target.value))}
-                                className="flex-1 accent-red cursor-pointer"
+                                onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setSimTime(val);
+                                    if (engineRef.current) {
+                                        engineRef.current.updateMatchSimTime(val);
+                                    }
+                                }}
+                                className="flex-1 min-w-[100px] accent-red cursor-pointer"
                             />
-                            <div className="flex items-center gap-1 text-[11px]">
+                            <div className="flex items-center gap-1 text-[10px] sm:text-[11px]">
                                 {[1, 2, 4].map((spd) => (
                                     <button
                                         key={spd}
@@ -687,7 +725,7 @@ export default function Arena3DViewer({
                         </div>
 
                         {/* Event Feed */}
-                        <div className="max-h-20 overflow-y-auto space-y-1 text-[11px] font-mono text-gray-300 border-t border-white/10 pt-2">
+                        <div className="max-h-16 overflow-y-auto space-y-0.5 text-[10px] sm:text-[11px] font-mono text-gray-300 border-t border-white/10 pt-1.5">
                             {matchLog.slice(0, 3).map((log, i) => (
                                 <p key={i} className="truncate text-gray-300">
                                     • {log}
@@ -722,7 +760,7 @@ export default function Arena3DViewer({
                     </p>
 
                     {selectedPart.specs && selectedPart.specs.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
                             {selectedPart.specs.map(([lbl, val]) => (
                                 <div key={lbl} className="border border-white/10 p-2.5 bg-white/5">
                                     <span className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5">

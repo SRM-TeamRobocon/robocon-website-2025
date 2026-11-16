@@ -33,46 +33,46 @@ export default function ArenaBlueprintDiagram({
                     </h3>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-xs overflow-x-auto no-scrollbar max-w-full pb-1 sm:pb-0 sm:flex-wrap">
                     <button
                         onClick={() => setMode("plan")}
-                        className={`px-2.5 py-1 border transition ${
+                        className={`px-2.5 py-1 border transition whitespace-nowrap flex-shrink-0 ${
                             mode === "plan"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white"
                         }`}
                     >
-                        Figure 3.1: Plan View (11m)
+                        Fig 3.1: Plan View (11m)
                     </button>
                     <button
                         onClick={() => setMode("side")}
-                        className={`px-2.5 py-1 border transition ${
+                        className={`px-2.5 py-1 border transition whitespace-nowrap flex-shrink-0 ${
                             mode === "side"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white"
                         }`}
                     >
-                        Figure 3.6: Elevation Profile
+                        Fig 3.6: Elevation
                     </button>
                     <button
                         onClick={() => setMode("stairs")}
-                        className={`px-2.5 py-1 border transition ${
+                        className={`px-2.5 py-1 border transition whitespace-nowrap flex-shrink-0 ${
                             mode === "stairs"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white"
                         }`}
                     >
-                        Figure 3.7 & 3.8: Stairs & Ramp
+                        Fig 3.7 & 3.8: Stairs & Ramp
                     </button>
                     <button
                         onClick={() => setMode("pillars")}
-                        className={`px-2.5 py-1 border transition ${
+                        className={`px-2.5 py-1 border transition whitespace-nowrap flex-shrink-0 ${
                             mode === "pillars"
                                 ? "border-red bg-red/20 text-white font-bold"
                                 : "border-white/10 text-gray-400 hover:text-white"
                         }`}
                     >
-                        Figure 3.5: Pillar Receptacles
+                        Fig 3.5: Pillar Cups
                     </button>
                 </div>
             </div>
@@ -310,20 +310,77 @@ export default function ArenaBlueprintDiagram({
                             Central Pillar (1700 mm) · Empty Bowl
                         </text>
 
-                        {/* Ground Shared Area (12 Sky Blocks) */}
-                        <rect
-                            x="490"
-                            y="880"
-                            width="120"
-                            height="120"
-                            fill="#42392d"
-                            stroke="#eab308"
-                            strokeWidth="2"
-                            className="cursor-pointer hover:brightness-125"
-                            onClick={() => selectById("skyarea")}
-                        />
+                        {/* Level 1 Shared Building Spots (One Red, One Blue) */}
+                        <g onClick={() => selectById("buildspot")} className="cursor-pointer hover:brightness-125">
+                            {/* Left L1 Shared Spot (Red) */}
+                            <rect
+                                x="255"
+                                y="512"
+                                width="75"
+                                height="75"
+                                fill="#dc2626"
+                                stroke="#f87171"
+                                strokeWidth="2"
+                            />
+                            <rect x="270" y="527" width="45" height="45" fill="#7f1d1d" stroke="#fca5a5" strokeWidth="1" />
+                            <text x="292" y="555" fill="#fff" fontSize="9" fontWeight="bold" textAnchor="middle">
+                                SHARED
+                            </text>
+                            <text x="292" y="600" fill="#f87171" fontSize="9" textAnchor="middle">
+                                L1 Red Spot
+                            </text>
+
+                            {/* Right L1 Shared Spot (Blue) */}
+                            <rect
+                                x="770"
+                                y="512"
+                                width="75"
+                                height="75"
+                                fill="#2563eb"
+                                stroke="#60a5fa"
+                                strokeWidth="2"
+                            />
+                            <rect x="785" y="527" width="45" height="45" fill="#1e3a8a" stroke="#93c5fd" strokeWidth="1" />
+                            <text x="807" y="555" fill="#fff" fontSize="9" fontWeight="bold" textAnchor="middle">
+                                SHARED
+                            </text>
+                            <text x="807" y="600" fill="#60a5fa" fontSize="9" textAnchor="middle">
+                                L1 Blue Spot
+                            </text>
+                        </g>
+
+                        {/* Ground Shared Area (Split Red / Blue, 12 Sky Blocks) */}
+                        <g onClick={() => selectById("skyarea")} className="cursor-pointer hover:brightness-125">
+                            <rect
+                                x="490"
+                                y="880"
+                                width="60"
+                                height="120"
+                                fill="#dc2626"
+                                stroke="#f87171"
+                                strokeWidth="1.5"
+                            />
+                            <rect
+                                x="550"
+                                y="880"
+                                width="60"
+                                height="120"
+                                fill="#2563eb"
+                                stroke="#60a5fa"
+                                strokeWidth="1.5"
+                            />
+                            <rect
+                                x="490"
+                                y="880"
+                                width="120"
+                                height="120"
+                                fill="none"
+                                stroke="#facc15"
+                                strokeWidth="2"
+                            />
+                        </g>
                         <text x="550" y="870" fill="#facc15" fontSize="11" fontWeight="bold" textAnchor="middle">
-                            12 Sky Blocks (6 Red, 6 Blue)
+                            Ground Shared Area (6 Red, 6 Blue)
                         </text>
 
                         {/* Start Zones */}
