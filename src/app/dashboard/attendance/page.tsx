@@ -138,6 +138,7 @@ export default function AttendanceBoardPage() {
     const [streakSearch, setStreakSearch] = useState("");
     const [streakActiveOnly, setStreakActiveOnly] = useState(false);
     const [isStreakExpanded, setIsStreakExpanded] = useState(false);
+    const [isGhostExpanded, setIsGhostExpanded] = useState(false);
     const [streakDisplayLimit, setStreakDisplayLimit] = useState<number | "all">(5);
 
     const [correcting, setCorrecting] = useState(false);
@@ -569,9 +570,15 @@ export default function AttendanceBoardPage() {
     }, [streakLeaderboard, streakSearch, streakDomainFilter, streakActiveOnly]);
 
     const displayedStreakEntries = useMemo(() => {
+        if (!isStreakExpanded) return filteredStreakLeaderboard.slice(0, 3);
         if (streakDisplayLimit === "all") return filteredStreakLeaderboard;
         return filteredStreakLeaderboard.slice(0, streakDisplayLimit);
-    }, [filteredStreakLeaderboard, streakDisplayLimit]);
+    }, [filteredStreakLeaderboard, streakDisplayLimit, isStreakExpanded]);
+
+    const displayedGhosts = useMemo(() => {
+        if (!isGhostExpanded) return ghosts.slice(0, 3);
+        return ghosts;
+    }, [ghosts, isGhostExpanded]);
 
     const activeStreaksCount = useMemo(
         () => streakLeaderboard.filter((e) => e.isCurrentLive && e.currentStreak >= 1).length,
@@ -825,7 +832,7 @@ export default function AttendanceBoardPage() {
                         className="group flex items-center gap-3 text-left focus:outline-none"
                     >
                         <div className="relative flex items-center justify-center">
-                            <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                            <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
                             <Flame className="relative h-5 w-5 text-amber-400 fill-amber-400/90 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]" />
                         </div>
                         <div>
@@ -833,7 +840,7 @@ export default function AttendanceBoardPage() {
                                 <h2 className="text-sm font-bold uppercase tracking-widest text-white group-hover:text-amber-300 transition-colors">
                                     {streakActiveOnly ? "Active Streak Leaderboard" : "Streak Leaderboard"}
                                 </h2>
-                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/25">
+                                <span className="bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/25">
                                     {filteredStreakLeaderboard.length} {filteredStreakLeaderboard.length === 1 ? "member" : "members"}
                                 </span>
                             </div>
@@ -867,10 +874,10 @@ export default function AttendanceBoardPage() {
                                 }`}
                                 title={streakActiveOnly ? "Showing active streaks only. Click to show all." : "Click to show only active streaks."}
                             >
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                <span className="h-1.5 w-1.5 bg-amber-400 animate-pulse" />
                                 Active: <strong className="font-bold text-white">{activeStreaksCount}</strong>
                                 {streakActiveOnly && (
-                                    <span className="ml-1 rounded bg-amber-400/25 px-1 py-0.2 text-[9px] uppercase tracking-wider text-amber-100 font-bold">
+                                    <span className="ml-1 bg-amber-400/25 px-1 py-0.2 text-[9px] uppercase tracking-wider text-amber-100 font-bold">
                                         Active Only ✓
                                     </span>
                                 )}
@@ -1023,9 +1030,14 @@ export default function AttendanceBoardPage() {
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                                {/* Table */}
-                                {loading ? (
+                {/* Table (always visible: first 3 when collapsed, full list when expanded) */}
+                <div className="mt-4 border-t border-white/10 pt-4">
+                    {loading ? (
                                     <div className="space-y-2">
                                         {[0, 1, 2, 3].map((i) => (
                                             <div key={i} className="h-10 animate-pulse bg-white/5" />
@@ -1068,15 +1080,15 @@ export default function AttendanceBoardPage() {
                                                                 {/* Rank */}
                                                                 <td className="py-2.5 text-center">
                                                                     {index === 0 ? (
-                                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
                                                                             1
                                                                         </span>
                                                                     ) : index === 1 ? (
-                                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
                                                                             2
                                                                         </span>
                                                                     ) : index === 2 ? (
-                                                                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
                                                                             3
                                                                         </span>
                                                                     ) : (
@@ -1102,7 +1114,7 @@ export default function AttendanceBoardPage() {
                                                                     {streakActiveOnly ? (
                                                                         <div className="flex items-center gap-2">
                                                                             <div className="relative flex items-center justify-center">
-                                                                                <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                                                <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
                                                                                 <Flame
                                                                                     className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
                                                                                     strokeWidth={1.8}
@@ -1116,7 +1128,7 @@ export default function AttendanceBoardPage() {
                                                                         entry.isTopStreakActive ? (
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="relative flex items-center justify-center">
-                                                                                    <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                                                    <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
                                                                                     <Flame
                                                                                         className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
                                                                                         strokeWidth={1.8}
@@ -1157,8 +1169,8 @@ export default function AttendanceBoardPage() {
                                                                 {/* Status Badge */}
                                                                 <td className="py-2.5">
                                                                     {streakActiveOnly || entry.isTopStreakActive ? (
-                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
-                                                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/25 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
+                                                                            <span className="h-1.5 w-1.5 bg-amber-400 animate-pulse" />
                                                                             Active
                                                                         </span>
                                                                     ) : entry.streak <= 0 ? (
@@ -1166,7 +1178,7 @@ export default function AttendanceBoardPage() {
                                                                             No visits
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-white/5 text-gray-500 border border-white/10">
+                                                                        <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-500 border border-white/10">
                                                                             Lost
                                                                         </span>
                                                                     )}
@@ -1188,52 +1200,84 @@ export default function AttendanceBoardPage() {
                                             <div>
                                                 Showing <strong className="text-white font-semibold">{displayedStreakEntries.length}</strong> of{" "}
                                                 <strong className="text-white font-semibold">{filteredStreakLeaderboard.length}</strong> members
+                                                {!isStreakExpanded && filteredStreakLeaderboard.length > 3 && (
+                                                    <span className="ml-1 text-gray-500">(Top 3 preview)</span>
+                                                )}
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                {streakDisplayLimit !== "all" && filteredStreakLeaderboard.length > streakDisplayLimit && (
+                                                {!isStreakExpanded && filteredStreakLeaderboard.length > 3 && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setStreakDisplayLimit("all")}
-                                                        className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition underline underline-offset-4 hover:drop-shadow-[0_0_6px_rgba(245,158,11,0.25)]"
+                                                        onClick={() => setIsStreakExpanded(true)}
+                                                        className="flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition"
                                                     >
-                                                        Show all ({filteredStreakLeaderboard.length})
+                                                        Expand full leaderboard ({filteredStreakLeaderboard.length})
+                                                        <ChevronDown className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
-                                                {streakDisplayLimit === "all" && filteredStreakLeaderboard.length > 5 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setStreakDisplayLimit(5)}
-                                                        className="text-xs font-semibold text-gray-400 hover:text-white transition underline underline-offset-4"
-                                                    >
-                                                        Show fewer (Top 5)
-                                                    </button>
+                                                {isStreakExpanded && (
+                                                    <>
+                                                        {streakDisplayLimit !== "all" && filteredStreakLeaderboard.length > streakDisplayLimit && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setStreakDisplayLimit("all")}
+                                                                className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition underline underline-offset-4 hover:drop-shadow-[0_0_6px_rgba(245,158,11,0.25)]"
+                                                            >
+                                                                Show all ({filteredStreakLeaderboard.length})
+                                                            </button>
+                                                        )}
+                                                        {streakDisplayLimit === "all" && filteredStreakLeaderboard.length > 5 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setStreakDisplayLimit(5)}
+                                                                className="text-xs font-semibold text-gray-400 hover:text-white transition underline underline-offset-4"
+                                                            >
+                                                                Show fewer (Top 5)
+                                                            </button>
+                                                        )}
+
+                                                        <span className="text-gray-600">·</span>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setIsStreakExpanded(false)}
+                                                            className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-amber-300 transition hover:drop-shadow-[0_0_6px_rgba(245,158,11,0.2)]"
+                                                        >
+                                                            <ChevronUp className="h-3.5 w-3.5" />
+                                                            Collapse
+                                                        </button>
+                                                    </>
                                                 )}
-
-                                                <span className="text-gray-600">·</span>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setIsStreakExpanded(false)}
-                                                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-amber-300 transition hover:drop-shadow-[0_0_6px_rgba(245,158,11,0.2)]"
-                                                >
-                                                    <ChevronUp className="h-3.5 w-3.5" />
-                                                    Collapse
-                                                </button>
                                             </div>
                                         </div>
                                     </>
                                 )}
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </Card>
 
             <Card className="p-5 sm:p-6">
-                <div className="mb-1 flex items-center gap-2">
-                    <Ghost className="h-4 w-4 text-indigo-400" strokeWidth={1.5} />
-                    <h2 className="text-sm font-bold uppercase tracking-widest text-white">Ghost board</h2>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+                    <div className="flex items-center gap-2">
+                        <Ghost className="h-4 w-4 text-indigo-400" strokeWidth={1.5} />
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-white">Ghost board</h2>
+                        {ghosts.length > 0 && (
+                            <span className="bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-bold text-indigo-300 border border-indigo-500/25">
+                                {ghosts.length} {ghosts.length === 1 ? "member" : "members"}
+                            </span>
+                        )}
+                    </div>
+                    {ghosts.length > 3 && (
+                        <button
+                            type="button"
+                            onClick={() => setIsGhostExpanded((prev) => !prev)}
+                            className="flex items-center gap-1.5 border border-indigo-500/35 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 text-xs font-bold text-indigo-300 transition shadow-[0_0_8px_rgba(99,102,241,0.18)]"
+                            aria-expanded={isGhostExpanded}
+                        >
+                            <span>{isGhostExpanded ? "Collapse" : "Expand"}</span>
+                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isGhostExpanded ? "rotate-180" : ""}`} />
+                        </button>
+                    )}
                 </div>
                 <p className="mb-4 text-xs text-gray-500">
                     Times the midnight sweep had to check someone out because they walked off without tapping. Nights covered by an
@@ -1248,52 +1292,84 @@ export default function AttendanceBoardPage() {
                 ) : ghosts.length === 0 ? (
                     <p className="text-sm text-gray-500">Nobody&apos;s ghosted yet. Clean record.</p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[420px] text-left text-sm">
-                            <thead>
-                                <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
-                                    <th className="pb-2 font-bold w-12 text-center">#</th>
-                                    <th className="pb-2 font-bold">Name</th>
-                                    <th className="pb-2 font-bold">Domain</th>
-                                    <th className="pb-2 font-bold">Ghosted</th>
-                                    <th className="pb-2 font-bold">Last time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {ghosts.map((g, i) => (
-                                    <tr key={g.memberAccountId} className="border-b border-white/5">
-                                        <td className="py-2.5 text-center">
-                                            {i === 0 ? (
-                                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
-                                                    1
-                                                </span>
-                                            ) : i === 1 ? (
-                                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
-                                                    2
-                                                </span>
-                                            ) : i === 2 ? (
-                                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
-                                                    3
-                                                </span>
-                                            ) : (
-                                                <span className="font-mono text-xs text-gray-500">{i + 1}</span>
-                                            )}
-                                        </td>
-                                        <td className="py-2.5 font-semibold text-white">
-                                            {i === 0 && <span className="mr-1.5">👻</span>}
-                                            {g.name}
-                                        </td>
-                                        <td className="py-2.5 text-gray-400">{g.domain}</td>
-                                        <td className="py-2.5 font-mono text-indigo-300">
-                                            {g.count}
-                                            <span className="text-gray-600">×</span>
-                                        </td>
-                                        <td className="py-2.5 text-xs text-gray-500">{new Date(g.lastAt).toLocaleDateString()}</td>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[420px] text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
+                                        <th className="pb-2 font-bold w-12 text-center">#</th>
+                                        <th className="pb-2 font-bold">Name</th>
+                                        <th className="pb-2 font-bold">Domain</th>
+                                        <th className="pb-2 font-bold">Ghosted</th>
+                                        <th className="pb-2 font-bold">Last time</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {displayedGhosts.map((g, i) => (
+                                        <tr key={g.memberAccountId} className="border-b border-white/5">
+                                            <td className="py-2.5 text-center">
+                                                {i === 0 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                        1
+                                                    </span>
+                                                ) : i === 1 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                        2
+                                                    </span>
+                                                ) : i === 2 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                        3
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-mono text-xs text-gray-500">{i + 1}</span>
+                                                )}
+                                            </td>
+                                            <td className="py-2.5 font-semibold text-white">
+                                                {i === 0 && <span className="mr-1.5">👻</span>}
+                                                {g.name}
+                                            </td>
+                                            <td className="py-2.5 text-gray-400">{g.domain}</td>
+                                            <td className="py-2.5 font-mono text-indigo-300">
+                                                {g.count}
+                                                <span className="text-gray-600">×</span>
+                                            </td>
+                                            <td className="py-2.5 text-xs text-gray-500">{new Date(g.lastAt).toLocaleDateString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Ghost Board Footer toggle */}
+                        {ghosts.length > 3 && (
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-3 text-xs text-gray-400">
+                                <div>
+                                    Showing <strong className="text-white font-semibold">{displayedGhosts.length}</strong> of{" "}
+                                    <strong className="text-white font-semibold">{ghosts.length}</strong> members
+                                    {!isGhostExpanded && (
+                                        <span className="ml-1 text-gray-500">(Top 3 preview)</span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsGhostExpanded((prev) => !prev)}
+                                    className="flex items-center gap-1 font-semibold text-indigo-400 hover:text-indigo-300 transition"
+                                >
+                                    {isGhostExpanded ? (
+                                        <>
+                                            <ChevronUp className="h-3.5 w-3.5" />
+                                            Collapse
+                                        </>
+                                    ) : (
+                                        <>
+                                            Expand full board ({ghosts.length})
+                                            <ChevronDown className="h-3.5 w-3.5" />
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </Card>
 

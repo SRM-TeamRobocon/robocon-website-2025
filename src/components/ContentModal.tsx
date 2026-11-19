@@ -71,14 +71,14 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
         role="dialog"
         aria-modal="true"
         aria-labelledby="content-modal-title"
-        className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-gray-950 shadow-2xl"
+        className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto border border-white/10 bg-gray-950 shadow-2xl"
       >
         <button
           ref={closeRef}
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 z-10 rounded-full bg-black/60 p-2 text-white transition hover:bg-red"
+          className="absolute right-4 top-4 z-10 bg-black/60 p-2 text-white transition hover:bg-red"
         >
           <X size={18} />
         </button>
@@ -108,7 +108,7 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
           {item.badges && item.badges.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {item.badges.map((badge) => (
-                <span key={badge} className="rounded-full bg-red/15 px-2.5 py-1 text-xs font-medium text-red">
+                <span key={badge} className="bg-red/15 px-2.5 py-1 text-xs font-medium text-red">
                   {badge}
                 </span>
               ))}
@@ -116,7 +116,7 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
           )}
 
           {item.abstract && (
-            <p className="rounded-xl border border-red/20 bg-red/10 p-4 text-sm text-white/90">{item.abstract}</p>
+            <p className="border border-red/20 bg-red/10 p-4 text-sm text-white/90">{item.abstract}</p>
           )}
 
           {item.description && (
@@ -140,7 +140,7 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
                       width={800}
                       height={800}
                       unoptimized
-                      className="w-full rounded-lg transition duration-200 hover:opacity-80"
+                      className="w-full transition duration-200 hover:opacity-80"
                     />
                   </button>
                 ))}
@@ -161,7 +161,7 @@ export default function ContentModal({ item, onClose }: { item: ContentCardItem 
             type="button"
             onClick={() => setLightbox(null)}
             aria-label="Close enlarged image"
-            className="absolute right-4 top-4 z-10 rounded-full bg-black/60 p-2 text-white transition hover:bg-red"
+            className="absolute right-4 top-4 z-10 bg-black/60 p-2 text-white transition hover:bg-red"
           >
             <X size={18} />
           </button>
