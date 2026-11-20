@@ -56,8 +56,7 @@ function getNextBirthdaySummary(dayStr: string, monthStr: string, yearStr: strin
   if (thisYearBday < todayDate) {
     nextYear = currentYear + 1;
   }
-  const nextAge = nextYear - y;
-  return `TURNS ${nextAge} ON ${d} ${mName}`;
+  return `BIRTHDAY ON ${d} ${mName}`;
 }
 
 export default function BirthdayFormModal({

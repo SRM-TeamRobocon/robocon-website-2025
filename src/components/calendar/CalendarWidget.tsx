@@ -142,9 +142,14 @@ export default function CalendarWidget() {
     loadCalendarData();
   }, [loadCalendarData]);
 
-  // Dynamic Birthday Occurrences for current view year
+  // Dynamic Birthday Occurrences: generate for prev/current/next year so month-grid
+  // boundary cells (e.g. Jan view showing Dec days) always have correct birthday dots.
   const yearlyBirthdays = useMemo(() => {
-    return getBirthdaysForYear(birthdays, viewDate.getFullYear(), today);
+    const y = viewDate.getFullYear();
+    const prev = getBirthdaysForYear(birthdays, y - 1, today);
+    const curr = getBirthdaysForYear(birthdays, y, today);
+    const next = getBirthdaysForYear(birthdays, y + 1, today);
+    return [...prev, ...curr, ...next];
   }, [birthdays, viewDate, today]);
 
   // Filtered Events
@@ -515,7 +520,7 @@ export default function CalendarWidget() {
                               {b.record.name}
                             </p>
                             <p className="text-[10px] text-[#6b7280] uppercase tracking-[0.07em] mt-0.5">
-                              BIRTHDAY - {b.age > 0 ? `TURNS ${b.age}` : "ALL DAY"}
+                              BIRTHDAY · ALL DAY
                             </p>
                           </div>
                         </div>
@@ -656,7 +661,7 @@ export default function CalendarWidget() {
                               {b.record.name}
                             </p>
                             <p className="text-[10px] text-[#6b7280] uppercase tracking-[0.07em] mt-0.5">
-                              BIRTHDAY - {b.age > 0 ? `TURNS ${b.age}` : "ALL DAY"}
+                              BIRTHDAY · ALL DAY
                             </p>
                           </div>
                         </div>

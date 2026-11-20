@@ -197,14 +197,31 @@ export function mapFrontendEventToSupabase(event: NewCalendarEvent) {
 }
 
 export function mapSupabaseBirthdayToFrontend(row: any): BirthdayRecord {
+  // RPC shape: { member_account_id, name, birth_month, birth_day }
+  if (row.birth_month != null && row.birth_day != null) {
+    const mm = String(row.birth_month).padStart(2, "0");
+    const dd = String(row.birth_day).padStart(2, "0");
+    const now = new Date().toISOString();
+    return {
+      id: row.member_account_id ?? row.id ?? `bday_${row.name}_${mm}_${dd}`,
+      name: row.name,
+      // Store as MM-DD so recurrence logic never sees a birth year
+      dob: `${mm}-${dd}`,
+      description: "",
+      createdBy: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+  // Fallback / direct-query shape: { id, name, date_of_birth }
   return {
     id: row.id,
     name: row.name,
     dob: typeof row.date_of_birth === "string" ? row.date_of_birth.slice(0, 10) : toDateStr(new Date(row.date_of_birth)),
     description: row.description || "",
     createdBy: row.created_by,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || new Date().toISOString(),
   };
 }
 
@@ -568,12 +585,20 @@ export function getBirthdayOccurrence(
   targetYear: number,
   today: Date = new Date()
 ): BirthdayOccurrence | null {
-  if (!record.dob) return null;
-  const parts = record.dob.split("-").map(Number);
-  if (parts.length < 3 || parts.some(isNaN)) return null;
-  const [bYear, bMonth, bDay] = parts;
+  if (!record || !record.dob || typeof record.dob !== "string") return null;
+  const parts = record.dob.trim().split("-").map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length < 2) return null;
 
-  if (targetYear < bYear) return null;
+  let bMonth: number;
+  let bDay: number;
+  if (parts.length >= 3) {
+    [, bMonth, bDay] = parts;
+  } else {
+    [bMonth, bDay] = parts;
+  }
+
+  if (bMonth < 1 || bMonth > 12 || bDay < 1 || bDay > 31) return null;
 
   let day = bDay;
   let month = bMonth;
@@ -589,30 +614,24 @@ export function getBirthdayOccurrence(
   const mm = String(month).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
   const dateStr = `${targetYear}-${mm}-${dd}`;
-  const age = targetYear - bYear;
 
   const currentYear = today.getFullYear();
   const todayStr = toDateStr(today);
 
-  let statusText = "";
+  // Status text never exposes birth year or age
+  let statusText = "Birthday";
   if (targetYear === currentYear) {
     if (todayStr === dateStr) {
-      statusText = age === 0 ? "Born Today!" : `Turns ${age} Today!`;
+      statusText = "Birthday Today!";
     } else if (todayStr < dateStr) {
-      statusText = age === 0 ? "Born this year" : `Turning ${age}`;
-    } else {
-      statusText = age === 0 ? "Born this year" : `Turned ${age}`;
+      statusText = "Upcoming";
     }
-  } else if (targetYear < currentYear) {
-    statusText = age === 0 ? "Born" : `Turned ${age}`;
-  } else {
-    statusText = `Turns ${age}`;
   }
 
   return {
     record,
     dateStr,
-    age,
+    age: 0,
     statusText,
     isLeapAdjusted,
   };
@@ -676,6 +695,27 @@ export function formatDisplayDateLong(str: string): string {
     month: "long",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+/** Formats month and day only without displaying year (e.g. "October 14") */
+export function formatDisplayMonthDay(str: string): string {
+  if (!str) return "";
+  const parts = str.split("-").map(Number);
+  let m: number;
+  let d: number;
+  if (parts.length >= 3) {
+    [, m, d] = parts;
+  } else if (parts.length === 2) {
+    [m, d] = parts;
+  } else {
+    return "";
+  }
+  if (isNaN(m) || isNaN(d) || m < 1 || m > 12 || d < 1 || d > 31) return "";
+  const date = new Date(2000, m - 1, d);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
   });
 }
 

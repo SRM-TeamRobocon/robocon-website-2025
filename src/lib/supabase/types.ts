@@ -73,6 +73,7 @@ export type Database = {
           google_email: string | null;
           profile_photo_url: string | null;
           rfid_uid: string | null;
+          date_of_birth: string | null;
         };
         Insert: {
           id?: string;
@@ -99,6 +100,7 @@ export type Database = {
           google_email?: string | null;
           profile_photo_url?: string | null;
           rfid_uid?: string | null;
+          date_of_birth?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["member_accounts"]["Insert"]>;
         Relationships: [];

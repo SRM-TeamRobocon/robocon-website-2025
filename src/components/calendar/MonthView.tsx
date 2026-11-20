@@ -498,7 +498,7 @@ export default function MonthView({
                                 borderLeftColor: style.hex,
                                 backgroundColor: style.bg,
                               }}
-                              title={`Birthday: ${b.record.name} (${b.statusText})`}
+                              title={`Birthday: ${b.record.name}`}
                             >
                               <CakeIcon />
                               <span className="truncate block font-normal">{b.record.name}</span>
@@ -661,7 +661,7 @@ export default function MonthView({
                           onClick={(e) => { e.stopPropagation(); onBirthdayClick(b); }}
                           className="w-full text-left flex items-center gap-[3px] truncate mt-[3px] px-[5px] py-[1px] text-[9px] text-[#e8e8e8] border-l-2 hover:brightness-125 transition"
                           style={{ borderLeftColor: style.hex, backgroundColor: style.bg }}
-                          title={`Birthday: ${b.record.name} (${b.statusText})`}
+                          title={`Birthday: ${b.record.name}`}
                         >
                           <CakeIcon />
                           <span className="truncate block font-normal">{b.record.name}</span>

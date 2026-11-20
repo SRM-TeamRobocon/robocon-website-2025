@@ -5,7 +5,7 @@ import { X, Pencil, Trash2, Cake, Calendar, FileText, Info } from "lucide-react"
 import { cn } from "@/lib/utils";
 import {
   BirthdayOccurrence,
-  formatDisplayDateLong,
+  formatDisplayMonthDay,
 } from "@/lib/calendar-storage";
 
 interface BirthdayModalProps {
@@ -22,7 +22,7 @@ export default function BirthdayModal({
   onDelete,
 }: BirthdayModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const { record, age, statusText, isLeapAdjusted, dateStr } = occurrence;
+  const { record, statusText, isLeapAdjusted, dateStr } = occurrence;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -42,7 +42,8 @@ export default function BirthdayModal({
     }
   }
 
-  const fullDobDisplay = formatDisplayDateLong(record.dob);
+  // Display only month and day to protect privacy (no birth year displayed)
+  const bdayDisplay = formatDisplayMonthDay(dateStr || record.dob);
 
   return (
     <div
@@ -83,28 +84,15 @@ export default function BirthdayModal({
 
         {/* Body */}
         <div className="p-5 space-y-4">
-          {/* Full Original Date of Birth */}
+          {/* Birthday Date (Month and Day only, no birth year) */}
           <div className="flex items-start gap-3 text-sm">
             <Calendar className="mt-0.5 shrink-0 w-4 h-4 text-amber-400" />
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                Original Date of Birth
+                Birthday Date
               </p>
               <p className="text-white font-medium text-base mt-0.5">
-                {fullDobDisplay}
-              </p>
-            </div>
-          </div>
-
-          {/* Age Status Details */}
-          <div className="flex items-start gap-3 text-sm">
-            <Cake className="mt-0.5 shrink-0 w-4 h-4 text-amber-400" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                Age Calculation
-              </p>
-              <p className="text-gray-200 mt-0.5">
-                {age === 0 ? "Born this year" : `${age} years old`} ({statusText})
+                {bdayDisplay}
               </p>
             </div>
           </div>
