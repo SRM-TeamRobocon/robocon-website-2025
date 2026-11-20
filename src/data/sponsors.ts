@@ -1,8 +1,6 @@
 export interface Sponsor {
   id: string;
   name: string;
-  category: "Title Sponsor" | "Platinum Sponsors" | "Gold Sponsors" | "Silver Sponsors" | "Supporting Partners";
-  tierLabel: string;
   logo: string;
   domain: string;
   description: string;
@@ -17,20 +15,10 @@ export interface PartnerBenefit {
   icon: string;
 }
 
-export const SPONSOR_TIERS = [
-  "Title Sponsor",
-  "Platinum Sponsors",
-  "Gold Sponsors",
-  "Silver Sponsors",
-  "Supporting Partners",
-] as const;
-
 export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "siiec",
     name: "SRM Innovation and Incubation Centre (SIIEC)",
-    category: "Title Sponsor",
-    tierLabel: "Title Partner",
     logo: "/sponsors/SIIEC.png",
     domain: "Incubation, R&D Facilities & Innovation Ecosystem",
     description: "Provides critical infrastructural support, state-of-the-art laboratory spaces, and institutional backing empowering our multi-disciplinary engineering initiatives.",
@@ -40,8 +28,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "solidworks",
     name: "Dassault Systèmes SOLIDWORKS",
-    category: "Platinum Sponsors",
-    tierLabel: "Platinum Partner",
     logo: "/sponsors/Solidworks.png",
     domain: "3D CAD, Kinematics & Structural FEA",
     description: "Powers our mechanical engineering division with parametric 3D modeling, stress analysis, and motion simulation for robust robot chassis architectures.",
@@ -51,8 +37,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "matlab",
     name: "MathWorks MATLAB",
-    category: "Platinum Sponsors",
-    tierLabel: "Platinum Partner",
     logo: "/sponsors/Matlab.jpg",
     domain: "Numerical Computing & Dynamic Controls",
     description: "Accelerates our autonomous robotics pipeline with dynamic control algorithm simulation, sensor fusion filtering, and trajectory optimization.",
@@ -62,8 +46,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "ansys",
     name: "Ansys",
-    category: "Platinum Sponsors",
-    tierLabel: "Platinum Partner",
     logo: "/sponsors/Ansys.jpg",
     domain: "Multiphysics Engineering Simulation",
     description: "Delivers comprehensive structural mechanics, thermal dissipation, and computational fluid dynamics simulations for high-stress mechanism verification.",
@@ -73,8 +55,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "altium",
     name: "Altium",
-    category: "Gold Sponsors",
-    tierLabel: "Gold Partner",
     logo: "/sponsors/Altium.png",
     domain: "High-Speed PCB Design & EDA Tooling",
     description: "Equips our electronics team with industrial schematic capture, impedance control routing, and multi-layer embedded PCB layout software.",
@@ -83,8 +63,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "pcb-power",
     name: "PCB Power Market",
-    category: "Gold Sponsors",
-    tierLabel: "Gold Partner",
     logo: "/sponsors/PCB_Power.png",
     domain: "Precision PCB Fabrication & SMT Assembly",
     description: "Manufactures custom industrial-grade printed circuit boards, high-current power distribution units, and sensor break-outs with rapid turnaround.",
@@ -93,8 +71,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "novoflex",
     name: "Novoflex",
-    category: "Silver Sponsors",
-    tierLabel: "Silver Partner",
     logo: "/sponsors/Novoflex.png",
     domain: "Cable Management & Electrical Harnessing",
     description: "Supplies precision wire management, cable ties, sleeves, and routing components that keep our robots' internal wiring secure and reliable.",
@@ -103,8 +79,6 @@ export const SPONSORS_DATA: Sponsor[] = [
   {
     id: "solidspace",
     name: "Solidspace",
-    category: "Supporting Partners",
-    tierLabel: "Supporting Partner",
     logo: "/sponsors/Solidspace.png",
     domain: "Rapid Prototyping & Additive Manufacturing",
     description: "Enables fast mechanical iteration through precision 3D printing and custom bracket manufacturing during competition development cycles.",
@@ -139,5 +113,3 @@ export const PARTNER_BENEFITS: PartnerBenefit[] = [
     icon: "Handshake",
   },
 ];
-
-export const SPONSORSHIP_CONTACT_HREF = "#contact";

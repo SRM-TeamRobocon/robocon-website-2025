@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   Globe,
@@ -15,10 +14,15 @@ import {
   Award,
   Sparkles,
   ShieldCheck,
-  ChevronRight,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Building2,
+  Mail,
+  Phone,
 } from "lucide-react";
 import type { Sponsor, PartnerBenefit } from "@/data/sponsors";
-import { SPONSORSHIP_CONTACT_HREF } from "@/data/sponsors";
 import type { FlexCarouselProps } from "./FlexCarousel";
 
 // Lazily load the WebGL FlexCarousel client-side only
@@ -52,13 +56,11 @@ function hasWebGL2Support(): boolean {
 
 interface SponsorsClientViewProps {
   sponsors: Sponsor[];
-  tiers: readonly string[];
   benefits: PartnerBenefit[];
 }
 
 export default function SponsorsClientView({
   sponsors,
-  tiers,
   benefits,
 }: SponsorsClientViewProps) {
   const [carouselItems, setCarouselItems] = useState<
@@ -73,7 +75,151 @@ export default function SponsorsClientView({
   const [activeSponsorIndex, setActiveSponsorIndex] = useState(0);
   const [webGLAvailable, setWebGLAvailable] = useState(true);
 
-  // Generate crisp, standardized 800x600 cards for WebGL texture sampling
+  // Form Modal States
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState({
+    companyName: "",
+    companyWebsite: "",
+    contactName: "",
+    officialEmail: "",
+    phoneNumber: "",
+    supportType: "",
+    partnershipDetails: "",
+    additionalMessage: "",
+  });
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Trap escape key and background scroll when modal is open
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFormOpen) {
+        handleCloseModal();
+      }
+    };
+
+    if (isFormOpen) {
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFormOpen]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
+    }
+  };
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.companyName.trim()) {
+      errors.companyName = "Company or Organization name is required";
+    }
+
+    if (formData.companyWebsite.trim()) {
+      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+      if (!urlPattern.test(formData.companyWebsite.trim())) {
+        errors.companyWebsite = "Please enter a valid website URL (e.g. https://example.com)";
+      }
+    }
+
+    if (!formData.contactName.trim()) {
+      errors.contactName = "Contact person name is required";
+    }
+
+    if (!formData.officialEmail.trim()) {
+      errors.officialEmail = "Official email address is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.officialEmail.trim())) {
+      errors.officialEmail = "Please enter a valid official email address";
+    }
+
+    if (!formData.phoneNumber.trim()) {
+      errors.phoneNumber = "Phone number is required";
+    } else if (formData.phoneNumber.trim().length < 6) {
+      errors.phoneNumber = "Please enter a valid phone number";
+    }
+
+    if (!formData.supportType) {
+      errors.supportType = "Please select a type of support";
+    }
+
+    if (!formData.partnershipDetails.trim()) {
+      errors.partnershipDetails = "Sponsorship interest / partnership details are required";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError(null);
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/sponsors/enquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to submit enquiry. Please try again.");
+      }
+
+      setIsSubmitted(true);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to submit enquiry. Please try again.";
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsFormOpen(false);
+    setIsSubmitted(false);
+    setSubmitError(null);
+    setFormErrors({});
+    setFormData({
+      companyName: "",
+      companyWebsite: "",
+      contactName: "",
+      officialEmail: "",
+      phoneNumber: "",
+      supportType: "",
+      partnershipDetails: "",
+      additionalMessage: "",
+    });
+  };
+
+  // Generate crisp, standardized 800x600 cards for WebGL texture sampling (no tiers)
   useEffect(() => {
     let isCancelled = false;
     const canUseWebGL = hasWebGL2Support();
@@ -82,7 +228,6 @@ export default function SponsorsClientView({
     if (!canUseWebGL) return;
 
     const generateCards = async () => {
-      // Wait for Aldrich font to be ready if possible
       if (document.fonts?.ready) {
         try {
           await document.fonts.ready;
@@ -113,7 +258,7 @@ export default function SponsorsClientView({
               src: sponsor.logo,
               alt: `${sponsor.name} logo`,
               title: sponsor.name,
-              subtitle: `${sponsor.category} • ${sponsor.domain}`,
+              subtitle: sponsor.domain,
               href: sponsor.website,
             });
             return;
@@ -157,7 +302,7 @@ export default function SponsorsClientView({
 
           // White logo container
           const boxW = 660;
-          const boxH = 340;
+          const boxH = 360;
           const boxX = (W - boxW) / 2;
           const boxY = 46;
 
@@ -181,41 +326,34 @@ export default function SponsorsClientView({
             const drawY = boxY + (boxH - drawH) / 2;
             ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-            // Tier banner strip
-            ctx.fillStyle = sponsor.featured ? "#C20000" : "#1b1d24";
-            ctx.fillRect(boxX, 416, boxW, 40);
-
-            ctx.fillStyle = "#ffffff";
-            ctx.font = `bold 18px ${fontName}`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(sponsor.category.toUpperCase(), W / 2, 436);
+            // Red divider accent line
+            ctx.fillStyle = "#C20000";
+            ctx.fillRect(boxX, 436, boxW, 4);
 
             // Sponsor Name
             ctx.fillStyle = "#ffffff";
-            ctx.font = `bold 30px ${fontName}`;
+            ctx.font = `bold 32px ${fontName}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             const displayName =
               sponsor.name.length > 34 ? sponsor.name.slice(0, 32) + "..." : sponsor.name;
-            ctx.fillText(displayName.toUpperCase(), W / 2, 494);
+            ctx.fillText(displayName.toUpperCase(), W / 2, 480);
 
             // Sponsor Domain
-            ctx.fillStyle = "#9ca3af";
+            ctx.fillStyle = "#a3aab8";
             ctx.font = `18px ${fontName}`;
-            ctx.fillText(sponsor.domain, W / 2, 542);
+            ctx.fillText(sponsor.domain, W / 2, 535);
 
             resolve({
               src: canvas.toDataURL("image/png"),
               alt: `${sponsor.name} logo`,
               title: sponsor.name,
-              subtitle: `${sponsor.category} • ${sponsor.domain}`,
+              subtitle: sponsor.domain,
               href: sponsor.website,
             });
           };
 
           img.onerror = () => {
-            // Text fallback
             ctx.fillStyle = "#111827";
             ctx.fillRect(boxX, boxY, boxW, boxH);
             ctx.fillStyle = "#ffffff";
@@ -228,7 +366,7 @@ export default function SponsorsClientView({
               src: canvas.toDataURL("image/png"),
               alt: `${sponsor.name} logo`,
               title: sponsor.name,
-              subtitle: `${sponsor.category} • ${sponsor.domain}`,
+              subtitle: sponsor.domain,
               href: sponsor.website,
             });
           };
@@ -251,17 +389,6 @@ export default function SponsorsClientView({
   }, [sponsors]);
 
   const activeSponsor = sponsors[activeSponsorIndex] || sponsors[0];
-
-  const sponsorsByCategory = useMemo(() => {
-    const map = new Map<string, Sponsor[]>();
-    for (const tier of tiers) {
-      map.set(
-        tier,
-        sponsors.filter((s) => s.category === tier)
-      );
-    }
-    return map;
-  }, [sponsors, tiers]);
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-red selection:text-white">
@@ -308,7 +435,7 @@ export default function SponsorsClientView({
             </p>
           </div>
 
-          {/* Quick Metrics Bar */}
+          {/* Quick Metrics Bar (No Tiers) */}
           <div
             data-aos="fade-up"
             data-aos-delay="100"
@@ -321,15 +448,15 @@ export default function SponsorsClientView({
               </p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-red tracking-wider">5</p>
+              <p className="text-3xl font-bold text-red tracking-wider">100%</p>
               <p className="text-xs uppercase text-neutral-500 tracking-widest mt-1">
-                Sponsorship Tiers
+                Engineering Collaboration
               </p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-white tracking-wider">100%</p>
+              <p className="text-3xl font-bold text-white tracking-wider">R&D</p>
               <p className="text-xs uppercase text-neutral-500 tracking-widest mt-1">
-                Engineering Collaboration
+                Prototyping & Simulation
               </p>
             </div>
             <div>
@@ -359,13 +486,10 @@ export default function SponsorsClientView({
             </p>
           </div>
 
-          {/* Active Partner Pill */}
+          {/* Active Partner Pill (No Tiers) */}
           <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-black border border-neutral-800 text-sm">
-            <span className="text-neutral-500 uppercase text-xs">Active:</span>
+            <span className="text-neutral-500 uppercase text-xs">Active Partner:</span>
             <span className="text-white font-medium">{activeSponsor.name}</span>
-            <span className="px-2 py-0.5 bg-red text-white text-xs font-bold uppercase">
-              {activeSponsor.tierLabel}
-            </span>
           </div>
         </div>
 
@@ -393,7 +517,7 @@ export default function SponsorsClientView({
               />
             </div>
           ) : (
-            /* Fallback Responsive Grid if WebGL2 is disabled or loading */
+            /* Fallback Responsive Grid (No Tiers) */
             <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
               {sponsors.map((sponsor) => (
                 <a
@@ -412,11 +536,11 @@ export default function SponsorsClientView({
                       className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
                     />
                   </div>
-                  <span className="text-xs uppercase text-red font-bold tracking-wider mb-1">
-                    {sponsor.tierLabel}
-                  </span>
                   <p className="text-sm font-bold text-center text-white line-clamp-1">
                     {sponsor.name}
+                  </p>
+                  <p className="text-xs text-neutral-400 text-center mt-1 line-clamp-1">
+                    {sponsor.domain}
                   </p>
                 </a>
               ))}
@@ -424,18 +548,13 @@ export default function SponsorsClientView({
           )}
         </div>
 
-        {/* Active Sponsor Detail Bar */}
+        {/* Active Sponsor Detail Bar (No Tiers) */}
         <div className="max-w-7xl mx-auto px-6 md:px-12 mt-8">
           <div className="bg-black/80 border border-neutral-800 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <span className="px-2.5 py-0.5 bg-red text-white text-xs font-bold uppercase tracking-wider">
-                  {activeSponsor.tierLabel}
-                </span>
-                <span className="text-xs uppercase text-neutral-400 tracking-wider">
-                  {activeSponsor.domain}
-                </span>
-              </div>
+              <span className="text-xs uppercase text-red font-bold tracking-wider mb-1 block">
+                {activeSponsor.domain}
+              </span>
               <h3 className="text-lg md:text-xl font-bold text-white uppercase">
                 {activeSponsor.name}
               </h3>
@@ -456,246 +575,67 @@ export default function SponsorsClientView({
         </div>
       </section>
 
-      {/* SECTION 3: OUR SPONSORS — COMPREHENSIVE SHOWCASE */}
+      {/* SECTION 3: OUR SPONSORS & PARTNERS (COMPLETELY TIER-FREE SHOWCASE) */}
       <section className="py-20 md:py-28 max-w-7xl mx-auto px-6 md:px-12">
         <div className="border-b border-neutral-900 pb-8 mb-16">
           <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-red mb-2">
             <ShieldCheck className="w-4 h-4" />
-            <span>Official Roster</span>
+            <span>Strategic Alliance</span>
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold uppercase tracking-tight">
-            Sponsorship Categories
+            Our Partners
           </h2>
           <p className="text-sm sm:text-base text-neutral-400 mt-2 max-w-2xl">
-            Our partners are classified into distinct tiers reflecting their strategic contribution to
-            our robotics research, prototyping, and competition infrastructure.
+            Meet the innovative technology providers, simulation architects, and institutional sponsors
+            who empower our engineering teams.
           </p>
         </div>
 
-        {/* 1. TITLE SPONSOR */}
-        {sponsorsByCategory.get("Title Sponsor")?.length ? (
-          <div className="mb-20" data-aos="fade-up">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-4 h-4 bg-red inline-block" />
-              <h3 className="text-xl md:text-2xl font-bold uppercase tracking-wider text-red">
-                Title Sponsor & Incubation Partner
-              </h3>
-            </div>
+        {/* Clean, Unified Partner Grid with zero tier classifications */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8" data-aos="fade-up">
+          {sponsors.map((sponsor) => (
+            <div
+              key={sponsor.id}
+              className="relative bg-neutral-950 border border-neutral-800 hover:border-red flex flex-col sm:flex-row items-center p-6 sm:p-8 gap-6 sm:gap-8 transition-all duration-300 group"
+            >
+              {/* Tech corner accent */}
+              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-neutral-700 group-hover:border-red transition-colors" />
 
-            {sponsorsByCategory.get("Title Sponsor")!.map((sponsor) => (
-              <div
-                key={sponsor.id}
-                className="relative bg-neutral-950 border-2 border-red p-8 md:p-12 flex flex-col lg:flex-row items-center gap-10 shadow-[0_0_50px_rgba(194,0,0,0.15)] group"
-              >
-                {/* Tech corner accents */}
-                <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-white" />
-                <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-white" />
-                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-white" />
-                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white" />
-
-                {/* Prominent Logo */}
-                <div className="bg-white w-full lg:w-96 h-56 p-8 flex items-center justify-center shrink-0 border border-neutral-300">
-                  <Image
-                    src={sponsor.logo}
-                    alt={sponsor.name}
-                    width={320}
-                    height={160}
-                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="inline-block px-3 py-1 bg-red text-white text-xs font-bold uppercase tracking-widest mb-4">
-                    Principal Institutional Patron
-                  </div>
-                  <h4 className="text-2xl sm:text-3xl font-bold text-white uppercase tracking-tight mb-2">
-                    {sponsor.name}
-                  </h4>
-                  <p className="text-sm md:text-base text-red font-semibold uppercase tracking-wider mb-4">
-                    {sponsor.domain}
-                  </p>
-                  <p className="text-neutral-300 leading-relaxed text-sm md:text-base mb-8">
-                    {sponsor.description}
-                  </p>
-                  <a
-                    href={sponsor.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-3 px-6 py-3 bg-red hover:bg-[#a00000] text-white text-xs md:text-sm uppercase tracking-widest font-bold transition-all duration-200"
-                  >
-                    <span>Visit Official Website</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
+              {/* Logo Box */}
+              <div className="bg-white w-full sm:w-56 h-36 sm:h-40 p-4 flex items-center justify-center shrink-0 border border-neutral-200">
+                <Image
+                  src={sponsor.logo}
+                  alt={sponsor.name}
+                  width={200}
+                  height={100}
+                  className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
+                />
               </div>
-            ))}
-          </div>
-        ) : null}
 
-        {/* 2. PLATINUM SPONSORS */}
-        {sponsorsByCategory.get("Platinum Sponsors")?.length ? (
-          <div className="mb-20" data-aos="fade-up">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-3 h-3 bg-white inline-block" />
-              <h3 className="text-lg md:text-xl font-bold uppercase tracking-wider text-white">
-                Platinum Sponsors
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {sponsorsByCategory.get("Platinum Sponsors")!.map((sponsor) => (
-                <div
-                  key={sponsor.id}
-                  className="bg-neutral-950 border border-neutral-800 hover:border-red flex flex-col p-6 transition-all duration-300 group"
+              {/* Content */}
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-xs text-red font-bold uppercase tracking-wider mb-1">
+                  {sponsor.domain}
+                </p>
+                <h3 className="text-lg sm:text-xl font-bold text-white uppercase tracking-tight mb-2">
+                  {sponsor.name}
+                </h3>
+                <p className="text-sm text-neutral-400 leading-relaxed mb-4">
+                  {sponsor.description}
+                </p>
+                <a
+                  href={sponsor.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold text-neutral-300 hover:text-red transition-colors"
                 >
-                  <div className="bg-white w-full h-44 p-6 flex items-center justify-center mb-6">
-                    <Image
-                      src={sponsor.logo}
-                      alt={sponsor.name}
-                      width={240}
-                      height={120}
-                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="text-xs uppercase text-red font-bold tracking-wider mb-1">
-                    {sponsor.tierLabel}
-                  </div>
-                  <h4 className="text-lg font-bold text-white uppercase tracking-tight mb-2">
-                    {sponsor.name}
-                  </h4>
-                  <p className="text-xs text-neutral-400 font-medium uppercase tracking-wider mb-3">
-                    {sponsor.domain}
-                  </p>
-                  <p className="text-sm text-neutral-300 leading-relaxed flex-1 mb-6">
-                    {sponsor.description}
-                  </p>
-                  <a
-                    href={sponsor.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-bold text-neutral-400 hover:text-red transition-colors pt-4 border-t border-neutral-900"
-                  >
-                    <span>Visit Partner</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              ))}
+                  <span>Visit Website</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
-          </div>
-        ) : null}
-
-        {/* 3. GOLD SPONSORS */}
-        {sponsorsByCategory.get("Gold Sponsors")?.length ? (
-          <div className="mb-20" data-aos="fade-up">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-3 h-3 bg-amber-500 inline-block" />
-              <h3 className="text-lg md:text-xl font-bold uppercase tracking-wider text-white">
-                Gold Sponsors
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sponsorsByCategory.get("Gold Sponsors")!.map((sponsor) => (
-                <div
-                  key={sponsor.id}
-                  className="bg-neutral-950 border border-neutral-800 hover:border-red flex flex-col sm:flex-row items-center p-6 gap-6 transition-all duration-300 group"
-                >
-                  <div className="bg-white w-full sm:w-48 h-36 p-4 flex items-center justify-center shrink-0">
-                    <Image
-                      src={sponsor.logo}
-                      alt={sponsor.name}
-                      width={180}
-                      height={90}
-                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs uppercase text-amber-500 font-bold tracking-wider mb-1">
-                      {sponsor.tierLabel}
-                    </div>
-                    <h4 className="text-base md:text-lg font-bold text-white uppercase tracking-tight mb-1">
-                      {sponsor.name}
-                    </h4>
-                    <p className="text-xs text-neutral-400 uppercase tracking-wider mb-2">
-                      {sponsor.domain}
-                    </p>
-                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed mb-4">
-                      {sponsor.description}
-                    </p>
-                    <a
-                      href={sponsor.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold text-neutral-400 hover:text-red transition-colors"
-                    >
-                      <span>Explore Technology</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* 4. SILVER SPONSORS & SUPPORTING PARTNERS */}
-        {(sponsorsByCategory.get("Silver Sponsors")?.length ||
-          sponsorsByCategory.get("Supporting Partners")?.length) ? (
-          <div data-aos="fade-up">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-3 h-3 bg-neutral-400 inline-block" />
-              <h3 className="text-lg md:text-xl font-bold uppercase tracking-wider text-white">
-                Silver Sponsors & Technical Partners
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[
-                ...(sponsorsByCategory.get("Silver Sponsors") || []),
-                ...(sponsorsByCategory.get("Supporting Partners") || []),
-              ].map((sponsor) => (
-                <div
-                  key={sponsor.id}
-                  className="bg-neutral-950 border border-neutral-800 hover:border-red flex flex-col sm:flex-row items-center p-6 gap-6 transition-all duration-300 group"
-                >
-                  <div className="bg-white w-full sm:w-48 h-36 p-4 flex items-center justify-center shrink-0">
-                    <Image
-                      src={sponsor.logo}
-                      alt={sponsor.name}
-                      width={180}
-                      height={90}
-                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs uppercase text-neutral-400 font-bold tracking-wider mb-1">
-                      {sponsor.tierLabel}
-                    </div>
-                    <h4 className="text-base md:text-lg font-bold text-white uppercase tracking-tight mb-1">
-                      {sponsor.name}
-                    </h4>
-                    <p className="text-xs text-neutral-400 uppercase tracking-wider mb-2">
-                      {sponsor.domain}
-                    </p>
-                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed mb-4">
-                      {sponsor.description}
-                    </p>
-                    <a
-                      href={sponsor.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold text-neutral-400 hover:text-red transition-colors"
-                    >
-                      <span>Explore Technology</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+          ))}
+        </div>
       </section>
 
       {/* SECTION 4: WHY PARTNER WITH US? */}
@@ -747,14 +687,14 @@ export default function SponsorsClientView({
         </div>
       </section>
 
-      {/* SECTION 5: BECOME A SPONSOR — CTA */}
-      <section className="py-24 md:py-32 relative overflow-hidden">
+      {/* SECTION 5: BECOME A SPONSOR — CENTRED CTA */}
+      <section className="py-24 md:py-32 relative overflow-hidden text-center">
         {/* Subtle background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-red/15 blur-[160px]" />
         </div>
 
-        <div className="relative max-w-5xl mx-auto px-6 md:px-12 text-center" data-aos="fade-up">
+        <div className="relative max-w-4xl mx-auto px-6 md:px-12 flex flex-col items-center justify-center" data-aos="fade-up">
           <div className="inline-block px-3 py-1 bg-red/10 border border-red/40 text-red text-xs md:text-sm tracking-widest uppercase mb-6 font-bold">
             Join Our Innovation Journey
           </div>
@@ -768,20 +708,15 @@ export default function SponsorsClientView({
             Let us build the future of autonomous systems together.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
-            <a
-              href={SPONSORSHIP_CONTACT_HREF}
-              className="w-full sm:w-auto px-10 py-4 bg-red hover:bg-[#a00000] text-white text-sm uppercase tracking-widest font-bold shadow-[0_0_30px_rgba(194,0,0,0.4)] transition-all duration-200"
+          {/* Centred Primary CTA Button (Contact Team Lead completely removed) */}
+          <div className="flex justify-center w-full">
+            <button
+              type="button"
+              onClick={() => setIsFormOpen(true)}
+              className="px-12 py-4 bg-red hover:bg-[#a00000] text-white text-sm md:text-base uppercase tracking-widest font-bold shadow-[0_0_35px_rgba(194,0,0,0.45)] hover:shadow-[0_0_50px_rgba(194,0,0,0.7)] hover:scale-105 active:scale-95 transition-all duration-300 border-none cursor-pointer"
             >
               Become a Sponsor
-            </a>
-
-            <a
-              href="#contact"
-              className="w-full sm:w-auto px-8 py-4 bg-transparent border border-neutral-700 hover:border-white text-white text-sm uppercase tracking-widest font-bold transition-all duration-200"
-            >
-              Contact Team Leads
-            </a>
+            </button>
           </div>
 
           {/* Institutional note */}
@@ -790,6 +725,316 @@ export default function SponsorsClientView({
           </p>
         </div>
       </section>
+
+      {/* ========================================================================= */}
+      {/* SECTION 6: BECOME A SPONSOR MODAL & THANK YOU CONFIRMATION */}
+      {/* ========================================================================= */}
+      {isFormOpen && (
+        <div
+          className="fixed inset-0 z-[150] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sponsor-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseModal();
+          }}
+        >
+          <div
+            ref={modalRef}
+            className="relative w-full max-w-2xl bg-[#090a0d] border border-neutral-800 text-white my-8 shadow-[0_0_60px_rgba(0,0,0,0.95)] animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Tech Corner Accents */}
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-red pointer-events-none" />
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-red pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-red pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-red pointer-events-none" />
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 sm:p-8 border-b border-neutral-800/80">
+              <div>
+                <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-red mb-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Sponsorship Partnership</span>
+                </div>
+                <h3 id="sponsor-modal-title" className="text-2xl sm:text-3xl font-bold uppercase tracking-tight">
+                  {isSubmitted ? "Submission Received" : "Become a Sponsor"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="text-neutral-400 hover:text-white p-2 transition-colors cursor-pointer"
+                aria-label="Close form"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 sm:p-8 max-h-[75vh] overflow-y-auto">
+              {isSubmitted ? (
+                /* 5. THANK YOU CONFIRMATION */
+                <div className="py-8 px-4 text-center flex flex-col items-center justify-center animate-in fade-in duration-300">
+                  <div className="w-16 h-16 bg-red/10 border-2 border-red flex items-center justify-center text-red mb-6 shadow-[0_0_30px_rgba(194,0,0,0.3)]">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+
+                  <h4 className="text-3xl sm:text-4xl font-bold uppercase tracking-tight text-white mb-4">
+                    THANK YOU!
+                  </h4>
+
+                  <p className="text-lg text-neutral-200 font-semibold mb-3">
+                    Your enquiry has been submitted successfully.
+                  </p>
+
+                  <p className="text-sm text-neutral-400 max-w-md mx-auto leading-relaxed mb-8">
+                    Our team will review your enquiry and get in touch with you soon.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-10 py-3.5 bg-red hover:bg-[#a00000] text-white text-sm uppercase tracking-widest font-bold transition-all duration-200 border-none cursor-pointer shadow-[0_0_20px_rgba(194,0,0,0.3)]"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                /* 4. BECOME A SPONSOR FORM */
+                <form onSubmit={handleSubmit} noValidate className="space-y-6">
+                  {submitError && (
+                    <div className="p-4 bg-red/15 border border-red text-red text-sm flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                      <span>{submitError}</span>
+                    </div>
+                  )}
+
+                  {/* Company Details */}
+                  <div>
+                    <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
+                      Company Details
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* 1. Company Name */}
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                          Company / Organization Name <span className="text-red">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="companyName"
+                          value={formData.companyName}
+                          onChange={handleInputChange}
+                          placeholder="e.g. Acme Robotics Inc."
+                          className={`w-full bg-[#111318] border ${
+                            formErrors.companyName ? "border-red" : "border-neutral-800"
+                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                        />
+                        {formErrors.companyName && (
+                          <p className="text-red text-xs mt-1">{formErrors.companyName}</p>
+                        )}
+                      </div>
+
+                      {/* 2. Company Website */}
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                          Company Website
+                        </label>
+                        <input
+                          type="url"
+                          name="companyWebsite"
+                          value={formData.companyWebsite}
+                          onChange={handleInputChange}
+                          placeholder="e.g. https://acmerobotics.com"
+                          className={`w-full bg-[#111318] border ${
+                            formErrors.companyWebsite ? "border-red" : "border-neutral-800"
+                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                        />
+                        {formErrors.companyWebsite && (
+                          <p className="text-red text-xs mt-1">{formErrors.companyWebsite}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Details */}
+                  <div>
+                    <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
+                      Contact Details
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* 3. Contact Person Name */}
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                          Contact Person Name <span className="text-red">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="contactName"
+                          value={formData.contactName}
+                          onChange={handleInputChange}
+                          placeholder="e.g. Jane Doe"
+                          className={`w-full bg-[#111318] border ${
+                            formErrors.contactName ? "border-red" : "border-neutral-800"
+                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                        />
+                        {formErrors.contactName && (
+                          <p className="text-red text-xs mt-1">{formErrors.contactName}</p>
+                        )}
+                      </div>
+
+                      {/* 4. Official Email */}
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                          Official Email <span className="text-red">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          name="officialEmail"
+                          value={formData.officialEmail}
+                          onChange={handleInputChange}
+                          placeholder="e.g. jane@company.com"
+                          className={`w-full bg-[#111318] border ${
+                            formErrors.officialEmail ? "border-red" : "border-neutral-800"
+                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                        />
+                        {formErrors.officialEmail && (
+                          <p className="text-red text-xs mt-1">{formErrors.officialEmail}</p>
+                        )}
+                      </div>
+
+                      {/* 5. Phone Number */}
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                          Phone Number <span className="text-red">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleInputChange}
+                          placeholder="e.g. +91 98765 43210"
+                          className={`w-full bg-[#111318] border ${
+                            formErrors.phoneNumber ? "border-red" : "border-neutral-800"
+                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                        />
+                        {formErrors.phoneNumber && (
+                          <p className="text-red text-xs mt-1">{formErrors.phoneNumber}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sponsorship Details */}
+                  <div>
+                    <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
+                      Sponsorship Details
+                    </h4>
+
+                    {/* 6. Type of Support */}
+                    <div className="mb-4">
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Type of Support <span className="text-red">*</span>
+                      </label>
+                      <select
+                        name="supportType"
+                        value={formData.supportType}
+                        onChange={handleInputChange}
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.supportType ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors`}
+                      >
+                        <option value="" disabled className="bg-[#111318] text-neutral-500">
+                          Select type of support
+                        </option>
+                        <option value="Financial" className="bg-[#111318] text-white">
+                          Financial
+                        </option>
+                        <option value="Technical" className="bg-[#111318] text-white">
+                          Technical
+                        </option>
+                        <option value="Equipment" className="bg-[#111318] text-white">
+                          Equipment
+                        </option>
+                        <option value="Other" className="bg-[#111318] text-white">
+                          Other
+                        </option>
+                      </select>
+                      {formErrors.supportType && (
+                        <p className="text-red text-xs mt-1">{formErrors.supportType}</p>
+                      )}
+                    </div>
+
+                    {/* 7. Sponsorship Interest / Partnership Details */}
+                    <div className="mb-4">
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Sponsorship Interest / Partnership Details <span className="text-red">*</span>
+                      </label>
+                      <textarea
+                        name="partnershipDetails"
+                        rows={3}
+                        value={formData.partnershipDetails}
+                        onChange={handleInputChange}
+                        placeholder="Please describe how you would like to collaborate with SRM Team Robocon (e.g. equipment provisioning, technical licensing, financial support, etc.)..."
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.partnershipDetails ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600 resize-y`}
+                      />
+                      {formErrors.partnershipDetails && (
+                        <p className="text-red text-xs mt-1">{formErrors.partnershipDetails}</p>
+                      )}
+                    </div>
+
+                    {/* 8. Additional Message */}
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Additional Message <span className="text-neutral-500 text-[10px]">(Optional)</span>
+                      </label>
+                      <textarea
+                        name="additionalMessage"
+                        rows={2}
+                        value={formData.additionalMessage}
+                        onChange={handleInputChange}
+                        placeholder="Any additional information, preferred contact times, or questions for our leads..."
+                        className="w-full bg-[#111318] border border-neutral-800 focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600 resize-y"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Submit Button & Close Action */}
+                  <div className="pt-4 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      disabled={isSubmitting}
+                      className="w-full sm:w-auto px-6 py-3 bg-transparent border border-neutral-800 hover:border-neutral-600 text-neutral-400 hover:text-white text-xs uppercase tracking-widest font-bold transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full sm:w-auto px-10 py-3.5 bg-red hover:bg-[#a00000] disabled:bg-neutral-800 disabled:text-neutral-500 text-white text-xs uppercase tracking-widest font-bold transition-all duration-200 flex items-center justify-center gap-2 border-none cursor-pointer shadow-[0_0_25px_rgba(194,0,0,0.35)]"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Submitting Enquiry...</span>
+                        </>
+                      ) : (
+                        <span>Submit Enquiry</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
