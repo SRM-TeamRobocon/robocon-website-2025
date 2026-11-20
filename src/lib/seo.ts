@@ -41,6 +41,10 @@ export const PUBLIC_PAGES = {
     title: "Our Alumni",
     description: "Meet the alumni of SRM Team Robocon and discover the people who helped build our robotics community at SRMIST, Kattankulathur.",
   },
+  "/sponsors": {
+    title: "Our Sponsors & Partners",
+    description: "Meet the industry leaders, technology partners, and innovation organizations powering SRM Team Robocon's engineering journey.",
+  },
 } as const;
 
 export function pageMetadata(path: string, title: string, description: string): Metadata {

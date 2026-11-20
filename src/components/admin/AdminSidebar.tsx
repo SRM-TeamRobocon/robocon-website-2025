@@ -18,6 +18,7 @@ import {
     X,
     Newspaper,
     CalendarClock,
+    CalendarDays,
     Radio,
     CalendarOff,
     Download,
@@ -58,6 +59,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     { label: "Request Leave", href: "/dashboard/leave", icon: CalendarOff, roles: ALL_ROLES },
     { label: "Propose Content", href: "/dashboard/propose", icon: FilePlus2, roles: ["member"] },
     { label: "My Submissions", href: "/dashboard/my-submissions", icon: ListChecks, roles: ["member"] },
+    { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays, roles: ALL_ROLES },
 ];
 
 export function getNavItems(role: NavRole | null): NavItem[] {
