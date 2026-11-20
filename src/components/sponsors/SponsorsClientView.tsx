@@ -391,7 +391,7 @@ export default function SponsorsClientView({
   const activeSponsor = sponsors[activeSponsorIndex] || sponsors[0];
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-red selection:text-white">
+    <div className="min-h-screen bg-transparent text-white selection:bg-red selection:text-white">
       {/* SECTION 1: HERO SECTION */}
       <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden border-b border-neutral-900">
         {/* Subtle Tech Gradients and Grid Lines */}

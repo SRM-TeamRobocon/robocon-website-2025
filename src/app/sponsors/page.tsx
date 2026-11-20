@@ -9,7 +9,7 @@ export const revalidate = 60;
 
 export default function SponsorsPage() {
   return (
-    <div className="overflow-x-hidden bg-black text-white">
+    <div className="overflow-x-hidden text-white">
       <Header />
       <main id="main-content">
         <SponsorsClientView
