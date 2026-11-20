@@ -77,9 +77,10 @@ export default function SponsorsClientView({
 
   // Form Modal States
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [websiteHp, setWebsiteHp] = useState("");
 
   const [formData, setFormData] = useState({
     companyName: "",
@@ -116,11 +117,20 @@ export default function SponsorsClientView({
     };
   }, [isFormOpen]);
 
+  const handleOpenModal = () => {
+    setSubmitSuccess(null);
+    setSubmitError(null);
+    setFormErrors({});
+    setIsFormOpen(true);
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (submitError) setSubmitError(null);
+    if (submitSuccess) setSubmitSuccess(null);
     if (formErrors[name]) {
       setFormErrors((prev) => {
         const updated = { ...prev };
@@ -140,7 +150,7 @@ export default function SponsorsClientView({
     if (formData.companyWebsite.trim()) {
       const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
       if (!urlPattern.test(formData.companyWebsite.trim())) {
-        errors.companyWebsite = "Please enter a valid website URL (e.g. https://example.com)";
+        errors.companyWebsite = "Please enter a valid website address";
       }
     }
 
@@ -149,18 +159,19 @@ export default function SponsorsClientView({
     }
 
     if (!formData.officialEmail.trim()) {
-      errors.officialEmail = "Official email address is required";
+      errors.officialEmail = "Please enter your official email";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.officialEmail.trim())) {
       errors.officialEmail = "Please enter a valid official email address";
     }
 
+    const digitsOnly = formData.phoneNumber.replace(/\D/g, "");
     if (!formData.phoneNumber.trim()) {
       errors.phoneNumber = "Phone number is required";
-    } else if (formData.phoneNumber.trim().length < 6) {
-      errors.phoneNumber = "Please enter a valid phone number";
+    } else if (digitsOnly.length < 7) {
+      errors.phoneNumber = "Phone number must contain at least 7 digits";
     }
 
-    if (!formData.supportType) {
+    if (!formData.supportType || formData.supportType === "Select type of support" || !formData.supportType.trim()) {
       errors.supportType = "Please select a type of support";
     }
 
@@ -169,34 +180,99 @@ export default function SponsorsClientView({
     }
 
     setFormErrors(errors);
+
+    const fieldOrder = [
+      "companyName",
+      "companyWebsite",
+      "contactName",
+      "officialEmail",
+      "phoneNumber",
+      "supportType",
+      "partnershipDetails",
+    ];
+    const firstInvalid = fieldOrder.find((field) => errors[field]);
+    if (firstInvalid) {
+      setTimeout(() => {
+        const el = modalRef.current?.querySelector<HTMLElement>(`[name="${firstInvalid}"]`);
+        el?.focus();
+      }, 0);
+    }
+
     return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setSubmitError(null);
+    setSubmitSuccess(null);
+
+    // Spam trap check
+    if (websiteHp.trim()) {
+      setFormData({
+        companyName: "",
+        companyWebsite: "",
+        contactName: "",
+        officialEmail: "",
+        phoneNumber: "",
+        supportType: "",
+        partnershipDetails: "",
+        additionalMessage: "",
+      });
+      setWebsiteHp("");
+      setFormErrors({});
+      setSubmitSuccess(
+        "Thank you! We've received your enquiry and our team will contact you soon."
+      );
+      return;
+    }
 
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+
+    const DEFAULT_SHEET_URL =
+      "https://script.google.com/macros/s/AKfycbx55zn3uozJY3OB8IS6lwPZXcqwg-9J4LVU883lgnR5VDqXeIi0zlg0oEQukYpBXPtQDA/exec";
+    const SHEET_URL = process.env.NEXT_PUBLIC_SHEET_URL || DEFAULT_SHEET_URL;
+
+    const fields: Record<string, string> = {
+      companyName: formData.companyName.trim(),
+      companyWebsite: formData.companyWebsite.trim(),
+      contactPerson: formData.contactName.trim(),
+      officialEmail: formData.officialEmail.trim(),
+      phone: formData.phoneNumber.trim(),
+      supportType: formData.supportType,
+      partnershipDetails: formData.partnershipDetails.trim(),
+      message: formData.additionalMessage.trim(),
+    };
+
     try {
-      const res = await fetch("/api/sponsors/enquiry", {
+      await fetch(SHEET_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        mode: "no-cors",
+        body: new URLSearchParams(fields),
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to submit enquiry. Please try again.");
-      }
-
-      setIsSubmitted(true);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to submit enquiry. Please try again.";
-      setSubmitError(message);
+      setFormData({
+        companyName: "",
+        companyWebsite: "",
+        contactName: "",
+        officialEmail: "",
+        phoneNumber: "",
+        supportType: "",
+        partnershipDetails: "",
+        additionalMessage: "",
+      });
+      setWebsiteHp("");
+      setFormErrors({});
+      setSubmitSuccess(
+        "Thank you! We've received your enquiry and our team will contact you soon."
+      );
+    } catch {
+      setSubmitError(
+        "Something went wrong. Please check your connection and try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +280,7 @@ export default function SponsorsClientView({
 
   const handleCloseModal = () => {
     setIsFormOpen(false);
-    setIsSubmitted(false);
+    setSubmitSuccess(null);
     setSubmitError(null);
     setFormErrors({});
     setFormData({
@@ -217,6 +293,7 @@ export default function SponsorsClientView({
       partnershipDetails: "",
       additionalMessage: "",
     });
+    setWebsiteHp("");
   };
 
   // Generate crisp, standardized 800x600 cards for WebGL texture sampling (no tiers)
@@ -712,7 +789,7 @@ export default function SponsorsClientView({
           <div className="flex justify-center w-full">
             <button
               type="button"
-              onClick={() => setIsFormOpen(true)}
+              onClick={handleOpenModal}
               className="px-12 py-4 bg-red hover:bg-[#a00000] text-white text-sm md:text-base uppercase tracking-widest font-bold shadow-[0_0_35px_rgba(194,0,0,0.45)] hover:shadow-[0_0_50px_rgba(194,0,0,0.7)] hover:scale-105 active:scale-95 transition-all duration-300 border-none cursor-pointer"
             >
               Become a Sponsor
@@ -727,7 +804,7 @@ export default function SponsorsClientView({
       </section>
 
       {/* ========================================================================= */}
-      {/* SECTION 6: BECOME A SPONSOR MODAL & THANK YOU CONFIRMATION */}
+      {/* SECTION 6: BECOME A SPONSOR MODAL */}
       {/* ========================================================================= */}
       {isFormOpen && (
         <div
@@ -757,7 +834,7 @@ export default function SponsorsClientView({
                   <span>Sponsorship Partnership</span>
                 </div>
                 <h3 id="sponsor-modal-title" className="text-2xl sm:text-3xl font-bold uppercase tracking-tight">
-                  {isSubmitted ? "Submission Received" : "Become a Sponsor"}
+                  Become a Sponsor
                 </h3>
               </div>
               <button
@@ -772,265 +849,259 @@ export default function SponsorsClientView({
 
             {/* Modal Body */}
             <div className="p-6 sm:p-8 max-h-[75vh] overflow-y-auto">
-              {isSubmitted ? (
-                /* 5. THANK YOU CONFIRMATION */
-                <div className="py-8 px-4 text-center flex flex-col items-center justify-center animate-in fade-in duration-300">
-                  <div className="w-16 h-16 bg-red/10 border-2 border-red flex items-center justify-center text-red mb-6 shadow-[0_0_30px_rgba(194,0,0,0.3)]">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
+              {submitSuccess && (
+                <div className="p-4 mb-6 bg-red/10 border border-red text-white text-sm flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-red" />
+                  <span>{submitSuccess}</span>
+                </div>
+              )}
 
-                  <h4 className="text-3xl sm:text-4xl font-bold uppercase tracking-tight text-white mb-4">
-                    THANK YOU!
+              {submitError && (
+                <div className="p-4 mb-6 bg-red/15 border border-red text-red text-sm flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+
+              {/* 4. BECOME A SPONSOR FORM */}
+              <form onSubmit={handleSubmit} noValidate className="space-y-6">
+                {/* Spam trap */}
+                <div style={{ display: "none" }} aria-hidden="true">
+                  <input
+                    type="text"
+                    name="website_hp"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={websiteHp}
+                    onChange={(e) => {
+                      setWebsiteHp(e.target.value);
+                      if (submitSuccess) setSubmitSuccess(null);
+                      if (submitError) setSubmitError(null);
+                    }}
+                  />
+                </div>
+
+                {/* Company Details */}
+                <div>
+                  <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
+                    Company Details
                   </h4>
 
-                  <p className="text-lg text-neutral-200 font-semibold mb-3">
-                    Your enquiry has been submitted successfully.
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* 1. Company Name */}
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Company / Organization Name <span className="text-red">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="companyName"
+                        value={formData.companyName}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Acme Robotics Inc."
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.companyName ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                      />
+                      {formErrors.companyName && (
+                        <p className="text-red text-xs mt-1">{formErrors.companyName}</p>
+                      )}
+                    </div>
 
-                  <p className="text-sm text-neutral-400 max-w-md mx-auto leading-relaxed mb-8">
-                    Our team will review your enquiry and get in touch with you soon.
-                  </p>
+                    {/* 2. Company Website */}
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Company Website
+                      </label>
+                      <input
+                        type="url"
+                        name="companyWebsite"
+                        value={formData.companyWebsite}
+                        onChange={handleInputChange}
+                        placeholder="e.g. https://acmerobotics.com"
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.companyWebsite ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                      />
+                      {formErrors.companyWebsite && (
+                        <p className="text-red text-xs mt-1">{formErrors.companyWebsite}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
+                {/* Contact Details */}
+                <div>
+                  <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
+                    Contact Details
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* 3. Contact Person Name */}
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Contact Person Name <span className="text-red">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="contactName"
+                        value={formData.contactName}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Jane Doe"
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.contactName ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                      />
+                      {formErrors.contactName && (
+                        <p className="text-red text-xs mt-1">{formErrors.contactName}</p>
+                      )}
+                    </div>
+
+                    {/* 4. Official Email */}
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Official Email <span className="text-red">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="officialEmail"
+                        value={formData.officialEmail}
+                        onChange={handleInputChange}
+                        placeholder="e.g. jane@company.com"
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.officialEmail ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                      />
+                      {formErrors.officialEmail && (
+                        <p className="text-red text-xs mt-1">{formErrors.officialEmail}</p>
+                      )}
+                    </div>
+
+                    {/* 5. Phone Number */}
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                        Phone Number <span className="text-red">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        name="phoneNumber"
+                        value={formData.phoneNumber}
+                        onChange={handleInputChange}
+                        placeholder="e.g. +91 98765 43210"
+                        className={`w-full bg-[#111318] border ${
+                          formErrors.phoneNumber ? "border-red" : "border-neutral-800"
+                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
+                      />
+                      {formErrors.phoneNumber && (
+                        <p className="text-red text-xs mt-1">{formErrors.phoneNumber}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sponsorship Details */}
+                <div>
+                  <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
+                    Sponsorship Details
+                  </h4>
+
+                  {/* 6. Type of Support */}
+                  <div className="mb-4">
+                    <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                      Type of Support <span className="text-red">*</span>
+                    </label>
+                    <select
+                      name="supportType"
+                      value={formData.supportType}
+                      onChange={handleInputChange}
+                      className={`w-full bg-[#111318] border ${
+                        formErrors.supportType ? "border-red" : "border-neutral-800"
+                      } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors`}
+                    >
+                      <option value="" disabled className="bg-[#111318] text-neutral-500">
+                        Select type of support
+                      </option>
+                      <option value="Financial" className="bg-[#111318] text-white">
+                        Financial
+                      </option>
+                      <option value="Technical" className="bg-[#111318] text-white">
+                        Technical
+                      </option>
+                      <option value="Equipment" className="bg-[#111318] text-white">
+                        Equipment
+                      </option>
+                      <option value="Other" className="bg-[#111318] text-white">
+                        Other
+                      </option>
+                    </select>
+                    {formErrors.supportType && (
+                      <p className="text-red text-xs mt-1">{formErrors.supportType}</p>
+                    )}
+                  </div>
+
+                  {/* 7. Sponsorship Interest / Partnership Details */}
+                  <div className="mb-4">
+                    <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                      Sponsorship Interest / Partnership Details <span className="text-red">*</span>
+                    </label>
+                    <textarea
+                      name="partnershipDetails"
+                      rows={3}
+                      value={formData.partnershipDetails}
+                      onChange={handleInputChange}
+                      placeholder="Please describe how you would like to collaborate with SRM Team Robocon (e.g. equipment provisioning, technical licensing, financial support, etc.)..."
+                      className={`w-full bg-[#111318] border ${
+                        formErrors.partnershipDetails ? "border-red" : "border-neutral-800"
+                      } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600 resize-y`}
+                    />
+                    {formErrors.partnershipDetails && (
+                      <p className="text-red text-xs mt-1">{formErrors.partnershipDetails}</p>
+                    )}
+                  </div>
+
+                  {/* 8. Additional Message */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
+                      Additional Message <span className="text-neutral-500 text-[10px]">(Optional)</span>
+                    </label>
+                    <textarea
+                      name="additionalMessage"
+                      rows={2}
+                      value={formData.additionalMessage}
+                      onChange={handleInputChange}
+                      placeholder="Any additional information, preferred contact times, or questions for our leads..."
+                      className="w-full bg-[#111318] border border-neutral-800 focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600 resize-y"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button & Close Action */}
+                <div className="pt-4 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <button
                     type="button"
                     onClick={handleCloseModal}
-                    className="px-10 py-3.5 bg-red hover:bg-[#a00000] text-white text-sm uppercase tracking-widest font-bold transition-all duration-200 border-none cursor-pointer shadow-[0_0_20px_rgba(194,0,0,0.3)]"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto px-6 py-3 bg-transparent border border-neutral-800 hover:border-neutral-600 text-neutral-400 hover:text-white text-xs uppercase tracking-widest font-bold transition-colors cursor-pointer"
                   >
-                    Close
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto px-10 py-3.5 bg-red hover:bg-[#a00000] disabled:bg-neutral-800 disabled:text-neutral-500 text-white text-xs uppercase tracking-widest font-bold transition-all duration-200 flex items-center justify-center gap-2 border-none cursor-pointer shadow-[0_0_25px_rgba(194,0,0,0.35)]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <span>Submit Enquiry</span>
+                    )}
                   </button>
                 </div>
-              ) : (
-                /* 4. BECOME A SPONSOR FORM */
-                <form onSubmit={handleSubmit} noValidate className="space-y-6">
-                  {submitError && (
-                    <div className="p-4 bg-red/15 border border-red text-red text-sm flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                      <span>{submitError}</span>
-                    </div>
-                  )}
-
-                  {/* Company Details */}
-                  <div>
-                    <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
-                      Company Details
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* 1. Company Name */}
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                          Company / Organization Name <span className="text-red">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="companyName"
-                          value={formData.companyName}
-                          onChange={handleInputChange}
-                          placeholder="e.g. Acme Robotics Inc."
-                          className={`w-full bg-[#111318] border ${
-                            formErrors.companyName ? "border-red" : "border-neutral-800"
-                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
-                        />
-                        {formErrors.companyName && (
-                          <p className="text-red text-xs mt-1">{formErrors.companyName}</p>
-                        )}
-                      </div>
-
-                      {/* 2. Company Website */}
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                          Company Website
-                        </label>
-                        <input
-                          type="url"
-                          name="companyWebsite"
-                          value={formData.companyWebsite}
-                          onChange={handleInputChange}
-                          placeholder="e.g. https://acmerobotics.com"
-                          className={`w-full bg-[#111318] border ${
-                            formErrors.companyWebsite ? "border-red" : "border-neutral-800"
-                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
-                        />
-                        {formErrors.companyWebsite && (
-                          <p className="text-red text-xs mt-1">{formErrors.companyWebsite}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact Details */}
-                  <div>
-                    <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
-                      Contact Details
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {/* 3. Contact Person Name */}
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                          Contact Person Name <span className="text-red">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="contactName"
-                          value={formData.contactName}
-                          onChange={handleInputChange}
-                          placeholder="e.g. Jane Doe"
-                          className={`w-full bg-[#111318] border ${
-                            formErrors.contactName ? "border-red" : "border-neutral-800"
-                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
-                        />
-                        {formErrors.contactName && (
-                          <p className="text-red text-xs mt-1">{formErrors.contactName}</p>
-                        )}
-                      </div>
-
-                      {/* 4. Official Email */}
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                          Official Email <span className="text-red">*</span>
-                        </label>
-                        <input
-                          type="email"
-                          name="officialEmail"
-                          value={formData.officialEmail}
-                          onChange={handleInputChange}
-                          placeholder="e.g. jane@company.com"
-                          className={`w-full bg-[#111318] border ${
-                            formErrors.officialEmail ? "border-red" : "border-neutral-800"
-                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
-                        />
-                        {formErrors.officialEmail && (
-                          <p className="text-red text-xs mt-1">{formErrors.officialEmail}</p>
-                        )}
-                      </div>
-
-                      {/* 5. Phone Number */}
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                          Phone Number <span className="text-red">*</span>
-                        </label>
-                        <input
-                          type="tel"
-                          name="phoneNumber"
-                          value={formData.phoneNumber}
-                          onChange={handleInputChange}
-                          placeholder="e.g. +91 98765 43210"
-                          className={`w-full bg-[#111318] border ${
-                            formErrors.phoneNumber ? "border-red" : "border-neutral-800"
-                          } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600`}
-                        />
-                        {formErrors.phoneNumber && (
-                          <p className="text-red text-xs mt-1">{formErrors.phoneNumber}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sponsorship Details */}
-                  <div>
-                    <h4 className="text-xs uppercase tracking-widest text-red font-bold mb-4 pb-1 border-b border-neutral-900">
-                      Sponsorship Details
-                    </h4>
-
-                    {/* 6. Type of Support */}
-                    <div className="mb-4">
-                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                        Type of Support <span className="text-red">*</span>
-                      </label>
-                      <select
-                        name="supportType"
-                        value={formData.supportType}
-                        onChange={handleInputChange}
-                        className={`w-full bg-[#111318] border ${
-                          formErrors.supportType ? "border-red" : "border-neutral-800"
-                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors`}
-                      >
-                        <option value="" disabled className="bg-[#111318] text-neutral-500">
-                          Select type of support
-                        </option>
-                        <option value="Financial" className="bg-[#111318] text-white">
-                          Financial
-                        </option>
-                        <option value="Technical" className="bg-[#111318] text-white">
-                          Technical
-                        </option>
-                        <option value="Equipment" className="bg-[#111318] text-white">
-                          Equipment
-                        </option>
-                        <option value="Other" className="bg-[#111318] text-white">
-                          Other
-                        </option>
-                      </select>
-                      {formErrors.supportType && (
-                        <p className="text-red text-xs mt-1">{formErrors.supportType}</p>
-                      )}
-                    </div>
-
-                    {/* 7. Sponsorship Interest / Partnership Details */}
-                    <div className="mb-4">
-                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                        Sponsorship Interest / Partnership Details <span className="text-red">*</span>
-                      </label>
-                      <textarea
-                        name="partnershipDetails"
-                        rows={3}
-                        value={formData.partnershipDetails}
-                        onChange={handleInputChange}
-                        placeholder="Please describe how you would like to collaborate with SRM Team Robocon (e.g. equipment provisioning, technical licensing, financial support, etc.)..."
-                        className={`w-full bg-[#111318] border ${
-                          formErrors.partnershipDetails ? "border-red" : "border-neutral-800"
-                        } focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600 resize-y`}
-                      />
-                      {formErrors.partnershipDetails && (
-                        <p className="text-red text-xs mt-1">{formErrors.partnershipDetails}</p>
-                      )}
-                    </div>
-
-                    {/* 8. Additional Message */}
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-neutral-300 mb-1.5 font-medium">
-                        Additional Message <span className="text-neutral-500 text-[10px]">(Optional)</span>
-                      </label>
-                      <textarea
-                        name="additionalMessage"
-                        rows={2}
-                        value={formData.additionalMessage}
-                        onChange={handleInputChange}
-                        placeholder="Any additional information, preferred contact times, or questions for our leads..."
-                        className="w-full bg-[#111318] border border-neutral-800 focus:border-red focus:outline-none text-white text-sm px-3.5 py-2.5 transition-colors placeholder:text-neutral-600 resize-y"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Submit Button & Close Action */}
-                  <div className="pt-4 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      onClick={handleCloseModal}
-                      disabled={isSubmitting}
-                      className="w-full sm:w-auto px-6 py-3 bg-transparent border border-neutral-800 hover:border-neutral-600 text-neutral-400 hover:text-white text-xs uppercase tracking-widest font-bold transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full sm:w-auto px-10 py-3.5 bg-red hover:bg-[#a00000] disabled:bg-neutral-800 disabled:text-neutral-500 text-white text-xs uppercase tracking-widest font-bold transition-all duration-200 flex items-center justify-center gap-2 border-none cursor-pointer shadow-[0_0_25px_rgba(194,0,0,0.35)]"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Submitting Enquiry...</span>
-                        </>
-                      ) : (
-                        <span>Submit Enquiry</span>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
+              </form>
             </div>
           </div>
         </div>
