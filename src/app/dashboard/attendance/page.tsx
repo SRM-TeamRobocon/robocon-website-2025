@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { Download, Flame, Radio, Clock, Users, UserCircle2, X, Ghost, Moon, LogIn, LogOut, Search, Trophy, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { displayNameForUsername } from "@/lib/admin-users";
 import {
     calculateStats,
     buildSessions,
@@ -126,7 +127,24 @@ export default function AttendanceBoardPage() {
     const [viewerRole, setViewerRole] = useState<"member" | "lead" | "admin" | null>(null);
     const [viewerHasAccount, setViewerHasAccount] = useState(false);
     const [viewerAccountId, setViewerAccountId] = useState<string | null>(null);
+    const [viewerName, setViewerName] = useState<string | null>(null);
     const [viewerLinked, setViewerLinked] = useState<boolean | null>(null);
+
+    const [floatingRow, setFloatingRow] = useState<{
+        position: "top" | "bottom";
+        top?: number;
+        bottom?: number;
+        containerLeft: number;
+        containerWidth: number;
+        tableOffsetLeft: number;
+        tableWidth: number;
+        colWidths: number[];
+    } | null>(null);
+
+    const allMembersCardRef = useRef<HTMLDivElement | null>(null);
+    const allMembersTableContainerRef = useRef<HTMLDivElement | null>(null);
+    const allMembersTableRef = useRef<HTMLTableElement | null>(null);
+    const currentUserRowRef = useRef<HTMLTableRowElement | null>(null);
     const [selectedMonth, setSelectedMonth] = useState(() => monthKey(Date.now()));
     const [memberSearch, setMemberSearch] = useState("");
     const [domainFilter, setDomainFilter] = useState("all");
@@ -218,6 +236,7 @@ export default function AttendanceBoardPage() {
                     setViewerRole(data.role);
                     setViewerHasAccount(Boolean(data.memberAccountId));
                     setViewerAccountId(data.memberAccountId || null);
+                    setViewerName(data.name || displayNameForUsername(data.user) || null);
                 }
             })
             .catch(() => {});
@@ -627,6 +646,99 @@ export default function AttendanceBoardPage() {
 
     const viewerStats = stats.find((entry) => entry.memberAccountId === viewerAccountId);
     const viewerStatus = viewerStats?.status ?? "OUT";
+
+    const isCurrentUser = useCallback(
+        (memberAccountId: string, name: string) => {
+            if (viewerAccountId && memberAccountId === viewerAccountId) return true;
+            if (viewerName && name.trim().toLowerCase() === viewerName.trim().toLowerCase()) return true;
+            return false;
+        },
+        [viewerAccountId, viewerName]
+    );
+
+    const currentUserAllIndex = useMemo(
+        () => filteredLeaderboard.findIndex((m) => isCurrentUser(m.memberAccountId, m.name)),
+        [filteredLeaderboard, isCurrentUser]
+    );
+    const currentUserAllMember = currentUserAllIndex !== -1 ? filteredLeaderboard[currentUserAllIndex] : null;
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (
+                !allMembersCardRef.current ||
+                !allMembersTableContainerRef.current ||
+                !allMembersTableRef.current ||
+                !currentUserRowRef.current ||
+                !currentUserAllMember
+            ) {
+                setFloatingRow(null);
+                return;
+            }
+
+            const windowHeight = window.innerHeight;
+            const cardRect = allMembersCardRef.current.getBoundingClientRect();
+            const containerRect = allMembersTableContainerRef.current.getBoundingClientRect();
+            const tableRect = allMembersTableRef.current.getBoundingClientRect();
+            const rowRect = currentUserRowRef.current.getBoundingClientRect();
+
+            // 1. Appears whenever the All Member Leaderboard section is on screen (even if barely visible)
+            const isCardOnScreen = cardRect.top < windowHeight && cardRect.bottom > 64;
+            if (!isCardOnScreen) {
+                setFloatingRow(null);
+                return;
+            }
+
+            // Measure exact column widths from the actual user row's cells
+            const cells = currentUserRowRef.current.children;
+            const colWidths = Array.from(cells).map((cell) => (cell as HTMLElement).offsetWidth || cell.getBoundingClientRect().width);
+
+            // 2. Start coming even when the profile row is barely visible at the bottom edge or off-screen below
+            if (rowRect.bottom >= windowHeight - 60 || rowRect.top >= windowHeight - 85) {
+                const bottomOffset = Math.max(12, Math.floor(windowHeight - cardRect.bottom + 12));
+                setFloatingRow({
+                    position: "bottom",
+                    bottom: bottomOffset,
+                    containerLeft: containerRect.left,
+                    containerWidth: containerRect.width,
+                    tableOffsetLeft: tableRect.left - containerRect.left,
+                    tableWidth: tableRect.width,
+                    colWidths,
+                });
+                return;
+            }
+
+            // 3. Start coming even when the profile row is barely visible at the top edge or off-screen above
+            if (rowRect.top <= 80 || rowRect.bottom <= 115) {
+                const topOffset = Math.max(68, Math.floor(cardRect.top + 12));
+                setFloatingRow({
+                    position: "top",
+                    top: topOffset,
+                    containerLeft: containerRect.left,
+                    containerWidth: containerRect.width,
+                    tableOffsetLeft: tableRect.left - containerRect.left,
+                    tableWidth: tableRect.width,
+                    colWidths,
+                });
+                return;
+            }
+
+            setFloatingRow(null);
+        };
+
+        const container = allMembersTableContainerRef.current;
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        window.addEventListener("resize", handleScroll, { passive: true });
+        container?.addEventListener("scroll", handleScroll, { passive: true });
+
+        const timer = setTimeout(handleScroll, 50);
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("resize", handleScroll);
+            container?.removeEventListener("scroll", handleScroll);
+            clearTimeout(timer);
+        };
+    }, [currentUserAllMember, currentUserAllIndex, filteredLeaderboard]);
 
     const handleDownload = () => {
         const csv = generateSessionCSV(countedPeriodSessions);
@@ -1071,15 +1183,24 @@ export default function AttendanceBoardPage() {
                                                 <tbody>
                                                     {displayedStreakEntries.map((entry, index) => {
                                                         const memberStat = stats.find((s) => s.memberAccountId === entry.memberAccountId);
+                                                        const isCurrent = isCurrentUser(entry.memberAccountId, entry.name);
                                                         return (
                                                             <tr
                                                                 key={entry.memberAccountId}
                                                                 onClick={() => memberStat && setSelected(memberStat)}
-                                                                className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
+                                                                className={`cursor-pointer transition ${
+                                                                    isCurrent
+                                                                        ? "bg-red/[0.04] relative"
+                                                                        : "border-b border-white/5 hover:bg-white/[0.03]"
+                                                                }`}
                                                             >
                                                                 {/* Rank */}
-                                                                <td className="py-2.5 text-center">
-                                                                    {index === 0 ? (
+                                                                <td className={`py-2.5 text-center ${isCurrent ? "border-y border-l border-red/30 bg-red/[0.04]" : ""}`}>
+                                                                    {isCurrent ? (
+                                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-red/20 text-red text-xs font-bold border border-red/40">
+                                                                            {index + 1}
+                                                                        </span>
+                                                                    ) : index === 0 ? (
                                                                         <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
                                                                             1
                                                                         </span>
@@ -1097,9 +1218,14 @@ export default function AttendanceBoardPage() {
                                                                 </td>
 
                                                                 {/* Name */}
-                                                                <td className="py-2.5 font-semibold text-white">
+                                                                <td className={`py-2.5 font-semibold text-white ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
                                                                     <div className="flex items-center gap-1.5">
                                                                         <span>{entry.name}</span>
+                                                                        {isCurrent && (
+                                                                            <span className="bg-red/20 text-red text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-red/30 shrink-0">
+                                                                                YOU
+                                                                            </span>
+                                                                        )}
                                                                         {overnightIds.has(entry.memberAccountId) && (
                                                                             <Moon className="h-3.5 w-3.5 shrink-0 text-indigo-400" strokeWidth={2} />
                                                                         )}
@@ -1107,10 +1233,10 @@ export default function AttendanceBoardPage() {
                                                                 </td>
 
                                                                 {/* Domain */}
-                                                                <td className="py-2.5 text-xs text-gray-400">{entry.domain}</td>
+                                                                <td className={`py-2.5 text-xs text-gray-400 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>{entry.domain}</td>
 
                                                                 {/* Streak column */}
-                                                                <td className="py-2.5">
+                                                                <td className={`py-2.5 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
                                                                     {streakActiveOnly ? (
                                                                         <div className="flex items-center gap-2">
                                                                             <div className="relative flex items-center justify-center">
@@ -1128,70 +1254,70 @@ export default function AttendanceBoardPage() {
                                                                         entry.isTopStreakActive ? (
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="relative flex items-center justify-center">
-                                                                                    <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
-                                                                                    <Flame
-                                                                                        className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
-                                                                                        strokeWidth={1.8}
-                                                                                    />
-                                                                                </div>
-                                                                                <span className="font-semibold text-amber-300">
-                                                                                    {entry.streak} {entry.streak === 1 ? "day" : "days"}
-                                                                                </span>
+                                                                                <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
+                                                                                <Flame
+                                                                                    className="relative h-4 w-4 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]"
+                                                                                    strokeWidth={1.8}
+                                                                                />
                                                                             </div>
-                                                                        ) : (
-                                                                            <div className="flex items-center gap-2 opacity-40 grayscale transition-opacity hover:opacity-70">
-                                                                                <Flame className="h-4 w-4 text-gray-500 fill-gray-500" strokeWidth={1.5} />
-                                                                                <span className="font-medium text-gray-400">
-                                                                                    {entry.streak} {entry.streak === 1 ? "day" : "days"}
-                                                                                </span>
-                                                                            </div>
-                                                                        )
+                                                                            <span className="font-semibold text-amber-300">
+                                                                                {entry.streak} {entry.streak === 1 ? "day" : "days"}
+                                                                            </span>
+                                                                        </div>
                                                                     ) : (
-                                                                        <span className="font-mono text-xs text-gray-600">-</span>
-                                                                    )}
-                                                                </td>
+                                                                        <div className="flex items-center gap-2 opacity-40 grayscale transition-opacity hover:opacity-70">
+                                                                            <Flame className="h-4 w-4 text-gray-500 fill-gray-500" strokeWidth={1.5} />
+                                                                            <span className="font-medium text-gray-400">
+                                                                                {entry.streak} {entry.streak === 1 ? "day" : "days"}
+                                                                            </span>
+                                                                        </div>
+                                                                    )
+                                                                ) : (
+                                                                    <span className="font-mono text-xs text-gray-600">-</span>
+                                                                )}
+                                                            </td>
 
-                                                                {/* Secondary column: Best Record in Active mode, Current in Top Streak mode */}
-                                                                <td className="py-2.5">
-                                                                    {streakActiveOnly ? (
-                                                                        <span className="font-mono text-xs text-gray-400">
-                                                                            {entry.streak > 0 ? `${entry.streak}d` : "-"}
-                                                                        </span>
-                                                                    ) : entry.currentStreak > 0 ? (
-                                                                        <span className="font-mono text-xs font-bold text-amber-400">
-                                                                            {entry.currentStreak}d
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="font-mono text-xs text-gray-600">0d</span>
-                                                                    )}
-                                                                </td>
+                                                            {/* Secondary column: Best Record in Active mode, Current in Top Streak mode */}
+                                                            <td className={`py-2.5 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
+                                                                {streakActiveOnly ? (
+                                                                    <span className="font-mono text-xs text-gray-400">
+                                                                        {entry.streak > 0 ? `${entry.streak}d` : "-"}
+                                                                    </span>
+                                                                ) : entry.currentStreak > 0 ? (
+                                                                    <span className="font-mono text-xs font-bold text-amber-400">
+                                                                        {entry.currentStreak}d
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="font-mono text-xs text-gray-600">0d</span>
+                                                                )}
+                                                            </td>
 
-                                                                {/* Status Badge */}
-                                                                <td className="py-2.5">
-                                                                    {streakActiveOnly || entry.isTopStreakActive ? (
-                                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/25 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
-                                                                            <span className="h-1.5 w-1.5 bg-amber-400 animate-pulse" />
-                                                                            Active
-                                                                        </span>
-                                                                    ) : entry.streak <= 0 ? (
-                                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-600">
-                                                                            No visits
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-500 border border-white/10">
-                                                                            Lost
-                                                                        </span>
-                                                                    )}
-                                                                </td>
+                                                            {/* Status Badge */}
+                                                            <td className={`py-2.5 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
+                                                                {streakActiveOnly || entry.isTopStreakActive ? (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/25 shadow-[0_0_6px_rgba(245,158,11,0.15)]">
+                                                                        <span className="h-1.5 w-1.5 bg-amber-400 animate-pulse" />
+                                                                        Active
+                                                                    </span>
+                                                                ) : entry.streak <= 0 ? (
+                                                                    <span className="text-[10px] uppercase font-bold tracking-wider text-gray-600">
+                                                                        No visits
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-500 border border-white/10">
+                                                                        Lost
+                                                                    </span>
+                                                                )}
+                                                            </td>
 
-                                                                {/* Last Visited */}
-                                                                <td className="py-2.5 text-xs text-gray-400">
-                                                                    {formatLastVisitedDate(entry.lastVisitedDate, now)}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
+                                                            {/* Last Visited */}
+                                                            <td className={`py-2.5 text-xs text-gray-400 ${isCurrent ? "border-y border-r border-red/30 bg-red/[0.04]" : ""}`}>
+                                                                {formatLastVisitedDate(entry.lastVisitedDate, now)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
                                             </table>
                                         </div>
 
@@ -1305,37 +1431,58 @@ export default function AttendanceBoardPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {displayedGhosts.map((g, i) => (
-                                        <tr key={g.memberAccountId} className="border-b border-white/5">
-                                            <td className="py-2.5 text-center">
-                                                {i === 0 ? (
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
-                                                        1
-                                                    </span>
-                                                ) : i === 1 ? (
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
-                                                        2
-                                                    </span>
-                                                ) : i === 2 ? (
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
-                                                        3
-                                                    </span>
-                                                ) : (
-                                                    <span className="font-mono text-xs text-gray-500">{i + 1}</span>
-                                                )}
-                                            </td>
-                                            <td className="py-2.5 font-semibold text-white">
-                                                {i === 0 && <span className="mr-1.5">👻</span>}
-                                                {g.name}
-                                            </td>
-                                            <td className="py-2.5 text-gray-400">{g.domain}</td>
-                                            <td className="py-2.5 font-mono text-indigo-300">
-                                                {g.count}
-                                                <span className="text-gray-600">×</span>
-                                            </td>
-                                            <td className="py-2.5 text-xs text-gray-500">{new Date(g.lastAt).toLocaleDateString()}</td>
-                                        </tr>
-                                    ))}
+                                    {displayedGhosts.map((g, i) => {
+                                        const isCurrent = isCurrentUser(g.memberAccountId, g.name);
+                                        return (
+                                            <tr
+                                                key={g.memberAccountId}
+                                                className={`transition ${
+                                                    isCurrent
+                                                        ? "bg-red/[0.04] relative"
+                                                        : "border-b border-white/5"
+                                                }`}
+                                            >
+                                                <td className={`py-2.5 text-center ${isCurrent ? "border-y border-l border-red/30 bg-red/[0.04]" : ""}`}>
+                                                    {isCurrent ? (
+                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-red/20 text-red text-xs font-bold border border-red/40">
+                                                            {i + 1}
+                                                        </span>
+                                                    ) : i === 0 ? (
+                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                                            1
+                                                        </span>
+                                                    ) : i === 1 ? (
+                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                            2
+                                                        </span>
+                                                    ) : i === 2 ? (
+                                                        <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                            3
+                                                        </span>
+                                                    ) : (
+                                                        <span className="font-mono text-xs text-gray-500">{i + 1}</span>
+                                                    )}
+                                                </td>
+                                                <td className={`py-2.5 font-semibold text-white ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
+                                                    <div className="flex items-center gap-1.5">
+                                                        {i === 0 && <span className="mr-1">👻</span>}
+                                                        <span>{g.name}</span>
+                                                        {isCurrent && (
+                                                            <span className="bg-red/20 text-red text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-red/30 shrink-0">
+                                                                YOU
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className={`py-2.5 text-gray-400 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>{g.domain}</td>
+                                                <td className={`py-2.5 font-mono text-indigo-300 ${isCurrent ? "border-y border-red/30 bg-red/[0.04] font-semibold" : ""}`}>
+                                                    {g.count}
+                                                    <span className="text-gray-600">×</span>
+                                                </td>
+                                                <td className={`py-2.5 text-xs text-gray-500 ${isCurrent ? "border-y border-r border-red/30 bg-red/[0.04] text-gray-300" : ""}`}>{new Date(g.lastAt).toLocaleDateString()}</td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -1373,6 +1520,8 @@ export default function AttendanceBoardPage() {
                 )}
             </Card>
 
+            {/* All Members Leaderboard */}
+            <div ref={allMembersCardRef}>
             <Card className="p-5 sm:p-6">
                 <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
                     <h2 className="text-sm font-bold uppercase tracking-widest text-white">All members</h2>
@@ -1418,8 +1567,8 @@ export default function AttendanceBoardPage() {
                 ) : filteredLeaderboard.length === 0 ? (
                     <p className="py-4 text-sm text-gray-500">No members match these filters.</p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[650px] text-left text-sm">
+                    <div ref={allMembersTableContainerRef} className="overflow-x-auto">
+                        <table ref={allMembersTableRef} className="w-full min-w-[650px] text-left text-sm">
                             <thead>
                                 <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
                                     <th className="pb-2 font-bold w-12 text-center">#</th>
@@ -1438,35 +1587,54 @@ export default function AttendanceBoardPage() {
                                     // Only worth flagging while they're actually in the lab - a pass
                                     // claimed by someone who's already tapped out reads as noise.
                                     const stayingOvernight = m.status === "IN" && overnightIds.has(m.memberAccountId);
+                                    const isCurrent = isCurrentUser(m.memberAccountId, m.name);
                                     return (
                                         <tr
                                             key={m.memberAccountId}
+                                            ref={isCurrent ? currentUserRowRef : undefined}
                                             onClick={() => setSelected(m)}
-                                            className="cursor-pointer border-b border-white/5 transition hover:bg-white/[0.03]"
+                                            className={`cursor-pointer transition ${
+                                                isCurrent
+                                                    ? "bg-red/[0.04] relative"
+                                                    : "border-b border-white/5 hover:bg-white/[0.03]"
+                                            }`}
                                         >
-                                            <td className="py-2.5 text-center">
-                                                {index === 0 ? (
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                            <td className={`py-2.5 text-center ${isCurrent ? "border-y border-l border-red/30 bg-red/[0.04]" : ""}`}>
+                                                {isCurrent ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-red/20 text-red text-xs font-bold border border-red/40">
+                                                        {index + 1}
+                                                    </span>
+                                                ) : index === 0 ? (
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
                                                         1
                                                     </span>
                                                 ) : index === 1 ? (
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-300/20 text-slate-200 text-xs font-black border border-slate-300/40">
                                                         2
                                                     </span>
                                                 ) : index === 2 ? (
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center bg-amber-700/20 text-amber-600 text-xs font-black border border-amber-700/40">
                                                         3
                                                     </span>
                                                 ) : (
                                                     <span className="font-mono text-xs text-gray-500">{index + 1}</span>
                                                 )}
                                             </td>
-                                            <td className="py-2.5 font-semibold text-white">{m.name}</td>
-                                            <td className="py-2.5 font-mono text-gray-300">
+                                            <td className={`py-2.5 font-semibold text-white ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{m.name}</span>
+                                                    {isCurrent && (
+                                                        <span className="bg-red/20 text-red text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-red/30 shrink-0">
+                                                            YOU
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className={`py-2.5 font-mono text-gray-300 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
                                                 {latestSessions.get(m.memberAccountId) ? formatDuration(latestSessions.get(m.memberAccountId)!.durationMs) : " - "}
                                             </td>
-                                            <td className="py-2.5 text-gray-400">{m.domain}</td>
-                                            <td className="py-2.5">
+                                            <td className={`py-2.5 text-gray-400 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>{m.domain}</td>
+                                            <td className={`py-2.5 ${isCurrent ? "border-y border-red/30 bg-red/[0.04]" : ""}`}>
                                                 {onLeaveNow ? (
                                                     <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-purple-500/15 text-purple-300 ring-purple-500/30">
                                                         On Leave
@@ -1477,7 +1645,7 @@ export default function AttendanceBoardPage() {
                                                     </span>
                                                 ) : m.status === "IN" ? (
                                                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-red/20 text-red ring-red/30">
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-red animate-pulse" />
+                                                        <span className="h-1.5 w-1.5 bg-red animate-pulse" />
                                                         IN
                                                     </span>
                                                 ) : (
@@ -1486,12 +1654,12 @@ export default function AttendanceBoardPage() {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="py-2.5 font-mono text-gray-300">{formatDuration(m.totalTimeMs)}</td>
-                                            <td className="py-2.5">
+                                            <td className={`py-2.5 font-mono text-gray-300 ${isCurrent ? "border-y border-red/30 bg-red/[0.04] font-semibold text-white" : ""}`}>{formatDuration(m.totalTimeMs)}</td>
+                                            <td className={`py-2.5 ${isCurrent ? "border-y border-r border-red/30 bg-red/[0.04]" : ""}`}>
                                                 {m.currentStreak > 0 ? (
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="relative flex items-center justify-center">
-                                                            <span className="absolute -inset-0.5 rounded-full bg-amber-500/20 blur-[2px]" />
+                                                            <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
                                                             <Flame className="relative h-3.5 w-3.5 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]" />
                                                         </span>
                                                         <span className="font-semibold text-amber-300">
@@ -1510,6 +1678,151 @@ export default function AttendanceBoardPage() {
                     </div>
                 )}
             </Card>
+            </div>
+
+            {/* Floating User Profile Row in All Members Leaderboard */}
+            <AnimatePresence>
+                {floatingRow && currentUserAllMember && (
+                    <motion.div
+                        initial={{ opacity: 0, y: floatingRow.position === "bottom" ? 8 : -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: floatingRow.position === "bottom" ? 8 : -8 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        style={{
+                            position: "fixed",
+                            left: `${floatingRow.containerLeft}px`,
+                            width: `${floatingRow.containerWidth}px`,
+                            top: floatingRow.top !== undefined ? `${floatingRow.top}px` : undefined,
+                            bottom: floatingRow.bottom !== undefined ? `${floatingRow.bottom}px` : undefined,
+                        }}
+                        className="z-30 overflow-hidden bg-black/95 backdrop-blur-md border border-red/40 shadow-[0_4px_16px_rgba(0,0,0,0.6)] cursor-pointer select-none"
+                        onClick={() => {
+                            currentUserRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }}
+                    >
+                        <div
+                            style={{
+                                transform: `translateX(${floatingRow.tableOffsetLeft}px)`,
+                                width: `${floatingRow.tableWidth}px`,
+                            }}
+                        >
+                            <table className="w-full min-w-[650px] text-left text-sm table-fixed">
+                                <tbody>
+                                    <tr className="bg-red/[0.04]">
+                                        {/* Rank */}
+                                        <td
+                                            style={floatingRow.colWidths[0] ? { width: `${floatingRow.colWidths[0]}px` } : undefined}
+                                            className="py-2.5 text-center"
+                                        >
+                                            <span className="inline-flex h-6 w-6 items-center justify-center bg-red/20 text-red text-xs font-bold border border-red/40">
+                                                {currentUserAllIndex + 1}
+                                            </span>
+                                        </td>
+
+                                        {/* Name */}
+                                        <td
+                                            style={floatingRow.colWidths[1] ? { width: `${floatingRow.colWidths[1]}px` } : undefined}
+                                            className="py-2.5 font-semibold text-white"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="truncate">{currentUserAllMember.name}</span>
+                                                <span className="bg-red/20 text-red text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-red/30 shrink-0">
+                                                    YOU
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        {/* In for */}
+                                        <td
+                                            style={floatingRow.colWidths[2] ? { width: `${floatingRow.colWidths[2]}px` } : undefined}
+                                            className="py-2.5 font-mono text-gray-300"
+                                        >
+                                            {latestSessions.get(currentUserAllMember.memberAccountId)
+                                                ? formatDuration(latestSessions.get(currentUserAllMember.memberAccountId)!.durationMs)
+                                                : " - "}
+                                        </td>
+
+                                        {/* Domain */}
+                                        <td
+                                            style={floatingRow.colWidths[3] ? { width: `${floatingRow.colWidths[3]}px` } : undefined}
+                                            className="py-2.5 text-gray-400 truncate"
+                                        >
+                                            {currentUserAllMember.domain}
+                                        </td>
+
+                                        {/* Status */}
+                                        <td
+                                            style={floatingRow.colWidths[4] ? { width: `${floatingRow.colWidths[4]}px` } : undefined}
+                                            className="py-2.5"
+                                        >
+                                            {(() => {
+                                                const leave = onLeaveMap.get(currentUserAllMember.memberAccountId);
+                                                const onLeaveNow = leave && isWithinLeaveWindow(leave, now);
+                                                const stayingOvernight = currentUserAllMember.status === "IN" && overnightIds.has(currentUserAllMember.memberAccountId);
+                                                if (onLeaveNow) {
+                                                    return (
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-purple-500/15 text-purple-300 ring-purple-500/30">
+                                                            On Leave
+                                                        </span>
+                                                    );
+                                                }
+                                                if (stayingOvernight) {
+                                                    return (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-indigo-500/15 text-indigo-300 ring-indigo-500/30">
+                                                            <Moon className="h-2.5 w-2.5" strokeWidth={2.5} /> Overnight
+                                                        </span>
+                                                    );
+                                                }
+                                                if (currentUserAllMember.status === "IN") {
+                                                    return (
+                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-red/20 text-red ring-red/30">
+                                                            <span className="h-1.5 w-1.5 bg-red animate-pulse" />
+                                                            IN
+                                                        </span>
+                                                    );
+                                                }
+                                                return (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-white/5 text-gray-400 ring-white/10">
+                                                        {currentUserAllMember.status}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
+
+                                        {/* Hours */}
+                                        <td
+                                            style={floatingRow.colWidths[5] ? { width: `${floatingRow.colWidths[5]}px` } : undefined}
+                                            className="py-2.5 font-mono text-gray-300 font-bold text-white"
+                                        >
+                                            {formatDuration(currentUserAllMember.totalTimeMs)}
+                                        </td>
+
+                                        {/* Streak */}
+                                        <td
+                                            style={floatingRow.colWidths[6] ? { width: `${floatingRow.colWidths[6]}px` } : undefined}
+                                            className="py-2.5"
+                                        >
+                                            {currentUserAllMember.currentStreak > 0 ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="relative flex items-center justify-center">
+                                                        <span className="absolute -inset-0.5 bg-amber-500/20 blur-[2px]" />
+                                                        <Flame className="relative h-3.5 w-3.5 fill-amber-400/90 text-amber-300 drop-shadow-[0_0_4px_rgba(245,158,11,0.45)]" />
+                                                    </span>
+                                                    <span className="font-semibold text-amber-300">
+                                                        {currentUserAllMember.currentStreak}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-600 font-mono text-xs">-</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {selected && (
                 <motion.div
