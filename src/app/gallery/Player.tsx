@@ -152,7 +152,7 @@ export default function Player({
               whileTap={{ scale: 0.9 }}
               onClick={() => setIsPlaying((prev) => !prev)}
               aria-label={isPlaying ? "Pause slideshow" : "Play slideshow"}
-              className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+              className="bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
             >
               {isPlaying ? <Pause size={18} /> : <Play size={18} />}
             </motion.button>
@@ -163,7 +163,7 @@ export default function Player({
             whileTap={{ scale: 0.9 }}
             onClick={close}
             aria-label="Close"
-            className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-red"
+            className="bg-white/10 p-2 text-white transition-colors hover:bg-red"
           >
             <X size={18} />
           </motion.button>
@@ -179,7 +179,7 @@ export default function Player({
             whileTap={{ scale: 0.9 }}
             onClick={goPrev}
             aria-label="Previous photo"
-            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20 md:left-6 md:p-3"
+            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 bg-white/10 p-2 text-white transition-colors hover:bg-white/20 md:left-6 md:p-3"
           >
             <ChevronLeft size={22} />
           </motion.button>
@@ -218,7 +218,7 @@ export default function Player({
             whileTap={{ scale: 0.9 }}
             onClick={goNext}
             aria-label="Next photo"
-            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20 md:right-6 md:p-3"
+            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 bg-white/10 p-2 text-white transition-colors hover:bg-white/20 md:right-6 md:p-3"
           >
             <ChevronRight size={22} />
           </motion.button>
@@ -242,7 +242,7 @@ export default function Player({
               onClick={() => goTo(i, i > index ? 1 : -1)}
               aria-label={`Go to photo ${i + 1}`}
               className={cn(
-                "relative h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 transition-colors",
+                "relative h-12 w-12 shrink-0 overflow-hidden border-2 transition-colors",
                 i === index ? "border-red" : "border-transparent"
               )}
             >

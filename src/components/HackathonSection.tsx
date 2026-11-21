@@ -35,7 +35,7 @@ const HackathonSection = () => {
                 <img
                     src="/events/hackathon.jpg"
                     alt="Poster"
-                    className="max-w-full h-[600px] rounded-md object-contain"
+                    className="max-w-full h-[600px] object-contain"
                 />
             </div>
             <div className="[@media(max-width:900px)]:hidden p-10 pr-20 h-min relative top-0 w-full flex flex-col justify-top items-end z-50">
@@ -45,13 +45,13 @@ const HackathonSection = () => {
             <span className="text-[#477ec2] text-2xl font-bold"><span className="text-white">Closes in : </span>{timeLeft}</span><button
                 onClick={()=>window.location.href='https://str-idea-verse.devpost.com/?fbclid=PAZXh0bgNhZW0CMTEAAae1Iclwy05UIW7unF5m14ij6vNg2VsVgq-DJ9SNBSO_JazmAvpugd1d287XxA_aem_96NFc4pvhEVdk8uVfP-S8A'}
                 rel="noopener noreferrer"
-                className= "bg-[#ff0505] hover:bg-slate-900 hover:text-white text-white font-bold py-3 px-6 rounded-lg"
+                className= "bg-[#ff0505] hover:bg-slate-900 hover:text-white text-white font-bold py-3 px-6"
             >
                 Register
             </button>
             </div>
 
-            <div className="lg:hidden w-full md:w-1/2 flex flex-col items-center justify-center p-8 text-center rounded-2xl bg-[#97979780]">
+            <div className="lg:hidden w-full md:w-1/2 flex flex-col items-center justify-center p-8 text-center bg-[#97979780]">
                 <h1 className="text-[#ffffff] text-3xl pt-6 md:text-6xl font-bold">
                     SOLSTICE Ideathon
                 </h1>
@@ -66,7 +66,7 @@ const HackathonSection = () => {
                 <button
                     onClick={()=>window.location.href='https://str-idea-verse.devpost.com/?fbclid=PAZXh0bgNhZW0CMTEAAae1Iclwy05UIW7unF5m14ij6vNg2VsVgq-DJ9SNBSO_JazmAvpugd1d287XxA_aem_96NFc4pvhEVdk8uVfP-S8A'}
                     rel="noopener noreferrer"
-                    className="lg:hidden mt-3 mb-8 z-10 bg-[#4fb3ff] hover:bg-slate-900 hover:text-white text-black font-bold py-3 px-6 rounded-lg flex flex-row items-center justify-center"
+                    className="lg:hidden mt-3 mb-8 z-10 bg-[#4fb3ff] hover:bg-slate-900 hover:text-white text-black font-bold py-3 px-6 flex flex-row items-center justify-center"
                 >
                     <span className="ml-1">Register</span>
                 </button>
