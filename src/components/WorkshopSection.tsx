@@ -44,19 +44,19 @@ const WorkshopSection = () => {
                             className="group relative w-full max-w-[360px]"
                         >
                             {/* Red glow behind card on hover */}
-                            <div className="absolute -inset-1 bg-gradient-to-b from-red/0 via-red/20 to-red/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
+                            <div className="absolute -inset-1 bg-gradient-to-b from-red/0 via-red/20 to-red/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
 
-                            <div className="relative rounded-2xl overflow-hidden bg-[#111] border border-white/[0.08] group-hover:border-red/30 transition-all duration-400">
+                            <div className="relative overflow-hidden bg-[#111] border border-white/[0.08] group-hover:border-red/30 transition-all duration-400">
                                 {/* Tag Badge */}
                                 <div className="absolute top-4 left-4 z-20">
-                                    <span className="bg-red/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
+                                    <span className="bg-red/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 uppercase tracking-wider">
                                         {workshop.tag}
                                     </span>
                                 </div>
 
                                 {/* Date Badge */}
                                 <div className="absolute top-4 right-4 z-20">
-                                    <span className="bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
+                                    <span className="bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 border border-white/20">
                                         {workshop.date}
                                     </span>
                                 </div>
@@ -82,14 +82,14 @@ const WorkshopSection = () => {
                                     {workshop.isClosed ? (
                                         <button
                                             disabled
-                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.05] border border-white/10 text-white/50 font-semibold py-2.5 rounded-lg text-sm cursor-not-allowed"
+                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.05] border border-white/10 text-white/50 font-semibold py-2.5 text-sm cursor-not-allowed"
                                         >
                                             Registrations Closed
                                         </button>
                                     ) : (
                                         <Link
                                             href={workshop.link || "/workshopReg2"}
-                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.09] hover:bg-red border border-white/10 hover:border-red text-white font-semibold py-2.5 rounded-lg text-sm transition-all duration-300"
+                                            className="flex items-center justify-center gap-2 w-full bg-white/[0.09] hover:bg-red border border-white/10 hover:border-red text-white font-semibold py-2.5 text-sm transition-all duration-300"
                                         >
                                             Register Now
                                             <svg

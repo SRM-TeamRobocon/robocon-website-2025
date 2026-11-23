@@ -15,7 +15,7 @@ export default function BlogRenderer({ title, coverImageUrl, authorName, publish
         <article className="mx-auto w-full max-w-2xl min-w-0">
             {coverImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverImageUrl} alt={title} className="mb-6 aspect-video w-full rounded-2xl border border-white/10 object-cover" />
+                <img src={coverImageUrl} alt={title} className="mb-6 aspect-video w-full border border-white/10 object-cover" />
             )}
 
             <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-gray-400">
@@ -27,7 +27,7 @@ export default function BlogRenderer({ title, coverImageUrl, authorName, publish
                     </>
                 )}
                 {visibility === "private" && (
-                    <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30">
+                    <span className="bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400 ring-1 ring-inset ring-amber-500/30">
                         Members only
                     </span>
                 )}
@@ -59,7 +59,7 @@ export default function BlogRenderer({ title, coverImageUrl, authorName, publish
                                 <img
                                     src={block.url}
                                     alt={block.caption || ""}
-                                    className="mx-auto max-h-[32rem] w-full rounded-xl border border-white/10 bg-black/20 object-contain"
+                                    className="mx-auto max-h-[32rem] w-full border border-white/10 bg-black/20 object-contain"
                                 />
                                 {block.caption && <figcaption className="mt-2 break-words text-center text-xs text-gray-500">{block.caption}</figcaption>}
                             </figure>

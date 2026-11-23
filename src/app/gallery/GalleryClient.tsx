@@ -100,7 +100,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
         <div
           onMouseEnter={() => setHeroPaused(true)}
           onMouseLeave={() => setHeroPaused(false)}
-          className="relative aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden rounded-2xl bg-white/5"
+          className="relative aspect-[16/9] md:aspect-[21/9] w-full overflow-hidden bg-white/5"
         >
           <AnimatePresence mode="wait">
             <motion.div
@@ -142,7 +142,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
               className="absolute inset-x-0 bottom-0 p-5 md:p-10 max-w-lg"
             >
             <span className="flex items-center gap-1.5 text-red text-xs md:text-sm font-bold tracking-widest uppercase mb-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-red" />
+              <span className="h-1.5 w-1.5 bg-red" />
               Gallery
             </span>
             <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">{hero.title}</h2>
@@ -162,7 +162,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
                     initialIndex: progress[hero.id]?.index ?? 0,
                   })
                 }
-                className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 font-semibold text-black transition-colors hover:bg-white/90"
+                className="flex items-center gap-2 bg-white px-5 py-2.5 font-semibold text-black transition-colors hover:bg-white/90"
               >
                 <Play size={18} fill="black" />
                 Play
@@ -179,7 +179,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
                     initialIndex: 0,
                   })
                 }
-                className="flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-white/20"
+                className="flex items-center gap-2 bg-white/10 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-white/20"
               >
                 <Shuffle size={18} />
                 Shuffle
@@ -197,7 +197,7 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
                   onClick={() => setHeroIndex(i)}
                   aria-label={`Show ${a.title}`}
                   className={cn(
-                    "h-1.5 rounded-full transition-all",
+                    "h-1.5 transition-all",
                     i === heroIndex ? "w-6 bg-red" : "w-1.5 bg-white/40 hover:bg-white/60"
                   )}
                 />
@@ -239,13 +239,13 @@ export default function GalleryClient({ albums }: { albums: Album[] }) {
               whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
               whileTap={{ scale: 0.98 }}
               transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.25 }}
-              className="group flex items-center gap-4 px-3 py-3 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-red"
+              className="group flex items-center gap-4 px-3 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-red"
             >
               <span className="w-6 text-center text-sm text-white/40 group-hover:hidden shrink-0">
                 {i + 1}
               </span>
               <Play size={16} className="hidden w-6 shrink-0 text-red group-hover:block" />
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-white/5">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden bg-white/5">
                 {album.photos[0] && (
                   <FadeImage src={album.photos[0].src} alt={album.photos[0].alt} sizes="56px" className="object-cover" />
                 )}
@@ -401,7 +401,7 @@ function Card({
       whileTap={{ scale: 0.97 }}
       transition={{ delay: Math.min(index * 0.05, 0.4), type: "spring", stiffness: 300, damping: 22 }}
       style={{ transformOrigin: "center" }}
-      className="group relative w-40 md:w-48 shrink-0 snap-start rounded-xl overflow-hidden bg-white/5 shadow-lg"
+      className="group relative w-40 md:w-48 shrink-0 snap-start overflow-hidden bg-white/5 shadow-lg"
     >
       <div className="relative aspect-[2/3] w-full">
         {activePhoto && (
@@ -431,7 +431,7 @@ function Card({
 
         {/* hover reveal: play button + full info */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/65 p-3 text-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-          <span className="flex h-10 w-10 scale-75 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all duration-300 delay-75 group-hover:scale-100 group-hover:opacity-100">
+          <span className="flex h-10 w-10 scale-75 items-center justify-center bg-white text-black opacity-0 shadow-lg transition-all duration-300 delay-75 group-hover:scale-100 group-hover:opacity-100">
             <Play size={16} fill="black" className="ml-0.5" />
           </span>
           <p className="w-full truncate text-sm font-semibold text-white">{title}</p>

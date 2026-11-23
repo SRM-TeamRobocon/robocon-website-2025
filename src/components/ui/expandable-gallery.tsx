@@ -60,7 +60,7 @@ function Lightbox({
         type="button"
         onClick={onClose}
         aria-label="Close photo viewer"
-        className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white transition hover:bg-red"
+        className="absolute right-4 top-4 z-10 bg-white/10 p-2 text-white transition hover:bg-red"
       >
         <X size={20} />
       </button>
@@ -71,7 +71,7 @@ function Lightbox({
             type="button"
             onClick={() => onNavigate((index - 1 + photos.length) % photos.length)}
             aria-label="Previous photo"
-            className="absolute left-2 md:left-6 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-2 md:p-3 text-white transition hover:bg-white/20"
+            className="absolute left-2 md:left-6 top-1/2 z-10 -translate-y-1/2 bg-white/10 p-2 md:p-3 text-white transition hover:bg-white/20"
           >
             <ArrowLeft size={22} />
           </button>
@@ -79,7 +79,7 @@ function Lightbox({
             type="button"
             onClick={() => onNavigate((index + 1) % photos.length)}
             aria-label="Next photo"
-            className="absolute right-2 md:right-6 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-2 md:p-3 text-white transition hover:bg-white/20"
+            className="absolute right-2 md:right-6 top-1/2 z-10 -translate-y-1/2 bg-white/10 p-2 md:p-3 text-white transition hover:bg-white/20"
           >
             <ArrowRight size={22} />
           </button>
@@ -108,7 +108,7 @@ function Lightbox({
       </AnimatePresence>
 
       {photos.length > 1 && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white/80">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 px-3 py-1 text-sm text-white/80">
           {index + 1} / {photos.length}
         </div>
       )}
@@ -187,7 +187,7 @@ export function ExpandableGallery({
                   onClick={collapse}
                   className="flex items-center gap-2 text-white/60 hover:text-white transition-all group z-50"
                 >
-                  <div className="p-2 rounded-full bg-white/10 group-hover:bg-white/20 transition-colors text-white">
+                  <div className="p-2 bg-white/10 group-hover:bg-white/20 transition-colors text-white">
                     <ArrowLeft size={20} />
                   </div>
                   <span className="font-medium">
@@ -255,8 +255,8 @@ export function ExpandableGallery({
                     className={cn(
                       "overflow-hidden bg-white/5",
                       isExpanded
-                        ? "relative aspect-square rounded-[2rem] md:rounded-[3rem] border-4 md:border-[6px] border-black shadow-lg cursor-zoom-in"
-                        : "absolute w-44 h-44 md:w-60 md:h-60 rounded-[2.5rem] md:rounded-[3rem] border-[6px] border-black shadow-[0_20px_50px_rgba(0,0,0,0.6)] cursor-pointer"
+                        ? "relative aspect-square border-4 md:border-[6px] border-black shadow-lg cursor-zoom-in"
+                        : "absolute w-44 h-44 md:w-60 md:h-60 border-[6px] border-black shadow-[0_20px_50px_rgba(0,0,0,0.6)] cursor-pointer"
                     )}
                     onClick={() => {
                       if (isExpanded) setLightboxIndex(index);
@@ -317,7 +317,7 @@ export function ExpandableGallery({
                     <Button
                       variant="default"
                       onClick={() => setIsExpanded(true)}
-                      className="rounded-full cursor-pointer py-6 px-8 font-normal group"
+                      className="cursor-pointer py-6 px-8 font-normal group"
                     >
                       View album
                       <ArrowRight

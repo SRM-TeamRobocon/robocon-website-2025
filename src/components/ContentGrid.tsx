@@ -70,7 +70,7 @@ export default function ContentGrid({
           onChange={(event) => setSearch(event.target.value)}
           placeholder={searchPlaceholder}
           aria-label={searchPlaceholder}
-          className="w-full rounded-full border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-red"
+          className="w-full border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-red"
         />
       </div>
 
@@ -83,7 +83,7 @@ export default function ContentGrid({
               key={item.key}
               type="button"
               onClick={() => setActive(item)}
-              className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] text-left transition hover:border-red/40 hover:bg-white/[0.06]"
+              className="group overflow-hidden border border-white/10 bg-white/[0.03] text-left transition hover:border-red/40 hover:bg-white/[0.06]"
             >
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/5">
                 <ContentImage src={item.coverImage} alt={item.name} />
@@ -94,7 +94,7 @@ export default function ContentGrid({
                 {item.badges && item.badges.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {item.badges.slice(0, 4).map((badge) => (
-                      <span key={badge} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/70">
+                      <span key={badge} className="bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/70">
                         {badge}
                       </span>
                     ))}
