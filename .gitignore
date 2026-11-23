@@ -58,8 +58,8 @@ build_output.txt
 /scrape/
 
 # ESP32 firmware secrets (WiFi password, device bearer secret) — see
-# attendance/secrets.example.h for the template that IS committed.
-attendance/secrets.h
+# attendance/main/secrets.example.h for the template that IS committed.
+attendance/main/secrets.h
 
 # Alexa local secrets - use secrets.example.py as the template
 alexa/secrets.py

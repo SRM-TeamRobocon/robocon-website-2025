@@ -1,7 +1,7 @@
 # RFID attendance scanner
 
-ESP32 + MFRC522 + 16x2 I2C LCD. The new firmware keeps the existing wiring and
-`secrets.h`. Scanning no longer waits for Wi-Fi, NTP, DNS, TLS or HTTP.
+ESP32 + MFRC522 + 16x2 I2C LCD. The upload-ready Arduino sketch is in `main/`.
+Scanning does not wait for Wi-Fi, NTP, DNS, TLS or HTTP.
 
 ## Upload order
 
@@ -13,13 +13,16 @@ ESP32 + MFRC522 + 16x2 I2C LCD. The new firmware keeps the existing wiring and
    The server must have `ATTENDANCE_DEVICE_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`
    and `SUPABASE_SERVICE_ROLE_KEY` configured. Existing `/api/attendance/tap`
    devices remain supported.
-3. Copy `main.ino`, `tap-queue.h`, `trust-root.h` and your private `secrets.h` into
-   an Arduino sketch directory named `main`, then compile/upload `main.ino`.
+3. Open `attendance/main/main.ino` in Arduino IDE, or compile/upload the
+   `attendance/main` sketch directory with Arduino CLI.
    Install the ESP32 Arduino core, MFRC522 and LiquidCrystal I2C libraries.
-   Preferences and FreeRTOS ship with the ESP32 core; no new library is needed.
-4. Verify that `DEVICE_SECRET` matches the server secret. The real credentials
-   belong only in gitignored `secrets.h`, never in `secrets.example.h`.
-   Give each physical scanner a unique `deviceId` in `main.ino`.
+   Preferences, FreeRTOS and WiFiMulti ship with the ESP32 core; no new library
+   is needed.
+4. Copy the `WIFI_NETWORKS` list from `main/secrets.example.h` into the gitignored
+   `main/secrets.h`, then fill in each Wi-Fi SSID and password. Add or remove entries
+   for the networks this scanner may use. Verify that `DEVICE_SECRET` matches
+   the server secret. Real credentials belong only in `main/secrets.h`.
+   Give each physical scanner a unique `deviceId` in `main/main.ino`.
 
 No database patch, website deployment or device flash was performed by this change.
 
@@ -40,12 +43,15 @@ No database patch, website deployment or device flash was performed by this chan
   the main task, so a slow request does not hold up the next scan.
 - The queue holds **64 pending taps**, including across a power loss. A full
   queue or failed flash write displays `NOT saved / retry`; existing taps are
-  never overwritten. Do not erase flash/NVS while there are pending taps.
+  never overwritten. Only the occupied queue entries are written to NVS, so
+  each update does not reserve space for 64 taps. Older full-size queue blobs
+  remain readable. Do not erase flash/NVS while there are pending taps.
 - Each request body is under 256 bytes; the four-line ASCII response is under
   100 bytes. HTTPS headers and TLS handshakes add traffic, especially after idle
   connections expire. Bandwidth figures alone cannot guarantee latency.
-- The device keeps HTTPS certificate verification, disables Wi-Fi sleep, enables
-  automatic reconnect and backs failed uploads off to at most about 60 seconds.
+- The device keeps HTTPS certificate verification, disables Wi-Fi sleep, uses
+  WiFiMulti to connect to an available saved network and backs failed uploads
+  off to at most about 60 seconds.
   It sends no idle heartbeat or roster download. Wi-Fi association starts in
   the background, without the old per-scan 20-second connection wait.
 - A matching server receipt is required before a tap is removed from flash.
@@ -55,10 +61,15 @@ No database patch, website deployment or device flash was performed by this chan
   `Link on website`. Server results for older scans do not replace the newest
   scan's screen, except when attention is needed for a review.
 
-The LCD's bottom-right badge shows signal quality `00`-`99`, or `--` when not
-associated. This measures radio signal, not download speed. WPA2-Personal SSID
-and password are configured in `secrets.h`; enterprise login/captive portals are
-not implemented. Slow internet and inability to join an access point are
+The LCD's bottom-right character on the second line shows Wi-Fi signal level
+`1` (weakest) through `4` (strongest), or `-` when not associated. This measures
+radio signal, not download speed. WPA2-Personal
+network credentials are configured in `main/secrets.h`; enterprise login/captive
+portals are not implemented. SSID spelling, capitalization and trailing spaces
+must match exactly, and the ESP32 can only join a 2.4 GHz network. WiFiMulti
+selects a saved network when connecting
+or reconnecting. A working connection is kept even if another saved network has
+a stronger signal. Slow internet and inability to join an access point are
 separate problems.
 
 ## Time and delayed attendance
@@ -111,7 +122,7 @@ the HTTP response for new successful events; duplicate retries do not notify
 again. `ATTENDANCE_DEVICE_SECRET` is mandatory on the new endpoint, including
 local development. Never put Supabase service-role credentials on the ESP32.
 
-`trust-root.h` contains the existing ISRG Root X1 certificate. A change to the
+`main/trust-root.h` contains the existing ISRG Root X1 certificate. A change to the
 site's certificate authority may require updating and reflashing this file.
 Clock sync remains necessary for certificate validity checks. HTTPS is never
 silently downgraded when NTP or certificate validation fails.
@@ -131,8 +142,10 @@ route authorization/retry responses and delayed midnight checkout timestamps.
 They do not substitute for ESP32 compilation, NVS power-loss testing or database
 transaction tests.
 
-Before relying on the device, test normal pairing and IN/OUT, turn the router off
-and scan several cards, restore it and check timestamps and ordering, interrupt
-power with pending scans, then test a request whose response is lost after server
-commit. Also check a full queue, invalid credentials, blocked NTP and an outage
-crossing midnight. Never treat `Saved locally` as confirmed attendance.
+Before relying on the device, test normal pairing and IN/OUT, turn off the
+connected access point and confirm it switches to a second saved network, then
+turn off both networks and scan several cards. Restore one and check timestamps
+and ordering. Interrupt power with pending scans, then test a request whose
+response is lost after server commit. Also check a full queue, invalid
+credentials, blocked NTP and an outage crossing midnight. Never treat
+`Saved locally` as confirmed attendance.

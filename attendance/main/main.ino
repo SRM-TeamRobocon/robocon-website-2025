@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
@@ -21,6 +22,7 @@ const char* tapURL = "https://www.srmteamrobocon.com/api/attendance/queued-tap";
 const char* deviceId = "lobby-scanner-1"; // Give each scanner a unique ID.
 const time_t CLOCK_READY = 1700000000;
 Preferences storage;
+WiFiMulti wifiMulti;
 TapQueue pending, proposed;
 SemaphoreHandle_t queueMutex;
 QueueHandle_t results;
@@ -63,18 +65,16 @@ void showMessage(const String& top, const String& bottom) {
 }
 
 void drawBadge() {
-  lcd.setCursor(14, 1);
-  if (WiFi.status() != WL_CONNECTED) lcd.print("--");
-  else {
-    int quality = constrain(2 * (WiFi.RSSI() + 100), 0, 99);
-    if (quality < 10) lcd.print('0');
-    lcd.print(quality);
-  }
+  lcd.setCursor(15, 1);
+  if (WiFi.status() != WL_CONNECTED) lcd.print('-');
+  else lcd.print(constrain((WiFi.RSSI() + 90) / 10, 1, 4));
 }
 
 // Called only while holding queueMutex. NVS commits the blob before RAM changes.
+// shortcut: occupied taps still share one blob, use per-tap records if long offline queues fill NVS.
 bool commitQueue() {
-  if (storage.putBytes("queue-v1", &proposed, sizeof(proposed)) != sizeof(proposed)) {
+  size_t bytes = storedQueueBytes(proposed.count);
+  if (storage.putBytes("queue-v1", &proposed, bytes) != bytes) {
     storageFailed = true;
     return false;
   }
@@ -149,14 +149,14 @@ void uploadTask(void*) {
   tls.setCACert(ISRG_ROOT_X1);
   tls.setHandshakeTimeout(20);
   HTTPClient http;
-  uint32_t reconnectAt = millis() + 30000, retryAt = millis(), backoff = 1000;
+  uint32_t reconnectAt = millis(), retryAt = millis(), backoff = 1000;
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(100));
     uint32_t nowMs = millis();
     if (WiFi.status() != WL_CONNECTED) {
       if ((int32_t)(nowMs - reconnectAt) >= 0) {
-        WiFi.reconnect();
-        reconnectAt = nowMs + 30000;
+        wifiMulti.run(5000);
+        reconnectAt = millis() + 1000;
       }
       continue;
     }
@@ -229,8 +229,10 @@ void setup() {
   bootId = ((uint64_t)esp_random() << 32) | esp_random();
   if (!storage.begin("attendance", false)) storageFailed = true;
   else if (storage.isKey("queue-v1")) {
-    if (storage.getBytesLength("queue-v1") != sizeof(pending) ||
-        storage.getBytes("queue-v1", &pending, sizeof(pending)) != sizeof(pending) || !pending.valid()) {
+    size_t bytes = storage.getBytesLength("queue-v1");
+    if (bytes < storedQueueBytes(0) || bytes > sizeof(pending) ||
+        storage.getBytes("queue-v1", &pending, sizeof(pending)) != bytes || !pending.valid() ||
+        (bytes != sizeof(pending) && bytes != storedQueueBytes(pending.count))) {
       storageFailed = true; // Preserve corrupt/unknown data for recovery; never erase it.
     }
   }
@@ -238,8 +240,10 @@ void setup() {
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
-  WiFi.setAutoReconnect(true);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.setAutoReconnect(false);
+  for (size_t i = 0; i < WIFI_NETWORK_COUNT; ++i) {
+    wifiMulti.addAP(WIFI_NETWORKS[i].ssid, WIFI_NETWORKS[i].password);
+  }
   configTime(0, 0, "pool.ntp.org", "time.nist.gov", "time.google.com");
   if (xTaskCreate(uploadTask, "attendance-upload", 16384, nullptr, 1, nullptr) != pdPASS) storageFailed = true;
   showIdle();

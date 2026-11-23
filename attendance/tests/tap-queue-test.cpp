@@ -1,4 +1,4 @@
-#include "../tap-queue.h"
+#include "../main/tap-queue.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -6,6 +6,8 @@
 int main() {
   TapQueue queue;
   assert(queue.valid());
+  assert(storedQueueBytes(0) == 8);
+  assert(storedQueueBytes(64) == sizeof(TapQueue));
   for (unsigned i = 0; i < 64; ++i) {
     StoredTap tap = {};
     tap.sequence = i + 1;
@@ -21,6 +23,13 @@ int main() {
   TapQueue restored;
   std::memcpy(&restored, &queue, sizeof(queue));
   assert(restored.valid());
+  TapQueue one = queue;
+  one.count = 1;
+  TapQueue compact;
+  std::memcpy(&compact, &one, storedQueueBytes(one.count));
+  assert(compact.valid());
+  assert(compact.count == 1);
+  assert(std::strcmp(compact.taps[0].id, queue.taps[0].id) == 0);
   for (unsigned i = 0; i < 64; ++i) {
     char id[33];
     std::snprintf(id, sizeof(id), "%032x", i + 1);

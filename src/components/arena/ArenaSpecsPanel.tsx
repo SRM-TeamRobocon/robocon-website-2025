@@ -123,88 +123,88 @@ export default function ArenaSpecsPanel({
                             </thead>
                             <tbody className="divide-y divide-white/10 text-gray-300 font-mono">
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Full Game Field</td>
+                                    <td className="p-3 font-semibold text-white">Full Game Field</td>
                                     <td className="p-3">11,000 × 11,000</td>
                                     <td className="p-3">0 (Ground Level)</td>
                                     <td className="p-3">Smooth vinyl / court (±5%)</td>
-                                    <td className="p-3 font-sans">Fig 3.1</td>
+                                    <td className="p-3">Fig 3.1</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Level 1 (L1) Platform</td>
+                                    <td className="p-3 font-semibold text-white">Level 1 (L1) Platform</td>
                                     <td className="p-3">6,000 × 6,000 (Floor: 5,940 × 5,940)</td>
                                     <td className="p-3 text-amber-300 font-bold">+600 from ground</td>
                                     <td className="p-3">Rigid wooden deck (±5%)</td>
-                                    <td className="p-3 font-sans">Fig 3.3, 3.6</td>
+                                    <td className="p-3">Fig 3.3, 3.6</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Level 2 (L2) Platform</td>
+                                    <td className="p-3 font-semibold text-white">Level 2 (L2) Platform</td>
                                     <td className="p-3">3,000 × 3,000</td>
                                     <td className="p-3 text-amber-300 font-bold">+900 from ground (+300 above L1)</td>
                                     <td className="p-3">Rigid wooden deck (±5%)</td>
-                                    <td className="p-3 font-sans">Fig 3.4, 3.6</td>
+                                    <td className="p-3">Fig 3.4, 3.6</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Central Pillar</td>
+                                    <td className="p-3 font-semibold text-white">Central Pillar</td>
                                     <td className="p-3">Ø 270 (Cup: Ø 180 × 100 deep)</td>
                                     <td className="p-3 text-amber-300 font-bold">+1,700 apex (+800 above L2)</td>
                                     <td className="p-3">Rigid cylinder with bowl</td>
-                                    <td className="p-3 font-sans">Fig 3.5</td>
+                                    <td className="p-3">Fig 3.5</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Mustika Pillar</td>
+                                    <td className="p-3 font-semibold text-white">Mustika Pillar</td>
                                     <td className="p-3">Ø 270 (Cup: Ø 180 × 100 deep)</td>
                                     <td className="p-3 text-amber-300 font-bold">+500 from ground</td>
                                     <td className="p-3">Rigid cylinder with bowl</td>
-                                    <td className="p-3 font-sans">Fig 3.5</td>
+                                    <td className="p-3">Fig 3.5</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Stairs (4 steps)</td>
+                                    <td className="p-3 font-semibold text-white">Stairs (4 steps)</td>
                                     <td className="p-3">300 L × 1,000 W per step</td>
                                     <td className="p-3">150 H per riser (600 total)</td>
                                     <td className="p-3">Timber assembly (±5%)</td>
-                                    <td className="p-3 font-sans">Fig 3.7, 3.8</td>
+                                    <td className="p-3">Fig 3.7, 3.8</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Transfer Area</td>
+                                    <td className="p-3 font-semibold text-white">Transfer Area</td>
                                     <td className="p-3">1,000 × 1,000</td>
                                     <td className="p-3">+600 (flush with L1)</td>
                                     <td className="p-3">Landing pad (±5%)</td>
-                                    <td className="p-3 font-sans">Fig 3.3, 3.7</td>
+                                    <td className="p-3">Fig 3.3, 3.7</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Ramps</td>
+                                    <td className="p-3 font-semibold text-white">Ramps</td>
                                     <td className="p-3">3,500 L × 1,000 W</td>
                                     <td className="p-3">Slopes 600 down to 0</td>
                                     <td className="p-3">Incline ramp (±5%)</td>
-                                    <td className="p-3 font-sans">Fig 3.7</td>
+                                    <td className="p-3">Fig 3.7</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Ground Shared Area</td>
+                                    <td className="p-3 font-semibold text-white">Ground Shared Area</td>
                                     <td className="p-3">1,200 × 1,200 (5×5 cells of 200×200)</td>
                                     <td className="p-3">0 (Ground Level)</td>
                                     <td className="p-3">12 Sky Blocks, center empty</td>
-                                    <td className="p-3 font-sans">Fig 3.2(c)</td>
+                                    <td className="p-3">Fig 3.2(c)</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Building Spots</td>
+                                    <td className="p-3 font-semibold text-white">Building Spots</td>
                                     <td className="p-3">500 × 500 each</td>
                                     <td className="p-3">+600 on L1, +900 on L2</td>
                                     <td className="p-3">10 spots (6 on L1, 4 on L2)</td>
-                                    <td className="p-3 font-sans">Fig 3.3, 3.4</td>
+                                    <td className="p-3">Fig 3.3, 3.4</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Outer Boundary</td>
+                                    <td className="p-3 font-semibold text-white">Outer Boundary</td>
                                     <td className="p-3">50 thickness</td>
                                     <td className="p-3">100 height</td>
                                     <td className="p-3">Perimeter kerb</td>
-                                    <td className="p-3 font-sans">Fig 3.10(a)</td>
+                                    <td className="p-3">Fig 3.10(a)</td>
                                 </tr>
                                 <tr>
-                                    <td className="p-3 font-semibold text-white font-sans">Dividers & L1 Barrier</td>
+                                    <td className="p-3 font-semibold text-white">Dividers & L1 Barrier</td>
                                     <td className="p-3">30 thickness</td>
                                     <td className="p-3">50 height</td>
                                     <td className="p-3">Barrier rails with openings</td>
-                                    <td className="p-3 font-sans">Fig 3.10(b-d)</td>
+                                    <td className="p-3">Fig 3.10(b-d)</td>
                                 </tr>
                             </tbody>
                         </table>

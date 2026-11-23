@@ -43,7 +43,16 @@ export const createRequestSchema = z
 const imagePathOrUrl = z
   .string()
   .refine(
-    (val) => !val || val.startsWith("/") || /^https?:\/\//.test(val),
+    (val) => {
+      if (!val) return true;
+      if (val.startsWith("/") && !val.startsWith("//")) return true;
+      try {
+        const parsed = new URL(val);
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
     "Invalid image path or URL"
   )
   .optional()

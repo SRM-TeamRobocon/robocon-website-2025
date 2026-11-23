@@ -62,3 +62,7 @@ struct TapQueue {
     return true;
   }
 };
+
+inline size_t storedQueueBytes(uint32_t count) {
+  return offsetof(TapQueue, taps) + count * sizeof(StoredTap);
+}
