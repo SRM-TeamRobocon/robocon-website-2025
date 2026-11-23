@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
 import Menu3FillIcon from "remixicon-react/Menu3FillIcon";
 import { useMenuContext } from "@/context/MenuContext";
@@ -16,11 +17,13 @@ const baseLinks = [
   ["/events", "Events"],
   ["/blog", "Blog"],
   ["/alumni", "Alumni"],
+  ["/sponsors", "Sponsors"],
 ];
 
 export default function Header({ animate = false }: { animate?: boolean }) {
   const { isMenuOpen, setMenuValue } = useMenuContext();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     fetch("/api/admin/me")
@@ -40,14 +43,23 @@ export default function Header({ animate = false }: { animate?: boolean }) {
 
         <nav
           aria-label="Main navigation"
-          className="hidden xl:flex min-w-0 flex-1 max-w-[52rem] ml-8 mr-6 items-center justify-between gap-1 pl-14 pr-6 bg-white text-[#3B3B3B] nav-bar-clip font-semibold"
+          className="hidden xl:flex min-w-0 flex-1 max-w-[58rem] ml-8 mr-6 items-center justify-between gap-1 pl-12 2xl:pl-14 pr-6 bg-white text-[#3B3B3B] nav-bar-clip font-semibold text-sm 2xl:text-base"
           data-aos={animate ? "slide-left" : undefined}
         >
-          {links.map(([href, label]) => (
-            <Link key={href} href={href} className="px-2 whitespace-nowrap hover:text-red motion-safe:hover:scale-105">
-              {label}
-            </Link>
-          ))}
+          {links.map(([href, label]) => {
+            const isActive = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`px-2 whitespace-nowrap hover:text-red motion-safe:hover:scale-105 transition-colors ${
+                  isActive ? "text-red font-bold" : ""
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         <button
@@ -79,11 +91,21 @@ export default function Header({ animate = false }: { animate?: boolean }) {
           aria-label="Mobile navigation"
           className="bg-red text-white flex flex-col items-center phone-menu-clip gap-6 p-12 z-20 max-h-[100dvh] overflow-y-auto"
         >
-          {links.map(([href, label]) => (
-            <Link key={href} href={href} onClick={() => setMenuValue(false)} className="px-8 hover:text-black motion-safe:hover:scale-105">
-              {label}
-            </Link>
-          ))}
+          {links.map(([href, label]) => {
+            const isActive = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMenuValue(false)}
+                className={`px-8 hover:text-black motion-safe:hover:scale-105 transition-colors ${
+                  isActive ? "text-black font-bold underline underline-offset-8" : ""
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
           <a href="#contact" className="px-8 hover:text-black motion-safe:hover:scale-105">Contact Us</a>
           <button type="button" onClick={() => setMenuValue(false)} className="px-8 hover:text-black">Close menu</button>
         </nav>

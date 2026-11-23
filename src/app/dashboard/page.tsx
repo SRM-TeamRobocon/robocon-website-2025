@@ -13,6 +13,7 @@ import {
     FilePlus2,
     ListChecks,
     CalendarClock,
+    CalendarDays,
     Radio,
     Package,
     GraduationCap,
@@ -65,6 +66,18 @@ const TIMETABLE_ACTION: QuickAction = {
     badgeClass: "bg-cyan-500/20 text-cyan-400 ring-cyan-500/30",
     iconClass: "text-cyan-400",
     textClass: "group-hover:text-cyan-400",
+};
+
+const CALENDAR_ACTION: QuickAction = {
+    href: "/dashboard/calendar",
+    title: "Calendar",
+    description: "Track team meetings, deadlines, workshops, competitions, and birthdays.",
+    icon: CalendarDays,
+    badge: "Everyone",
+    accent: "border border-white/10 hover:border-red/50 hover:shadow-[0_0_30px_rgba(220,38,38,0.18)]",
+    badgeClass: "bg-red/20 text-red ring-red/30",
+    iconClass: "text-red",
+    textClass: "group-hover:text-red",
 };
 
 const ACADEMIA_ACTION: QuickAction = {
@@ -448,7 +461,7 @@ export default function AdminDashboard() {
             <div className="space-y-8">
                 {header}
                 {/* <StatGrid cards={cards} loading={loading} /> */}
-                <ActionGrid actions={[ATTENDANCE_ACTION, ARENA_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, PROFILE_ACTION, PROPOSE_ACTION, SUBMISSIONS_ACTION]} />
+                <ActionGrid actions={[ATTENDANCE_ACTION, ARENA_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, PROFILE_ACTION, PROPOSE_ACTION, SUBMISSIONS_ACTION, CALENDAR_ACTION]} />
             </div>
         );
     }
@@ -463,8 +476,8 @@ export default function AdminDashboard() {
 
     const staffActions =
         role === "lead" || role === "admin"
-            ? [ATTENDANCE_ACTION, ARENA_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, CONTENT_ACTION, APPROVALS_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION]
-            : [ATTENDANCE_ACTION, ARENA_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, CONTENT_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION];
+            ? [ATTENDANCE_ACTION, ARENA_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, CONTENT_ACTION, APPROVALS_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, CALENDAR_ACTION]
+            : [ATTENDANCE_ACTION, ARENA_ACTION, BAZAAR_ACTION, SPLITS_ACTION, TIMETABLE_ACTION, ACADEMIA_ACTION, CONTENT_ACTION, BLOG_ACTION, RECRUITMENTS_ACTION, CALENDAR_ACTION];
 
     return (
         <div className="space-y-8">
